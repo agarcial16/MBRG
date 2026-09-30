@@ -133,6 +133,7 @@ export function drawMap(
   owners: Ownership,
   colors: Record<FactionId, string>,
   fills?: Record<TerritoryId, string>,
+  labels?: FactionLabel[],
 ): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -186,7 +187,7 @@ export function drawMap(
   ctx.textBaseline = 'middle';
   ctx.shadowColor = 'rgb(0 0 0 / 60%)';
   ctx.shadowBlur = 4;
-  for (const label of layoutLabels(map, owners)) drawLabel(ctx, label);
+  for (const label of labels ?? layoutLabels(map, owners)) drawLabel(ctx, label);
   ctx.shadowBlur = 0;
 }
 
@@ -198,8 +199,11 @@ export function drawMap(
 function drawLabel(ctx: CanvasRenderingContext2D, label: FactionLabel): void {
   const { text, x, y, angle, span } = label;
   if (!text || span <= 0) return;
+  const alpha = label.alpha ?? 1;
+  if (alpha <= 0) return;
 
   ctx.save();
+  ctx.globalAlpha = alpha;
   ctx.translate(x, y);
   if (angle !== 0) ctx.rotate(angle);
 

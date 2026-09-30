@@ -4,6 +4,7 @@ import type { Ownership } from '@mbrg/shared';
 
 import { handmadeMap } from './maps/handmade.js';
 import { renderLog } from './log.js';
+import { interpolateLabels, layoutLabels, type FactionLabel } from './label.js';
 import { Playback } from './playback.js';
 import { drawMap, initialColors, interpolateFills } from './render.js';
 import { renderStats, revealedEvents } from './stats.js';
@@ -49,13 +50,30 @@ let animStart = 0;
 let animDur = 0;
 let raf: number | null = null;
 
-function draw(owners: Ownership, fills?: ReturnType<typeof interpolateFills>): void {
-  if (canvas) drawMap(canvas, handmadeMap, owners, colors, fills);
+function draw(
+  owners: Ownership,
+  fills?: ReturnType<typeof interpolateFills>,
+  labels?: FactionLabel[],
+): void {
+  if (canvas) drawMap(canvas, handmadeMap, owners, colors, fills, labels);
+}
+
+/** Labels mid-absorption: same `t` as the color crossfade. */
+function animatingLabels(t: number): FactionLabel[] {
+  return interpolateLabels(
+    layoutLabels(handmadeMap, fromOwners),
+    layoutLabels(handmadeMap, toOwners),
+    t,
+  );
 }
 
 function animationFrame(now: number): void {
   const t = animDur <= 0 ? 1 : Math.min(1, (now - animStart) / animDur);
-  draw(toOwners, t >= 1 ? undefined : interpolateFills(fromOwners, toOwners, colors, t));
+  draw(
+    toOwners,
+    t >= 1 ? undefined : interpolateFills(fromOwners, toOwners, colors, t),
+    t >= 1 ? undefined : animatingLabels(t),
+  );
   raf = t < 1 ? requestAnimationFrame(animationFrame) : null;
 }
 

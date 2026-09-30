@@ -22,6 +22,8 @@ export interface FactionLabel {
   angle: number;
   /** Target width of the text along its direction, in world units. */
   span: number;
+  /** Opacity (1 at rest; used mid-animation for fading labels). */
+  alpha?: number;
 }
 
 /** Signed polygon area (shoelace); sign follows the winding order. */
@@ -149,6 +151,45 @@ export function layoutLabels(map: MapFormatV1, owners: Ownership): FactionLabel[
   labels.sort((a, b) => (a.faction < b.faction ? -1 : a.faction > b.faction ? 1 : 0));
   perOwners.set(owners, labels);
   return labels;
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+/**
+ * Interpolate two layouts for the absorption animation (same `t` as the color
+ * crossfade): surviving factions glide to their new anchor/size/orientation,
+ * labels of factions that just died fade out in place, and reappearing ones
+ * (restart) fade in.
+ */
+export function interpolateLabels(
+  from: FactionLabel[],
+  to: FactionLabel[],
+  t: number,
+): FactionLabel[] {
+  const prev = new Map(from.map((l) => [l.faction, l]));
+  const out: FactionLabel[] = [];
+  for (const label of to) {
+    const old = prev.get(label.faction);
+    prev.delete(label.faction);
+    if (!old) {
+      out.push({ ...label, alpha: t });
+      continue;
+    }
+    out.push({
+      ...label,
+      x: lerp(old.x, label.x, t),
+      y: lerp(old.y, label.y, t),
+      size: lerp(old.size, label.size, t),
+      angle: lerp(old.angle, label.angle, t),
+      span: lerp(old.span, label.span, t),
+      alpha: 1,
+    });
+  }
+  // Factions eliminated this round: fade out where they stood.
+  for (const dead of prev.values()) out.push({ ...dead, alpha: 1 - t });
+  return out;
 }
 
 /**
