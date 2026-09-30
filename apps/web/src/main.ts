@@ -18,8 +18,25 @@ const roundLabel = document.querySelector<HTMLSpanElement>('#round-label');
 const speedInput = document.querySelector<HTMLInputElement>('#speed');
 const speedLabel = document.querySelector<HTMLSpanElement>('#speed-label');
 const logList = document.querySelector<HTMLOListElement>('#log-list');
+const seedInput = document.querySelector<HTMLInputElement>('#seed');
+const seedBtn = document.querySelector<HTMLButtonElement>('#btn-seed');
 
-const playback = new Playback(handmadeMap, DEFAULT_SEED);
+/** Seed from `?seed=…` (shareable link), or null when absent/invalid. */
+function seedFromUrl(): number | null {
+  const raw = new URLSearchParams(window.location.search).get('seed');
+  if (raw === null) return null;
+  const value = Number(raw);
+  return Number.isInteger(value) ? value : null;
+}
+
+/** Write the seed into the URL without reloading (copy = share). */
+function syncUrl(seed: number): void {
+  const url = new URL(window.location.href);
+  url.searchParams.set('seed', String(seed));
+  window.history.replaceState(null, '', url);
+}
+
+const playback = new Playback(handmadeMap, seedFromUrl() ?? DEFAULT_SEED);
 const colors = initialColors(handmadeMap);
 
 // Animation state: crossfade fills from `fromOwners` to `toOwners`.
@@ -72,7 +89,25 @@ speedInput?.addEventListener('input', (event) => {
   if (speedLabel) speedLabel.textContent = `${ms} ms`;
 });
 
+function applySeed(): void {
+  const value = Number(seedInput?.value);
+  if (!seedInput || !Number.isInteger(value)) {
+    if (seedInput) seedInput.value = String(playback.match.seed); // revert
+    return;
+  }
+  if (value === playback.match.seed) return;
+  playback.restart(value);
+  syncUrl(value);
+}
+
+seedBtn?.addEventListener('click', applySeed);
+seedInput?.addEventListener('keydown', (event) => {
+  if ((event as KeyboardEvent).key === 'Enter') applySeed();
+});
+
 // Initial frame + HUD.
+if (seedInput) seedInput.value = String(playback.match.seed);
+syncUrl(playback.match.seed);
 draw(playback.owners);
 if (logList) renderLog(logList, playback.match, playback.current, colors);
 updateHud();
