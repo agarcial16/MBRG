@@ -1,4 +1,4 @@
-import type { FactionId, MapFormatV1, Ownership, Territory } from '@mbrg/shared';
+import type { FactionId, MapFormatV1, Ownership, Territory, TerritoryId } from '@mbrg/shared';
 
 /** Distinct, pleasant colors assigned to factions in map-territory order. */
 export const factionPalette = [
@@ -11,6 +11,55 @@ export const factionPalette = [
   '#e8934c', // orange
   '#4ce0c8', // teal
 ];
+
+const FALLBACK = '#888899';
+
+/** Resolved color per territory (owner faction → color). */
+export function territoryColorsOf(
+  owners: Ownership,
+  colors: Record<FactionId, string>,
+): Record<TerritoryId, string> {
+  const out: Record<TerritoryId, string> = {};
+  for (const [territory, faction] of Object.entries(owners)) {
+    out[territory] = colors[faction] ?? FALLBACK;
+  }
+  return out;
+}
+
+function mixHex(a: string, b: string, t: number): string {
+  const ar = parseInt(a.slice(1, 3), 16);
+  const ag = parseInt(a.slice(3, 5), 16);
+  const ab = parseInt(a.slice(5, 7), 16);
+  const br = parseInt(b.slice(1, 3), 16);
+  const bg = parseInt(b.slice(3, 5), 16);
+  const bb = parseInt(b.slice(5, 7), 16);
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const bl = Math.round(ab + (bb - ab) * t);
+  const hex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${hex(r)}${hex(g)}${hex(bl)}`;
+}
+
+/**
+ * Fill colors mid-transition: territories changing owner crossfade from their
+ * previous faction color to the annexer's color as t goes 0 → 1.
+ */
+export function interpolateFills(
+  from: Ownership,
+  to: Ownership,
+  colors: Record<FactionId, string>,
+  t: number,
+): Record<TerritoryId, string> {
+  const out: Record<TerritoryId, string> = {};
+  for (const [territory, faction] of Object.entries(to)) {
+    const prev = from[territory] ?? faction;
+    out[territory] =
+      prev === faction
+        ? (colors[faction] ?? FALLBACK)
+        : mixHex(colors[prev] ?? FALLBACK, colors[faction] ?? FALLBACK, t);
+  }
+  return out;
+}
 
 /** Initial owners: every territory starts as its own faction. */
 export function initialOwners(map: MapFormatV1): Ownership {
@@ -40,12 +89,14 @@ function territoryCenter(t: Territory): [number, number] {
   return [x / n, y / n];
 }
 
-/** Draw the whole map: territories filled by owner color, borders, faction labels. */
+/** Draw the whole map: territories filled by owner color, borders, faction labels.
+ * `fills` overrides per-territory colors (used mid-animation for crossfades). */
 export function drawMap(
   canvas: HTMLCanvasElement,
   map: MapFormatV1,
   owners: Ownership,
   colors: Record<FactionId, string>,
+  fills?: Record<TerritoryId, string>,
 ): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -53,6 +104,8 @@ export function drawMap(
   canvas.width = map.width ?? 800;
   canvas.height = map.height ?? 600;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const resolved = fills ?? territoryColorsOf(owners, colors);
 
   for (const t of map.territories) {
     const owner = owners[t.id];
@@ -63,7 +116,7 @@ export function drawMap(
     for (const [x, y] of rest) ctx.lineTo(x, y);
     ctx.closePath();
 
-    ctx.fillStyle = colors[owner] ?? '#888899';
+    ctx.fillStyle = resolved[t.id] ?? FALLBACK;
     ctx.fill();
     ctx.strokeStyle = '#17172a';
     ctx.lineWidth = 3;
