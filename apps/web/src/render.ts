@@ -89,8 +89,54 @@ function territoryCenter(t: Territory): [number, number] {
   return [x / n, y / n];
 }
 
-/** Draw the whole map: territories filled by owner color, borders, faction labels.
- * `fills` overrides per-territory colors (used mid-animation for crossfades). */
+const BORDER = '#17172a';
+
+/** Canonical key for a segment so both neighbor polygons produce the same key. */
+function edgeKey(p1: readonly number[], p2: readonly number[]): string {
+  const a = `${p1[0]},${p1[1]}`;
+  const b = `${p2[0]},${p2[1]}`;
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+/**
+ * segment key → territories containing that segment. Cached per map
+ * (maps are immutable during a match).
+ */
+const edgeCache = new WeakMap<MapFormatV1, Map<string, string[]>>();
+
+function edgeSharing(map: MapFormatV1): Map<string, string[]> {
+  const cached = edgeCache.get(map);
+  if (cached) return cached;
+  const index = new Map<string, string[]>();
+  for (const t of map.territories) {
+    const poly = t.polygon;
+    for (let i = 0; i < poly.length; i++) {
+      const key = edgeKey(poly[i], poly[(i + 1) % poly.length]);
+      const list = index.get(key);
+      if (list) list.push(t.id);
+      else index.set(key, [t.id]);
+    }
+  }
+  edgeCache.set(map, index);
+  return index;
+}
+
+/** Trace a polygon path (without stroking/filling it). */
+function tracePath(ctx: CanvasRenderingContext2D, poly: readonly (readonly number[])[]): void {
+  const [first, ...rest] = poly;
+  ctx.moveTo(first[0], first[1]);
+  for (const [x, y] of rest) ctx.lineTo(x, y);
+  ctx.closePath();
+}
+
+/**
+ * Draw the whole map. `fills` overrides per-territory colors (mid-animation
+ * crossfades).
+ *
+ * Borders: only segments facing a DIFFERENT owner (or the map's outside) are
+ * stroked, so an annexed faction reads as one single block with a single outer
+ * border — internal seams of eliminated states never show.
+ */
 export function drawMap(
   canvas: HTMLCanvasElement,
   map: MapFormatV1,
@@ -107,30 +153,53 @@ export function drawMap(
 
   const resolved = fills ?? territoryColorsOf(owners, colors);
 
+  // 1) Fills.
   for (const t of map.territories) {
-    const owner = owners[t.id];
-    const [first, ...rest] = t.polygon;
-
     ctx.beginPath();
-    ctx.moveTo(first[0], first[1]);
-    for (const [x, y] of rest) ctx.lineTo(x, y);
-    ctx.closePath();
-
+    tracePath(ctx, t.polygon);
     ctx.fillStyle = resolved[t.id] ?? FALLBACK;
     ctx.fill();
-    ctx.strokeStyle = '#17172a';
-    ctx.lineWidth = 3;
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-
-    const [cx, cy] = territoryCenter(t);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 30px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgb(0 0 0 / 60%)';
-    ctx.shadowBlur = 4;
-    ctx.fillText(owner, cx, cy);
-    ctx.shadowBlur = 0;
   }
+
+  // 2) Borders: only visible edges, batched into a single stroke call.
+  const sharing = edgeSharing(map);
+  const drawn = new Set<string>();
+  ctx.beginPath();
+  for (const t of map.territories) {
+    const owner = owners[t.id];
+    const poly = t.polygon;
+    for (let i = 0; i < poly.length; i++) {
+      const p1 = poly[i];
+      const p2 = poly[(i + 1) % poly.length];
+      const key = edgeKey(p1, p2);
+      if (drawn.has(key)) continue;
+      const neighbors = sharing.get(key);
+      const visible =
+        !neighbors ||
+        neighbors.some((id) => id !== t.id && owners[id] !== undefined && owners[id] !== owner);
+      if (visible) {
+        drawn.add(key);
+        ctx.moveTo(p1[0], p1[1]);
+        ctx.lineTo(p2[0], p2[1]);
+      }
+    }
+  }
+  ctx.strokeStyle = BORDER;
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // 3) Labels (owner faction per province).
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 30px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgb(0 0 0 / 60%)';
+  ctx.shadowBlur = 4;
+  for (const t of map.territories) {
+    const [cx, cy] = territoryCenter(t);
+    ctx.fillText(owners[t.id], cx, cy);
+  }
+  ctx.shadowBlur = 0;
 }
