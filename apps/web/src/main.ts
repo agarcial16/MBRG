@@ -8,7 +8,7 @@ import { CameraController } from './camera.js';
 import { interpolateLabels, layoutLabels, type FactionLabel } from './label.js';
 import { drawMinimap, MinimapController } from './minimap.js';
 import { Playback } from './playback.js';
-import { drawMap, initialColors, interpolateFills } from './render.js';
+import { drawMap, fitLabels, initialColors, interpolateFills } from './render.js';
 import { renderStats, revealedEvents } from './stats.js';
 
 const SPEEDS_MS = [2000, 1000, 500, 250, 100];
@@ -99,13 +99,14 @@ zoomInBtn?.addEventListener('click', () => camera?.zoomIn());
 zoomOutBtn?.addEventListener('click', () => camera?.zoomOut());
 zoomFitBtn?.addEventListener('click', () => camera?.fit());
 
-/** Labels mid-absorption: same `t` as the color crossfade. */
+/** Labels mid-absorption: same `t` as the color crossfade, between *fitted*
+ *  endpoints — the same labels the rest state draws, so the transition lands
+ *  on the final size with no pop. */
 function animatingLabels(t: number): FactionLabel[] {
-  return interpolateLabels(
-    layoutLabels(handmadeMap, fromOwners),
-    layoutLabels(handmadeMap, toOwners),
-    t,
-  );
+  const ctx2d = canvas?.getContext('2d') ?? null;
+  const from = ctx2d ? fitLabels(ctx2d, handmadeMap, fromOwners) : layoutLabels(handmadeMap, fromOwners);
+  const to = ctx2d ? fitLabels(ctx2d, handmadeMap, toOwners) : layoutLabels(handmadeMap, toOwners);
+  return interpolateLabels(from, to, t);
 }
 
 function animationFrame(now: number): void {

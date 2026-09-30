@@ -197,7 +197,7 @@ export function drawMap(
   ctx.textBaseline = 'middle';
   ctx.shadowColor = 'rgb(0 0 0 / 60%)';
   ctx.shadowBlur = 4;
-  for (const label of labels ?? layoutLabels(map, owners)) {
+  for (const label of labels ?? fitLabels(ctx, map, owners)) {
     drawLabel(ctx, label, camera.scale);
   }
   ctx.shadowBlur = 0;
@@ -214,15 +214,126 @@ const GLYPH_HALF = 0.55;
 /** Draw-time containment retries: shrink span+size together until glyphs fit. */
 const MAX_FIT_ATTEMPTS = 6;
 const FIT_SHRINK = 0.82;
+/** Absolute floor (world units) of the scale-independent fit; the screen clamp dominates visually. */
+const FIT_FLOOR = 1;
+
+/**
+ * A label's fitted glyph run: final size/span after the span cap and the
+ * glyph-containment retries, plus the left-edge offset of every glyph along
+ * the text axis (centered on the anchor).
+ */
+interface GlyphRun {
+  size: number;
+  span: number;
+  xs: number[];
+}
+
+/**
+ * Measure and fit one label: cap the size along `span0`, then validate glyph
+ * by glyph that every letter really stays inside the block — shrinking span
+ * and size together and retrying if not (the corridor guarantees the
+ * centerline; concave sides may still pinch the glyph height). Stops at
+ * `floor`, keeping the minimum size and letting the label overflow just
+ * enough: an impossible case, not unreadable text.
+ *
+ * Measurement only touches world units, so it is scale independent and can be
+ * memoized per state (see `fitLabels`). `validate=false` lays the glyphs out
+ * without containment checks — mid-animation frames are validated on arrival
+ * instead (their zones change mid-flight, checking there would stutter).
+ */
+function runGlyphs(
+  ctx: CanvasRenderingContext2D,
+  label: FactionLabel,
+  size0: number,
+  span0: number,
+  floor: number,
+  validate: boolean,
+): GlyphRun {
+  const { text, angle, x, y, zones } = label;
+  const chars = [...text];
+  let size = size0;
+  let span = span0;
+  let xs: number[] = [];
+  for (let attempt = 0; attempt < MAX_FIT_ATTEMPTS; attempt++) {
+    ctx.font = `bold ${size}px system-ui, sans-serif`;
+    let natural = ctx.measureText(text).width;
+    if (natural > span) {
+      // Long name in a small block: shrink until it fits along the corridor
+      // (a hard geometric cap — it wins over the screen-px minimum).
+      size *= span / natural;
+      ctx.font = `bold ${size}px system-ui, sans-serif`;
+      natural = ctx.measureText(text).width;
+    }
+
+    const widths = chars.map((ch) => ctx.measureText(ch).width);
+    let naturalTotal = 0;
+    for (const w of widths) naturalTotal += w;
+    const gap = chars.length > 1 && naturalTotal < span ? (span - naturalTotal) / (chars.length - 1) : 0;
+    const total = naturalTotal + gap * (chars.length - 1);
+    xs = [];
+    let cx = -total / 2;
+    for (const w of widths) {
+      xs.push(cx);
+      cx += w + gap;
+    }
+
+    if (!validate) break;
+    const halfH = size * GLYPH_HALF;
+    let fits = true;
+    for (let i = 0; i < chars.length; i++) {
+      if (!rectInsideBlock(zones, [x, y], angle, xs[i], -halfH, widths[i], 2 * halfH)) {
+        fits = false;
+        break;
+      }
+    }
+    if (fits) break;
+    if (size <= floor + 1e-9) break; // floor reached: allow the tiny overflow
+    const next = Math.max(floor, size * FIT_SHRINK);
+    span *= next / size; // shrink span too, so tracking pulls the ends back in
+    size = next;
+  }
+  return { size, span, xs };
+}
+
+/** Fit cache: measurement is deterministic per state, so memoize by owners. */
+const fitCache = new WeakMap<MapFormatV1, WeakMap<Ownership, FactionLabel[]>>();
+
+/**
+ * Measure + validate a layout once per state, memoized by `owners`.
+ *
+ * Rest frames and animation endpoints share the *same* fitted labels — that
+ * is what kills the size pop at the end of a transition: at t=1 the
+ * interpolated size IS the fitted size, and the draw-time validation becomes
+ * a no-op instead of shrinking the label one frame late.
+ */
+export function fitLabels(
+  ctx: CanvasRenderingContext2D,
+  map: MapFormatV1,
+  owners: Ownership,
+): FactionLabel[] {
+  let perOwners = fitCache.get(map);
+  if (!perOwners) {
+    perOwners = new WeakMap();
+    fitCache.set(map, perOwners);
+  }
+  const hit = perOwners.get(owners);
+  if (hit) return hit;
+  const fitted = layoutLabels(map, owners).map((label) => {
+    if ((label.zones?.length ?? 0) === 0 || !label.text) return label;
+    const run = runGlyphs(ctx, label, label.size, label.span, FIT_FLOOR, true);
+    if (run.size === label.size && run.span === label.span) return label;
+    return { ...label, size: run.size, span: run.span };
+  });
+  perOwners.set(owners, fitted);
+  return fitted;
+}
 
 /**
  * Draw one faction label at EU4 style, adapted to the block's *corridor*:
  * fit the base size along the corridor span, spread the glyphs (letter
- * tracking) to fill it, and validate glyph by glyph that every letter really
- * stays inside the block — shrinking span+size together and retrying if not
- * (the corridor guarantees the centerline; concave sides may still pinch the
- * glyph height). At the legible screen minimum the label keeps that size and
- * overflows just enough: an impossible case, not unreadable text.
+ * tracking) to fill it, and keep the glyph-containment safety net (a no-op
+ * for fitted labels; it still catches the zoom clamp raising a tiny label
+ * past its fitted size).
  *
  * `scale` is the camera zoom: the font is clamped to a legible screen range
  * (12–72 px) and labels of blocks that are tiny *on screen* fade out instead of
@@ -252,53 +363,11 @@ function drawLabel(
   // Clamp the font to a legible size ON SCREEN at the current zoom.
   const minWorld = MIN_FONT_PX / scale;
   const maxWorld = MAX_FONT_PX / scale;
-  let size = Math.min(Math.max(Math.max(4, label.size), minWorld), maxWorld);
-  let target = span;
-  const chars = [...text];
+  const size0 = Math.min(Math.max(Math.max(4, label.size), minWorld), maxWorld);
   const validate = label.alpha === undefined && !label.moving && (label.zones?.length ?? 0) > 0;
+  const run = runGlyphs(ctx, label, size0, span, minWorld, validate);
 
-  let widths: number[] = [];
-  let xs: number[] = [];
-  let gap = 0;
-  for (let attempt = 0; attempt < MAX_FIT_ATTEMPTS; attempt++) {
-    ctx.font = `bold ${size}px system-ui, sans-serif`;
-    let natural = ctx.measureText(text).width;
-    if (natural > target) {
-      // Long name in a small block: shrink until it fits along the corridor
-      // (a hard geometric cap — it wins over the screen-px minimum).
-      size *= target / natural;
-      ctx.font = `bold ${size}px system-ui, sans-serif`;
-      natural = ctx.measureText(text).width;
-    }
-
-    widths = chars.map((ch) => ctx.measureText(ch).width);
-    let naturalTotal = 0;
-    for (const w of widths) naturalTotal += w;
-    gap = chars.length > 1 && naturalTotal < target ? (target - naturalTotal) / (chars.length - 1) : 0;
-    const total = naturalTotal + gap * (chars.length - 1);
-    xs = [];
-    let cx = -total / 2;
-    for (const w of widths) {
-      xs.push(cx);
-      cx += w + gap;
-    }
-
-    if (!validate) break;
-    const halfH = size * GLYPH_HALF;
-    let fits = true;
-    for (let i = 0; i < chars.length; i++) {
-      if (!rectInsideBlock(label.zones, [x, y], angle, xs[i], -halfH, widths[i], 2 * halfH)) {
-        fits = false;
-        break;
-      }
-    }
-    if (fits) break;
-    if (size <= minWorld + 1e-9) break; // legible floor reached: allow the tiny overflow
-    const next = Math.max(minWorld, size * FIT_SHRINK);
-    target *= next / size; // shrink span too, so tracking pulls the ends back in
-    size = next;
-  }
-
-  for (let i = 0; i < chars.length; i++) ctx.fillText(chars[i], xs[i], 0);
+  const chars = [...text];
+  for (let i = 0; i < chars.length; i++) ctx.fillText(chars[i], run.xs[i], 0);
   ctx.restore();
 }
