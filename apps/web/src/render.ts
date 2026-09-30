@@ -1,6 +1,6 @@
 import type { FactionId, MapFormatV1, Ownership, TerritoryId } from '@mbrg/shared';
 
-import { layoutLabels } from './label.js';
+import { layoutLabels, type FactionLabel } from './label.js';
 
 /** Distinct, pleasant colors assigned to factions in map-territory order. */
 export const factionPalette = [
@@ -180,15 +180,54 @@ export function drawMap(
   ctx.lineJoin = 'round';
   ctx.stroke();
 
-  // 3) Labels: ONE per faction, anchored at the center of its whole block.
+  // 3) Labels: ONE per faction, EU4-style (sized/spread/oriented by the block).
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 30px system-ui, sans-serif';
-  ctx.textAlign = 'center';
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.shadowColor = 'rgb(0 0 0 / 60%)';
   ctx.shadowBlur = 4;
-  for (const label of layoutLabels(map, owners)) {
-    ctx.fillText(label.faction, label.x, label.y);
-  }
+  for (const label of layoutLabels(map, owners)) drawLabel(ctx, label);
   ctx.shadowBlur = 0;
+}
+
+/**
+ * Draw one faction label at EU4 style: fit the base size so the text never
+ * outgrows the block's long axis, then spread the glyphs (letter tracking) to
+ * span it. `label.angle` handles tall, narrow blocks (text runs top→bottom).
+ */
+function drawLabel(ctx: CanvasRenderingContext2D, label: FactionLabel): void {
+  const { text, x, y, angle, span } = label;
+  if (!text || span <= 0) return;
+
+  ctx.save();
+  ctx.translate(x, y);
+  if (angle !== 0) ctx.rotate(angle);
+
+  let size = Math.max(4, label.size);
+  ctx.font = `bold ${size}px system-ui, sans-serif`;
+  let natural = ctx.measureText(text).width;
+  if (natural > span) {
+    // Long name in a small block: shrink until it fits along the block.
+    size *= span / natural;
+    ctx.font = `bold ${size}px system-ui, sans-serif`;
+    natural = ctx.measureText(text).width;
+  }
+
+  const chars = [...text];
+  if (chars.length > 1) {
+    // Spread glyphs to span the block (classic map-game tracking).
+    let naturalTotal = 0;
+    for (const ch of chars) naturalTotal += ctx.measureText(ch).width;
+    const gap = naturalTotal < span ? (span - naturalTotal) / (chars.length - 1) : 0;
+    const total = naturalTotal + gap * (chars.length - 1);
+    let cx = -total / 2;
+    for (const ch of chars) {
+      const w = ctx.measureText(ch).width;
+      ctx.fillText(ch, cx, 0);
+      cx += w + gap;
+    }
+  } else {
+    ctx.fillText(text, -natural / 2, 0);
+  }
+  ctx.restore();
 }
