@@ -47,6 +47,50 @@ body {
   margin-bottom: 18px;
 }
 
+#controls .row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+#controls button {
+  font-size: 1.1rem;
+  width: 42px;
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #26263a;
+  color: var(--text);
+  cursor: pointer;
+}
+
+#controls button:hover {
+  background: #32324e;
+  border-color: var(--accent);
+}
+
+.round-label {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.speed {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.speed input {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.speed strong {
+  color: var(--text);
+}
+
 #stage {
   flex: 1;
   display: flex;

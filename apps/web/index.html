@@ -10,7 +10,17 @@
       <aside id="sidebar">
         <h1>MBRG</h1>
         <p class="subtitle">Map Battle Royale</p>
-        <section id="controls"></section>
+        <section id="controls">
+          <div class="row">
+            <button id="btn-play" type="button" title="Reproducir / Pausar">▶</button>
+            <button id="btn-restart" type="button" title="Reiniciar">↺</button>
+            <span id="round-label" class="round-label">—</span>
+          </div>
+          <label class="speed">
+            <span>Velocidad: <strong id="speed-label">500 ms</strong></span>
+            <input id="speed" type="range" min="0" max="4" step="1" value="2" />
+          </label>
+        </section>
         <section id="log"></section>
         <section id="stats"></section>
       </aside>
