@@ -2,6 +2,7 @@ import type { FactionId, MapFormatV1, Ownership, TerritoryId } from '@mbrg/share
 
 import type { Camera } from './camera.js';
 import { layoutLabels, type FactionLabel } from './label.js';
+import { edgeKey } from './topology.js';
 
 /** Distinct, pleasant colors assigned to factions in map-territory order. */
 export const factionPalette = [
@@ -81,13 +82,6 @@ export function initialColors(map: MapFormatV1): Record<FactionId, string> {
 }
 
 const BORDER = '#17172a';
-
-/** Canonical key for a segment so both neighbor polygons produce the same key. */
-function edgeKey(p1: readonly number[], p2: readonly number[]): string {
-  const a = `${p1[0]},${p1[1]}`;
-  const b = `${p2[0]},${p2[1]}`;
-  return a < b ? `${a}|${b}` : `${b}|${a}`;
-}
 
 /**
  * segment key → territories containing that segment. Cached per map

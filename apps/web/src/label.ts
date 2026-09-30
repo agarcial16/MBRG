@@ -1,5 +1,7 @@
 import type { Coord, FactionId, MapFormatV1, Ownership, Territory } from '@mbrg/shared';
 
+import { edgeKey } from './topology.js';
+
 /**
  * A faction label anchored at the visual center of its *block* (all the
  * provinces the faction currently owns), so annexations never leave duplicated
@@ -77,6 +79,110 @@ function pointInPolygon(p: Coord, poly: Coord[]): boolean {
   return inside;
 }
 
+/** A territory's filled area: outer ring plus holes (lakes / enclaves). */
+interface Zone {
+  outer: Coord[];
+  holes: Coord[][];
+}
+
+type Segment = [Coord, Coord];
+
+/** The union of a faction's provinces: its zones and its *visible* boundary. */
+interface BlockGeom {
+  zones: Zone[];
+  /**
+   * Segments of the union boundary: member edges not shared with another
+   * member (i.e. facing an enemy or the map edge) plus every hole ring.
+   * Internal seams between two provinces of the same faction cancel out.
+   */
+  boundary: Segment[];
+}
+
+/** Computes zones + union boundary for a faction's provinces. */
+function blockGeometry(group: Territory[]): BlockGeom {
+  const zones: Zone[] = group.map((t) => ({ outer: t.polygon, holes: t.holes ?? [] }));
+  const counts = new Map<string, { seg: Segment; n: number }>();
+  const addRing = (ring: Coord[]): void => {
+    for (let i = 0; i < ring.length; i++) {
+      const seg: Segment = [ring[i], ring[(i + 1) % ring.length]];
+      const key = edgeKey(seg[0], seg[1]);
+      const entry = counts.get(key);
+      if (entry) entry.n++;
+      else counts.set(key, { seg, n: 1 });
+    }
+  };
+  for (const z of zones) {
+    addRing(z.outer);
+    for (const h of z.holes) addRing(h);
+  }
+  const boundary: Segment[] = [];
+  for (const { seg, n } of counts.values()) if (n === 1) boundary.push(seg);
+  return { zones, boundary };
+}
+
+/** Inside the zone: within the outer ring and outside every hole. */
+function pointInZone(p: Coord, z: Zone): boolean {
+  if (!pointInPolygon(p, z.outer)) return false;
+  for (const h of z.holes) if (pointInPolygon(p, h)) return false;
+  return true;
+}
+
+function pointInBlock(p: Coord, zones: Zone[]): boolean {
+  for (const z of zones) if (pointInZone(p, z)) return true;
+  return false;
+}
+
+/** Euclidean distance from a point to a segment. */
+function distToSegment(p: Coord, seg: Segment): number {
+  const [a, b] = seg;
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const len2 = dx * dx + dy * dy;
+  let t = len2 > 0 ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2 : 0;
+  if (t < 0) t = 0;
+  else if (t > 1) t = 1;
+  const ex = a[0] + t * dx - p[0];
+  const ey = a[1] + t * dy - p[1];
+  return Math.hypot(ex, ey);
+}
+
+/** Distance from a point to the block's visible boundary (0 = on the border). */
+function distToBoundary(p: Coord, boundary: Segment[]): number {
+  let best = Infinity;
+  for (const seg of boundary) {
+    const d = distToSegment(p, seg);
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+/** Sample an n×n grid of cell centers; return the interior point farthest from the border. */
+function bestSample(
+  x0: number,
+  y0: number,
+  w: number,
+  h: number,
+  n: number,
+  zones: Zone[],
+  boundary: Segment[],
+): { x: number; y: number; dist: number } | null {
+  const stepX = w / n;
+  const stepY = h / n;
+  let best: { x: number; y: number; dist: number } | null = null;
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n; i++) {
+      const p: Coord = [x0 + (i + 0.5) * stepX, y0 + (j + 0.5) * stepY];
+      if (!pointInBlock(p, zones)) continue;
+      const dist = distToBoundary(p, boundary);
+      if (!best || dist > best.dist) best = { x: p[0], y: p[1], dist };
+    }
+  }
+  return best;
+}
+
+const POI_COARSE = 24; // first pass: grid over the whole block bbox
+const POI_REFINE = 12; // second pass: finer grid around the coarse winner
+
 /** A guaranteed-plausible label point for a single territory. */
 function territoryAnchor(t: Territory): Coord {
   if (t.center) return t.center;
@@ -86,31 +192,60 @@ function territoryAnchor(t: Territory): Coord {
 }
 
 /**
- * Visual center of a faction's block: the area-weighted centroid of its
- * provinces. Falls back to the largest province's anchor when the centroid
- * lands outside the (possibly concave) block.
+ * Pole of inaccessibility: the interior point farthest from the block's
+ * visible boundary (grid sampling with a refinement pass). Guarantees the
+ * label anchor sits *inside* the block even for concave shapes (the classic
+ * failure: the centroid of a C-shaped faction landing in a neighbor's land).
  */
-function blockAnchor(group: Territory[]): Coord {
-  let weightSum = 0;
-  let sx = 0;
-  let sy = 0;
+function blockAnchor(group: Territory[], geom: BlockGeom): Coord {
+  const { zones, boundary } = geom;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const z of zones) {
+    for (const [x, y] of z.outer) {
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+  const w = maxX - minX;
+  const h = maxY - minY;
+  if (w > 0 && h > 0 && boundary.length > 0) {
+    const coarse = bestSample(minX, minY, w, h, POI_COARSE, zones, boundary);
+    if (coarse) {
+      const cw = w / POI_COARSE;
+      const ch = h / POI_COARSE;
+      const fine = bestSample(coarse.x - cw, coarse.y - ch, 2 * cw, 2 * ch, POI_REFINE, zones, boundary);
+      const best = fine && fine.dist > coarse.dist ? fine : coarse;
+      return [best.x, best.y];
+    }
+  }
+  // Very thin shapes can dodge the grid: fall back to the best province anchor.
+  let bestAnchor: Coord | null = null;
+  let bestDist = -1;
+  for (const t of group) {
+    const c = territoryAnchor(t);
+    if (!pointInBlock(c, zones)) continue;
+    const d = distToBoundary(c, boundary);
+    if (d > bestDist) {
+      bestDist = d;
+      bestAnchor = c;
+    }
+  }
+  if (bestAnchor) return bestAnchor;
   let largest = group[0];
   let largestArea = -1;
   for (const t of group) {
     const area = Math.abs(signedArea(t.polygon));
-    const c = polygonCentroid(t.polygon);
-    weightSum += area;
-    sx += c[0] * area;
-    sy += c[1] * area;
     if (area > largestArea) {
       largestArea = area;
       largest = t;
     }
   }
-  if (weightSum <= 0) return territoryAnchor(largest);
-  const p: Coord = [sx / weightSum, sy / weightSum];
-  if (group.some((t) => pointInPolygon(p, t.polygon))) return p;
-  return territoryAnchor(largest); // concave block (centroid fell outside)
+  return territoryAnchor(largest);
 }
 
 /** Layout cache: maps are immutable and `owners` objects are stable per round. */
@@ -144,7 +279,8 @@ export function layoutLabels(map: MapFormatV1, owners: Ownership): FactionLabel[
 
   const labels: FactionLabel[] = [];
   for (const [faction, group] of groups) {
-    const [x, y] = blockAnchor(group);
+    const geom = blockGeometry(group);
+    const [x, y] = blockAnchor(group, geom);
     const { size, angle, span } = blockShape(group);
     labels.push({ faction, text: faction, x, y, size, angle, span });
   }
