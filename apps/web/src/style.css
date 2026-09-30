@@ -114,7 +114,7 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.seed-row .btn-wide {
+#controls button.btn-wide {
   width: auto;
   height: 30px;
   padding: 0 10px;
