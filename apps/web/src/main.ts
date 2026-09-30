@@ -6,6 +6,7 @@ import { handmadeMap } from './maps/handmade.js';
 import { renderLog } from './log.js';
 import { Playback } from './playback.js';
 import { drawMap, initialColors, interpolateFills } from './render.js';
+import { renderStats } from './stats.js';
 
 const SPEEDS_MS = [2000, 1000, 500, 250, 100];
 const DEFAULT_SEED = 42;
@@ -20,6 +21,7 @@ const speedLabel = document.querySelector<HTMLSpanElement>('#speed-label');
 const logList = document.querySelector<HTMLOListElement>('#log-list');
 const seedInput = document.querySelector<HTMLInputElement>('#seed');
 const seedBtn = document.querySelector<HTMLButtonElement>('#btn-seed');
+const statsBody = document.querySelector<HTMLDivElement>('#stats-body');
 
 /** Seed from `?seed=…` (shareable link), or null when absent/invalid. */
 function seedFromUrl(): number | null {
@@ -74,6 +76,15 @@ function onState(): void {
     if (raf === null) raf = requestAnimationFrame(animationFrame);
   }
   if (logList) renderLog(logList, playback.match, playback.current, colors);
+  if (statsBody) {
+    renderStats(
+      statsBody,
+      playback.owners,
+      colors,
+      handmadeMap.territories.length,
+      playback.finished ? playback.match.winner : null,
+    );
+  }
   updateHud();
 }
 
@@ -110,4 +121,13 @@ if (seedInput) seedInput.value = String(playback.match.seed);
 syncUrl(playback.match.seed);
 draw(playback.owners);
 if (logList) renderLog(logList, playback.match, playback.current, colors);
+if (statsBody) {
+  renderStats(
+    statsBody,
+    playback.owners,
+    colors,
+    handmadeMap.territories.length,
+    playback.finished ? playback.match.winner : null,
+  );
+}
 updateHud();
