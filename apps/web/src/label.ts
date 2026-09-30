@@ -7,10 +7,13 @@ import { edgeKey } from './topology.js';
  * provinces the faction currently owns), so annexations never leave duplicated
  * or stale names behind.
  *
- * The geometry (size / orientation / span) adapts to the block's shape like
- * EU4 country names: sized from the block area, spread along its long axis and
- * rotated vertical when the block is a tall strip. Text measurement happens at
- * draw time (needs a canvas context), keeping this module pure.
+ * The geometry (size / orientation / span) adapts to the block's *corridor*:
+ * the anchor is the pole of inaccessibility (farthest point from the visible
+ * border), rays from the anchor find the longest straight corridor through the
+ * block, and the text runs along it at a free angle. Span and thickness come
+ * from those rays, not from the bounding box (which may include enemy land).
+ * Text measurement happens at draw time (needs a canvas context), together
+ * with glyph-by-glyph containment validation, keeping this module pure.
  */
 export interface FactionLabel {
   faction: FactionId;
@@ -20,12 +23,16 @@ export interface FactionLabel {
   y: number;
   /** Base font size in world units (may be shrunk at draw time to fit `span`). */
   size: number;
-  /** Rotation in radians: 0 (horizontal) or PI/2 (tall, narrow blocks). */
+  /** Rotation in radians: free angle along the block's corridor (0 = horizontal). */
   angle: number;
   /** Target width of the text along its direction, in world units. */
   span: number;
+  /** Filled area of the block (outer ring + holes), for draw-time containment checks. */
+  zones: Zone[];
   /** Opacity (1 at rest; used mid-animation for fading labels). */
   alpha?: number;
+  /** True while animating between rounds: containment validation is skipped. */
+  moving?: boolean;
 }
 
 /** Signed polygon area (shoelace); sign follows the winding order. */
@@ -80,7 +87,7 @@ function pointInPolygon(p: Coord, poly: Coord[]): boolean {
 }
 
 /** A territory's filled area: outer ring plus holes (lakes / enclaves). */
-interface Zone {
+export interface Zone {
   outer: Coord[];
   holes: Coord[][];
 }
@@ -156,6 +163,59 @@ function distToBoundary(p: Coord, boundary: Segment[]): number {
   return best;
 }
 
+/**
+ * Distance from `origin` along direction `dir` (unit) to the first boundary
+ * crossing — exact ray/segment intersection, not marching. All points before
+ * that distance are guaranteed inside the block. Infinity if the ray misses
+ * (shouldn't happen for a closed union, but numerics happen).
+ */
+function rayDistance(origin: Coord, dir: Coord, boundary: Segment[]): number {
+  const [ox, oy] = origin;
+  const [dx, dy] = dir;
+  let best = Infinity;
+  for (const [a, b] of boundary) {
+    const sx = b[0] - a[0];
+    const sy = b[1] - a[1];
+    const denom = dx * sy - dy * sx;
+    if (Math.abs(denom) < 1e-12) continue; // parallel to this segment
+    const rx = a[0] - ox;
+    const ry = a[1] - oy;
+    const t = (rx * sy - ry * sx) / denom; // along the ray
+    const u = (rx * dy - ry * dx) / denom; // along the segment
+    if (t >= 0 && u >= -1e-9 && u <= 1 + 1e-9 && t < best) best = t;
+  }
+  return best;
+}
+
+/**
+ * Is a rectangle (given in text-local coordinates relative to the anchor,
+ * rotated by `angle`) fully inside the block? Checks the 4 corners.
+ */
+export function rectInsideBlock(
+  zones: Zone[],
+  anchor: Coord,
+  angle: number,
+  lx: number,
+  ly: number,
+  lw: number,
+  lh: number,
+): boolean {
+  if (zones.length === 0) return true; // nothing to validate against
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const corners: Coord[] = [
+    [lx, ly],
+    [lx + lw, ly],
+    [lx, ly + lh],
+    [lx + lw, ly + lh],
+  ];
+  for (const [cx, cy] of corners) {
+    const p: Coord = [anchor[0] + cx * cos - cy * sin, anchor[1] + cx * sin + cy * cos];
+    if (!pointInBlock(p, zones)) return false;
+  }
+  return true;
+}
+
 /** Sample an n×n grid of cell centers; return the interior point farthest from the border. */
 function bestSample(
   x0: number,
@@ -182,6 +242,7 @@ function bestSample(
 
 const POI_COARSE = 24; // first pass: grid over the whole block bbox
 const POI_REFINE = 12; // second pass: finer grid around the coarse winner
+const CORRIDOR_RAYS = 72; // corridor directions probed over 180° (every 2.5°)
 
 /** A guaranteed-plausible label point for a single territory. */
 function territoryAnchor(t: Territory): Coord {
@@ -257,7 +318,7 @@ const MIN_SIZE = 14;
 const MAX_SIZE = 60;
 const CROSS_FIT = 0.75; // text height ≤ 75% of the block's thickness
 const SPAN_MARGIN = 0.85; // text spans 85% of the block's long axis
-const ROTATE_RATIO = 1.6; // rotate 90° when the block is taller than 1.6× wider
+const ROTATE_RATIO = 1.6; // rotate 90° when taller than 1.6× wider (bbox fallback)
 
 /** One label per living faction, EU4-style, adapted to its block's shape. */
 export function layoutLabels(map: MapFormatV1, owners: Ownership): FactionLabel[] {
@@ -280,9 +341,9 @@ export function layoutLabels(map: MapFormatV1, owners: Ownership): FactionLabel[
   const labels: FactionLabel[] = [];
   for (const [faction, group] of groups) {
     const geom = blockGeometry(group);
-    const [x, y] = blockAnchor(group, geom);
-    const { size, angle, span } = blockShape(group);
-    labels.push({ faction, text: faction, x, y, size, angle, span });
+    const anchor = blockAnchor(group, geom);
+    const { size, angle, span } = blockShape(group, geom, anchor);
+    labels.push({ faction, text: faction, x: anchor[0], y: anchor[1], size, angle, span, zones: geom.zones });
   }
   labels.sort((a, b) => (a.faction < b.faction ? -1 : a.faction > b.faction ? 1 : 0));
   perOwners.set(owners, labels);
@@ -320,7 +381,7 @@ export function interpolateLabels(
       size: lerp(old.size, label.size, t),
       angle: lerp(old.angle, label.angle, t),
       span: lerp(old.span, label.span, t),
-      alpha: 1,
+      moving: true, // mid-flight: glyph containment is validated only at rest
     });
   }
   // Factions eliminated this round: fade out where they stood.
@@ -329,17 +390,57 @@ export function interpolateLabels(
 }
 
 /**
- * EU4-style metrics for a block: font size from its area (bigger faction →
- * bigger name), oriented along the long axis, spread to span it.
+ * EU4-style metrics for a block, measured along its *real corridor*: rays from
+ * the anchor probe every direction and the text runs along the one with the
+ * longest straight run through the block (free angle — the corridor of a C-shape
+ * follows its arm instead of a crude horizontal/vertical bbox axis). `span` is
+ * the corridor length; the font's height is capped by the thickness measured
+ * perpendicular to the corridor at the anchor. Falls back to the bounding box
+ * when no usable corridor exists (numerically degenerate blocks).
  */
-function blockShape(group: Territory[]): { size: number; angle: number; span: number } {
+function blockShape(group: Territory[], geom: BlockGeom, anchor: Coord): {
+  size: number;
+  angle: number;
+  span: number;
+} {
+  const { boundary } = geom;
+  let area = 0;
+  for (const t of group) area += Math.abs(signedArea(t.polygon)) / 2;
+  const areaSize = Math.max(MIN_SIZE, Math.min(MAX_SIZE, area ** 0.25 * AREA_K));
+
+  let bestSpan = -1;
+  let bestTheta = 0;
+  for (let i = 0; i < CORRIDOR_RAYS; i++) {
+    const theta = (i * Math.PI) / CORRIDOR_RAYS; // [0, PI) covers every axis
+    const dir: Coord = [Math.cos(theta), Math.sin(theta)];
+    const d1 = rayDistance(anchor, dir, boundary);
+    const d2 = rayDistance(anchor, [-dir[0], -dir[1]], boundary);
+    if (!isFinite(d1) || !isFinite(d2)) continue;
+    const total = d1 + d2;
+    if (total > bestSpan) {
+      bestSpan = total;
+      bestTheta = theta;
+    }
+  }
+  if (bestSpan <= 0) return bboxShape(group, areaSize); // degenerate block
+
+  // Canonical angle in (-PI/2, PI/2]: same axis, but the glyphs are never
+  // upside-down and interpolating between rounds can't spin them around.
+  const angle = bestTheta > Math.PI / 2 ? bestTheta - Math.PI : bestTheta;
+  const px = -Math.sin(angle);
+  const py = Math.cos(angle);
+  const cross = 2 * Math.min(rayDistance(anchor, [px, py], boundary), rayDistance(anchor, [-px, -py], boundary));
+  const size = Math.min(areaSize, cross * CROSS_FIT);
+  return { size, angle, span: bestSpan * SPAN_MARGIN };
+}
+
+/** Fallback shape from the bounding box (used only for degenerate corridors). */
+function bboxShape(group: Territory[], areaSize: number): { size: number; angle: number; span: number } {
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
-  let area = 0;
   for (const t of group) {
-    area += Math.abs(signedArea(t.polygon)) / 2;
     for (const [px, py] of t.polygon) {
       if (px < minX) minX = px;
       if (py < minY) minY = py;
@@ -352,8 +453,6 @@ function blockShape(group: Territory[]): { size: number; angle: number; span: nu
   const angle = h > w * ROTATE_RATIO ? Math.PI / 2 : 0;
   const along = angle === 0 ? w : h;
   const cross = angle === 0 ? h : w;
-
-  const areaSize = Math.max(MIN_SIZE, Math.min(MAX_SIZE, area ** 0.25 * AREA_K));
   const size = Math.min(areaSize, cross * CROSS_FIT);
   return { size, angle, span: along * SPAN_MARGIN };
 }

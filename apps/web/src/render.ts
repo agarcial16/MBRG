@@ -1,7 +1,7 @@
 import type { FactionId, MapFormatV1, Ownership, TerritoryId } from '@mbrg/shared';
 
 import type { Camera } from './camera.js';
-import { layoutLabels, type FactionLabel } from './label.js';
+import { layoutLabels, rectInsideBlock, type FactionLabel } from './label.js';
 import { edgeKey } from './topology.js';
 
 /** Distinct, pleasant colors assigned to factions in map-territory order. */
@@ -209,15 +209,25 @@ const MAX_FONT_PX = 72;
 /** Blocks smaller than this on screen fade their label out (zoomed far away). */
 const FADE_BELOW_PX = 24;
 const FADE_FULL_PX = 40;
+/** Glyph boxes are checked with a slightly generous half-height (em based). */
+const GLYPH_HALF = 0.55;
+/** Draw-time containment retries: shrink span+size together until glyphs fit. */
+const MAX_FIT_ATTEMPTS = 6;
+const FIT_SHRINK = 0.82;
 
 /**
- * Draw one faction label at EU4 style: fit the base size so the text never
- * outgrows the block's long axis, then spread the glyphs (letter tracking) to
- * span it. `label.angle` handles tall, narrow blocks (text runs top→bottom).
+ * Draw one faction label at EU4 style, adapted to the block's *corridor*:
+ * fit the base size along the corridor span, spread the glyphs (letter
+ * tracking) to fill it, and validate glyph by glyph that every letter really
+ * stays inside the block — shrinking span+size together and retrying if not
+ * (the corridor guarantees the centerline; concave sides may still pinch the
+ * glyph height). At the legible screen minimum the label keeps that size and
+ * overflows just enough: an impossible case, not unreadable text.
  *
  * `scale` is the camera zoom: the font is clamped to a legible screen range
  * (12–72 px) and labels of blocks that are tiny *on screen* fade out instead of
- * shrinking into noise.
+ * shrinking into noise. Validation only runs at rest — mid-animation labels
+ * (`moving` / fading) interpolate positions and are checked on arrival.
  */
 function drawLabel(
   ctx: CanvasRenderingContext2D,
@@ -243,31 +253,52 @@ function drawLabel(
   const minWorld = MIN_FONT_PX / scale;
   const maxWorld = MAX_FONT_PX / scale;
   let size = Math.min(Math.max(Math.max(4, label.size), minWorld), maxWorld);
-  ctx.font = `bold ${size}px system-ui, sans-serif`;
-  let natural = ctx.measureText(text).width;
-  if (natural > span) {
-    // Long name in a small block: shrink until it fits along the block
-    // (a hard geometric cap — it wins over the screen-px minimum).
-    size *= span / natural;
-    ctx.font = `bold ${size}px system-ui, sans-serif`;
-    natural = ctx.measureText(text).width;
-  }
-
+  let target = span;
   const chars = [...text];
-  if (chars.length > 1) {
-    // Spread glyphs to span the block (classic map-game tracking).
+  const validate = label.alpha === undefined && !label.moving && (label.zones?.length ?? 0) > 0;
+
+  let widths: number[] = [];
+  let xs: number[] = [];
+  let gap = 0;
+  for (let attempt = 0; attempt < MAX_FIT_ATTEMPTS; attempt++) {
+    ctx.font = `bold ${size}px system-ui, sans-serif`;
+    let natural = ctx.measureText(text).width;
+    if (natural > target) {
+      // Long name in a small block: shrink until it fits along the corridor
+      // (a hard geometric cap — it wins over the screen-px minimum).
+      size *= target / natural;
+      ctx.font = `bold ${size}px system-ui, sans-serif`;
+      natural = ctx.measureText(text).width;
+    }
+
+    widths = chars.map((ch) => ctx.measureText(ch).width);
     let naturalTotal = 0;
-    for (const ch of chars) naturalTotal += ctx.measureText(ch).width;
-    const gap = naturalTotal < span ? (span - naturalTotal) / (chars.length - 1) : 0;
+    for (const w of widths) naturalTotal += w;
+    gap = chars.length > 1 && naturalTotal < target ? (target - naturalTotal) / (chars.length - 1) : 0;
     const total = naturalTotal + gap * (chars.length - 1);
+    xs = [];
     let cx = -total / 2;
-    for (const ch of chars) {
-      const w = ctx.measureText(ch).width;
-      ctx.fillText(ch, cx, 0);
+    for (const w of widths) {
+      xs.push(cx);
       cx += w + gap;
     }
-  } else {
-    ctx.fillText(text, -natural / 2, 0);
+
+    if (!validate) break;
+    const halfH = size * GLYPH_HALF;
+    let fits = true;
+    for (let i = 0; i < chars.length; i++) {
+      if (!rectInsideBlock(label.zones, [x, y], angle, xs[i], -halfH, widths[i], 2 * halfH)) {
+        fits = false;
+        break;
+      }
+    }
+    if (fits) break;
+    if (size <= minWorld + 1e-9) break; // legible floor reached: allow the tiny overflow
+    const next = Math.max(minWorld, size * FIT_SHRINK);
+    target *= next / size; // shrink span too, so tracking pulls the ends back in
+    size = next;
   }
+
+  for (let i = 0; i < chars.length; i++) ctx.fillText(chars[i], xs[i], 0);
   ctx.restore();
 }
