@@ -8,8 +8,10 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && npm run build -w @mbrg/web",
     "clean": "tsc -b --clean",
+    "typecheck": "tsc -b && tsc --noEmit -p apps/web",
+    "dev": "npm run dev -w @mbrg/web",
     "test": "vitest run",
     "test:watch": "vitest"
   },
