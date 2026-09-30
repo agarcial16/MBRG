@@ -8,32 +8,57 @@ import { factionName } from './names.js';
  * provinces the faction currently owns), so annexations never leave duplicated
  * or stale names behind.
  *
- * The geometry (size / orientation / span) adapts to the block's *corridor*:
- * the anchor is the pole of inaccessibility (farthest point from the visible
- * border), rays from the anchor find the longest straight corridor through the
- * block, and the text runs along it at a free angle. Span and thickness come
- * from those rays, not from the bounding box (which may include enemy land).
- * Text measurement happens at draw time (needs a canvas context), together
- * with glyph-by-glyph containment validation, keeping this module pure.
+ * The geometry adapts to the block's *corridor*: the anchor is the pole of
+ * inaccessibility, rays find the longest straight run, and then the centerline
+ * is walked with transverse sections so it bends toward the local middle —
+ * the text runs along that curve, filling concave blocks (an L-shape gets its
+ * name along the L, not cut across it). Span/thickness come from the curve,
+ * never from the bounding box (which may include enemy land). Text measurement
+ * happens at draw time (needs a canvas context), together with glyph-by-glyph
+ * containment validation, keeping this module pure.
  */
 export interface FactionLabel {
   faction: FactionId;
-  /** Text to draw (the faction id/name). */
+  /** Text to draw (the faction's display name). */
   text: string;
+  /** Visual center of the label (the curve's midpoint). */
   x: number;
   y: number;
   /** Base font size in world units (may be shrunk at draw time to fit `span`). */
   size: number;
-  /** Rotation in radians: free angle along the block's corridor (0 = horizontal). */
+  /** Base rotation in radians: the corridor's canonical axis (0 = horizontal). */
   angle: number;
-  /** Target width of the text along its direction, in world units. */
+  /** Target width of the text along its curve, in world units. */
   span: number;
+  /** Centerline the glyphs run along (a straight corridor is a 2-point curve). */
+  curve: LabelCurve;
   /** Filled area of the block (outer ring + holes), for draw-time containment checks. */
   zones: Zone[];
   /** Opacity (1 at rest; used mid-animation for fading labels). */
   alpha?: number;
   /** True while animating between rounds: containment validation is skipped. */
   moving?: boolean;
+  /** Mid-animation: the fitted layout this label morphs from, and progress. */
+  morph?: { from: FactionLabel; t: number };
+}
+
+/** Centerline of a label, with arc-length and thickness tables. */
+export interface LabelCurve {
+  /** World-space points of the centerline (≥ 2). */
+  pts: Coord[];
+  /** Cumulative arc length at each point; `cum[0] === 0`, last = `total`. */
+  cum: number[];
+  /** Total arc length. */
+  total: number;
+  /** Block thickness measured transversally at each point. */
+  thick: number[];
+}
+
+/** Position + tangent angle at an arc-length offset of a curve. */
+export interface CurveFrame {
+  x: number;
+  y: number;
+  angle: number;
 }
 
 /** Signed polygon area (shoelace); sign follows the winding order. */
@@ -310,6 +335,185 @@ function blockAnchor(group: Territory[], geom: BlockGeom): Coord {
   return territoryAnchor(largest);
 }
 
+// --- Label curves -----------------------------------------------------------
+
+/** Curve construction tuning (relative to the corridor length). */
+const CURVE_STEPS = 24; // transverse samples walked along the corridor
+const CURVE_SMOOTH = 2; // moving-average passes (endpoints fixed)
+const CURVE_MAX_BEND = 0.6; // max lateral correction per step = 0.6 × step
+const CURVE_MIN_ARC = 0.5; // distrust a walk below 50% of the straight corridor
+const GLYPH_AVG = 0.6; // rough advance of a bold glyph in em (layout estimate)
+
+/**
+ * Build a curve from walk points: dedupe, arc-length table, and transverse
+ * thickness measured with each point's local tangent.
+ */
+function curveOf(pts: Coord[], boundary: Segment[]): LabelCurve {
+  const clean: Coord[] = [];
+  for (const p of pts) {
+    const last = clean[clean.length - 1];
+    if (!last || Math.hypot(p[0] - last[0], p[1] - last[1]) > 1e-6) clean.push(p);
+  }
+  while (clean.length < 2) clean.push(clean[clean.length - 1] ?? [0, 0]);
+  const cum = [0];
+  for (let i = 1; i < clean.length; i++) {
+    cum.push(cum[i - 1] + Math.hypot(clean[i][0] - clean[i - 1][0], clean[i][1] - clean[i - 1][1]));
+  }
+  const thick: number[] = [];
+  for (let i = 0; i < clean.length; i++) {
+    const a = clean[Math.max(i - 1, 0)];
+    const b = clean[Math.min(i + 1, clean.length - 1)];
+    let dx = b[0] - a[0];
+    let dy = b[1] - a[1];
+    const len = Math.hypot(dx, dy);
+    if (len > 1e-9) {
+      dx /= len;
+      dy /= len;
+    } else {
+      dx = 1;
+      dy = 0;
+    }
+    const p = clean[i];
+    const t1 = rayDistance(p, [-dy, dx], boundary);
+    const t2 = rayDistance(p, [dy, -dx], boundary);
+    thick.push(isFinite(t1) && isFinite(t2) ? t1 + t2 : 0);
+  }
+  return { pts: clean, cum, total: cum[cum.length - 1], thick };
+}
+
+/**
+ * Moving average over interior points; a smoothed point is kept only if it
+ * stays inside the block (averaging must never cut across a concave notch).
+ */
+function smoothCurve(pts: Coord[], passes: number, zones: Zone[]): Coord[] {
+  let out = pts.slice();
+  for (let pass = 0; pass < passes; pass++) {
+    const next: Coord[] = [out[0]];
+    for (let i = 1; i < out.length - 1; i++) {
+      const a = out[i - 1];
+      const b = out[i];
+      const c = out[i + 1];
+      const m: Coord = [(a[0] + 2 * b[0] + c[0]) / 4, (a[1] + 2 * b[1] + c[1]) / 4];
+      next.push(pointInBlock(m, zones) ? m : b);
+    }
+    next.push(out[out.length - 1]);
+    out = next;
+  }
+  return out;
+}
+
+/** The straight corridor as a 2-point curve (degenerate cases / fallback). */
+function straightCurve(
+  anchor: Coord,
+  dir: Coord,
+  dFwd: number,
+  dBack: number,
+  boundary: Segment[],
+): LabelCurve {
+  return curveOf(
+    [
+      [anchor[0] - dir[0] * dBack, anchor[1] - dir[1] * dBack],
+      [anchor[0] + dir[0] * dFwd, anchor[1] + dir[1] * dFwd],
+    ],
+    boundary,
+  );
+}
+
+/**
+ * Walk the corridor and bend the centerline toward the local middle: at every
+ * step the transverse cross-section is measured with two rays (the whole
+ * segment is inside by ray property) and the walk advances to its center —
+ * with a per-step bend limit so the curve stays readable. Falls back to the
+ * straight corridor when the walk can't stay inside or gets truncated.
+ */
+function buildCurve(
+  anchor: Coord,
+  dir: Coord,
+  dFwd: number,
+  dBack: number,
+  boundary: Segment[],
+  zones: Zone[],
+): LabelCurve {
+  const straight = (): LabelCurve => straightCurve(anchor, dir, dFwd, dBack, boundary);
+  const L = dFwd + dBack;
+  const step = L / CURVE_STEPS;
+  const eps = step * 0.25;
+  const budget = L - 2 * eps;
+  if (!(L > 1e-6) || !(budget > 1e-6) || boundary.length === 0) return straight();
+
+  let c: Coord = [anchor[0] - dir[0] * (dBack - eps), anchor[1] - dir[1] * (dBack - eps)];
+  let tangent: Coord = [dir[0], dir[1]];
+  const pts: Coord[] = [];
+  let moved = 0;
+  let guard = 0;
+  while (moved < budget - 1e-6 && guard++ < CURVE_STEPS * 4) {
+    pts.push([c[0], c[1]]);
+    const nx = -tangent[1];
+    const ny = tangent[0];
+    const t1 = rayDistance(c, [nx, ny], boundary); // +n side
+    const t2 = rayDistance(c, [-nx, -ny], boundary); // -n side
+    if (!isFinite(t1) || !isFinite(t2)) break;
+    // Move to the center of the cross-section, clamped for aesthetics.
+    let latX = (nx * (t1 - t2)) / 2;
+    let latY = (ny * (t1 - t2)) / 2;
+    const lat = Math.hypot(latX, latY);
+    const maxLat = step * CURVE_MAX_BEND;
+    if (lat > maxLat) {
+      latX *= maxLat / lat;
+      latY *= maxLat / lat;
+    }
+    let adv = Math.min(step, budget - moved);
+    let advanced = false;
+    for (let k = 0; k < 4; k++) {
+      const np: Coord = [c[0] + latX + tangent[0] * adv, c[1] + latY + tangent[1] * adv];
+      if (pointInBlock(np, zones)) {
+        const mLen = Math.hypot(np[0] - c[0], np[1] - c[1]);
+        if (mLen > 1e-9) tangent = [(np[0] - c[0]) / mLen, (np[1] - c[1]) / mLen];
+        c = np;
+        moved += adv;
+        advanced = true;
+        break;
+      }
+      adv *= 0.5;
+    }
+    if (!advanced) break; // can't stay inside: keep what we walked
+  }
+  pts.push([c[0], c[1]]);
+
+  const smoothed = smoothCurve(pts, CURVE_SMOOTH, zones);
+  if (smoothed.length < 2) return straight();
+  const curve = curveOf(smoothed, boundary);
+  // A truncated walk would give the text too little room — use the straight corridor.
+  if (!isFinite(curve.total) || curve.total < L * CURVE_MIN_ARC) return straight();
+  return curve;
+}
+
+/** Local block thickness at arc offset `s` (linear interpolation). */
+function thicknessAt(curve: LabelCurve, s: number): number {
+  const { cum, thick } = curve;
+  const sc = s < 0 ? 0 : s > curve.total ? curve.total : s;
+  let i = 0;
+  while (i < thick.length - 2 && cum[i + 1] < sc) i++;
+  const segLen = cum[i + 1] - cum[i];
+  const t = segLen > 0 ? (sc - cum[i]) / segLen : 0;
+  return thick[i] + (thick[i + 1] - thick[i]) * t;
+}
+
+/** Point + tangent at arc offset `s` (clamped to the curve). */
+export function frameAt(curve: LabelCurve, s: number): CurveFrame {
+  const { pts, cum } = curve;
+  const sc = s < 0 ? 0 : s > curve.total ? curve.total : s;
+  let i = 0;
+  while (i < pts.length - 2 && cum[i + 1] < sc) i++;
+  const a = pts[i];
+  const b = pts[i + 1];
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const segLen = cum[i + 1] - cum[i];
+  const t = segLen > 0 ? (sc - cum[i]) / segLen : 0;
+  return { x: a[0] + dx * t, y: a[1] + dy * t, angle: Math.atan2(dy, dx) };
+}
+
 /** Layout cache: maps are immutable and `owners` objects are stable per round. */
 const cache = new WeakMap<MapFormatV1, WeakMap<Ownership, FactionLabel[]>>();
 
@@ -317,8 +521,8 @@ const cache = new WeakMap<MapFormatV1, WeakMap<Ownership, FactionLabel[]>>();
 const AREA_K = 3; // font ≈ area^0.25 * K, clamped below
 const MIN_SIZE = 14;
 const MAX_SIZE = 60;
-const CROSS_FIT = 0.75; // text height ≤ 75% of the block's thickness
-const SPAN_MARGIN = 0.85; // text spans 85% of the block's long axis
+const CROSS_FIT = 0.8; // text height ≤ 80% of the block's local thickness
+const SPAN_MARGIN = 0.85; // text spans 85% of the curve
 const ROTATE_RATIO = 1.6; // rotate 90° when taller than 1.6× wider (bbox fallback)
 
 /** One label per living faction, EU4-style, adapted to its block's shape. */
@@ -341,10 +545,22 @@ export function layoutLabels(map: MapFormatV1, owners: Ownership): FactionLabel[
 
   const labels: FactionLabel[] = [];
   for (const [faction, group] of groups) {
+    const text = factionName(map, faction);
     const geom = blockGeometry(group);
     const anchor = blockAnchor(group, geom);
-    const { size, angle, span } = blockShape(group, geom, anchor);
-    labels.push({ faction, text: factionName(map, faction), x: anchor[0], y: anchor[1], size, angle, span, zones: geom.zones });
+    const { size, angle, span, curve } = blockShape(group, geom, anchor, text);
+    const mid = frameAt(curve, curve.total / 2);
+    labels.push({
+      faction,
+      text,
+      x: mid.x,
+      y: mid.y,
+      size,
+      angle,
+      span,
+      curve,
+      zones: geom.zones,
+    });
   }
   labels.sort((a, b) => (a.faction < b.faction ? -1 : a.faction > b.faction ? 1 : 0));
   perOwners.set(owners, labels);
@@ -357,9 +573,13 @@ function lerp(a: number, b: number, t: number): number {
 
 /**
  * Interpolate two layouts for the absorption animation (same `t` as the color
- * crossfade): surviving factions glide to their new anchor/size/orientation,
- * labels of factions that just died fade out in place, and reappearing ones
- * (restart) fade in.
+ * crossfade): surviving factions glide to their new anchor/size/orientation
+ * and carry their `morph` (from-layout + progress) so the renderer can move
+ * glyph by glyph along both curves; labels of factions that just died fade
+ * out in place, and reappearing ones (restart) fade in.
+ *
+ * `from` and `to` should be the *fitted* layouts (see `fitLabels`), so the
+ * morph lands exactly on the rest state at t = 1.
  */
 export function interpolateLabels(
   from: FactionLabel[],
@@ -383,6 +603,7 @@ export function interpolateLabels(
       angle: lerp(old.angle, label.angle, t),
       span: lerp(old.span, label.span, t),
       moving: true, // mid-flight: glyph containment is validated only at rest
+      morph: { from: old, t },
     });
   }
   // Factions eliminated this round: fade out where they stood.
@@ -392,25 +613,27 @@ export function interpolateLabels(
 
 /**
  * EU4-style metrics for a block, measured along its *real corridor*: rays from
- * the anchor probe every direction and the text runs along the one with the
- * longest straight run through the block (free angle — the corridor of a C-shape
- * follows its arm instead of a crude horizontal/vertical bbox axis). `span` is
- * the corridor length; the font's height is capped by the thickness measured
- * perpendicular to the corridor at the anchor. Falls back to the bounding box
- * when no usable corridor exists (numerically degenerate blocks).
+ * the anchor find the straight run, then `buildCurve` bends the centerline
+ * through the block so concave shapes get their name along their body instead
+ * of cut across it. `span` is the arc length; the font is capped by the
+ * block's thickness under the estimated glyph positions (iterating, because a
+ * smaller font shortens the run). Falls back to the bounding box when no
+ * usable corridor exists (numerically degenerate blocks).
  */
-function blockShape(group: Territory[], geom: BlockGeom, anchor: Coord): {
+function blockShape(group: Territory[], geom: BlockGeom, anchor: Coord, text: string): {
   size: number;
   angle: number;
   span: number;
+  curve: LabelCurve;
 } {
-  const { boundary } = geom;
+  const { boundary, zones } = geom;
   let area = 0;
   for (const t of group) area += Math.abs(signedArea(t.polygon)) / 2;
   const areaSize = Math.max(MIN_SIZE, Math.min(MAX_SIZE, area ** 0.25 * AREA_K));
 
   let bestSpan = -1;
   let bestTheta = 0;
+  let bestDir: Coord = [1, 0];
   for (let i = 0; i < CORRIDOR_RAYS; i++) {
     const theta = (i * Math.PI) / CORRIDOR_RAYS; // [0, PI) covers every axis
     const dir: Coord = [Math.cos(theta), Math.sin(theta)];
@@ -421,22 +644,58 @@ function blockShape(group: Territory[], geom: BlockGeom, anchor: Coord): {
     if (total > bestSpan) {
       bestSpan = total;
       bestTheta = theta;
+      bestDir = dir;
     }
   }
-  if (bestSpan <= 0) return bboxShape(group, areaSize); // degenerate block
+  if (bestSpan <= 0) return bboxShape(group, areaSize, geom, anchor); // degenerate
 
   // Canonical angle in (-PI/2, PI/2]: same axis, but the glyphs are never
   // upside-down and interpolating between rounds can't spin them around.
   const angle = bestTheta > Math.PI / 2 ? bestTheta - Math.PI : bestTheta;
-  const px = -Math.sin(angle);
-  const py = Math.cos(angle);
-  const cross = 2 * Math.min(rayDistance(anchor, [px, py], boundary), rayDistance(anchor, [-px, -py], boundary));
-  const size = Math.min(areaSize, cross * CROSS_FIT);
-  return { size, angle, span: bestSpan * SPAN_MARGIN };
+  const dFwd = rayDistance(anchor, bestDir, boundary);
+  const dBack = rayDistance(anchor, [-bestDir[0], -bestDir[1]], boundary);
+  const curve = buildCurve(anchor, bestDir, dFwd, dBack, boundary, zones);
+  const span = curve.total * SPAN_MARGIN;
+  const size = thicknessCap(curve, areaSize, span, text);
+  return { size, angle, span, curve };
+}
+
+/**
+ * Cap the font by the block's thickness under the *estimated* glyph positions
+ * (uniform along the run), iterating because a smaller font shortens the run.
+ * An estimate only — the exact fit measures with canvas at draw time; this
+ * just starts close so the fit-time retries barely move the label.
+ */
+function thicknessCap(curve: LabelCurve, areaSize: number, span: number, text: string): number {
+  const n = [...text].length;
+  if (n === 0 || curve.thick.length === 0 || span <= 0) return areaSize;
+  const center = curve.total / 2;
+  let size = areaSize;
+  for (let iter = 0; iter < 3; iter++) {
+    const run = Math.min(span, n * GLYPH_AVG * size);
+    const half = run / 2;
+    if (half <= 0) break;
+    let minThick = 0;
+    for (let i = 0; i < n; i++) {
+      const s = center - half + ((i + 0.5) / n) * (2 * half);
+      const th = thicknessAt(curve, s);
+      if (th > 0 && (minThick === 0 || th < minThick)) minThick = th;
+    }
+    if (minThick <= 0) break; // no usable measurement: keep the area size
+    const cap = minThick * CROSS_FIT;
+    if (cap >= size) break;
+    size = cap;
+  }
+  return size;
 }
 
 /** Fallback shape from the bounding box (used only for degenerate corridors). */
-function bboxShape(group: Territory[], areaSize: number): { size: number; angle: number; span: number } {
+function bboxShape(
+  group: Territory[],
+  areaSize: number,
+  geom: BlockGeom,
+  anchor: Coord,
+): { size: number; angle: number; span: number; curve: LabelCurve } {
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -455,5 +714,17 @@ function bboxShape(group: Territory[], areaSize: number): { size: number; angle:
   const along = angle === 0 ? w : h;
   const cross = angle === 0 ? h : w;
   const size = Math.min(areaSize, cross * CROSS_FIT);
-  return { size, angle, span: along * SPAN_MARGIN };
+  // Straight corridor along the bbox axis, ray-measured so it touches the border.
+  const { boundary } = geom;
+  const dir: Coord = angle === 0 ? [1, 0] : [0, 1];
+  const dFwd = boundary.length > 0 ? rayDistance(anchor, dir, boundary) : along / 2;
+  const dBack = boundary.length > 0 ? rayDistance(anchor, [-dir[0], -dir[1]], boundary) : along / 2;
+  const curve = straightCurve(
+    anchor,
+    dir,
+    isFinite(dFwd) ? dFwd : along / 2,
+    isFinite(dBack) ? dBack : along / 2,
+    boundary,
+  );
+  return { size, angle, span: curve.total * SPAN_MARGIN, curve };
 }

@@ -1,7 +1,7 @@
 import type { FactionId, MapFormatV1, Ownership, TerritoryId } from '@mbrg/shared';
 
 import type { Camera } from './camera.js';
-import { layoutLabels, rectInsideBlock, type FactionLabel } from './label.js';
+import { frameAt, layoutLabels, rectInsideBlock, type FactionLabel } from './label.js';
 import { edgeKey } from './topology.js';
 
 /** Distinct, pleasant colors assigned to factions in map-territory order. */
@@ -217,15 +217,24 @@ const FIT_SHRINK = 0.82;
 /** Absolute floor (world units) of the scale-independent fit; the screen clamp dominates visually. */
 const FIT_FLOOR = 1;
 
+/** One placed glyph of a run: world position + tangent angle. */
+interface Glyph {
+  ch: string;
+  x: number;
+  y: number;
+  a: number;
+  w: number;
+}
+
 /**
  * A label's fitted glyph run: final size/span after the span cap and the
- * glyph-containment retries, plus the left-edge offset of every glyph along
- * the text axis (centered on the anchor).
+ * glyph-containment retries, plus every glyph placed on the label's curve
+ * (arc offset → world position + tangent).
  */
 interface GlyphRun {
   size: number;
   span: number;
-  xs: number[];
+  glyphs: Glyph[];
 }
 
 /**
@@ -249,16 +258,18 @@ function runGlyphs(
   floor: number,
   validate: boolean,
 ): GlyphRun {
-  const { text, angle, x, y, zones } = label;
+  const { text, zones, curve } = label;
   const chars = [...text];
+  if (chars.length === 0 || span0 <= 0) return { size: size0, span: span0, glyphs: [] };
   let size = size0;
   let span = span0;
-  let xs: number[] = [];
+  let glyphs: Glyph[] = [];
+  const center = curve.total / 2;
   for (let attempt = 0; attempt < MAX_FIT_ATTEMPTS; attempt++) {
     ctx.font = `bold ${size}px system-ui, sans-serif`;
     let natural = ctx.measureText(text).width;
     if (natural > span) {
-      // Long name in a small block: shrink until it fits along the corridor
+      // Long name in a small block: shrink until it fits along the curve
       // (a hard geometric cap — it wins over the screen-px minimum).
       size *= span / natural;
       ctx.font = `bold ${size}px system-ui, sans-serif`;
@@ -270,18 +281,23 @@ function runGlyphs(
     for (const w of widths) naturalTotal += w;
     const gap = chars.length > 1 && naturalTotal < span ? (span - naturalTotal) / (chars.length - 1) : 0;
     const total = naturalTotal + gap * (chars.length - 1);
-    xs = [];
+    const xs: number[] = [];
     let cx = -total / 2;
     for (const w of widths) {
       xs.push(cx);
       cx += w + gap;
     }
+    // Arc offsets around the curve's midpoint → world position + tangent.
+    glyphs = chars.map((ch, i) => {
+      const f = frameAt(curve, center + xs[i]);
+      return { ch, x: f.x, y: f.y, a: f.angle, w: widths[i] };
+    });
 
     if (!validate) break;
     const halfH = size * GLYPH_HALF;
     let fits = true;
-    for (let i = 0; i < chars.length; i++) {
-      if (!rectInsideBlock(zones, [x, y], angle, xs[i], -halfH, widths[i], 2 * halfH)) {
+    for (const g of glyphs) {
+      if (!rectInsideBlock(zones, [g.x, g.y], g.a, 0, -halfH, g.w, 2 * halfH)) {
         fits = false;
         break;
       }
@@ -292,7 +308,7 @@ function runGlyphs(
     span *= next / size; // shrink span too, so tracking pulls the ends back in
     size = next;
   }
-  return { size, span, xs };
+  return { size, span, glyphs };
 }
 
 /** Fit cache: measurement is deterministic per state, so memoize by owners. */
@@ -319,7 +335,7 @@ export function fitLabels(
   const hit = perOwners.get(owners);
   if (hit) return hit;
   const fitted = layoutLabels(map, owners).map((label) => {
-    if ((label.zones?.length ?? 0) === 0 || !label.text) return label;
+    if ((label.zones?.length ?? 0) === 0 || !label.text || label.span <= 0) return label;
     const run = runGlyphs(ctx, label, label.size, label.span, FIT_FLOOR, true);
     if (run.size === label.size && run.span === label.span) return label;
     return { ...label, size: run.size, span: run.span };
@@ -329,23 +345,25 @@ export function fitLabels(
 }
 
 /**
- * Draw one faction label at EU4 style, adapted to the block's *corridor*:
- * fit the base size along the corridor span, spread the glyphs (letter
- * tracking) to fill it, and keep the glyph-containment safety net (a no-op
- * for fitted labels; it still catches the zoom clamp raising a tiny label
- * past its fitted size).
+ * Draw one faction label at EU4 style along the block's *centerline curve*:
+ * fit the base size along the curve span, spread the glyphs (letter tracking)
+ * over the arc, and keep the glyph-containment safety net (a no-op for fitted
+ * labels; it still catches the zoom clamp raising a tiny label past its
+ * fitted size). Mid-animation labels morph glyph by glyph between their two
+ * fitted layouts — each side placed on its own curve — so the transition
+ * lands exactly on the rest state.
  *
  * `scale` is the camera zoom: the font is clamped to a legible screen range
  * (12–72 px) and labels of blocks that are tiny *on screen* fade out instead of
  * shrinking into noise. Validation only runs at rest — mid-animation labels
- * (`moving` / fading) interpolate positions and are checked on arrival.
+ * (`moving` / fading) are checked on arrival.
  */
 function drawLabel(
   ctx: CanvasRenderingContext2D,
   label: FactionLabel,
   scale: number,
 ): void {
-  const { text, x, y, angle, span } = label;
+  const { text, span } = label;
   if (!text || span <= 0 || scale <= 0) return;
   let alpha = label.alpha ?? 1;
   // Fade labels of blocks too small to read at this zoom.
@@ -357,17 +375,63 @@ function drawLabel(
 
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.translate(x, y);
-  if (angle !== 0) ctx.rotate(angle);
 
   // Clamp the font to a legible size ON SCREEN at the current zoom.
   const minWorld = MIN_FONT_PX / scale;
   const maxWorld = MAX_FONT_PX / scale;
-  const size0 = Math.min(Math.max(Math.max(4, label.size), minWorld), maxWorld);
+  const clampSize = (s: number): number => Math.min(Math.max(Math.max(4, s), minWorld), maxWorld);
   const validate = label.alpha === undefined && !label.moving && (label.zones?.length ?? 0) > 0;
-  const run = runGlyphs(ctx, label, size0, span, minWorld, validate);
 
-  const chars = [...text];
-  for (let i = 0; i < chars.length; i++) ctx.fillText(chars[i], run.xs[i], 0);
+  const morph = label.morph;
+  if (label.moving && morph && morph.from.text === text) {
+    const from = morph.from;
+    const A = runGlyphs(ctx, from, clampSize(from.size), from.span, minWorld, false);
+    const B = runGlyphs(ctx, label, clampSize(label.size), span, minWorld, false);
+    const n = Math.min(A.glyphs.length, B.glyphs.length);
+    for (let i = 0; i < n; i++) {
+      const a = A.glyphs[i];
+      const b = B.glyphs[i];
+      fillGlyph(
+        ctx,
+        a.ch,
+        mix(a.x, b.x, morph.t),
+        mix(a.y, b.y, morph.t),
+        mixAngle(a.a, b.a, morph.t),
+        mix(A.size, B.size, morph.t),
+      );
+    }
+  } else {
+    const run = runGlyphs(ctx, label, clampSize(label.size), span, minWorld, validate);
+    for (const g of run.glyphs) fillGlyph(ctx, g.ch, g.x, g.y, g.a, run.size);
+  }
   ctx.restore();
+}
+
+/** Draw one glyph at its world position, rotated along the curve's tangent. */
+function fillGlyph(
+  ctx: CanvasRenderingContext2D,
+  ch: string,
+  x: number,
+  y: number,
+  angle: number,
+  size: number,
+): void {
+  ctx.save();
+  ctx.translate(x, y);
+  if (angle !== 0) ctx.rotate(angle);
+  ctx.font = `bold ${size}px system-ui, sans-serif`;
+  ctx.fillText(ch, 0, 0);
+  ctx.restore();
+}
+
+function mix(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+/** Interpolate an angle along the shortest arc (no spinning around). */
+function mixAngle(a: number, b: number, t: number): number {
+  let d = b - a;
+  if (d > Math.PI) d -= 2 * Math.PI;
+  else if (d < -Math.PI) d += 2 * Math.PI;
+  return a + d * t;
 }
