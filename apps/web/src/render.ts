@@ -1,4 +1,6 @@
-import type { FactionId, MapFormatV1, Ownership, Territory, TerritoryId } from '@mbrg/shared';
+import type { FactionId, MapFormatV1, Ownership, TerritoryId } from '@mbrg/shared';
+
+import { layoutLabels } from './label.js';
 
 /** Distinct, pleasant colors assigned to factions in map-territory order. */
 export const factionPalette = [
@@ -75,18 +77,6 @@ export function initialColors(map: MapFormatV1): Record<FactionId, string> {
     colors[t.id] = factionPalette[i % factionPalette.length];
   });
   return colors;
-}
-
-function territoryCenter(t: Territory): [number, number] {
-  if (t.center) return t.center;
-  let x = 0;
-  let y = 0;
-  for (const [px, py] of t.polygon) {
-    x += px;
-    y += py;
-  }
-  const n = t.polygon.length || 1;
-  return [x / n, y / n];
 }
 
 const BORDER = '#17172a';
@@ -190,16 +180,15 @@ export function drawMap(
   ctx.lineJoin = 'round';
   ctx.stroke();
 
-  // 3) Labels (owner faction per province).
+  // 3) Labels: ONE per faction, anchored at the center of its whole block.
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 30px system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.shadowColor = 'rgb(0 0 0 / 60%)';
   ctx.shadowBlur = 4;
-  for (const t of map.territories) {
-    const [cx, cy] = territoryCenter(t);
-    ctx.fillText(owners[t.id], cx, cy);
+  for (const label of layoutLabels(map, owners)) {
+    ctx.fillText(label.faction, label.x, label.y);
   }
   ctx.shadowBlur = 0;
 }
