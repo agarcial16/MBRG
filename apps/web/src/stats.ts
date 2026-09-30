@@ -1,4 +1,6 @@
-import type { FactionId, MatchState, Ownership, RoundEvent } from '@mbrg/shared';
+import type { FactionId, MapFormatV1, MatchState, Ownership, RoundEvent } from '@mbrg/shared';
+
+import { factionName } from './names.js';
 
 function dot(color: string): HTMLSpanElement {
   const el = document.createElement('span');
@@ -8,6 +10,7 @@ function dot(color: string): HTMLSpanElement {
 }
 
 export interface StatsView {
+  map: MapFormatV1;
   owners: Ownership;
   colors: Record<FactionId, string>;
   total: number;
@@ -16,14 +19,14 @@ export interface StatsView {
   events: RoundEvent[];
 }
 
-/** Top of a counter map: comma-joined names (alphabetical) + max value. */
-function leaders(counts: Map<FactionId, number>): { names: string; value: number } | null {
+/** Top of a counter map: comma-joined display names (alphabetical) + max value. */
+function leaders(counts: Map<FactionId, number>, map: MapFormatV1): { names: string; value: number } | null {
   if (counts.size === 0) return null;
   let max = 0;
   for (const v of counts.values()) if (v > max) max = v;
   const names = [...counts.entries()]
     .filter(([, v]) => v === max)
-    .map(([id]) => id)
+    .map(([id]) => factionName(map, id))
     .sort()
     .join(', ');
   return { names, value: max };
@@ -44,7 +47,7 @@ function duringRow(emoji: string, label: string, names: string, count: string): 
  * live "Durante la partida" block (top killer / top capturer).
  */
 export function renderStats(container: HTMLElement, view: StatsView): void {
-  const { owners, colors, total, winner, events } = view;
+  const { map, owners, colors, total, winner, events } = view;
   container.textContent = '';
 
   const counts = new Map<FactionId, number>();
@@ -58,7 +61,7 @@ export function renderStats(container: HTMLElement, view: StatsView): void {
   if (winner) {
     const banner = document.createElement('div');
     banner.className = 'winner';
-    banner.textContent = `🏆 ${winner} gana la partida`;
+    banner.textContent = `🏆 ${factionName(map, winner)} gana la partida`;
     container.append(banner);
   }
 
@@ -68,7 +71,7 @@ export function renderStats(container: HTMLElement, view: StatsView): void {
 
     const label = document.createElement('span');
     label.className = 'name';
-    label.textContent = id;
+    label.textContent = factionName(map, id);
 
     const bar = document.createElement('div');
     bar.className = 'bar';
@@ -94,8 +97,8 @@ export function renderStats(container: HTMLElement, view: StatsView): void {
       kills.set(event.annexer, (kills.get(event.annexer) ?? 0) + 1);
       captured.set(event.annexer, (captured.get(event.annexer) ?? 0) + event.gained.length);
     }
-    const topKiller = leaders(kills);
-    const topCapturer = leaders(captured);
+    const topKiller = leaders(kills, map);
+    const topCapturer = leaders(captured, map);
 
     const box = document.createElement('div');
     box.className = 'during';

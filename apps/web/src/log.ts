@@ -1,4 +1,6 @@
-import type { FactionId, MatchState } from '@mbrg/shared';
+import type { FactionId, MapFormatV1, MatchState } from '@mbrg/shared';
+
+import { factionName } from './names.js';
 
 function dot(color: string): HTMLSpanElement {
   const el = document.createElement('span');
@@ -7,10 +9,10 @@ function dot(color: string): HTMLSpanElement {
   return el;
 }
 
-function name(faction: FactionId): HTMLSpanElement {
+function name(map: MapFormatV1, faction: FactionId): HTMLSpanElement {
   const el = document.createElement('span');
   el.className = 'name';
-  el.textContent = faction;
+  el.textContent = factionName(map, faction);
   return el;
 }
 
@@ -23,6 +25,7 @@ export function renderLog(
   match: MatchState,
   current: number,
   colors: Record<FactionId, string>,
+  map: MapFormatV1,
 ): void {
   const entries = match.log.slice(0, current);
   container.textContent = '';
@@ -53,10 +56,10 @@ export function renderLog(
     li.append(
       round,
       dot(colors[event.eliminated] ?? '#888899'),
-      name(event.eliminated),
+      name(map, event.eliminated),
       arrow,
       dot(colors[event.annexer] ?? '#888899'),
-      name(event.annexer),
+      name(map, event.annexer),
       gained,
     );
     container.append(li);

@@ -134,9 +134,10 @@ function onState(): void {
     animDur = Math.min(ANIM_MAX_MS, playback.speedMs * 0.7);
     if (raf === null) raf = requestAnimationFrame(animationFrame);
   }
-  if (logList) renderLog(logList, playback.match, playback.current, colors);
+  if (logList) renderLog(logList, playback.match, playback.current, colors, handmadeMap);
   if (statsBody) {
     renderStats(statsBody, {
+      map: handmadeMap,
       owners: playback.owners,
       colors,
       total: handmadeMap.territories.length,
@@ -179,9 +180,10 @@ seedInput?.addEventListener('keydown', (event) => {
 if (seedInput) seedInput.value = String(playback.match.seed);
 syncUrl(playback.match.seed);
 draw(playback.owners);
-if (logList) renderLog(logList, playback.match, playback.current, colors);
+if (logList) renderLog(logList, playback.match, playback.current, colors, handmadeMap);
 if (statsBody) {
   renderStats(statsBody, {
+    map: handmadeMap,
     owners: playback.owners,
     colors,
     total: handmadeMap.territories.length,

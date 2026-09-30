@@ -15,6 +15,7 @@ export const handmadeMap: MapFormatV1 = {
   territories: [
     {
       id: 'A',
+      name: 'Aurelia',
       neighbors: ['B', 'E'],
       center: [108, 135],
       polygon: [
@@ -25,6 +26,7 @@ export const handmadeMap: MapFormatV1 = {
     },
     {
       id: 'B',
+      name: 'Borgoña',
       neighbors: ['A', 'D', 'E'],
       center: [225, 130],
       polygon: [
@@ -36,6 +38,7 @@ export const handmadeMap: MapFormatV1 = {
     },
     {
       id: 'E',
+      name: 'Estalia',
       neighbors: ['A', 'B', 'D'],
       center: [155, 270],
       polygon: [
@@ -48,6 +51,7 @@ export const handmadeMap: MapFormatV1 = {
     },
     {
       id: 'D',
+      name: 'Dracoria',
       neighbors: ['B', 'E'],
       center: [370, 185],
       polygon: [

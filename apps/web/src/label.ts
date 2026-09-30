@@ -1,6 +1,7 @@
 import type { Coord, FactionId, MapFormatV1, Ownership, Territory } from '@mbrg/shared';
 
 import { edgeKey } from './topology.js';
+import { factionName } from './names.js';
 
 /**
  * A faction label anchored at the visual center of its *block* (all the
@@ -343,7 +344,7 @@ export function layoutLabels(map: MapFormatV1, owners: Ownership): FactionLabel[
     const geom = blockGeometry(group);
     const anchor = blockAnchor(group, geom);
     const { size, angle, span } = blockShape(group, geom, anchor);
-    labels.push({ faction, text: faction, x: anchor[0], y: anchor[1], size, angle, span, zones: geom.zones });
+    labels.push({ faction, text: factionName(map, faction), x: anchor[0], y: anchor[1], size, angle, span, zones: geom.zones });
   }
   labels.sort((a, b) => (a.faction < b.faction ? -1 : a.faction > b.faction ? 1 : 0));
   perOwners.set(owners, labels);
