@@ -6,6 +6,7 @@ import { handmadeMap } from './maps/handmade.js';
 import { renderLog } from './log.js';
 import { CameraController } from './camera.js';
 import { interpolateLabels, layoutLabels, type FactionLabel } from './label.js';
+import { drawMinimap, MinimapController } from './minimap.js';
 import { Playback } from './playback.js';
 import { drawMap, initialColors, interpolateFills } from './render.js';
 import { renderStats, revealedEvents } from './stats.js';
@@ -27,6 +28,7 @@ const statsBody = document.querySelector<HTMLDivElement>('#stats-body');
 const zoomInBtn = document.querySelector<HTMLButtonElement>('#btn-zoom-in');
 const zoomOutBtn = document.querySelector<HTMLButtonElement>('#btn-zoom-out');
 const zoomFitBtn = document.querySelector<HTMLButtonElement>('#btn-zoom-fit');
+const minimapEl = document.querySelector<HTMLCanvasElement>('#minimap');
 
 /** Seed from `?seed=…` (shareable link), or null when absent/invalid. */
 function seedFromUrl(): number | null {
@@ -60,6 +62,9 @@ function draw(
   labels?: FactionLabel[],
 ): void {
   if (canvas && camera) drawMap(canvas, handmadeMap, owners, colors, camera.camera, fills, labels);
+  if (minimapEl && camera) {
+    drawMinimap(minimapEl, handmadeMap, owners, colors, camera.camera, camera.viewport, fills);
+  }
 }
 
 /** Redraw the current frame after a camera change (pan/zoom/fit/resize). */
@@ -76,6 +81,19 @@ const camera = canvas
       onChange: onCameraChange,
     })
   : null;
+
+// Click/drag the minimap to center the main viewport there.
+if (minimapEl && camera) {
+  new MinimapController({
+    canvas: minimapEl,
+    map: handmadeMap,
+    onPick: (wx, wy) => camera.centerOn(wx, wy),
+  });
+  // The minimap box hugs the map's aspect ratio (set from data, not hardcoded).
+  const mapW = handmadeMap.width ?? 800;
+  const mapH = handmadeMap.height ?? 600;
+  minimapEl.style.aspectRatio = `${mapW} / ${mapH}`;
+}
 
 zoomInBtn?.addEventListener('click', () => camera?.zoomIn());
 zoomOutBtn?.addEventListener('click', () => camera?.zoomOut());

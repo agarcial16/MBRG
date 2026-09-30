@@ -125,11 +125,26 @@ export class CameraController {
     return this.cam;
   }
 
+  /** Current viewport size in CSS px (needed to project the minimap rect). */
+  get viewport(): Size {
+    return { ...this.view };
+  }
+
   /** Fit the whole map (toolbar button / initial state). */
   fit(): void {
     this.userAdjusted = false;
     this.measure();
     this.apply(fitCamera(this.view, this.options.mapWidth, this.options.mapHeight));
+  }
+
+  /** Center the view on a world point (minimap click / drag). */
+  centerOn(wx: number, wy: number): void {
+    this.userAdjusted = true;
+    this.apply({
+      scale: this.cam.scale,
+      tx: this.view.width / 2 - wx * this.cam.scale,
+      ty: this.view.height / 2 - wy * this.cam.scale,
+    });
   }
 
   zoomIn(): void {
