@@ -203,19 +203,41 @@ export function drawMap(
   ctx.textBaseline = 'middle';
   ctx.shadowColor = 'rgb(0 0 0 / 60%)';
   ctx.shadowBlur = 4;
-  for (const label of labels ?? layoutLabels(map, owners)) drawLabel(ctx, label);
+  for (const label of labels ?? layoutLabels(map, owners)) {
+    drawLabel(ctx, label, camera.scale);
+  }
   ctx.shadowBlur = 0;
 }
+
+/** Screen-space (px) limits for label fonts, regardless of zoom level. */
+const MIN_FONT_PX = 12;
+const MAX_FONT_PX = 72;
+/** Blocks smaller than this on screen fade their label out (zoomed far away). */
+const FADE_BELOW_PX = 24;
+const FADE_FULL_PX = 40;
 
 /**
  * Draw one faction label at EU4 style: fit the base size so the text never
  * outgrows the block's long axis, then spread the glyphs (letter tracking) to
  * span it. `label.angle` handles tall, narrow blocks (text runs top→bottom).
+ *
+ * `scale` is the camera zoom: the font is clamped to a legible screen range
+ * (12–72 px) and labels of blocks that are tiny *on screen* fade out instead of
+ * shrinking into noise.
  */
-function drawLabel(ctx: CanvasRenderingContext2D, label: FactionLabel): void {
+function drawLabel(
+  ctx: CanvasRenderingContext2D,
+  label: FactionLabel,
+  scale: number,
+): void {
   const { text, x, y, angle, span } = label;
-  if (!text || span <= 0) return;
-  const alpha = label.alpha ?? 1;
+  if (!text || span <= 0 || scale <= 0) return;
+  let alpha = label.alpha ?? 1;
+  // Fade labels of blocks too small to read at this zoom.
+  const spanPx = span * scale;
+  if (spanPx < FADE_FULL_PX) {
+    alpha *= Math.max(0, Math.min(1, (spanPx - FADE_BELOW_PX) / (FADE_FULL_PX - FADE_BELOW_PX)));
+  }
   if (alpha <= 0) return;
 
   ctx.save();
@@ -223,11 +245,15 @@ function drawLabel(ctx: CanvasRenderingContext2D, label: FactionLabel): void {
   ctx.translate(x, y);
   if (angle !== 0) ctx.rotate(angle);
 
-  let size = Math.max(4, label.size);
+  // Clamp the font to a legible size ON SCREEN at the current zoom.
+  const minWorld = MIN_FONT_PX / scale;
+  const maxWorld = MAX_FONT_PX / scale;
+  let size = Math.min(Math.max(Math.max(4, label.size), minWorld), maxWorld);
   ctx.font = `bold ${size}px system-ui, sans-serif`;
   let natural = ctx.measureText(text).width;
   if (natural > span) {
-    // Long name in a small block: shrink until it fits along the block.
+    // Long name in a small block: shrink until it fits along the block
+    // (a hard geometric cap — it wins over the screen-px minimum).
     size *= span / natural;
     ctx.font = `bold ${size}px system-ui, sans-serif`;
     natural = ctx.measureText(text).width;
