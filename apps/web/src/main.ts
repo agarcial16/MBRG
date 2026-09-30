@@ -6,7 +6,7 @@ import { handmadeMap } from './maps/handmade.js';
 import { renderLog } from './log.js';
 import { Playback } from './playback.js';
 import { drawMap, initialColors, interpolateFills } from './render.js';
-import { renderStats } from './stats.js';
+import { renderStats, revealedEvents } from './stats.js';
 
 const SPEEDS_MS = [2000, 1000, 500, 250, 100];
 const DEFAULT_SEED = 42;
@@ -77,13 +77,13 @@ function onState(): void {
   }
   if (logList) renderLog(logList, playback.match, playback.current, colors);
   if (statsBody) {
-    renderStats(
-      statsBody,
-      playback.owners,
+    renderStats(statsBody, {
+      owners: playback.owners,
       colors,
-      handmadeMap.territories.length,
-      playback.finished ? playback.match.winner : null,
-    );
+      total: handmadeMap.territories.length,
+      winner: playback.finished ? playback.match.winner : null,
+      events: revealedEvents(playback.match, playback.current),
+    });
   }
   updateHud();
 }
@@ -122,12 +122,12 @@ syncUrl(playback.match.seed);
 draw(playback.owners);
 if (logList) renderLog(logList, playback.match, playback.current, colors);
 if (statsBody) {
-  renderStats(
-    statsBody,
-    playback.owners,
+  renderStats(statsBody, {
+    owners: playback.owners,
     colors,
-    handmadeMap.territories.length,
-    playback.finished ? playback.match.winner : null,
-  );
+    total: handmadeMap.territories.length,
+    winner: playback.finished ? playback.match.winner : null,
+    events: revealedEvents(playback.match, playback.current),
+  });
 }
 updateHud();
