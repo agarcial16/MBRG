@@ -3,6 +3,7 @@ import './style.css';
 import type { Ownership } from '@mbrg/shared';
 
 import { handmadeMap } from './maps/handmade.js';
+import { renderLog } from './log.js';
 import { Playback } from './playback.js';
 import { drawMap, initialColors, interpolateFills } from './render.js';
 
@@ -16,6 +17,7 @@ const restartBtn = document.querySelector<HTMLButtonElement>('#btn-restart');
 const roundLabel = document.querySelector<HTMLSpanElement>('#round-label');
 const speedInput = document.querySelector<HTMLInputElement>('#speed');
 const speedLabel = document.querySelector<HTMLSpanElement>('#speed-label');
+const logList = document.querySelector<HTMLOListElement>('#log-list');
 
 const playback = new Playback(handmadeMap, DEFAULT_SEED);
 const colors = initialColors(handmadeMap);
@@ -54,6 +56,7 @@ function onState(): void {
     animDur = Math.min(ANIM_MAX_MS, playback.speedMs * 0.7);
     if (raf === null) raf = requestAnimationFrame(animationFrame);
   }
+  if (logList) renderLog(logList, playback.match, playback.current, colors);
   updateHud();
 }
 
@@ -71,4 +74,5 @@ speedInput?.addEventListener('input', (event) => {
 
 // Initial frame + HUD.
 draw(playback.owners);
+if (logList) renderLog(logList, playback.match, playback.current, colors);
 updateHud();

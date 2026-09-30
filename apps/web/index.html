@@ -11,6 +11,7 @@
         <h1>MBRG</h1>
         <p class="subtitle">Map Battle Royale</p>
         <section id="controls">
+          <h2>Partida</h2>
           <div class="row">
             <button id="btn-play" type="button" title="Reproducir / Pausar">▶</button>
             <button id="btn-restart" type="button" title="Reiniciar">↺</button>
@@ -21,8 +22,14 @@
             <input id="speed" type="range" min="0" max="4" step="1" value="2" />
           </label>
         </section>
-        <section id="log"></section>
-        <section id="stats"></section>
+        <section id="log">
+          <h2>Eventos</h2>
+          <ol id="log-list"></ol>
+        </section>
+        <section id="stats">
+          <h2>Estadísticas</h2>
+          <div id="stats-body"></div>
+        </section>
       </aside>
       <main id="stage">
         <canvas id="map"></canvas>
