@@ -37,7 +37,14 @@
         </section>
       </aside>
       <main id="stage">
-        <canvas id="map"></canvas>
+        <div id="map-wrap">
+          <canvas id="map"></canvas>
+          <div id="zoom-controls">
+            <button id="btn-zoom-in" type="button" title="Acercar (rueda del ratón)">＋</button>
+            <button id="btn-zoom-out" type="button" title="Alejar (rueda del ratón)">−</button>
+            <button id="btn-zoom-fit" type="button" title="Ajustar al mapa">⛶</button>
+          </div>
+        </div>
       </main>
     </div>
     <script type="module" src="/src/main.ts"></script>

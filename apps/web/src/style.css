@@ -251,15 +251,56 @@ body {
 #stage {
   flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 24px;
 }
 
+#map-wrap {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
 #map {
-  max-width: 100%;
-  max-height: calc(100vh - 48px);
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
   background: #0d0d15;
   border-radius: 8px;
   box-shadow: 0 8px 32px rgb(0 0 0 / 45%);
+  touch-action: none; /* pointer dragging must not scroll the page */
+  cursor: grab;
+}
+
+#map.dragging {
+  cursor: grabbing;
+}
+
+#zoom-controls {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 2;
+}
+
+#zoom-controls button {
+  width: 38px;
+  height: 38px;
+  font-size: 1.05rem;
+  line-height: 1;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgb(27 27 42 / 88%);
+  color: var(--text);
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+#zoom-controls button:hover {
+  background: #32324e;
+  border-color: var(--accent);
 }

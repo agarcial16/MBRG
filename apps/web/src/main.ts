@@ -4,6 +4,7 @@ import type { Ownership } from '@mbrg/shared';
 
 import { handmadeMap } from './maps/handmade.js';
 import { renderLog } from './log.js';
+import { CameraController } from './camera.js';
 import { interpolateLabels, layoutLabels, type FactionLabel } from './label.js';
 import { Playback } from './playback.js';
 import { drawMap, initialColors, interpolateFills } from './render.js';
@@ -23,6 +24,9 @@ const logList = document.querySelector<HTMLOListElement>('#log-list');
 const seedInput = document.querySelector<HTMLInputElement>('#seed');
 const seedBtn = document.querySelector<HTMLButtonElement>('#btn-seed');
 const statsBody = document.querySelector<HTMLDivElement>('#stats-body');
+const zoomInBtn = document.querySelector<HTMLButtonElement>('#btn-zoom-in');
+const zoomOutBtn = document.querySelector<HTMLButtonElement>('#btn-zoom-out');
+const zoomFitBtn = document.querySelector<HTMLButtonElement>('#btn-zoom-fit');
 
 /** Seed from `?seed=…` (shareable link), or null when absent/invalid. */
 function seedFromUrl(): number | null {
@@ -55,8 +59,27 @@ function draw(
   fills?: ReturnType<typeof interpolateFills>,
   labels?: FactionLabel[],
 ): void {
-  if (canvas) drawMap(canvas, handmadeMap, owners, colors, fills, labels);
+  if (canvas && camera) drawMap(canvas, handmadeMap, owners, colors, camera.camera, fills, labels);
 }
+
+/** Redraw the current frame after a camera change (pan/zoom/fit/resize). */
+function onCameraChange(): void {
+  if (raf !== null) return; // an animation is running; its loop redraws anyway
+  draw(toOwners);
+}
+
+const camera = canvas
+  ? new CameraController({
+      canvas,
+      mapWidth: handmadeMap.width ?? 800,
+      mapHeight: handmadeMap.height ?? 600,
+      onChange: onCameraChange,
+    })
+  : null;
+
+zoomInBtn?.addEventListener('click', () => camera?.zoomIn());
+zoomOutBtn?.addEventListener('click', () => camera?.zoomOut());
+zoomFitBtn?.addEventListener('click', () => camera?.fit());
 
 /** Labels mid-absorption: same `t` as the color crossfade. */
 function animatingLabels(t: number): FactionLabel[] {

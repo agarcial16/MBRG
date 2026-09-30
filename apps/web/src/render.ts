@@ -1,5 +1,6 @@
 import type { FactionId, MapFormatV1, Ownership, TerritoryId } from '@mbrg/shared';
 
+import type { Camera } from './camera.js';
 import { layoutLabels, type FactionLabel } from './label.js';
 
 /** Distinct, pleasant colors assigned to factions in map-territory order. */
@@ -120,8 +121,8 @@ function tracePath(ctx: CanvasRenderingContext2D, poly: readonly (readonly numbe
 }
 
 /**
- * Draw the whole map. `fills` overrides per-territory colors (mid-animation
- * crossfades).
+ * Draw the whole map through a viewport camera (world → screen). `fills`
+ * overrides per-territory colors (mid-animation crossfades).
  *
  * Borders: only segments facing a DIFFERENT owner (or the map's outside) are
  * stroked, so an annexed faction reads as one single block with a single outer
@@ -132,15 +133,30 @@ export function drawMap(
   map: MapFormatV1,
   owners: Ownership,
   colors: Record<FactionId, string>,
+  camera: Camera,
   fills?: Record<TerritoryId, string>,
   labels?: FactionLabel[],
 ): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  canvas.width = map.width ?? 800;
-  canvas.height = map.height ?? 600;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // The canvas is the viewport: bitmap = CSS size × devicePixelRatio, crisp
+  // at every zoom level.
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth;
+  const cssH = canvas.clientHeight;
+  if (cssW <= 0 || cssH <= 0) return;
+  const bw = Math.round(cssW * dpr);
+  const bh = Math.round(cssH * dpr);
+  if (canvas.width !== bw || canvas.height !== bh) {
+    canvas.width = bw;
+    canvas.height = bh;
+  }
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // CSS px space
+  ctx.clearRect(0, 0, cssW, cssH);
+  ctx.translate(camera.tx, camera.ty); // world → screen
+  ctx.scale(camera.scale, camera.scale);
 
   const resolved = fills ?? territoryColorsOf(owners, colors);
 
