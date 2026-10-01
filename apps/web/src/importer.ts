@@ -3,6 +3,7 @@ import './style.css';
 import {
   assembleMap,
   BYTES_PER_PIXEL,
+  closeGaps,
   detectAdjacency,
   detectFlatColorRegions,
   pointInRing,
@@ -298,8 +299,24 @@ function tuning(): Tuning {
 function detect(): void {
   if (!detection) return;
   const options = tuning();
-  const flat: FlatColorResult = detectFlatColorRegions(detection, options);
-  const adjacency = detectAdjacency(flat, { maxGap: options.maxGap });
+  const found: FlatColorResult = detectFlatColorRegions(detection, options);
+
+  // Close the outline gaps in the pixels before anything reads the labels.
+  //
+  // Joining them in the graph is not enough: the renderer decides whether to
+  // stroke an edge by looking for a neighbour polygon that shares the exact
+  // same segment, and two provinces separated by an outline share none. The edge
+  // then looks like coastline, so it is drawn — by both of them, which makes it
+  // twice as thick as the rest — and after an annexation it keeps being drawn,
+  // because it still looks like the sea.
+  //
+  // Everything downstream reads these closed labels; the regions themselves are
+  // untouched, so this cannot merge two provinces, only make their outlines meet.
+  const flat: FlatColorResult = {
+    ...found,
+    labels: closeGaps(found.labels, found.width, found.height, options.maxGap),
+  };
+  const adjacency = detectAdjacency(flat);
   const contours = traceContours(flat, {
     simplify: options.simplify,
     minHoleRatio: options.minHoleRatio,

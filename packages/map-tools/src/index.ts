@@ -18,6 +18,7 @@ export type {
   SeaChoice,
 } from './flatColors.js';
 export { DEFAULT_FLAT_COLOR_OPTIONS, describeRgb, detectFlatColorRegions, isBorderColor } from './flatColors.js';
+export { closeGaps } from './morphology.js';
 export type { RasterImage, RGB } from './raster.js';
 export {
   alphaAt,
