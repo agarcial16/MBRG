@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Coord, MapFormatV1, Ownership } from '@mbrg/shared';
 
-import { frameAt, layoutLabels, rectInsideBlock, type FactionLabel } from './label.js';
+import { frameAt, layoutLabels, mapUnit, rectInsideBlock, type FactionLabel } from './label.js';
 import { handmadeMap } from './maps/handmade.js';
 
 function pointInPolygon(p: Coord, poly: Coord[]): boolean {
@@ -131,6 +131,96 @@ describe('provincia con varias piezas', () => {
   });
 });
 
+describe('los tamaños viajan con el mapa', () => {
+  /**
+   * The same map scaled by `k` in every direction: identical shape, identical
+   * proportions, and it must produce labels that are `k` times bigger in world
+   * units — so that on screen they come out the same size. This is the whole
+   * invariant; anything less and the labels shrink as the map grows.
+   */
+  const scaled = (map: MapFormatV1, k: number): MapFormatV1 => ({
+    ...map,
+    width: (map.width ?? 0) * k,
+    height: (map.height ?? 0) * k,
+    territories: map.territories.map((t) => ({
+      ...t,
+      polygons: t.polygons.map((ring) => ring.map(([x, y]) => [x * k, y * k] as Coord)),
+      // The anchor too: the handmade map pins one, and an unscaled anchor would
+      // make the corridor run from the wrong place rather than from the same
+      // place in a bigger map.
+      ...(t.center ? { center: [t.center[0] * k, t.center[1] * k] as Coord } : {}),
+      ...(t.holes
+        ? { holes: t.holes.map((hole) => hole.map(([x, y]) => [x * k, y * k] as Coord)) }
+        : {}),
+    })),
+  });
+
+  const ownersOf = (map: MapFormatV1): Ownership =>
+    Object.fromEntries(map.territories.map((t) => [t.id, t.id]));
+
+  it('la etiqueta conserva su forma al escalar el mapa', () => {
+    // The other half of the invariant: the size scaling linearly is worthless if
+    // the *curve* is a different shape at a different size. That is what the
+    // crescent-vs-straight decision compares, and it was flipping with the map's
+    // coordinate scale because of an absolute epsilon in `straightCurve`.
+    const base = layoutOf(handmadeMap, ownersOf(handmadeMap));
+    for (const k of [0.25, 4]) {
+      const big = layoutOf(scaled(handmadeMap, k), ownersOf(handmadeMap));
+      for (let i = 0; i < base.length; i++) {
+        expect(big[i].curve.pts).toHaveLength(base[i].curve.pts.length);
+        expect(big[i].curve.total / k).toBeCloseTo(base[i].curve.total, 6);
+        expect(big[i].angle).toBeCloseTo(base[i].angle, 9);
+      }
+    }
+  });
+
+  it('escalar el mapa escala las etiquetas en la misma proporcion', () => {
+    const base = layoutOf(handmadeMap, ownersOf(handmadeMap));
+    const expected = Object.fromEntries(base.map((l) => [l.faction, l.size]));
+    for (const k of [0.25, 4, 16]) {
+      const big = layoutOf(scaled(handmadeMap, k), ownersOf(handmadeMap));
+      expect(big).toHaveLength(base.length);
+      for (const l of big) {
+        // Exactly linear, not approximately: everything downstream of `areaSize`
+        // (thickness cap, run cap, crescent choice) is a length too, so a label
+        // that is `k` times bigger on a `k` times bigger map is the whole
+        // invariant, and any absolute constant left anywhere shows up here.
+        expect(l.size / expected[l.faction]).toBeCloseTo(k, 6);
+      }
+    }
+  });
+
+  it('el mapa artesanal conserva los tamaños que ya estan bien', () => {
+    // The constants are the old ones divided by 415, the handmade map's short
+    // side, so `blockSize` returns exactly what it used to and this map comes
+    // out of the change untouched, to the digit.
+    const labels = layoutOf(handmadeMap, ownersOf(handmadeMap));
+    const sizes = Object.fromEntries(labels.map((l) => [l.faction, l.size]));
+    expect(sizes.A).toBeCloseTo(25.35, 2);
+    expect(sizes.B).toBeCloseTo(20.86, 2);
+    expect(sizes.D).toBeCloseTo(43.06, 2);
+    expect(sizes.E).toBeCloseTo(38.36, 2);
+  });
+
+  it('mapUnit usa el tamaño declarado y, si falta, el bbox', () => {
+    expect(mapUnit(handmadeMap)).toBe(415);
+    const noSize = { ...handmadeMap, width: undefined, height: undefined };
+    // No declared size: falls back to the land's own bounding box, which is
+    // narrower than the declared canvas because the map has sea around it.
+    expect(mapUnit(noSize)).toBeCloseTo(352, 0);
+  });
+
+  it('un mapa sin tamaño declarado sigue dando etiquetas proporcionales', () => {
+    const noSize: MapFormatV1 = {
+      ...handmadeMap,
+      width: undefined,
+      height: undefined,
+    };
+    const labels = layoutOf(noSize, ownersOf(noSize));
+    for (const l of labels) expect(l.size).toBeGreaterThan(10);
+  });
+});
+
 describe('bloque en forma de anillo (hueco)', () => {
   it('el ancla y la curva evitan el hueco', () => {
     const frame: MapFormatV1 = {
@@ -236,6 +326,18 @@ describe('sentido de lectura', () => {
 });
 
 describe('recto por defecto, semiluna solo si hace falta', () => {
+  /** How far the centerline wanders from the straight line between its ends. */
+  function maxDeviation(label: FactionLabel): number {
+    const pts = label.curve.pts;
+    const [x1, y1] = pts[0];
+    const [x2, y2] = pts[pts.length - 1];
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    if (len === 0) return 0;
+    return Math.max(
+      ...pts.map(([x, y]) => Math.abs((x2 - x1) * (y1 - y) - (x1 - x) * (y2 - y1)) / len),
+    );
+  }
+
   // An L: the straight corridor along an arm already fits, so no crescent.
   const L: Coord[] = [
     [0, 0],
@@ -248,14 +350,18 @@ describe('recto por defecto, semiluna solo si hace falta', () => {
 
   it('un bloque en L se etiqueta recto', () => {
     const label = layoutOf(oneTerritory(L, 'Imperio'), { X: 'X' })[0];
-    expect(label.curve.pts).toHaveLength(2);
+    // Measured by how far it wanders, not by how many points it has: the straight
+    // corridor is sampled like the curved one (it has to be, or its thickness
+    // table only exists at its two ends and the font collapses), so the point
+    // count no longer says anything about the shape.
+    expect(maxDeviation(label)).toBeLessThan(1e-9);
     for (const p of label.curve.pts) expect(pointInPolygon(p, L)).toBe(true);
   });
 
   it('una banda curva se etiqueta con un arco, y el arco es un solo giro', () => {
     const band = banana(120, 80, 0.35, 1.95);
     const curved = layoutOf(oneTerritory(band, 'Imperio del Norte'), { X: 'X' })[0];
-    expect(curved.curve.pts.length).toBeGreaterThan(2);
+    expect(maxDeviation(curved)).toBeGreaterThan(1);
     for (const p of curved.curve.pts) expect(pointInPolygon(p, band), `${p} fuera`).toBe(true);
     // One smooth bend = the tangent always turns the *same* way. A serpentine
     // would flip the sign of the cross product from segment to segment.

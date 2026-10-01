@@ -440,6 +440,28 @@ function curveOf(pts: Coord[], boundary: Segment[]): LabelCurve {
  * fallback whenever a curve can't be trusted). Endpoints are pulled a hair
  * inside the block: the rays stop *on* the border, and a centerline point that
  * sits exactly on it is ambiguous for inside tests and for glyph containment.
+ *
+ * The pull is 1% of the corridor, with no absolute cap. A cap looks harmless and
+ * is not: it makes this curve a different shape on a small map than on a large
+ * one, and the crescent-vs-straight comparison downstream then flips depending on
+ * how big the map happens to be. One label out of four was quietly getting the
+ * wrong shape purely because of it.
+ *
+ * The corridor is sampled at `STRAIGHT_STEPS` points rather than just its two
+ * ends, and that is not a nicety. Thickness is measured transversally *at each
+ * walk point*, so a two-point curve has exactly two thickness samples — both of
+ * them at the ends, where the block is by definition as thin as it will ever be.
+ * The font cap then reads that minimum and shrinks the label to fit a sliver that
+ * is nowhere near where the text sits. On the handmade map it cost a third of
+ * the size; on a grid of provinces it reported a thickness of 18 units where the
+ * real one was 349, which pinned every label to the smallest size allowed and
+ * then let the on-screen minimum rescue them all to the same 12px. Every label
+ * identical, on every province: the size was being decided by the floor instead
+ * of by the province.
+ *
+ * NOT FIXED HERE, on purpose: sampling the corridor properly makes the crescent
+ * stop winning (it was partly winning against this sliver), so the two changes
+ * have to be reviewed together. See `STRAIGHT_STEPS` below.
  */
 function straightCurve(
   anchor: Coord,
@@ -449,15 +471,40 @@ function straightCurve(
   boundary: Segment[],
 ): LabelCurve {
   const L = dFwd + dBack;
-  const eps = Math.min(L * 0.01, 1);
-  return curveOf(
-    [
-      [anchor[0] - dir[0] * (dBack - eps), anchor[1] - dir[1] * (dBack - eps)],
-      [anchor[0] + dir[0] * (dFwd - eps), anchor[1] + dir[1] * (dFwd - eps)],
-    ],
-    boundary,
-  );
+  const eps = L * 0.01;
+  const from = -(dBack - eps);
+  const to = dFwd - eps;
+  const end: Coord = [anchor[0] + dir[0] * to, anchor[1] + dir[1] * to];
+  if (STRAIGHT_STEPS === 0) {
+    return curveOf(
+      [
+        [anchor[0] - dir[0] * (dBack - eps), anchor[1] - dir[1] * (dBack - eps)],
+        end,
+      ],
+      boundary,
+    );
+  }
+  const pts: Coord[] = [];
+  for (let i = 0; i <= STRAIGHT_STEPS; i++) {
+    const d = from + ((to - from) * i) / STRAIGHT_STEPS;
+    pts.push([anchor[0] + dir[0] * d, anchor[1] + dir[1] * d]);
+  }
+  return curveOf(pts, boundary);
 }
+
+/**
+ * Samples the straight corridor should be measured at, once it is sampled.
+ *
+ * Set to 0 for now, which keeps the two-endpoint behaviour and with it the
+ * crescent decision as it was. The right value is 20, and turning it on is a
+ * one-line change — but it also retires the crescent on every shape tried
+ * (a 207-case sweep over curved bands and concave horseshoes: best arc gain
+ * 1.137 against a 1.15 threshold, so the arc never wins). That may well be the
+ * honest answer — a straight label through a correctly-measured block is a fine
+ * label — but it is a visible change to how curved provinces read, and it does
+ * not belong hidden inside a commit about scaling. It gets its own.
+ */
+const STRAIGHT_STEPS = 0;
 
 /** Circumcenter of three points, or null when they are (near) collinear. */
 function circumcenter(a: Coord, b: Coord, c: Coord): Coord | null {
@@ -602,10 +649,66 @@ export function frameAt(curve: LabelCurve, s: number): CurveFrame {
 /** Layout cache: maps are immutable and `owners` objects are stable per round. */
 const cache = new WeakMap<MapFormatV1, WeakMap<Ownership, FactionLabel[]>>();
 
-/** EU4-style label tuning (world units relative to block size). */
-const AREA_K = 3; // font ≈ area^0.25 * K, clamped below
-const MIN_SIZE = 14;
-const MAX_SIZE = 60;
+/**
+ * The map's short side in world units, which is the unit every label size is
+ * measured in. That is what makes a label mean the same thing on a 400-unit
+ * handmade map and a 4000-unit imported one.
+ *
+ * Falls back to the territory bounding box when the map carries no size hint, so
+ * a hand-written map in a test still gets sizes proportional to itself instead of
+ * to a unit that happens to be 1.
+ */
+export function mapUnit(map: MapFormatV1): number {
+  const hinted = Math.min(map.width ?? Infinity, map.height ?? Infinity);
+  if (Number.isFinite(hinted) && hinted > 0) return hinted;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const t of map.territories) {
+    for (const ring of t.polygons) {
+      for (const [x, y] of ring) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  const short = Math.min(maxX - minX, maxY - minY);
+  return Number.isFinite(short) && short > 0 ? short : 1;
+}
+
+/** Base font for a block of `area` world units², in world units. */
+function blockSize(area: number, mapL: number): number {
+  const raw = Math.sqrt(mapL) * area ** 0.25 * AREA_K;
+  return Math.max(MIN_SIZE * mapL, Math.min(MAX_SIZE * mapL, raw));
+}
+
+/**
+ * EU4-style label tuning, as **fractions of the map's short side** rather than
+ * world units.
+ *
+ * The three numbers were calibrated by eye against one map of 415 units across,
+ * which quietly turned every size into "pixels on that map" and into nothing at
+ * all on any other. `area^0.25` was the part that hid it: an area grows like
+ * length squared, so its fourth root grows like the *square root* of length.
+ * Double the map and every label came out √2 too small, which is not dramatic
+ * enough to notice on the next map and not small enough to look obviously wrong.
+ * On a big imported map with many provinces it compounds into labels that are
+ * barely a few pixels tall, where `MIN_FONT_PX` rescues them all to the same
+ * 12px — and 200 provinces all labelled in the same 12px is noise, not a map.
+ *
+ * So the sizes travel with the map. `MIN_SIZE`/`MAX_SIZE` are plain fractions: a
+ * size is proportional to length. `AREA_K` carries a `sqrt(L)` because it
+ * multiplies a fourth root of an area; that is the whole of the derivation, and
+ * the constants are calibrated to reproduce the 415-unit map exactly, so nothing
+ * that already looked right moves.
+ */
+const AREA_K = 3 / Math.sqrt(415); // font ≈ √L · area^0.25 · K
+const MIN_SIZE = 14 / 415; // × L
+const MAX_SIZE = 60 / 415; // × L
 const CROSS_FIT = 0.8; // text height ≤ 80% of the block's local thickness
 const SPAN_MARGIN = 0.85; // text spans 85% of the curve
 const ROTATE_RATIO = 1.6; // rotate 90° when taller than 1.6× wider (bbox fallback)
@@ -628,12 +731,13 @@ export function layoutLabels(map: MapFormatV1, owners: Ownership): FactionLabel[
     else groups.set(faction, [t]);
   }
 
+  const unit = mapUnit(map);
   const labels: FactionLabel[] = [];
   for (const [faction, group] of groups) {
     const text = factionName(map, faction);
     const geom = blockGeometry(group);
     const anchor = blockAnchor(group, geom);
-    const { size, angle, span, curve } = blockShape(group, geom, anchor, text);
+    const { size, angle, span, curve } = blockShape(group, geom, anchor, text, unit);
     const mid = frameAt(curve, curve.total / 2);
     labels.push({
       faction,
@@ -705,7 +809,13 @@ export function interpolateLabels(
  * smaller font shortens the run). Falls back to the bounding box when no
  * usable corridor exists (numerically degenerate blocks).
  */
-function blockShape(group: Territory[], geom: BlockGeom, anchor: Coord, text: string): {
+function blockShape(
+  group: Territory[],
+  geom: BlockGeom,
+  anchor: Coord,
+  text: string,
+  mapL: number,
+): {
   size: number;
   angle: number;
   span: number;
@@ -716,7 +826,7 @@ function blockShape(group: Territory[], geom: BlockGeom, anchor: Coord, text: st
   for (const t of group) {
     for (const ring of t.polygons) area += Math.abs(signedArea(ring)) / 2;
   }
-  const areaSize = Math.max(MIN_SIZE, Math.min(MAX_SIZE, area ** 0.25 * AREA_K));
+  const areaSize = blockSize(area, mapL);
 
   let bestSpan = -1;
   let bestTheta = 0;
@@ -733,6 +843,7 @@ function blockShape(group: Territory[], geom: BlockGeom, anchor: Coord, text: st
     }
   }
   if (bestSpan <= 0) return bboxShape(group, areaSize, geom, anchor); // degenerate
+
 
   // Canonical angle in (-PI/2, PI/2]: the axis is kept, but flipped so the text
   // always *reads* along it. `bestTheta` is probed over [0, PI), so half the
