@@ -408,6 +408,13 @@ export function traceContours(
     if (Math.abs(signedArea(rawPoints)) < opts.minLoopArea) continue;
 
     let points = simplifyRing(rawPoints, opts.simplify);
+    if (points.length < 3) {
+      // Simplification collapsed a small ring: a one-pixel province is four
+      // corners that all sit within tolerance of the chord, so they merge away.
+      // Keeping the raw outline costs a few points; losing the province
+      // entirely would leave its neighbours pointing at nothing.
+      points = rawPoints;
+    }
     if (points.length < 3) continue;
     const area = Math.abs(signedArea(points));
     if (area < opts.minLoopArea) continue;
