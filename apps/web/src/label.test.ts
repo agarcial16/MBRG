@@ -136,3 +136,107 @@ describe('bloque en forma de anillo (hueco)', () => {
     }
   });
 });
+
+/** Single-territory map, to exercise the shape of a block in isolation. */
+function oneTerritory(polygon: Coord[], name: string): MapFormatV1 {
+  return {
+    version: 1,
+    name: 'fixture',
+    width: 400,
+    height: 400,
+    territories: [{ id: 'X', name, neighbors: [], polygon }],
+  };
+}
+
+/** Thick band following a circular arc: a "banana" (the crescent case). */
+function banana(ro: number, ri: number, from: number, to: number): Coord[] {
+  const pts: Coord[] = [];
+  for (let a = from; a <= to; a += Math.PI / 60) pts.push([ro * Math.cos(a), ro * Math.sin(a)]);
+  for (let a = to; a >= from; a -= Math.PI / 60) pts.push([ri * Math.cos(a), ri * Math.sin(a)]);
+  return pts;
+}
+
+describe('sentido de lectura', () => {
+  const owners: Ownership = Object.fromEntries(handmadeMap.territories.map((t) => [t.id, t.id]));
+  const labels = layoutOf(handmadeMap, owners);
+
+  it('la curva avanza en el eje de lectura y no se inclina demasiado', () => {
+    for (const l of labels) {
+      const ax = Math.cos(l.angle);
+      const ay = Math.sin(l.angle);
+      // Whole line: it must advance along the label's axis (never backwards).
+      const last = l.curve.pts[l.curve.pts.length - 1];
+      const first = l.curve.pts[0];
+      const span = Math.hypot(last[0] - first[0], last[1] - first[1]);
+      expect(span).toBeGreaterThan(0);
+      expect(((last[0] - first[0]) * ax + (last[1] - first[1]) * ay) / span).toBeGreaterThan(0);
+      // Every step reads forward and tilts at most 60° from the axis.
+      for (let i = 1; i < l.curve.pts.length; i++) {
+        const dx = l.curve.pts[i][0] - l.curve.pts[i - 1][0];
+        const dy = l.curve.pts[i][1] - l.curve.pts[i - 1][1];
+        const len = Math.hypot(dx, dy);
+        if (len <= 1e-9) continue;
+        expect((dx * ax + dy * ay) / len).toBeGreaterThan(0);
+        expect(Math.abs(dy * ax - dx * ay) / len).toBeLessThanOrEqual(Math.sin((60 * Math.PI) / 180) + 1e-9);
+      }
+    }
+  });
+
+  it('el ángulo base es canónico (nunca boca abajo)', () => {
+    for (const l of labels) {
+      expect(l.angle).toBeGreaterThan(-Math.PI / 2 - 1e-9);
+      expect(l.angle).toBeLessThanOrEqual(Math.PI / 2 + 1e-9);
+    }
+  });
+});
+
+describe('recto por defecto, semiluna solo si hace falta', () => {
+  // An L: the straight corridor along an arm already fits, so no crescent.
+  const L: Coord[] = [
+    [0, 0],
+    [200, 0],
+    [200, 60],
+    [60, 60],
+    [60, 200],
+    [0, 200],
+  ];
+
+  it('un bloque en L se etiqueta recto', () => {
+    const label = layoutOf(oneTerritory(L, 'Imperio'), { X: 'X' })[0];
+    expect(label.curve.pts).toHaveLength(2);
+    for (const p of label.curve.pts) expect(pointInPolygon(p, L)).toBe(true);
+  });
+
+  it('una banda curva se etiqueta con un arco, y el arco es un solo giro', () => {
+    const band = banana(120, 80, 0.35, 1.95);
+    const curved = layoutOf(oneTerritory(band, 'Imperio del Norte'), { X: 'X' })[0];
+    expect(curved.curve.pts.length).toBeGreaterThan(2);
+    for (const p of curved.curve.pts) expect(pointInPolygon(p, band), `${p} fuera`).toBe(true);
+    // One smooth bend = the tangent always turns the *same* way. A serpentine
+    // would flip the sign of the cross product from segment to segment.
+    const cross: number[] = [];
+    for (let i = 1; i < curved.curve.pts.length - 1; i++) {
+      const a = curved.curve.pts[i - 1];
+      const b = curved.curve.pts[i];
+      const c = curved.curve.pts[i + 1];
+      cross.push((b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]));
+    }
+    const signs = new Set(cross.filter((v) => Math.abs(v) > 1e-9).map((v) => Math.sign(v)));
+    expect(signs.size).toBeLessThanOrEqual(1);
+    expect(signs.size).toBe(1); // it really is a bend, not a straight line
+  });
+
+  it('el arco nunca se sale del bloque ni se lee del revés', () => {
+    const band = banana(120, 80, 0.35, 1.95);
+    const label = layoutOf(oneTerritory(band, 'Imperio del Norte'), { X: 'X' })[0];
+    const ax = Math.cos(label.angle);
+    const ay = Math.sin(label.angle);
+    for (let i = 1; i < label.curve.pts.length; i++) {
+      const dx = label.curve.pts[i][0] - label.curve.pts[i - 1][0];
+      const dy = label.curve.pts[i][1] - label.curve.pts[i - 1][1];
+      const len = Math.hypot(dx, dy);
+      if (len <= 1e-9) continue;
+      expect((dx * ax + dy * ay) / len).toBeGreaterThan(0);
+    }
+  });
+});
