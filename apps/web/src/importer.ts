@@ -15,6 +15,7 @@ import type { Coord, MapFormatV1 } from '@mbrg/shared';
 import { decodeImageFile, decodeImageUrl, drawRaster } from './decode.js';
 import { applyI18n, getLang, onLangChange, setLang, t, type Lang } from './i18n.js';
 import { saveMap, suggestMapName } from './library.js';
+import { applyNames, cleanName } from './naming.js';
 import type { RasterImage } from '@mbrg/map-tools';
 
 /** Injected at build time from apps/web/package.json. */
@@ -49,11 +50,16 @@ const versionEl = document.querySelector<HTMLElement>('#app-version')!;
 const toleranceInput = document.querySelector<HTMLInputElement>('#tolerance')!;
 const minAreaInput = document.querySelector<HTMLInputElement>('#min-area')!;
 const simplifyInput = document.querySelector<HTMLInputElement>('#simplify')!;
+const minHoleInput = document.querySelector<HTMLInputElement>('#min-hole')!;
+const nameRow = document.querySelector<HTMLElement>('#namerow')!;
+const regionNameInput = document.querySelector<HTMLInputElement>('#region-name')!;
+const namedCount = document.querySelector<HTMLElement>('#named-count')!;
 
 interface Tuning {
   tolerance: number;
   minRegionArea: number;
   simplify: number;
+  minHoleRatio: number;
 }
 
 let raster: RasterImage | null = null;
@@ -61,6 +67,10 @@ let mapName = '';
 let result: AssemblyResult | null = null;
 let selected: string | null = null;
 let previewCtx: CanvasRenderingContext2D | null = null;
+/** Names typed by the user, keyed by territory id so they survive re-detection. */
+let names = new Map<string, string>();
+/** Ids whose names did not survive the last re-detection, reported once. */
+let lostNames: string[] = [];
 
 if (versionEl) versionEl.textContent = `v${__APP_VERSION__}`;
 document.documentElement.lang = getLang();
@@ -72,12 +82,13 @@ onLangChange(() => {
 });
 langSelect?.addEventListener('change', () => setLang(langSelect.value as Lang));
 
-for (const input of [toleranceInput, minAreaInput, simplifyInput]) {
+for (const input of [toleranceInput, minAreaInput, simplifyInput, minHoleInput]) {
   input?.addEventListener('input', () => {
-    for (const el of [toleranceInput, minAreaInput, simplifyInput]) {
+    for (const el of [toleranceInput, minAreaInput, simplifyInput, minHoleInput]) {
       if (!el) continue;
       const out = document.querySelector<HTMLOutputElement>(`#${el.id}-out`);
-      if (out) out.textContent = el.value;
+      if (!out) continue;
+      out.textContent = el === minHoleInput ? `${el.value}%` : el.value;
     }
     detect();
   });
@@ -99,6 +110,9 @@ dropZone?.addEventListener('drop', (event) => {
   if (file) void load(file);
 });
 showSource?.addEventListener('change', () => render());
+
+// Renaming applies as you type: no "apply" step to forget.
+regionNameInput?.addEventListener('input', () => renameSelected(regionNameInput.value));
 
 // `?image=<url>` loads a map without going through the file picker, which is
 // how a map that needs debugging gets shared.
@@ -134,6 +148,7 @@ function tuning(): Tuning {
     tolerance: Number(toleranceInput?.value ?? 32),
     minRegionArea: Number(minAreaInput?.value ?? 24),
     simplify: Number(simplifyInput?.value ?? 0.75),
+    minHoleRatio: Number(minHoleInput?.value ?? 1) / 100,
   };
 }
 
@@ -143,8 +158,18 @@ function detect(): void {
   const options = tuning();
   const flat: FlatColorResult = detectFlatColorRegions(raster, options);
   const adjacency = detectAdjacency(flat);
-  const contours = traceContours(flat, { simplify: options.simplify });
-  result = assembleMap(flat, adjacency, contours, { name: mapName || 'imported' });
+  const contours = traceContours(flat, {
+    simplify: options.simplify,
+    minHoleRatio: options.minHoleRatio,
+  });
+  const assembled = assembleMap(flat, adjacency, contours, { name: mapName || 'imported' });
+
+  // Re-apply the names: detection re-runs on every slider move, and typing 40
+  // names has to survive touching the tolerance.
+  const applied = applyNames(assembled.map, names);
+  lostNames = applied.dropped;
+  result = { ...assembled, map: applied.map };
+  if (selected && !result.map.territories.some((t) => t.id === selected)) selected = null;
   render();
 }
 
@@ -162,8 +187,14 @@ function render(): void {
   });
 
   drawPreview();
+  renderNames();
   renderRegions(territories);
   renderIssues(errors, warnings);
+  // Say it out loud when a parameter change made provinces disappear, rather
+  // than letting 40 typed names vanish in silence.
+  if (lostNames.length > 0) {
+    issuesBox.prepend(issue('warn', t('import.namesLost', { count: lostNames.length })));
+  }
 
   // A map with errors cannot be played, and must not be exported as if it were.
   const broken = errors.length > 0;
@@ -214,23 +245,27 @@ function traceRing(ctx: CanvasRenderingContext2D, ring: Coord[]): void {
   ctx.closePath();
 }
 
-function renderRegions(
-  territories: AssemblyResult['territories'],
-): void {
+function renderRegions(territories: AssemblyResult['territories']): void {
   regionList.textContent = '';
   for (const entry of territories) {
+    const territory = result?.map.territories.find((t) => t.id === entry.id);
+    const name = territory?.name ?? entry.id;
+    const named = name !== entry.id;
+
     const li = document.createElement('li');
     li.className = 'region';
+    // The id, not the visible text: a renamed province shows its name, and
+    // matching on that would break as soon as a name were typed.
+    li.dataset.id = entry.id;
     if (selected === entry.id) li.classList.add('selected');
-    li.addEventListener('mouseenter', () => {
-      selected = entry.id;
-      drawPreview();
-      highlightRow();
-    });
-    li.addEventListener('mouseleave', () => {
-      selected = null;
-      drawPreview();
-      highlightRow();
+    li.addEventListener('mouseenter', () => highlight(entry.id));
+    li.addEventListener('mouseleave', () => highlight(selected));
+    // Clicking a row selects it and focuses the name field, which is the whole
+    // point of a name existing: "p137" on a map says nothing.
+    li.addEventListener('click', () => {
+      select(entry.id);
+      regionNameInput.focus();
+      regionNameInput.select();
     });
 
     const swatch = document.createElement('span');
@@ -238,8 +273,9 @@ function renderRegions(
     swatch.style.background = `#${entry.color.toString(16).padStart(6, '0')}`;
 
     const label = document.createElement('span');
-    label.className = 'region-label';
-    label.textContent = entry.id;
+    label.className = named ? 'region-label named' : 'region-label';
+    label.textContent = name;
+    label.title = entry.id;
 
     const meta = document.createElement('span');
     meta.className = 'region-meta';
@@ -262,10 +298,42 @@ function badge(key: Parameters<typeof t>[0]): HTMLElement {
   return el;
 }
 
-function highlightRow(): void {
-  for (const li of regionList.querySelectorAll('li.region')) {
-    li.classList.toggle('selected', li.querySelector('.region-label')?.textContent === selected);
+/** Highlight a province in the preview and in the list; null clears it. */
+function highlight(id: string | null): void {
+  selected = id;
+  drawPreview();
+  for (const li of regionList.querySelectorAll<HTMLLIElement>('li.region')) {
+    li.classList.toggle('selected', id !== null && li.dataset.id === id);
   }
+}
+
+/** Select a province and load its name into the field. */
+function select(id: string | null): void {
+  highlight(id);
+  nameRow.hidden = id === null;
+  if (id === null) return;
+  const territory = result?.map.territories.find((t) => t.id === id);
+  regionNameInput.value = territory?.name && territory.name !== id ? territory.name : '';
+}
+
+/** Rename a province, keeping the name keyed by id so it survives re-detection. */
+function renameSelected(raw: string): void {
+  if (!result || !selected) return;
+  const clean = cleanName(raw);
+  if (clean) names.set(selected, clean);
+  else names.delete(selected);
+  result = { ...result, map: applyNames(result.map, names).map };
+  renderNames();
+  renderRegions(result.territories);
+  highlight(selected);
+}
+
+function renderNames(): void {
+  if (!result) return;
+  const total = result.map.territories.length;
+  const named = result.map.territories.filter((t) => t.name !== t.id).length;
+  namedCount.hidden = total === 0;
+  namedCount.textContent = t('import.named', { named, total });
 }
 
 function renderIssues(errors: ImportIssue[], warnings: ImportIssue[]): void {
@@ -293,8 +361,12 @@ function describe(finding: ImportIssue): string {
       return t('import.issueSplit', { id, color, pieces: pieces ?? 0 });
     case 'island':
       return t('import.issueIsland', { id, color });
+    case 'mostlyIslands':
+      return t('import.issueMostlyIslands', { count, total });
     case 'diagonalCrossings':
       return t('import.issueDiagonal', { count });
+    case 'tinyHolesDropped':
+      return t('import.issueTinyHoles', { count });
     case 'skippedPixels':
       return t('import.issueSkipped', { count, total });
     case 'invalid':
@@ -326,9 +398,7 @@ preview?.addEventListener('click', (event) => {
   const rect = preview.getBoundingClientRect();
   const x = Math.floor(((event.clientX - rect.left) / rect.width) * raster.width);
   const y = Math.floor(((event.clientY - rect.top) / rect.height) * raster.height);
-  selected = territoryAt(x, y, result.map);
-  drawPreview();
-  highlightRow();
+  select(territoryAt(x, y, result.map));
 });
 
 function territoryAt(x: number, y: number, map: MapFormatV1): string | null {

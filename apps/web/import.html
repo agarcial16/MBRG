@@ -51,6 +51,11 @@
             <input id="simplify" type="range" min="0" max="4" step="0.25" value="0.75" />
             <output id="simplify-out">0.75</output>
           </label>
+          <label>
+            <span data-i18n="import.holeFloor">Agujeros mínimos</span>
+            <input id="min-hole" type="range" min="0" max="5" step="0.1" value="1" />
+            <output id="min-hole-out">1%</output>
+          </label>
         </div>
         <p class="summary" id="summary"></p>
       </section>
@@ -70,7 +75,12 @@
       </section>
 
       <section class="panel" id="issues-panel" hidden>
-        <h2 data-i18n="import.step4">4 · Comprueba y guarda</h2>
+        <h2 data-i18n="import.step4">4 · Nombra y guarda</h2>
+        <div class="namerow" id="namerow" hidden>
+          <label for="region-name" data-i18n="import.nameOf">Nombre de la provincia seleccionada</label>
+          <input id="region-name" type="text" maxlength="24" />
+        </div>
+        <p class="summary" id="named-count" hidden></p>
         <div id="issues"></div>
         <div class="actions">
           <input id="map-name" type="text" maxlength="40" />

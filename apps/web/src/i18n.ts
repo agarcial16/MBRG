@@ -42,10 +42,15 @@ const es = {
   'import.step1': '1 · Elige una imagen',
   'import.step2': '2 · Ajusta la detección',
   'import.step3': '3 · Revisa el resultado',
-  'import.step4': '4 · Comprueba y guarda',
+  'import.step4': '4 · Nombra y guarda',
+  'import.holeFloor': 'Agujeros mínimos',
+  'import.nameOf': 'Nombre de la provincia seleccionada',
+  'import.named': '{named} de {total} provincias con nombre',
+  'import.namesLost':
+    'Se han perdido {count} nombres: el ajuste de la detección ha creado o destruido provincias. Vuelve a nombrarlas.',
   'import.drop': 'Arrastra una imagen aquí o haz clic para elegirla',
   'import.hint':
-    'Ideal: cada provincia de un color sólido y distinto, con fronteras oscuras. Los PNG con transparencia se leen como mar.',
+    'Ideal: cada provincia de un color sólido y distinto, tocando a sus vecinas sin línea de contorno entre ellas (el negro se reserva para el mar y para el texto dibujado). Los PNG con transparencia se leen como mar.',
   'import.showSource': 'Imagen original',
   'import.clickTip': 'Haz clic en una provincia para verla en la lista.',
   'import.regions': 'Provincias',
@@ -69,9 +74,14 @@ const es = {
     'La región {id} ({color}) está partida en {pieces} trozos; solo se guarda el mayor: únela con una vecina o redibuja el mapa',
   'import.issueIsland':
     'La región {id} ({color}) es una isla: no linda con ninguna otra, así que necesita un enlace marítimo para ser alcanzable',
+  'import.issueMostlyIslands':
+    '{count} de {total} provincias han quedado aisladas. Lo más probable es que la imagen lleve el contorno de cada provincia dibujado en oscuro: los píxeles del contorno no son tierra, así que no pueden unir dos provincias. Usa colores planos que se toquen entre sí.',
   'import.issueDiagonal':
     '{count} contorno(s) se cruzan en diagonal donde se encuentran cuatro regiones; su forma es aproximada: separa las fronteras para que no se toquen en un punto',
-  'import.issueSkipped': '{count} px descartados por mar, fronteras o ruido de {total}',
+  'import.issueSkipped':
+    '{count} px descartados por mar, contornos en oscuro o ruido, de {total}. Los px muy oscuros y grises cuentan como frontera, no como tierra.',
+  'import.issueTinyHoles':
+    'Se han descartado {count} agujeros pequeños por ser ruido. Si la imagen traía el nombre de las provincias dibujado, sus letras se leían como lagos: el relleno las tapará igualmente.',
 } as const;
 
 export type MessageKey = keyof typeof es;
@@ -104,10 +114,15 @@ const en: Record<MessageKey, string> = {
   'import.step1': '1 · Pick an image',
   'import.step2': '2 · Tune the detection',
   'import.step3': '3 · Review the result',
-  'import.step4': '4 · Check and save',
+  'import.step4': '4 · Name and save',
+  'import.holeFloor': 'Minimum holes',
+  'import.nameOf': 'Name of the selected province',
+  'import.named': '{named} of {total} provinces named',
+  'import.namesLost':
+    '{count} name(s) were lost: the detection settings created or destroyed provinces. Name them again.',
   'import.drop': 'Drop an image here, or click to choose one',
   'import.hint':
-    'Best case: one solid, distinct colour per province, with dark borders. Transparency in a PNG is read as sea.',
+    'Best case: one solid, distinct colour per province, touching its neighbours with no outline between them (black is reserved for sea and for painted text). Transparency in a PNG is read as sea.',
   'import.showSource': 'Source image',
   'import.clickTip': 'Click a province to find it in the list.',
   'import.regions': 'Provinces',
@@ -131,9 +146,14 @@ const en: Record<MessageKey, string> = {
     'Region {id} ({color}) is split into {pieces} pieces; only the largest is kept: merge it with a neighbour or redraw the map',
   'import.issueIsland':
     'Region {id} ({color}) is an island: it borders nothing, so it needs a sea link to be reachable',
+  'import.issueMostlyIslands':
+    '{count} of {total} provinces ended up as islands. The likeliest cause is a dark outline drawn around every province: outline pixels are not land, so they cannot bridge two provinces. Use flat colours that touch each other.',
   'import.issueDiagonal':
     '{count} outline(s) cross diagonally where four regions meet; their shape is approximate: separate the borders so they do not touch at a point',
-  'import.issueSkipped': '{count} px dropped as sea, borders or speckle out of {total}',
+  'import.issueSkipped':
+    '{count} px dropped as sea, dark outlines or speckle out of {total}. Very dark, greyish pixels count as border rather than land.',
+  'import.issueTinyHoles':
+    '{count} small hole(s) were dropped as noise. If the image had the province names painted on it, their letters were read as lakes: the fill will cover them either way.',
 };
 
 const DICTS: Record<Lang, Record<MessageKey, string>> = { es, en };
