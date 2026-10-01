@@ -33,7 +33,7 @@ interface Fixture {
  */
 function detect(art: string[], minRegionArea = 1, maxGap = 0): Fixture {
   const img = rasterFromArt(art, { ...PAL, Y: '#ffff00' });
-  const result = detectFlatColorRegions(img, { minRegionArea });
+  const result = detectFlatColorRegions(img, { minRegionArea, sea: 'transparent' });
   const adjacency = detectAdjacency(result, { maxGap });
 
   const colorOf = (index: number): string =>
@@ -171,7 +171,7 @@ describe('label map', () => {
   it('carries the image size and labels in row-major order', () => {
     // Red appears twice, on opposite corners, so it is two regions.
     const img = rasterFromArt(['RG', 'BR'], PAL);
-    const result = detectFlatColorRegions(img, { minRegionArea: 1 });
+    const result = detectFlatColorRegions(img, { minRegionArea: 1, sea: 'transparent' });
     expect(result.width).toBe(2);
     expect(result.height).toBe(2);
     const [redA, redB] = result.regions.filter((r) => r.color === parseHex('#ff0000'));
@@ -183,7 +183,7 @@ describe('label map', () => {
 
   it('marks speckle as -1 once it is dropped', () => {
     const img = rasterFromArt(['RRR', 'RGR'], PAL);
-    const result = detectFlatColorRegions(img, { minRegionArea: 4 });
+    const result = detectFlatColorRegions(img, { minRegionArea: 4, sea: 'transparent' });
     const red = result.regions[0].index;
     expect(result.regions).toHaveLength(1);
     // The lone green pixel is not land.

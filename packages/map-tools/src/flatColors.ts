@@ -51,15 +51,36 @@ export interface FlatColorOptions {
    */
   smallRegionRatio: number;
   /**
-   * How the sea is found. `auto` takes the most common colour in the image,
-   * which works because there is more water than land on most maps; `picked`
-   * takes `seaColor`, which is what the user gets after clicking the sea.
+   * How the sea is found.
+   *
+   * `auto` prefers transparency when the image has enough of it and falls back to
+   * the most common colour when it does not, which is the right answer for both
+   * kinds of map without asking: a PNG with real transparency already says where
+   * the water is, and a JPEG or an opaque PNG of a map does not, but on those
+   * there is more water than land.
+   *
+   * `transparent` forces the transparency, and `picked` takes `seaColor`, which is
+   * what the user gets after clicking the sea.
+   *
+   * There is deliberately no "always the most common colour" mode. On an image
+   * that is mostly transparent it can only choose among the opaque colours, where
+   * the most common one is the biggest province — so it would confidently eat the
+   * wrong thing. `auto` reaching that conclusion on its own, from the transparency
+   * it can actually see, is the useful version of the same idea.
    */
   sea: 'auto' | 'picked' | 'transparent';
   /** Sea colour for `sea: 'picked'`, as 0xRRGGBB. */
   seaColor: number;
   /** Treat fully transparent pixels as "not land" (sea / background). */
   ignoreTransparent: boolean;
+  /**
+   * Share of transparent pixels above which `auto` trusts the transparency
+   * rather than guessing a colour. Low on purpose: a map exported with a
+   * transparent sea has *some* transparency by definition, and mistaking a few
+   * stray transparent pixels for a sea is much cheaper than mistaking a real
+   * ocean for the largest province.
+   */
+  transparentShare: number;
 }
 
 export const DEFAULT_FLAT_COLOR_OPTIONS: FlatColorOptions = {
@@ -69,9 +90,10 @@ export const DEFAULT_FLAT_COLOR_OPTIONS: FlatColorOptions = {
   // dropped), while a painted letter, at a few hundred pixels against a
   // province in the thousands, does not.
   smallRegionRatio: 0.02,
-  sea: 'transparent',
+  sea: 'auto',
   seaColor: -1,
   ignoreTransparent: true,
+  transparentShare: 0.02,
 };
 
 /** Why the importer threw pixels away, to explain it in the validation screen. */
@@ -85,6 +107,9 @@ export interface IgnoredPixels {
   /** Total pixels in the image. */
   total: number;
 }
+
+/** How the sea was decided, so the screen can say which rule applied. */
+export type SeaChoice = 'transparency' | 'colour' | 'picked' | 'none';
 
 /** A detected flat-colour region: one connected piece of land. */
 export interface ColorRegion {
@@ -114,6 +139,8 @@ export interface FlatColorResult {
   ignored: IgnoredPixels;
   /** The colour that was read as sea, or null when there was none. */
   seaColor: RGB | null;
+  /** Which rule produced that decision. */
+  seaChoice: SeaChoice;
   /** Distinct colours counted in the image, before merging or filtering. */
   distinctColors: number;
   /**
@@ -158,15 +185,34 @@ export function detectFlatColorRegions(
     }
     const rgb = (img.data[i] << 16) | (img.data[i + 1] << 8) | img.data[i + 2];
     histogram.set(rgb, (histogram.get(rgb) ?? 0) + 1);
-    if (opts.sea === 'auto') seaVotes.set(rgb, (seaVotes.get(rgb) ?? 0) + 1);
+    if (opts.sea !== 'picked') seaVotes.set(rgb, (seaVotes.get(rgb) ?? 0) + 1);
   }
 
+  // The sea is decided once and said out loud, because "this came out wrong" and
+    // "this came out wrong because that colour was the sea" are different
+    // problems with different fixes.
+  //
+  // `auto` is the rule that answers both kinds of map without asking. A PNG with
+  // real transparency has already said where the water is, and picking a colour
+  // instead would pick the largest province. A map with no transparency has said
+  // nothing, and there the most common colour is the ocean, because there is
+  // more water than land.
+  const transparentShare = opts.ignoreTransparent ? ignored.transparent / total : 0;
+  const trustTransparency = transparentShare >= opts.transparentShare;
   const seaColor =
     opts.sea === 'picked'
       ? opts.seaColor
-      : opts.sea === 'auto'
-        ? mostFrequent(seaVotes)
-        : -1;
+      : opts.sea === 'transparent' || trustTransparency
+        ? -1
+        : mostFrequent(seaVotes);
+  const seaChoice: SeaChoice =
+    opts.sea === 'picked' && opts.seaColor >= 0
+      ? 'picked'
+      : opts.sea === 'transparent' || (opts.sea === 'auto' && trustTransparency)
+        ? 'transparency'
+        : seaColor >= 0
+          ? 'colour'
+          : 'none';
   const isSea = (rgb: number): boolean =>
     seaColor >= 0 && colorDistance(rgb, seaColor) <= opts.tolerance;
 
@@ -262,6 +308,7 @@ export function detectFlatColorRegions(
     labels,
     ignored,
     seaColor: seaColor >= 0 ? seaColor : null,
+    seaChoice,
     distinctColors: histogram.size,
     medianArea,
     droppedSmallRegions,

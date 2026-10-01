@@ -17,28 +17,75 @@ function fill(img: ReturnType<typeof createRaster>, x0: number, y0: number, w: n
 }
 
 describe('el mar se identifica, no se adivina por la oscuridad', () => {
-  it('por defecto solo se lee la transparencia, sin adivinar el mar', () => {
+  it('por defecto, una imagen opaca usa el color predominante como mar', () => {
     const img = createRaster(100, 100, SEA);
     fill(img, 10, 10, 30, 30, RED);
     fill(img, 50, 50, 20, 20, GREEN);
 
+    // An opaque map has said nothing about where the water is, and on most maps
+    // there is more water than land, so the default reads the most common colour
+    // as the sea rather than swallowing the whole background as one province.
     const flat = detectFlatColorRegions(img);
-    // The background is opaque, so with the default it is land like any other
-    // colour: guessing would be wrong more often than right on a real map.
-    expect(flat.seaColor).toBeNull();
-    expect(flat.regions.map((r) => r.color).sort()).toEqual([GREEN, RED, SEA].sort());
-  });
-
-  it('en modo auto el color más frecuente es el mar y no se toca el resto', () => {
-    // More sea than land, as on most maps.
-    const img = createRaster(100, 100, SEA);
-    fill(img, 10, 10, 30, 30, RED);
-    fill(img, 50, 50, 20, 20, GREEN);
-
-    const flat = detectFlatColorRegions(img, { sea: 'auto' });
+    expect(flat.seaChoice).toBe('colour');
     expect(flat.seaColor).toBe(SEA);
     expect(flat.ignored.sea).toBe(100 * 100 - 900 - 400);
     expect(flat.regions.map((r) => r.color)).toEqual([RED, GREEN]);
+  });
+
+  it('por defecto, si hay transparencia esa manda: el mapa ya lo ha dicho', () => {
+    // Same map, but with a transparent sea. Picking a colour here would pick the
+    // biggest province, so the transparency is the more trustworthy source.
+    const img = createRaster(100, 100, SEA);
+    fill(img, 10, 10, 80, 80, RED);
+    for (let y = 0; y < 100; y++) {
+      for (let x = 0; x < 100; x++) {
+        if (x >= 10 && x < 90 && y >= 10 && y < 90) continue;
+        setPixel(img, x, y, SEA, 0);
+      }
+    }
+    const flat = detectFlatColorRegions(img);
+    expect(flat.seaChoice).toBe('transparency');
+    expect(flat.seaColor).toBeNull();
+    expect(flat.ignored.transparent).toBe(100 * 100 - 6400);
+    expect(flat.regions.map((r) => r.color)).toEqual([RED]);
+  });
+
+  it('un pequeño residuo de transparencia no hace que se la crea', () => {
+    // A stray transparent pixel in an otherwise opaque map must not switch the
+    // sea over: guessing a colour is much cheaper than mistaking a real ocean
+    // for the largest province.
+    const img = createRaster(100, 100, SEA);
+    fill(img, 10, 10, 30, 30, RED);
+    setPixel(img, 0, 0, SEA, 0);
+    const flat = detectFlatColorRegions(img);
+    expect(flat.seaChoice).toBe('colour');
+    expect(flat.seaColor).toBe(SEA);
+  });
+
+  it('el umbral de transparencia se puede bajar para forzar el color', () => {
+    // The one thing a "most common colour" override is good for: an image that is
+    // mostly transparent but whose water is really painted, and where the
+    // transparency is a leftover. Dropping the share to zero makes `auto` ignore
+  // the transparency and read the colour, which is the only version of that
+    // override that can be right — the automatic one only ever considers opaque
+    // colours.
+    const img = createRaster(100, 100, SEA);
+    fill(img, 40, 40, 20, 20, RED);
+    for (let y = 0; y < 100; y++) {
+      for (let x = 0; x < 100; x++) {
+        if (x >= 40 && x < 60 && y >= 40 && y < 60) continue;
+        setPixel(img, x, y, SEA, 0);
+      }
+    }
+    // With the default the transparency is trusted, and the sea is the hole.
+    const trusting = detectFlatColorRegions(img);
+    expect(trusting.seaChoice).toBe('transparency');
+    expect(trusting.regions.map((r) => r.color)).toEqual([RED]);
+
+    // With the share unreachable, the most common opaque colour wins instead.
+    const forced = detectFlatColorRegions(img, { transparentShare: 1.1 });
+    expect(forced.seaChoice).toBe('colour');
+    expect(forced.seaColor).toBe(RED);
   });
 
   it('un mapa oscuro ya no pierde la tierra por ser oscura', () => {

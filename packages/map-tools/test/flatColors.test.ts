@@ -19,7 +19,7 @@ describe('detectFlatColorRegions', () => {
       ],
       PAL,
     );
-    const result = detectFlatColorRegions(img, { minRegionArea: 1 });
+    const result = detectFlatColorRegions(img, { minRegionArea: 1, sea: 'transparent' });
 
     expect(result.regions).toHaveLength(3);
     // All three have the same area, so ordering falls back to colour value:
@@ -36,7 +36,7 @@ describe('detectFlatColorRegions', () => {
     // Green is a single 2x1 block hanging off the top row, and a 4x1 block on
     // the bottom. The two do not touch, so they are two provinces.
     const img = rasterFromArt(['RRRRRRRR', 'RRRRRRGG', 'GGGGBBBB'], PAL);
-    const result = detectFlatColorRegions(img, { minRegionArea: 1 });
+    const result = detectFlatColorRegions(img, { minRegionArea: 1, sea: 'transparent' });
     const greens = result.regions.filter((r) => r.color === 0x00ff00);
     expect(greens).toHaveLength(2);
     expect(greens.map((r) => r.area)).toEqual([4, 2]);
@@ -49,7 +49,7 @@ describe('detectFlatColorRegions', () => {
 
   it('reports pixel positions as y * width + x', () => {
     const img = rasterFromArt(['RG', 'GR'], PAL);
-    const regions = detectFlatColorRegions(img, { minRegionArea: 1 }).regions;
+    const regions = detectFlatColorRegions(img, { minRegionArea: 1, sea: 'transparent' }).regions;
     // Red sits at (0,0) and (1,1) of a 2-wide image, and those are two regions.
     const reds = regions.filter((r) => r.color === 0xff0000);
     expect(reds.map((r) => r.pixels)).toEqual([[0], [3]]);
@@ -62,7 +62,7 @@ describe('detectFlatColorRegions', () => {
     // else.
     setPixel(img, 1, 1, 0x00ff00, 0);
 
-    const result = detectFlatColorRegions(img, { minRegionArea: 1 });
+    const result = detectFlatColorRegions(img, { minRegionArea: 1, sea: 'transparent' });
     expect(result.regions).toHaveLength(1);
     expect(result.regions[0].color).toBe(0xff0000);
     expect(result.ignored.transparent).toBe(1);
@@ -73,7 +73,7 @@ describe('detectFlatColorRegions', () => {
     // The regression this whole change exists for: a night-theme map is mostly
     // dark, and "dark and grey means border" threw most of it away.
     const img = rasterFromArt(['--', '-R'], PAL);
-    const result = detectFlatColorRegions(img, { minRegionArea: 1 });
+    const result = detectFlatColorRegions(img, { minRegionArea: 1, sea: 'transparent' });
     expect(result.regions.map((r) => r.color)).toEqual([0x000000, 0xff0000]);
     expect(result.ignored.speckle).toBe(0);
   });
@@ -81,7 +81,7 @@ describe('detectFlatColorRegions', () => {
   it('still keeps dark colours that a luminance test would have deleted', () => {
     // Pure navy has a luminance of 29. Under the old rule it was a border.
     const navy = rasterFromArt(['NN', 'RR'], { ...PAL, N: '#000080' });
-    const regions = detectFlatColorRegions(navy, { minRegionArea: 1 });
+    const regions = detectFlatColorRegions(navy, { minRegionArea: 1, sea: 'transparent' });
     expect(regions.regions.map((r) => r.color)).toContain(0x000080);
   });
 
@@ -100,19 +100,19 @@ describe('detectFlatColorRegions', () => {
     fillRect(img, 1, 0, 1, 1, '#f50000');
     fillRect(img, 2, 0, 2, 1, '#f20000');
 
-    const loose = detectFlatColorRegions(img, { minRegionArea: 1, tolerance: 20 });
+    const loose = detectFlatColorRegions(img, { minRegionArea: 1, tolerance: 20, sea: 'transparent' });
     expect(loose.regions).toHaveLength(1);
     expect(loose.distinctColors).toBe(4);
 
     // With exact matching, every shade is its own region, and the pieces that
     // ended up next to each other merge back into one piece per shade.
-    const exact = detectFlatColorRegions(img, { minRegionArea: 1, tolerance: 0 });
+    const exact = detectFlatColorRegions(img, { minRegionArea: 1, tolerance: 0, sea: 'transparent' });
     expect(exact.regions).toHaveLength(4);
   });
 
   it('keeps distinct colours apart when they are far enough', () => {
     const img = rasterFromArt(['RG'], PAL);
-    const result = detectFlatColorRegions(img, { minRegionArea: 1, tolerance: 32 });
+    const result = detectFlatColorRegions(img, { minRegionArea: 1, tolerance: 32, sea: 'transparent' });
     expect(result.regions).toHaveLength(2);
   });
 
@@ -125,7 +125,7 @@ describe('detectFlatColorRegions', () => {
       ],
       PAL,
     );
-    const result = detectFlatColorRegions(img, { minRegionArea: 4 });
+    const result = detectFlatColorRegions(img, { minRegionArea: 4, sea: 'transparent' });
     // The single green pixel is noise, not a province.
     expect(result.regions).toHaveLength(1);
     expect(result.regions[0].color).toBe(0xff0000);
@@ -135,7 +135,7 @@ describe('detectFlatColorRegions', () => {
 
   it('returns nothing for an image with no land at all', () => {
     const empty = rasterFromArt(['....', '....'], PAL);
-    const result = detectFlatColorRegions(empty);
+    const result = detectFlatColorRegions(empty, { sea: 'transparent' });
     expect(result.regions).toEqual([]);
     expect(result.ignored.transparent).toBe(8);
     expect(result.distinctColors).toBe(0);
@@ -144,8 +144,8 @@ describe('detectFlatColorRegions', () => {
 
   it('is deterministic: same image, same result, twice', () => {
     const img = rasterFromArt(['RGBRGB', 'GRBGRB'], PAL);
-    const a = detectFlatColorRegions(img, { minRegionArea: 1, tolerance: 10 });
-    const b = detectFlatColorRegions(img, { minRegionArea: 1, tolerance: 10 });
+    const a = detectFlatColorRegions(img, { minRegionArea: 1, tolerance: 10, sea: 'transparent' });
+    const b = detectFlatColorRegions(img, { minRegionArea: 1, tolerance: 10, sea: 'transparent' });
     expect(a).toEqual(b);
   });
 });

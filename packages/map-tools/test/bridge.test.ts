@@ -8,7 +8,7 @@ const PAL = { R: '#ff0000', G: '#00ff00', B: '#0000ff', '.': null } as const;
 
 function map(art: string[], maxGap: number) {
   const img = rasterFromArt(art, PAL);
-  const flat = detectFlatColorRegions(img, { minRegionArea: 1, smallRegionRatio: 0 });
+  const flat = detectFlatColorRegions(img, { minRegionArea: 1, smallRegionRatio: 0, sea: 'transparent' });
   return { flat, adjacency: detectAdjacency(flat, { maxGap }) };
 }
 

@@ -84,9 +84,13 @@ export interface ContourResult {
   holesByRegion: Map<number, ContourLoop[]>;
   /**
    * Regions with more than one outer ring, which a single `polygon` cannot
-   * express. Connectivity now makes this impossible by construction — a region
-   * is one connected piece, so it can only have one enclosing outline — and this
-   * is kept as the invariant check that says so rather than as a live path.
+   * express.
+   *
+   * Two separate guarantees make this empty, and both used to be broken. A region
+   * is one connected piece, so it cannot be in two pieces. And a loop whose far
+   * side is not a single region is not owned by anybody, so the outline of a
+   * whole block of provinces no longer gets attributed to whichever one happened
+   * to be first along it. Kept as the invariant check that says so.
    */
   splitRegions: number[];
   /**
@@ -191,8 +195,23 @@ interface Chain {
   ids: number[];
   /** Region that emitted the edges, i.e. the one on the left of the walk. */
   left: number;
-  /** The other side: the neighbour, or -1 for sea / outside the image. */
+  /**
+   * The other side: the neighbour, or -1 for sea / outside the image. Only
+   * meaningful when `mixedSides` is false.
+   */
   right: number;
+  /**
+   * The far side of this walk is not one single region.
+   *
+   * The walk only ever follows edges of the same `left`, so `left` is uniform by
+   * construction and `right` is the side that can vary: it does whenever the
+   * loop runs along a boundary where several regions meet on the other side,
+   * which is what the outline of a whole landmass looks like from the outside.
+   * `right` then holds whatever the first edge happened to see, and reading it as
+   * a region is how a loop that encircles eight provinces ends up owned by one
+   * of them.
+   */
+  mixedSides: boolean;
 }
 
 /**
@@ -200,12 +219,18 @@ interface Chain {
  * a negative signed area when the loop wraps *around* that region (its outer
  * ring) and a positive one when it wraps around the neighbour instead (a hole
  * in it). The sign is what tells the two cases apart — the side alone cannot.
+ *
+ * When the encircled side is the mixed one there is no region to name, and the
+ * answer is -1: the loop belongs to nobody and can only be a hole of the other
+ * side. That is the right answer for the outline of a block of provinces seen
+ * from outside, which encircles all of them at once.
  */
 function classify(chain: Chain, points: Coord[], grid: Grid): { enclosed: number; surrounds: number } {
   const area = signedArea(points);
-  return area < 0
-    ? { enclosed: chain.left, surrounds: chain.right }
-    : { enclosed: chain.right, surrounds: chain.left };
+  if (area < 0) {
+    return { enclosed: chain.left, surrounds: chain.mixedSides ? -1 : chain.right };
+  }
+  return { enclosed: chain.mixedSides ? -1 : chain.right, surrounds: chain.left };
 }
 
 /**
@@ -229,11 +254,13 @@ function chainLoops(edges: Edge[], grid: Grid): Chain[] {
     let edge = start;
     const left = start.left;
     const right = start.right;
+    let mixedSides = false;
 
     for (let guard = 0; guard <= edges.length; guard++) {
       edge.used = true;
       ids.push(edge.to);
       if (edge.to === start.from) break; // closed
+      if (edge.right !== right) mixedSides = true;
 
       // Only follow edges of the *same* region. At a corner where several
       // regions meet, the other sides' edges also start there, and taking one
@@ -269,7 +296,7 @@ function chainLoops(edges: Edge[], grid: Grid): Chain[] {
     }
 
     if (ids.length >= 4 && ids[0] === ids[ids.length - 1]) {
-      chains.push({ ids, left, right });
+      chains.push({ ids, left, right, mixedSides });
     }
   }
   return chains;

@@ -24,7 +24,7 @@ interface Fixture {
 
 function detect(art: string[], simplify = 0): Fixture {
   const img = rasterFromArt(art, PAL);
-  const result = detectFlatColorRegions(img, { minRegionArea: 1 });
+  const result = detectFlatColorRegions(img, { minRegionArea: 1, sea: 'transparent' });
   const contours = traceContours(result, { simplify });
   const indicesOf = (hex: string): number[] => {
     const want = parseHex(hex) as RGB;
@@ -197,6 +197,28 @@ describe('traceContours: holes and disconnection', () => {
     expect(f.holesOf('#ff0000')).toHaveLength(1);
     expect(f.holesOf('#0000ff')).toEqual([]);
     expect(f.contours.splitRegions).toEqual([]);
+  });
+
+  it('a block of provinces seen from outside belongs to none of them', () => {
+    // A frame around a 2x2 block of provinces, which is what a map looks like
+    // once an opaque background is read as land. The outline of the whole block
+    // has three different regions on its inside, so it cannot be the outer ring
+    // of any one of them: it is the frame's hole.
+    //
+    // It used to be handed to whichever province was first along the walk, which
+    // gave that province a second "outer ring" and a "your map is split in two"
+    // warning on a perfectly square block.
+    const f = detect([
+      'YYYYY',
+      'YRRGY',
+      'YGGGY',
+      'YYYYY',
+    ], 0);
+    expect(f.ringsOf('#ff0000')).toHaveLength(1);
+    expect(f.ringsOf('#00ff00')).toHaveLength(1);
+    expect(f.contours.splitRegions).toEqual([]);
+    // The frame surrounds the block, so the block is a hole in the frame.
+    expect(f.holesOf('#ffff00')).toHaveLength(1);
   });
 });
 

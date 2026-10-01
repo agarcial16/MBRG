@@ -23,7 +23,7 @@ function importArt(
   maxGap = 0,
 ) {
   const img = rasterFromArt(art, PAL);
-  const flat = detectFlatColorRegions(img, { minRegionArea, smallRegionRatio });
+  const flat = detectFlatColorRegions(img, { minRegionArea, smallRegionRatio, sea: 'transparent' });
   const adjacency = detectAdjacency(flat, { maxGap });
   const contours = traceContours(flat);
   return assembleMap(flat, adjacency, contours, { name });

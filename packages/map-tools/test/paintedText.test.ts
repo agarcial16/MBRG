@@ -39,7 +39,7 @@ function mapWithText(options: Partial<ContourOptions> = {}) {
     fill(img, 8 + i * 18, 26, 8, 6, SEA); // six painted letters
   }
 
-  const flat = detectFlatColorRegions(img, { minRegionArea: 16 });
+  const flat = detectFlatColorRegions(img, { minRegionArea: 16, sea: 'picked', seaColor: SEA });
   const adjacency = detectAdjacency(flat);
   const contours = traceContours(flat, { simplify: 0, ...options });
   return { flat, contours, assembled: assembleMap(flat, adjacency, contours, { name: 'painted' }) };
@@ -75,7 +75,7 @@ describe('mapas con texto pintado', () => {
     const img = createRaster(130, 70, SEA);
     fill(img, 0, 0, 120, 60, RED);
     fill(img, 40, 20, 40, 20, SEA);
-    const flat = detectFlatColorRegions(img, { minRegionArea: 16 });
+    const flat = detectFlatColorRegions(img, { minRegionArea: 16, sea: 'picked', seaColor: SEA });
     const contours = traceContours(flat, { simplify: 0 });
     const region = flat.regions.find((r) => r.color === RED)!;
     expect(contours.holesByRegion.get(region.index) ?? []).toHaveLength(1);
