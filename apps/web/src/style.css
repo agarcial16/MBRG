@@ -358,6 +358,28 @@ li.region.selected {
   flex: none;
 }
 
+/* The sea picker lives with the "show the original" toggle: both are about
+   reading the picture rather than the map. */
+.preview-legend .toggle select {
+  background: rgba(0, 0, 0, 0.35);
+  color: inherit;
+  font: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 3px 6px;
+}
+
+.preview-legend .toggle select:focus-visible {
+  outline: 2px solid #7c7ce0;
+  outline-offset: 1px;
+}
+
+/* "Working…" — the debounce is short but not instant, and a spinner-less line of
+   text is enough to explain why the map has not moved yet. */
+#busy {
+  color: #ffd479;
+}
+
 /* A named province: real prose instead of an id, so it gets a normal face and
    stands out from the p0/p1 placeholders still waiting to be renamed. */
 .region-label.named {

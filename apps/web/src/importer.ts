@@ -2,6 +2,7 @@ import './style.css';
 
 import {
   assembleMap,
+  BYTES_PER_PIXEL,
   detectAdjacency,
   detectFlatColorRegions,
   pointInRing,
@@ -12,7 +13,7 @@ import {
 } from '@mbrg/map-tools';
 import type { Coord, MapFormatV1 } from '@mbrg/shared';
 
-import { decodeImageFile, decodeImageUrl, drawRaster } from './decode.js';
+import { decodeImageFile, decodeImageUrl, drawRaster, rasterForDetection } from './decode.js';
 import { applyI18n, getLang, onLangChange, setLang, t, type Lang } from './i18n.js';
 import { saveMap, suggestMapName } from './library.js';
 import { applyNames, cleanName } from './naming.js';
@@ -49,17 +50,26 @@ const langSelect = document.querySelector<HTMLSelectElement>('#lang')!;
 const versionEl = document.querySelector<HTMLElement>('#app-version')!;
 const toleranceInput = document.querySelector<HTMLInputElement>('#tolerance')!;
 const minAreaInput = document.querySelector<HTMLInputElement>('#min-area')!;
+const smallRatioInput = document.querySelector<HTMLInputElement>('#small-ratio')!;
 const simplifyInput = document.querySelector<HTMLInputElement>('#simplify')!;
 const minHoleInput = document.querySelector<HTMLInputElement>('#min-hole')!;
+const maxGapInput = document.querySelector<HTMLInputElement>('#max-gap')!;
+const seaSelect = document.querySelector<HTMLSelectElement>('#sea-mode')!;
+const seaInfo = document.querySelector<HTMLElement>('#sea-info')!;
 const nameRow = document.querySelector<HTMLElement>('#namerow')!;
 const regionNameInput = document.querySelector<HTMLInputElement>('#region-name')!;
 const namedCount = document.querySelector<HTMLElement>('#named-count')!;
+const busyBadge = document.querySelector<HTMLElement>('#busy')!;
 
 interface Tuning {
   tolerance: number;
   minRegionArea: number;
+  smallRegionRatio: number;
   simplify: number;
   minHoleRatio: number;
+  maxGap: number;
+  sea: 'auto' | 'picked' | 'transparent';
+  seaColor: number;
 }
 
 let raster: RasterImage | null = null;
@@ -71,6 +81,31 @@ let previewCtx: CanvasRenderingContext2D | null = null;
 let names = new Map<string, string>();
 /** Ids whose names did not survive the last re-detection, reported once. */
 let lostNames: string[] = [];
+/** Sea colour the user picked by clicking, which overrides the automatic choice. */
+let pickedSea: number | null = null;
+let pending = 0;
+
+/**
+ * Re-run detection after a pause in the input.
+ *
+ * Detection is linear in pixels, so on a real map it costs a few hundred
+ * milliseconds even at the reduced size. Running it on every `input` event of a
+ * slider queues a dozen runs per drag, and the page stops responding — the
+ * controls feel broken rather than slow. A short debounce keeps the number
+ * reachable at one, and the number shown next to the slider updates immediately
+ * so the control still feels alive.
+ */
+const DEBOUNCE_MS = 180;
+
+function scheduleDetect(): void {
+  if (busyBadge) busyBadge.hidden = false;
+  window.clearTimeout(pending);
+  pending = window.setTimeout(() => {
+    pending = 0;
+    detect();
+    if (busyBadge) busyBadge.hidden = true;
+  }, DEBOUNCE_MS);
+}
 
 if (versionEl) versionEl.textContent = `v${__APP_VERSION__}`;
 document.documentElement.lang = getLang();
@@ -82,17 +117,27 @@ onLangChange(() => {
 });
 langSelect?.addEventListener('change', () => setLang(langSelect.value as Lang));
 
-for (const input of [toleranceInput, minAreaInput, simplifyInput, minHoleInput]) {
+const SLIDERS = [toleranceInput, minAreaInput, smallRatioInput, simplifyInput, minHoleInput, maxGapInput];
+
+/** Sliders that carry a percentage sign in their readout. */
+const PERCENT_SLIDERS = new Set([minHoleInput, smallRatioInput]);
+
+function updateReadouts(): void {
+  for (const el of SLIDERS) {
+    if (!el) continue;
+    const out = document.querySelector<HTMLOutputElement>(`#${el.id}-out`);
+    if (!out) continue;
+    out.textContent = PERCENT_SLIDERS.has(el) ? `${el.value}%` : el.value;
+  }
+}
+
+for (const input of SLIDERS) {
   input?.addEventListener('input', () => {
-    for (const el of [toleranceInput, minAreaInput, simplifyInput, minHoleInput]) {
-      if (!el) continue;
-      const out = document.querySelector<HTMLOutputElement>(`#${el.id}-out`);
-      if (!out) continue;
-      out.textContent = el === minHoleInput ? `${el.value}%` : el.value;
-    }
-    detect();
+    updateReadouts();
+    scheduleDetect();
   });
 }
+updateReadouts();
 
 fileInput?.addEventListener('change', () => {
   const file = fileInput.files?.[0];
@@ -144,20 +189,26 @@ async function load(file: File): Promise<void> {
 }
 
 function tuning(): Tuning {
+  const choice = seaSelect?.value ?? 'auto';
+  const mode: Tuning['sea'] = choice === 'transparent' ? 'transparent' : 'auto';
   return {
     tolerance: Number(toleranceInput?.value ?? 32),
     minRegionArea: Number(minAreaInput?.value ?? 24),
+    smallRegionRatio: Number(smallRatioInput?.value ?? 2) / 100,
     simplify: Number(simplifyInput?.value ?? 0.75),
     minHoleRatio: Number(minHoleInput?.value ?? 1) / 100,
+    maxGap: Number(maxGapInput?.value ?? 3),
+    sea: pickedSea !== null ? 'picked' : mode,
+    seaColor: pickedSea ?? -1,
   };
 }
 
-/** Run detection and redraw. Cheap enough to do on every slider move. */
+/** Run detection and redraw. Debounced, because it is linear in pixels. */
 function detect(): void {
   if (!raster) return;
   const options = tuning();
   const flat: FlatColorResult = detectFlatColorRegions(raster, options);
-  const adjacency = detectAdjacency(flat);
+  const adjacency = detectAdjacency(flat, { maxGap: options.maxGap });
   const contours = traceContours(flat, {
     simplify: options.simplify,
     minHoleRatio: options.minHoleRatio,
@@ -171,6 +222,34 @@ function detect(): void {
   result = { ...assembled, map: applied.map };
   if (selected && !result.map.territories.some((t) => t.id === selected)) selected = null;
   render();
+  renderSeaInfo(flat);
+}
+
+/**
+ * Show which colour was read as sea, so the automatic choice is never a mystery.
+ *
+ * This is the difference between "the map came out wrong" and "the map came out
+ * wrong because that colour was the sea". If it found no sea at all, that is
+ * worth saying too: usually the image has no transparency and the sea is
+ * whatever the ocean happens to be painted.
+ */
+function renderSeaInfo(flat: FlatColorResult): void {
+  if (!seaInfo) return;
+  const { seaColor, seaChoice, ignored } = flat;
+  const share = Math.round(((ignored.sea + ignored.transparent) / ignored.total) * 100);
+  if (seaChoice === 'transparency' && ignored.transparent > 0) {
+    seaInfo.textContent = t('import.seaTransparentFound', { pixels: `${share}` });
+    return;
+  }
+  if (seaColor === null) {
+    seaInfo.textContent = t('import.seaNone');
+    return;
+  }
+  seaInfo.textContent = t('import.seaFound', {
+    color: `#${seaColor.toString(16).padStart(6, '0')}`,
+    pixels: `${share}`,
+    picked: seaChoice === 'picked' ? t('import.seaPicked') : t('import.seaAutomatic'),
+  });
 }
 
 function render(): void {
@@ -367,6 +446,8 @@ function describe(finding: ImportIssue): string {
       return t('import.issueDiagonal', { count });
     case 'tinyHolesDropped':
       return t('import.issueTinyHoles', { count });
+    case 'smallRegionsDropped':
+      return t('import.issueSmallRegions', { count });
     case 'skippedPixels':
       return t('import.issueSkipped', { count, total });
     case 'invalid':
@@ -393,13 +474,53 @@ function showFatal(message: string): void {
 // Clicking the preview selects the province under the pointer: the pixel comes
 // from the detection, not from a hit test over the polygons, so it works for
 // shapes a point-in-polygon would find ambiguous.
+//
+// In "mark the sea" mode the same click means the opposite thing: it takes the
+// colour under the pointer as the sea. One button, two modes, because both are
+// "click a place on the map" and a second button to keep track of would be worse
+// than remembering which one is armed.
 preview?.addEventListener('click', (event) => {
   if (!result || !raster) return;
   const rect = preview.getBoundingClientRect();
   const x = Math.floor(((event.clientX - rect.left) / rect.width) * raster.width);
   const y = Math.floor(((event.clientY - rect.top) / rect.height) * raster.height);
+  if (x < 0 || y < 0 || x >= raster.width || y >= raster.height) return;
+  if (seaSelect?.value === 'mark') {
+    pickSeaAt(x, y);
+    return;
+  }
   select(territoryAt(x, y, result.map));
 });
+
+// Switching sea mode cancels a hand-picked colour: keeping it would make the
+// dropdown lie, since "Automatic" would silently keep the old pick.
+seaSelect?.addEventListener('change', () => {
+  if (seaSelect.value !== 'mark') pickedSea = null;
+  detect();
+});
+
+/**
+ * Take the colour of a pixel as the sea.
+ *
+ * The colour is read from the *raster*, not from a detected region, because the
+ * sea is usually not a region: that is the whole problem. It re-runs detection
+ * right away rather than waiting for the debounce, since a single deliberate
+ * click should feel immediate.
+ */
+function pickSeaAt(x: number, y: number): void {
+  if (!raster) return;
+  const i = (y * raster.width + x) * BYTES_PER_PIXEL;
+  if (raster.data[i + 3] < 128) {
+    // Clicking transparent water is the easy case: transparency is already how
+    // the sea is read by default, so the pick is "no pick".
+    pickedSea = null;
+    seaSelect!.value = 'auto';
+    detect();
+    return;
+  }
+  pickedSea = (raster.data[i] << 16) | (raster.data[i + 1] << 8) | raster.data[i + 2];
+  detect();
+}
 
 function territoryAt(x: number, y: number, map: MapFormatV1): string | null {
   for (const territory of map.territories) {

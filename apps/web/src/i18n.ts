@@ -44,6 +44,19 @@ const es = {
   'import.step3': '3 · Revisa el resultado',
   'import.step4': '4 · Nombra y guarda',
   'import.holeFloor': 'Agujeros mínimos',
+  'import.smallRatio': 'Descartar lo diminuto',
+  'import.maxGap': 'Puente de contornos',
+  'import.busy': 'Calculando…',
+  'import.sea': 'Mar',
+  'import.seaTransparent': 'Transparente',
+  'import.seaAuto': 'Automático',
+  'import.seaMark': 'Marcar con un clic',
+  'import.seaFound': 'Mar: {color} ({pixels}% de la imagen) · {picked}',
+  'import.seaTransparentFound': 'Mar: la transparencia de la imagen ({pixels}%)',
+  'import.seaPicked': 'marcado a mano',
+  'import.seaAutomatic': 'elegido automáticamente',
+  'import.seaNone':
+    'No se ha detectado mar: se está leyendo el fondo opaco como tierra. Marca el mar con un clic.',
   'import.nameOf': 'Nombre de la provincia seleccionada',
   'import.named': '{named} de {total} provincias con nombre',
   'import.namesLost':
@@ -78,10 +91,11 @@ const es = {
     '{count} de {total} provincias han quedado aisladas. Lo más probable es que la imagen lleve el contorno de cada provincia dibujado en oscuro: los píxeles del contorno no son tierra, así que no pueden unir dos provincias. Usa colores planos que se toquen entre sí.',
   'import.issueDiagonal':
     '{count} contorno(s) se cruzan en diagonal donde se encuentran cuatro regiones; su forma es aproximada: separa las fronteras para que no se toquen en un punto',
-  'import.issueSkipped':
-    '{count} px descartados por mar, contornos en oscuro o ruido, de {total}. Los px muy oscuros y grises cuentan como frontera, no como tierra.',
+  'import.issueSkipped': '{count} px de ruido descartados de {total}',
   'import.issueTinyHoles':
     'Se han descartado {count} agujeros pequeños por ser ruido. Si la imagen traía el nombre de las provincias dibujado, sus letras se leían como lagos: el relleno las tapará igualmente.',
+  'import.issueSmallRegions':
+    'Se han descartado {count} regiones diminutas por ser mucho más pequeñas que sus vecinas. Suelen ser el nombre de las provincias dibujado encima: baja «Descartar lo diminuto» si eran provincias de verdad.',
 } as const;
 
 export type MessageKey = keyof typeof es;
@@ -116,6 +130,19 @@ const en: Record<MessageKey, string> = {
   'import.step3': '3 · Review the result',
   'import.step4': '4 · Name and save',
   'import.holeFloor': 'Minimum holes',
+  'import.smallRatio': 'Drop the tiniest',
+  'import.maxGap': 'Outline bridge',
+  'import.busy': 'Working…',
+  'import.sea': 'Sea',
+  'import.seaTransparent': 'Transparent',
+  'import.seaAuto': 'Automatic',
+  'import.seaMark': 'Click to mark it',
+  'import.seaFound': 'Sea: {color} ({pixels}% of the image) · {picked}',
+  'import.seaTransparentFound': 'Sea: the image transparency ({pixels}%)',
+  'import.seaPicked': 'picked by hand',
+  'import.seaAutomatic': 'chosen automatically',
+  'import.seaNone':
+    'No sea was found: an opaque background is being read as land. Mark the sea with a click.',
   'import.nameOf': 'Name of the selected province',
   'import.named': '{named} of {total} provinces named',
   'import.namesLost':
@@ -154,6 +181,8 @@ const en: Record<MessageKey, string> = {
     '{count} px dropped as sea, dark outlines or speckle out of {total}. Very dark, greyish pixels count as border rather than land.',
   'import.issueTinyHoles':
     '{count} small hole(s) were dropped as noise. If the image had the province names painted on it, their letters were read as lakes: the fill will cover them either way.',
+  'import.issueSmallRegions':
+    '{count} tiny region(s) were dropped for being much smaller than their neighbours. They are usually the province names painted on the map: lower "Drop the tiniest" if they were meant to be provinces.',
 };
 
 const DICTS: Record<Lang, Record<MessageKey, string>> = { es, en };
