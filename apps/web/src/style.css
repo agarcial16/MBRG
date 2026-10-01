@@ -38,9 +38,17 @@ body {
 }
 
 .subtitle {
-  margin: 2px 0 16px;
+  margin: 2px 0 0;
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+.version {
+  margin: 2px 0 16px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-family: ui-monospace, monospace;
+  opacity: 0.7;
 }
 
 #sidebar section {

@@ -11,6 +11,9 @@ import { Playback } from './playback.js';
 import { drawMap, fitLabels, initialColors, interpolateFills } from './render.js';
 import { renderStats, revealedEvents } from './stats.js';
 
+/** Injected at build time from apps/web/package.json (see vite.config.ts). */
+declare const __APP_VERSION__: string;
+
 const SPEEDS_MS = [2000, 1000, 500, 250, 100];
 const DEFAULT_SEED = 42;
 const ANIM_MAX_MS = 450;
@@ -29,6 +32,10 @@ const zoomInBtn = document.querySelector<HTMLButtonElement>('#btn-zoom-in');
 const zoomOutBtn = document.querySelector<HTMLButtonElement>('#btn-zoom-out');
 const zoomFitBtn = document.querySelector<HTMLButtonElement>('#btn-zoom-fit');
 const minimapEl = document.querySelector<HTMLCanvasElement>('#minimap');
+const versionEl = document.querySelector<HTMLElement>('#app-version');
+
+// Show which build is running, so a shared link is never ambiguous.
+if (versionEl) versionEl.textContent = `v${__APP_VERSION__}`;
 
 /** Seed from `?seed=…` (shareable link), or null when absent/invalid. */
 function seedFromUrl(): number | null {
