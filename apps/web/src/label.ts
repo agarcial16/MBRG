@@ -345,6 +345,32 @@ const CURVE_MIN_ARC = 0.5; // distrust a walk below 50% of the straight corridor
 const GLYPH_AVG = 0.6; // rough advance of a bold glyph in em (layout estimate)
 
 /**
+ * How far a local tangent may tilt from the label's base axis before the label
+ * stops reading as one line. 60° still looks like text (never upside down,
+ * never with the glyph order reversed) while leaving room for a real crescent.
+ */
+const MAX_TANGENT_DEV = (60 * Math.PI) / 180;
+
+/**
+ * Is `curve` readable along `dir`? Every segment must advance in the reading
+ * direction (cos > 0: never backwards, never upside down) and stay within
+ * MAX_TANGENT_DEV of it. A curve that fails is unusable as a label axis —
+ * callers fall back to the straight corridor, which always passes.
+ */
+function isReadable(curve: LabelCurve, dir: Coord): boolean {
+  const maxSin = Math.sin(MAX_TANGENT_DEV);
+  for (let i = 1; i < curve.pts.length; i++) {
+    const dx = curve.pts[i][0] - curve.pts[i - 1][0];
+    const dy = curve.pts[i][1] - curve.pts[i - 1][1];
+    const len = Math.hypot(dx, dy);
+    if (len <= 1e-9) continue;
+    if ((dx * dir[0] + dy * dir[1]) / len <= 0) return false; // reads backwards
+    if (Math.abs(dy * dir[0] - dx * dir[1]) / len > maxSin) return false; // too tilted
+  }
+  return true;
+}
+
+/**
  * Build a curve from walk points: dedupe, arc-length table, and transverse
  * thickness measured with each point's local tangent.
  */
@@ -402,7 +428,12 @@ function smoothCurve(pts: Coord[], passes: number, zones: Zone[]): Coord[] {
   return out;
 }
 
-/** The straight corridor as a 2-point curve (degenerate cases / fallback). */
+/**
+ * The straight corridor as a 2-point curve (the default label axis, and the
+ * fallback whenever a curve can't be trusted). Endpoints are pulled a hair
+ * inside the block: the rays stop *on* the border, and a centerline point that
+ * sits exactly on it is ambiguous for inside tests and for glyph containment.
+ */
 function straightCurve(
   anchor: Coord,
   dir: Coord,
@@ -410,10 +441,12 @@ function straightCurve(
   dBack: number,
   boundary: Segment[],
 ): LabelCurve {
+  const L = dFwd + dBack;
+  const eps = Math.min(L * 0.01, 1);
   return curveOf(
     [
-      [anchor[0] - dir[0] * dBack, anchor[1] - dir[1] * dBack],
-      [anchor[0] + dir[0] * dFwd, anchor[1] + dir[1] * dFwd],
+      [anchor[0] - dir[0] * (dBack - eps), anchor[1] - dir[1] * (dBack - eps)],
+      [anchor[0] + dir[0] * (dFwd - eps), anchor[1] + dir[1] * (dFwd - eps)],
     ],
     boundary,
   );
@@ -465,10 +498,26 @@ function buildCurve(
     let adv = Math.min(step, budget - moved);
     let advanced = false;
     for (let k = 0; k < 4; k++) {
-      const np: Coord = [c[0] + latX + tangent[0] * adv, c[1] + latY + tangent[1] * adv];
+      // Whole step, then folded back into the readable cone around `dir`:
+      // clamping only the lateral part still lets the tilt accumulate step
+      // after step, which is how the walk used to end up serpentine.
+      let dx = latX + tangent[0] * adv;
+      let dy = latY + tangent[1] * adv;
+      const dLen = Math.hypot(dx, dy);
+      if (dLen > 1e-9) {
+        const cosA = (dx * dir[0] + dy * dir[1]) / dLen;
+        const sinA = (dy * dir[0] - dx * dir[1]) / dLen;
+        if (Math.abs(sinA) > Math.abs(cosA) * Math.tan(MAX_TANGENT_DEV)) {
+          const a = (sinA < 0 ? -1 : 1) * MAX_TANGENT_DEV;
+          const cos = Math.cos(a) * dLen;
+          const sin = Math.sin(a) * dLen;
+          dx = cos * dir[0] - sin * dir[1];
+          dy = sin * dir[0] + cos * dir[1];
+        }
+      }
+      const np: Coord = [c[0] + dx, c[1] + dy];
       if (pointInBlock(np, zones)) {
-        const mLen = Math.hypot(np[0] - c[0], np[1] - c[1]);
-        if (mLen > 1e-9) tangent = [(np[0] - c[0]) / mLen, (np[1] - c[1]) / mLen];
+        if (dLen > 1e-9) tangent = [dx / dLen, dy / dLen];
         c = np;
         moved += adv;
         advanced = true;
@@ -485,7 +534,9 @@ function buildCurve(
   const curve = curveOf(smoothed, boundary);
   // A truncated walk would give the text too little room — use the straight corridor.
   if (!isFinite(curve.total) || curve.total < L * CURVE_MIN_ARC) return straight();
-  return curve;
+  // The walk may wander (that's the serpentine we don't want): if the result
+  // doesn't read as a single line along the corridor, keep the straight axis.
+  return isReadable(curve, dir) ? curve : straight();
 }
 
 /** Local block thickness at arc offset `s` (linear interpolation). */
@@ -633,28 +684,32 @@ function blockShape(group: Territory[], geom: BlockGeom, anchor: Coord, text: st
 
   let bestSpan = -1;
   let bestTheta = 0;
-  let bestDir: Coord = [1, 0];
   for (let i = 0; i < CORRIDOR_RAYS; i++) {
     const theta = (i * Math.PI) / CORRIDOR_RAYS; // [0, PI) covers every axis
-    const dir: Coord = [Math.cos(theta), Math.sin(theta)];
-    const d1 = rayDistance(anchor, dir, boundary);
-    const d2 = rayDistance(anchor, [-dir[0], -dir[1]], boundary);
+    const probe: Coord = [Math.cos(theta), Math.sin(theta)];
+    const d1 = rayDistance(anchor, probe, boundary);
+    const d2 = rayDistance(anchor, [-probe[0], -probe[1]], boundary);
     if (!isFinite(d1) || !isFinite(d2)) continue;
     const total = d1 + d2;
     if (total > bestSpan) {
       bestSpan = total;
       bestTheta = theta;
-      bestDir = dir;
     }
   }
   if (bestSpan <= 0) return bboxShape(group, areaSize, geom, anchor); // degenerate
 
-  // Canonical angle in (-PI/2, PI/2]: same axis, but the glyphs are never
-  // upside-down and interpolating between rounds can't spin them around.
+  // Canonical angle in (-PI/2, PI/2]: the axis is kept, but flipped so the text
+  // always *reads* along it. `bestTheta` is probed over [0, PI), so half the
+  // time the winning corridor points "backwards" — building the curve along
+  // that direction is what used to leave labels (Estalia) upside down, since
+  // each glyph takes its local tangent from the curve. Flipping the axis here
+  // makes the whole centerline advance in reading order by construction, and
+  // interpolating between rounds can't spin glyphs around either.
   const angle = bestTheta > Math.PI / 2 ? bestTheta - Math.PI : bestTheta;
-  const dFwd = rayDistance(anchor, bestDir, boundary);
-  const dBack = rayDistance(anchor, [-bestDir[0], -bestDir[1]], boundary);
-  const curve = buildCurve(anchor, bestDir, dFwd, dBack, boundary, zones);
+  const dir: Coord = [Math.cos(angle), Math.sin(angle)];
+  const dFwd = rayDistance(anchor, dir, boundary);
+  const dBack = rayDistance(anchor, [-dir[0], -dir[1]], boundary);
+  const curve = buildCurve(anchor, dir, dFwd, dBack, boundary, zones);
   const span = curve.total * SPAN_MARGIN;
   const size = thicknessCap(curve, areaSize, span, text);
   return { size, angle, span, curve };
