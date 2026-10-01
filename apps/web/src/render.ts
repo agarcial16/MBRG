@@ -154,34 +154,40 @@ export function drawMap(
 
   const resolved = fills ?? territoryColorsOf(owners, colors);
 
-  // 1) Fills.
+  // 1) Fills. Holes (lakes, enclaves) go in the same path and the even-odd rule
+  //    cuts them out, so ring orientation does not have to be normalised.
   for (const t of map.territories) {
     ctx.beginPath();
     tracePath(ctx, t.polygon);
+    for (const hole of t.holes ?? []) tracePath(ctx, hole);
     ctx.fillStyle = resolved[t.id] ?? FALLBACK;
-    ctx.fill();
+    ctx.fill('evenodd');
   }
 
-  // 2) Borders: only visible edges, batched into a single stroke call.
+  // 2) Borders: only visible edges, batched into a single stroke call. Holes
+  //    are walked too: a lake has no territory of its own, so its coastline is
+  //    the only thing that will ever draw that edge. An enclave's hole is
+  //    skipped by the `drawn` set, since its own polygon is the same edge.
   const sharing = edgeSharing(map);
   const drawn = new Set<string>();
   ctx.beginPath();
   for (const t of map.territories) {
     const owner = owners[t.id];
-    const poly = t.polygon;
-    for (let i = 0; i < poly.length; i++) {
-      const p1 = poly[i];
-      const p2 = poly[(i + 1) % poly.length];
-      const key = edgeKey(p1, p2);
-      if (drawn.has(key)) continue;
-      const neighbors = sharing.get(key);
-      const visible =
-        !neighbors ||
-        neighbors.some((id) => id !== t.id && owners[id] !== undefined && owners[id] !== owner);
-      if (visible) {
-        drawn.add(key);
-        ctx.moveTo(p1[0], p1[1]);
-        ctx.lineTo(p2[0], p2[1]);
+    for (const ring of [t.polygon, ...(t.holes ?? [])]) {
+      for (let i = 0; i < ring.length; i++) {
+        const p1 = ring[i];
+        const p2 = ring[(i + 1) % ring.length];
+        const key = edgeKey(p1, p2);
+        if (drawn.has(key)) continue;
+        const neighbors = sharing.get(key);
+        const visible =
+          !neighbors ||
+          neighbors.some((id) => id !== t.id && owners[id] !== undefined && owners[id] !== owner);
+        if (visible) {
+          drawn.add(key);
+          ctx.moveTo(p1[0], p1[1]);
+          ctx.lineTo(p2[0], p2[1]);
+        }
       }
     }
   }
