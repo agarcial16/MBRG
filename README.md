@@ -1,94 +1,97 @@
 # MBRG — Map Battle Royale Game
 
-Un **Battle Royale para mapas tipo EU4 / RISK**: cada ronda una facción es
-eliminada al azar y una facción vecina se queda con **todas** sus provincias,
-hasta que solo queda una en pie.
+A **Battle Royale for EU4 / RISK-style maps**: every round one faction is
+wiped out at random, and a neighbour swallows **all** of its provinces, until
+only one is left standing.
 
-Lo interesante aquí no es jugar: es **espectar y predecir**. La partida se
-calcula entera a partir de una semilla, así que cualquiera con el enlace sabe
-qué va a pasar… y por eso la versión actual es un visor, no un juego de
-apuestas (todavía no).
+The point isn't to play — it's to **spectate and predict**. The whole match is
+computed from a seed, so everyone with the link already knows how it ends…
+which is exactly why this release is a viewer and not a betting game (yet).
 
-![Partida en marcha](docs/captura-ronda2.png)
+![A match in progress](docs/captura-ronda2.png)
 
-## Estado actual: `v0.1.0-alpha`
+## Status: `v0.1.0-alpha`
 
-Es la **primera versión jugable**, y es un principio en toda la regla:
+First playable release, and a first release on principle:
 
-- ✅ Un mapa (artesanal, embebido en el código)
-- ✅ Simulación determinista del modo "Clásico"
-- ✅ Reproducción por rondas con animación, registro y estadísticas
-- ✅ Semilla compartible por URL
-- ❌ **Sin servidor** (nada de historial, rankings ni calendario de rondas)
-- ❌ **Sin predicciones ni apuestas** (llega en la Fase 3)
-- ❌ **Sin Discord** (Fase 4)
-- ❌ **No se pueden subir mapas** (el importador es la Fase 2)
+- ✅ One map (hand-made, embedded in the source)
+- ✅ Deterministic simulation of the "Clásico" mode
+- ✅ Round-by-round playback with animation, event log and live stats
+- ✅ Shareable seed via the URL
+- ✅ Spanish and English interface
+- ❌ **No server** (no history, rankings or round schedule)
+- ❌ **No predictions or bets** (coming in Phase 3)
+- ❌ **No Discord** (Phase 4)
+- ❌ **No custom maps** (the image importer is Phase 2)
 
-### Una advertencia importante
+### One important warning
 
-La semilla va en la URL y la partida se calcula **en tu navegador**. Eso
-significa que cualquiera con el enlace puede leer la semilla y calcular las
-rondas siguientes, es decir, **spoilers**. Para un visor da igual, pero
-**rompe por completo cualquier apuesta**: por eso esta versión no trae nada de
-apuestas, y la Fase 3 (precalcular en servidor y revelar ronda a ronda) es
-precisamente lo que lo arregla.
+The seed lives in the URL and the match is computed **in your browser**. That
+means anyone with the link can read the seed and work out the coming rounds —
+i.e. **spoilers**. For a viewer that's harmless, but it **breaks betting
+completely**: which is why this version ships no betting at all, and why
+Phase 3 (precompute on the server, reveal one round at a time) is precisely
+what fixes it.
 
-## Cómo jugar
+## How to play
 
-1. Abre la [demo publicada](https://agarcial16.github.io/MBRG/).
-2. Pulsa **▶**. Cada ronda cae una facción y otra se la come entera.
-3. Cambia la **semilla** y pulsa *Aplicar* para generar otra partida distinta.
-4. Comparte la URL: lleva la semilla dentro, así que quien la abre ve **exactamente
-   tu misma partida**.
+1. Open the [live demo](https://agarcial16.github.io/MBRG/).
+2. Press **▶**. Each round a faction falls and a neighbour takes it whole.
+3. Change the **seed** and hit *Apply* to generate a different match.
+4. Share the URL: it carries the seed, so whoever opens it sees **exactly your
+   match**.
 
-![Estado inicial de la partida](docs/captura-inicio.png)
+![The match at the start](docs/captura-inicio.png)
 
-Controles: rueda o pinza para hacer zoom, arrastrar para mover la vista, doble
-clic para acercar, y el minimapa de la esquina para desplazarte.
+Controls: mouse wheel or pinch to zoom, drag to pan, double-click to zoom in,
+and the minimap in the corner to jump around.
 
-## Cómo se ejecuta en local
+The interface speaks Spanish and English — pick one in the sidebar, or force it
+with `?lang=en` / `?lang=es` in the link. The choice is remembered.
+
+## Running it locally
 
 ```bash
-npm install       # instala dependencias y enlaza los paquetes del monorepo
-npm run dev       # servidor de desarrollo → http://localhost:5173
-npm run build     # compila los paquetes (tsc -b) y la web (vite build)
-npm test          # tests (vitest run, sin necesidad de compilar antes)
+npm install       # install dependencies and link the workspace packages
+npm run dev       # dev server → http://localhost:5173
+npm run build     # compile the packages (tsc -b) and the web app (vite build)
+npm test          # tests (vitest run, no build needed first)
 npm run test:watch
 npm run typecheck
 ```
 
-## Estructura
+## Structure
 
-Monorepo de TypeScript con *workspaces*. La misma simulación determinista se
-ejecuta en los tests, en el servidor, en el bot y en el navegador — el render es
-la única capa que se puede sustituir (por ejemplo por Three.js en el futuro).
+A TypeScript monorepo using npm workspaces. The same deterministic simulation
+runs in the tests, the server, the bot and the browser — only the render layer
+is meant to be swappable (e.g. for Three.js later on).
 
-| Ruta | Qué hay |
+| Path | What's in it |
 | --- | --- |
-| `packages/shared` | Formato de mapa (`MapFormatV1`), validación, adyacencia y tipos de partida |
-| `packages/sim` | El motor: `step()` (una ronda), `simulate()` (partida completa), PRNG con semilla |
-| `apps/web` | El visor: render en canvas, reproducción, cámara, minimapa, registro, estadísticas |
+| `packages/shared` | Map format (`MapFormatV1`), validation, adjacency, match types |
+| `packages/sim` | The engine: `step()` (one round), `simulate()` (whole match), seeded PRNG |
+| `apps/web` | The viewer: canvas renderer, playback, camera, minimap, log, stats, i18n |
 
-## Reglas del modo "Clásico"
+## "Clásico" rules
 
-En cada ronda:
+Each round:
 
-1. Se elige una facción viva **al azar**.
-2. Sus vecinas candidatas son las que comparten frontera con **alguna** de sus
-   provincias.
-3. Una de ellas se queda con **todas** sus provincias.
-4. Se repite hasta que queda una sola facción.
+1. A living faction is picked **at random**.
+2. Its candidate neighbours are those sharing a border with **any** of its
+   provinces.
+3. One of them takes **all** of its provinces.
+4. Repeat until a single faction remains.
 
 ## Roadmap
 
-| Versión | Qué trae |
+| Version | What it brings |
 | --- | --- |
-| `v0.1.0-alpha` | Lo de arriba: un mapa, sin servidor |
-| `v0.2.0` | **Importador de mapas**: sube una imagen y conviértela en mapa jugable |
-| `v0.3.0` | **Servidor + predicciones**: se wager, se acierta, hay puntuación |
-| `v0.4.0` | **Bot de Discord**: jugar desde el chat, rankings por servidor |
-| `v1.0` | Varios modos de juego, editor de mapas, 3D |
+| `v0.1.0-alpha` | The above: one map, no server |
+| `v0.2.0` | **Map importer**: upload an image, turn it into a playable map |
+| `v0.3.0` | **Server + predictions**: place bets, score points, keep rankings |
+| `v0.4.0` | **Discord bot**: play from the chat, per-server leaderboards |
+| `v1.0` | Multiple game modes, map editor, 3D |
 
-## Licencia
+## License
 
 [MIT](LICENSE) © 2026 Ángel García
