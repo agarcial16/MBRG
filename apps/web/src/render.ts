@@ -216,6 +216,12 @@ const MAX_FIT_ATTEMPTS = 6;
 const FIT_SHRINK = 0.82;
 /** Absolute floor (world units) of the scale-independent fit; the screen clamp dominates visually. */
 const FIT_FLOOR = 1;
+/**
+ * Max letter gap as a fraction of the font size. A long corridor gives a long
+ * target span, and spreading a 7-letter name across 400 units of map stops
+ * looking like a word. This keeps names letterspaced, not scattered.
+ */
+const MAX_TRACK = 0.3;
 
 /** One placed glyph of a run: world position + tangent angle. */
 interface Glyph {
@@ -234,6 +240,8 @@ interface Glyph {
 interface GlyphRun {
   size: number;
   span: number;
+  /** Width actually occupied once tracking is capped (the real visual size). */
+  width: number;
   glyphs: Glyph[];
 }
 
@@ -260,9 +268,10 @@ function runGlyphs(
 ): GlyphRun {
   const { text, zones, curve } = label;
   const chars = [...text];
-  if (chars.length === 0 || span0 <= 0) return { size: size0, span: span0, glyphs: [] };
+  if (chars.length === 0 || span0 <= 0) return { size: size0, span: span0, width: 0, glyphs: [] };
   let size = size0;
   let span = span0;
+  let width = 0;
   let glyphs: Glyph[] = [];
   const center = curve.total / 2;
   for (let attempt = 0; attempt < MAX_FIT_ATTEMPTS; attempt++) {
@@ -279,8 +288,10 @@ function runGlyphs(
     const widths = chars.map((ch) => ctx.measureText(ch).width);
     let naturalTotal = 0;
     for (const w of widths) naturalTotal += w;
-    const gap = chars.length > 1 && naturalTotal < span ? (span - naturalTotal) / (chars.length - 1) : 0;
+    const spread = chars.length > 1 && naturalTotal < span ? (span - naturalTotal) / (chars.length - 1) : 0;
+    const gap = Math.min(spread, MAX_TRACK * size);
     const total = naturalTotal + gap * (chars.length - 1);
+    width = total;
     const xs: number[] = [];
     let cx = -total / 2;
     for (const w of widths) {
@@ -308,7 +319,7 @@ function runGlyphs(
     span *= next / size; // shrink span too, so tracking pulls the ends back in
     size = next;
   }
-  return { size, span, glyphs };
+  return { size, span, width, glyphs };
 }
 
 /** Fit cache: measurement is deterministic per state, so memoize by owners. */
@@ -365,16 +376,6 @@ function drawLabel(
 ): void {
   const { text, span } = label;
   if (!text || span <= 0 || scale <= 0) return;
-  let alpha = label.alpha ?? 1;
-  // Fade labels of blocks too small to read at this zoom.
-  const spanPx = span * scale;
-  if (spanPx < FADE_FULL_PX) {
-    alpha *= Math.max(0, Math.min(1, (spanPx - FADE_BELOW_PX) / (FADE_FULL_PX - FADE_BELOW_PX)));
-  }
-  if (alpha <= 0) return;
-
-  ctx.save();
-  ctx.globalAlpha = alpha;
 
   // Clamp the font to a legible size ON SCREEN at the current zoom.
   const minWorld = MIN_FONT_PX / scale;
@@ -387,6 +388,7 @@ function drawLabel(
     const from = morph.from;
     const A = runGlyphs(ctx, from, clampSize(from.size), from.span, minWorld, false);
     const B = runGlyphs(ctx, label, clampSize(label.size), span, minWorld, false);
+    if (!applyAlpha(ctx, label, mix(A.width, B.width, morph.t), scale)) return;
     const n = Math.min(A.glyphs.length, B.glyphs.length);
     for (let i = 0; i < n; i++) {
       const a = A.glyphs[i];
@@ -402,9 +404,33 @@ function drawLabel(
     }
   } else {
     const run = runGlyphs(ctx, label, clampSize(label.size), span, minWorld, validate);
+    // Fade by the width the name really occupies, not by the whole corridor:
+    // a label on a long block is no more unreadable than a short one.
+    if (!applyAlpha(ctx, label, run.width, scale)) return;
     for (const g of run.glyphs) fillGlyph(ctx, g.ch, g.x, g.y, g.a, run.size);
   }
   ctx.restore();
+}
+
+/**
+ * Combine the label's own opacity with the zoom fade and open the canvas
+ * state. Returns false when the label is invisible and nothing was drawn.
+ */
+function applyAlpha(
+  ctx: CanvasRenderingContext2D,
+  label: FactionLabel,
+  width: number,
+  scale: number,
+): boolean {
+  let alpha = label.alpha ?? 1;
+  const widthPx = width * scale;
+  if (widthPx < FADE_FULL_PX) {
+    alpha *= Math.max(0, Math.min(1, (widthPx - FADE_BELOW_PX) / (FADE_FULL_PX - FADE_BELOW_PX)));
+  }
+  if (alpha <= 0) return false;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  return true;
 }
 
 /** Draw one glyph at its world position, rotated along the curve's tangent. */
