@@ -35,9 +35,15 @@ export interface ContourLoop {
   /** Enclosed area in square pixels, after simplification. */
   area: number;
   /**
-   * The two sides disagreed along the loop: a diagonal (saddle) configuration
-   * where four regions meet. Reported so validation can flag it, because the
-   * loop is then only an approximation of the real shape.
+   * The two sides of this boundary disagreed about who is inside: a diagonal
+   * (saddle) configuration where four regions meet, or a ring whose interior
+   * could not be sampled. The loop is then only an approximation of the real
+   * shape, so validation flags it.
+   *
+   * It deliberately does *not* mean "the outline runs along more than one
+   * neighbour", which is what every province with both a coast and a land
+   * border does: flagging that would warn about nearly every region on a real
+   * map and bury the crossings that are actually worth reporting.
    */
   ambiguous: boolean;
 }
@@ -50,6 +56,13 @@ export interface ContourOptions {
   simplify: number;
   /** Loops smaller than this (in pixels²) are dropped as noise. */
   minLoopArea: number;
+  /**
+   * Drop region-less holes smaller than this fraction of the region holding
+   * them, as a fraction rather than in pixels: a painted letter is 0.5% of a
+   * province on a 4000px map and 2% of one on a 400px map, so any fixed pixel
+   * threshold would be right for one resolution and wrong for the other.
+   */
+  minHoleRatio: number;
 }
 
 export const DEFAULT_CONTOUR_OPTIONS: ContourOptions = {
@@ -58,6 +71,9 @@ export const DEFAULT_CONTOUR_OPTIONS: ContourOptions = {
   // unusual but perfectly representable, and dropping it would leave the hole
   // unfilled in the polygon.
   minLoopArea: 1,
+  // 1% of the province: a painted letter lands well under it, a lake or a
+  // real enclave well over.
+  minHoleRatio: 0.01,
 };
 
 export interface ContourResult {
@@ -71,6 +87,20 @@ export interface ContourResult {
    * `polygon` plus `holes` cannot express that, so validation has to say so.
    */
   splitRegions: number[];
+  /**
+   * Region-less holes dropped as too small: almost always painted text, whose
+   * letters the tracer reads as lakes. Reported so the user finds out, because
+   * the fill will cover those letters either way.
+   */
+  droppedHoles: number;
+  /**
+   * Kept loops whose two sides disagreed, i.e. the outlines that cross where
+   * four regions meet. Counted over what survives, not over every loop found: a
+   * dropped letter is ambiguous often (a diagonal stroke meets the outline at
+   * right angles) and reporting those would put this warning on every map with
+   * painted text, which is the case the user most needs a clean map from.
+   */
+  ambiguousLoops: number;
 }
 
 /** A boundary side of the label map, as a move between two grid corners. */
@@ -161,7 +191,6 @@ interface Chain {
   left: number;
   /** The other side: the neighbour, or -1 for sea / outside the image. */
   right: number;
-  ambiguous: boolean;
 }
 
 /**
@@ -198,13 +227,11 @@ function chainLoops(edges: Edge[], grid: Grid): Chain[] {
     let edge = start;
     const left = start.left;
     const right = start.right;
-    let ambiguous = false;
 
     for (let guard = 0; guard <= edges.length; guard++) {
       edge.used = true;
       ids.push(edge.to);
       if (edge.to === start.from) break; // closed
-      if (edge.left !== left || edge.right !== right) ambiguous = true;
 
       // Only follow edges of the *same* region. At a corner where several
       // regions meet, the other sides' edges also start there, and taking one
@@ -240,7 +267,7 @@ function chainLoops(edges: Edge[], grid: Grid): Chain[] {
     }
 
     if (ids.length >= 4 && ids[0] === ids[ids.length - 1]) {
-      chains.push({ ids, left, right, ambiguous });
+      chains.push({ ids, left, right });
     }
   }
   return chains;
@@ -377,6 +404,12 @@ export function traceContours(
   // border differently on each side — which is exactly the seam we are here to
   // avoid. Simplify once, after merging, and both sides quote those points.
   const unique = new Map<string, Chain>();
+  /**
+   * Chains whose two sides disagree. The disagreement is only visible once both
+   * walks exist, and the loop is what the caller reads, so it is recorded here
+   * and picked up when the loops are built.
+   */
+  const crossed = new Set<Chain>();
   for (const chain of chains) {
     // The key must ignore the repeated closing corner: the two walks close at
     // opposite ends of the same boundary, so including it would give each side
@@ -392,7 +425,7 @@ export function traceContours(
       const points = (c: Chain): Coord[] =>
         c.ids.slice(0, -1).map((id) => [cornerX(grid, id), cornerY(grid, id)] as Coord);
       if (classify(chain, points(chain), grid).enclosed !== classify(seen, points(seen), grid).enclosed) {
-        seen.ambiguous = true;
+        crossed.add(seen);
       }
       continue;
     }
@@ -419,7 +452,7 @@ export function traceContours(
     const area = Math.abs(signedArea(points));
     if (area < opts.minLoopArea) continue;
 
-    loops.push({ points, enclosed, surrounds, area, ambiguous: chain.ambiguous });
+    loops.push({ points, enclosed, surrounds, area, ambiguous: crossed.has(chain) });
   }
 
   const ringsByRegion = new Map<number, ContourLoop[]>();
@@ -451,10 +484,30 @@ export function traceContours(
     }
   }
 
+  // Drop holes that are too small to be a lake, but only when they hold no
+  // region: an enclave is another province and must stay a hole whatever its
+  // size, or the surrounding fill would paint over it.
+  let droppedHoles = 0;
+  for (const [regionIndex, holes] of holesByRegion) {
+    const rings = ringsByRegion.get(regionIndex) ?? [];
+    const regionArea = rings.reduce((sum, ring) => sum + ring.area, 0);
+    const floor = regionArea * opts.minHoleRatio;
+    const kept = holes.filter((hole) => {
+      if (hole.enclosed >= 0) return true;
+      if (hole.area >= floor) return true;
+      droppedHoles++;
+      return false;
+    });
+    holesByRegion.set(regionIndex, kept);
+  }
+
   const splitRegions = [...ringsByRegion.entries()]
     .filter(([, rings]) => rings.length > 1)
     .map(([index]) => index)
     .sort((a, b) => a - b);
 
-  return { loops, ringsByRegion, holesByRegion, splitRegions };
+  const kept = [...ringsByRegion.values(), ...holesByRegion.values()].flat();
+  const ambiguousLoops = kept.filter((loop) => loop.ambiguous).length;
+
+  return { loops, ringsByRegion, holesByRegion, splitRegions, droppedHoles, ambiguousLoops };
 }
