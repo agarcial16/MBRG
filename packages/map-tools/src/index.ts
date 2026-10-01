@@ -1,7 +1,7 @@
 export type { AdjacencyResult } from './adjacency.js';
 export { detectAdjacency, islandIds, labelAt, neighborIdLists } from './adjacency.js';
-export type { AssemblyOptions, AssemblyResult, TerritorySummary } from './assemble.js';
-export { assembleMap, territoryId } from './assemble.js';
+export type { AssemblyOptions, AssemblyResult, ImportIssue, ImportIssueCode, TerritorySummary } from './assemble.js';
+export { assembleMap, formatIssue, territoryId } from './assemble.js';
 export type { ContourLoop, ContourOptions, ContourResult } from './contours.js';
 export { DEFAULT_CONTOUR_OPTIONS, pointInRing, simplifyRing, traceContours } from './contours.js';
 export type { ColorRegion, FlatColorOptions, FlatColorResult } from './flatColors.js';

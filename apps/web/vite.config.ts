@@ -16,6 +16,16 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(version),
   },
+  build: {
+    rollupOptions: {
+      // Two pages: the viewer and the map importer. Without this, Vite only
+      // builds index.html and import.html would 404 once deployed.
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        import: fileURLToPath(new URL('./import.html', import.meta.url)),
+      },
+    },
+  },
   resolve: {
     alias: {
       '@mbrg/sim': fileURLToPath(new URL('../../packages/sim/src/index.ts', import.meta.url)),

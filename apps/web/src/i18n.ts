@@ -36,6 +36,42 @@ const es = {
   'stats.topKiller': 'Mayor asesino:',
   'stats.topCaptures': 'Más capturas:',
   'stats.wins': '{name} gana la partida',
+  'import.title': 'Importar mapa',
+  'import.subtitle':
+    'Convierte una imagen en un mapa jugable. Funciona con un color plano por provincia.',
+  'import.step1': '1 · Elige una imagen',
+  'import.step2': '2 · Ajusta la detección',
+  'import.step3': '3 · Revisa el resultado',
+  'import.step4': '4 · Comprueba y guarda',
+  'import.drop': 'Arrastra una imagen aquí o haz clic para elegirla',
+  'import.hint':
+    'Ideal: cada provincia de un color sólido y distinto, con fronteras oscuras. Los PNG con transparencia se leen como mar.',
+  'import.showSource': 'Imagen original',
+  'import.clickTip': 'Haz clic en una provincia para verla en la lista.',
+  'import.regions': 'Provincias',
+  'import.tolerance': 'Tolerancia de color',
+  'import.minArea': 'Área mínima (px)',
+  'import.simplify': 'Suavizado',
+  'import.summary': '{regions} provincias · {warnings} avisos · {errors} errores',
+  'import.border': 'frontera',
+  'import.borders': 'fronteras',
+  'import.badgeIsland': 'isla',
+  'import.badgeSplit': 'partida',
+  'import.badgeCorner': 'solo esquina',
+  'import.noIssues': 'Sin avisos: el mapa es jugable.',
+  'import.failed': 'No se pudo leer la imagen',
+  'import.broken': 'El mapa tiene errores: no se puede jugar hasta arreglarlos.',
+  'import.savedHint': 'Se guardará en este navegador como «{name}».',
+  'import.play': 'Jugar este mapa',
+  'import.export': 'Exportar JSON',
+  'import.issueNoOutline': 'La región {id} ({color}) no tiene contorno y se ha descartado',
+  'import.issueSplit':
+    'La región {id} ({color}) está partida en {pieces} trozos; solo se guarda el mayor: únela con una vecina o redibuja el mapa',
+  'import.issueIsland':
+    'La región {id} ({color}) es una isla: no linda con ninguna otra, así que necesita un enlace marítimo para ser alcanzable',
+  'import.issueDiagonal':
+    '{count} contorno(s) se cruzan en diagonal donde se encuentran cuatro regiones; su forma es aproximada: separa las fronteras para que no se toquen en un punto',
+  'import.issueSkipped': '{count} px descartados por mar, fronteras o ruido de {total}',
 } as const;
 
 export type MessageKey = keyof typeof es;
@@ -63,6 +99,41 @@ const en: Record<MessageKey, string> = {
   'stats.topKiller': 'Top killer:',
   'stats.topCaptures': 'Most captures:',
   'stats.wins': '{name} wins the match',
+  'import.title': 'Import map',
+  'import.subtitle': 'Turn an image into a playable map. Works with one flat colour per province.',
+  'import.step1': '1 · Pick an image',
+  'import.step2': '2 · Tune the detection',
+  'import.step3': '3 · Review the result',
+  'import.step4': '4 · Check and save',
+  'import.drop': 'Drop an image here, or click to choose one',
+  'import.hint':
+    'Best case: one solid, distinct colour per province, with dark borders. Transparency in a PNG is read as sea.',
+  'import.showSource': 'Source image',
+  'import.clickTip': 'Click a province to find it in the list.',
+  'import.regions': 'Provinces',
+  'import.tolerance': 'Colour tolerance',
+  'import.minArea': 'Minimum area (px)',
+  'import.simplify': 'Smoothing',
+  'import.summary': '{regions} provinces · {warnings} warnings · {errors} errors',
+  'import.border': 'border',
+  'import.borders': 'borders',
+  'import.badgeIsland': 'island',
+  'import.badgeSplit': 'split',
+  'import.badgeCorner': 'corner only',
+  'import.noIssues': 'No findings: the map is playable.',
+  'import.failed': 'The image could not be read',
+  'import.broken': 'The map has errors: it cannot be played until they are fixed.',
+  'import.savedHint': 'It will be saved in this browser as “{name}”.',
+  'import.play': 'Play this map',
+  'import.export': 'Export JSON',
+  'import.issueNoOutline': 'Region {id} ({color}) has no outline and was dropped',
+  'import.issueSplit':
+    'Region {id} ({color}) is split into {pieces} pieces; only the largest is kept: merge it with a neighbour or redraw the map',
+  'import.issueIsland':
+    'Region {id} ({color}) is an island: it borders nothing, so it needs a sea link to be reachable',
+  'import.issueDiagonal':
+    '{count} outline(s) cross diagonally where four regions meet; their shape is approximate: separate the borders so they do not touch at a point',
+  'import.issueSkipped': '{count} px dropped as sea, borders or speckle out of {total}',
 };
 
 const DICTS: Record<Lang, Record<MessageKey, string>> = { es, en };

@@ -73,17 +73,38 @@ describe('assembleMap', () => {
     const { map, warnings, territories } = importArt(['RRGG', 'RRGG', '....', '..BB']);
     expect(map.territories).toHaveLength(3);
     expect(territories.filter((t) => t.island)).toHaveLength(1);
-    expect(warnings.join('\n')).toMatch(/is an island/);
+    // Findings are structured, so the import screen can translate them.
+    const island = warnings.find((w) => w.code === 'island');
+    expect(island).toBeDefined();
+    expect(island!.params.id).toBe(territories.find((t) => t.island)!.id);
+    expect(island!.detail).toMatch(/is an island/);
+  });
+
+  it('reports an island once, not twice', () => {
+    // validateMap also flags islands; the assembler already says it better.
+    const { warnings } = importArt(['R']);
+    expect(warnings.filter((w) => w.code === 'island')).toHaveLength(1);
   });
 
   it('warns about a region split in two and keeps one outline', () => {
     const { map, warnings, territories } = importArt(['RRRRR', 'GGGGG', 'RRRRR']);
     const split = territories.filter((t) => t.split);
     expect(split).toHaveLength(1);
-    expect(warnings.join('\n')).toMatch(/split into 2 pieces/);
+    const issue = warnings.find((w) => w.code === 'regionSplit');
+    expect(issue).toBeDefined();
+    expect(issue!.params.pieces).toBe(2);
+    expect(issue!.detail).toMatch(/split into 2 pieces/);
     // It still produces a usable polygon rather than throwing.
     const withPolygon = map.territories.find((t) => t.id === split[0].id)!;
     expect(withPolygon.polygon.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('counts skipped pixels and diagonal crossings with their totals', () => {
+    const { warnings } = importArt(['RRRR', 'RRRR', '....', '..BB']);
+    const skipped = warnings.find((w) => w.code === 'skippedPixels');
+    expect(skipped).toBeDefined();
+    expect(skipped!.numbers!.count).toBeGreaterThan(0);
+    expect(skipped!.numbers!.total).toBe(16);
   });
 
   it('keeps a region with no neighbours out of trouble', () => {
@@ -91,7 +112,7 @@ describe('assembleMap', () => {
     expect(errors).toEqual([]);
     expect(map.territories).toHaveLength(1);
     expect(map.territories[0].neighbors).toEqual([]);
-    expect(warnings.join('\n')).toMatch(/is an island/);
+    expect(warnings.some((w) => w.code === 'island')).toBe(true);
   });
 
   it('summarises each territory for the validation screen', () => {
@@ -118,5 +139,12 @@ describe('assembleMap', () => {
     const { map, territories } = importArt(['....', '....']);
     expect(map.territories).toEqual([]);
     expect(territories).toEqual([]);
+  });
+
+  it('splits issues into blocking errors and playable warnings', () => {
+    const { issues, errors, warnings } = importArt(['RRRR', 'RRRR', '....', '..BB']);
+    expect(issues).toHaveLength(errors.length + warnings.length);
+    expect(errors).toEqual([]);
+    expect(warnings.length).toBeGreaterThan(0);
   });
 });

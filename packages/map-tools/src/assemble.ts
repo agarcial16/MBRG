@@ -46,8 +46,55 @@ export interface TerritorySummary {
 export interface AssemblyResult {
   map: MapFormatV1;
   territories: TerritorySummary[];
-  errors: string[];
-  warnings: string[];
+  /**
+   * Findings, structured rather than pre-formatted. The import screen speaks
+   * two languages and these strings are its most-read text, so the code and its
+   * parameters travel instead of a sentence written in one of them.
+   */
+  issues: ImportIssue[];
+  /** Issues that block playing the map. */
+  errors: ImportIssue[];
+  /** Issues worth telling the user about, but playable anyway. */
+  warnings: ImportIssue[];
+}
+
+export type ImportIssueCode =
+  | 'regionWithoutOutline'
+  | 'regionSplit'
+  | 'island'
+  | 'diagonalCrossings'
+  | 'skippedPixels'
+  | 'invalid';
+
+export interface ImportIssue {
+  code: ImportIssueCode;
+  /** About the specific region, for the codes that name one. */
+  params: { id: string; color: string; pieces?: number };
+  /** Totals, for the codes that are not about one region. */
+  numbers?: { count: number; total: number };
+  /** The original message, for logs and as a fallback. */
+  detail: string;
+}
+
+/** English rendering, for logs and for a future CLI. */
+export function formatIssue(issue: ImportIssue): string {
+  const { id, color, pieces } = issue.params;
+  const count = issue.numbers?.count ?? 0;
+  const total = issue.numbers?.total ?? 0;
+  switch (issue.code) {
+    case 'regionWithoutOutline':
+      return `region ${id} (${color}) has no outline and was skipped`;
+    case 'regionSplit':
+      return `region ${id} (${color}) is split into ${pieces} pieces; only the largest outline is kept — merge it with a neighbour or redraw the map`;
+    case 'island':
+      return `region ${id} (${color}) is an island: it borders no other region, so it needs a sea link to be reachable`;
+    case 'diagonalCrossings':
+      return `${count} outline(s) cross diagonally where four regions meet; their shape is approximate — nudge the borders so they do not touch at a point`;
+    case 'skippedPixels':
+      return `${count} px were skipped as sea, borders or speckle out of ${total}`;
+    case 'invalid':
+      return issue.detail;
+  }
 }
 
 /** Territory id for a region index. */
@@ -64,7 +111,7 @@ export function assembleMap(
   const prefix = options.idPrefix ?? 'p';
   // A region that touches others only at corners has no land border at all.
   const cornerTouching = new Set(adjacency.cornerTouches.flat());
-  const warnings: string[] = [];
+  const warnings: ImportIssue[] = [];
 
   const territories: Territory[] = [];
   const summaries: TerritorySummary[] = [];
@@ -73,7 +120,7 @@ export function assembleMap(
     const id = territoryId(region.index, prefix);
     const rings = contours.ringsByRegion.get(region.index) ?? [];
     if (rings.length === 0) {
-      warnings.push(`region ${id} (${describeColor(region)}) has no outline and was skipped`);
+      warnings.push(issue('regionWithoutOutline', { id, color: describeColor(region) }));
       continue;
     }
 
@@ -92,15 +139,11 @@ export function assembleMap(
     const split = rings.length > 1;
     if (split) {
       warnings.push(
-        `region ${id} (${describeColor(region)}) is split into ${rings.length} pieces; ` +
-          'only the largest outline is kept — merge it with a neighbour or redraw the map',
+        issue('regionSplit', { id, color: describeColor(region), pieces: rings.length }),
       );
     }
     if (island) {
-      warnings.push(
-        `region ${id} (${describeColor(region)}) is an island: it borders no other region, ` +
-          'so it needs a sea link to be reachable',
-      );
+      warnings.push(issue('island', { id, color: describeColor(region) }));
     }
     summaries.push({
       id,
@@ -116,14 +159,11 @@ export function assembleMap(
 
   const ambiguous = contours.loops.filter((l) => l.ambiguous);
   if (ambiguous.length > 0) {
-    warnings.push(
-      `${ambiguous.length} outline(s) cross diagonally where four regions meet; ` +
-        'their shape is approximate — nudge the borders so they do not touch at a point',
-    );
+    warnings.push(issue('diagonalCrossings', { count: ambiguous.length }));
   }
   if (flat.ignoredPixels > 0) {
     warnings.push(
-      `${flat.ignoredPixels} px were skipped as sea, borders or speckle out of ${flat.width * flat.height}`,
+      issue('skippedPixels', { count: flat.ignoredPixels, total: flat.width * flat.height }),
     );
   }
 
@@ -137,11 +177,28 @@ export function assembleMap(
 
   // Same validation as any other map: an imported map earns no exemption.
   const validation = validateMap(map);
-  for (const warning of validation.warnings) {
-    if (!warnings.includes(warning)) warnings.push(warning);
+  // Islands are already reported above, with the colour and the reason spelled
+  // out; `validateMap`'s own island warning would only repeat them.
+  for (const message of validation.warnings) {
+    if (message.includes('no connections')) continue;
+    warnings.push(issue('invalid', { detail: message }));
   }
+  const errors = validation.errors.map((message) => issue('invalid', { detail: message }));
 
-  return { map, territories: summaries, errors: validation.errors, warnings };
+  return { map, territories: summaries, issues: [...errors, ...warnings], errors, warnings };
+}
+
+function issue(code: ImportIssueCode, args: { id?: string; color?: string; pieces?: number; count?: number; total?: number; detail?: string }): ImportIssue {
+  const built: ImportIssue = {
+    code,
+    params: { id: args.id ?? '', color: args.color ?? '', ...(args.pieces !== undefined ? { pieces: args.pieces } : {}) },
+    ...(args.count !== undefined || args.total !== undefined
+      ? { numbers: { count: args.count ?? 0, total: args.total ?? 0 } }
+      : {}),
+    detail: args.detail ?? '',
+  };
+  built.detail = args.detail ?? formatIssue(built);
+  return built;
 }
 
 function describeColor(region: ColorRegion): string {
