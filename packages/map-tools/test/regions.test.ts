@@ -62,6 +62,26 @@ describe('el mar se identifica, no se adivina por la oscuridad', () => {
     expect(flat.seaColor).toBe(SEA);
   });
 
+  it('el agua es el color predominante que toca el borde, aunque haya mas tierra que agua', () => {
+    // A map of few huge provinces has more land than water, and "most frequent
+    // colour" then names the biggest province as the sea and eats it whole. What
+    // separates them is that water surrounds the map and a province does not.
+    const size = 100;
+    const img = createRaster(size, size, SEA);
+    const half = size / 2;
+    fill(img, 1, 1, half - 2, half - 2, RED);
+    fill(img, half, 1, half - 1, half - 2, GREEN);
+    fill(img, 1, half, half - 2, half - 1, BLUE);
+    fill(img, half, half, half - 1, half - 1, 0xffff00);
+
+    const flat = detectFlatColorRegions(img);
+    expect(flat.seaChoice).toBe('colour');
+    expect(flat.seaColor).toBe(SEA);
+    // All four provinces survive: none of them eaten as ocean.
+    expect(flat.regions).toHaveLength(4);
+    expect(flat.regions.map((r) => r.color).sort()).toEqual([0xffff00, RED, GREEN, BLUE].sort());
+  });
+
   it('el umbral de transparencia se puede bajar para forzar el color', () => {
     // The one thing a "most common colour" override is good for: an image that is
     // mostly transparent but whose water is really painted, and where the

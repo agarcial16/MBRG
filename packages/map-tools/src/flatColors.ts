@@ -177,15 +177,40 @@ export function detectFlatColorRegions(
     // than land; `picked` takes what the user clicked.
   const histogram = new Map<RGB, number>();
   const seaVotes = new Map<RGB, number>();
+  const rgbAt = (p: number): RGB => {
+    const i = p * 4;
+    return (img.data[i] << 16) | (img.data[i + 1] << 8) | img.data[i + 2];
+  };
   for (let p = 0; p < total; p++) {
     const i = p * 4;
     if (opts.ignoreTransparent && img.data[i + 3] < 128) {
       ignored.transparent++;
       continue;
     }
-    const rgb = (img.data[i] << 16) | (img.data[i + 1] << 8) | img.data[i + 2];
+    const rgb = rgbAt(p);
     histogram.set(rgb, (histogram.get(rgb) ?? 0) + 1);
     if (opts.sea !== 'picked') seaVotes.set(rgb, (seaVotes.get(rgb) ?? 0) + 1);
+  }
+
+  // Water surrounds a map; a province does not. That one fact is what tells the
+  // sea apart when land outweighs it — a map of eight huge cells has more land
+  // than water, and "most frequent colour" would then eat the biggest province
+  // whole. Only the border pixels are looked at, so this costs nothing.
+  const atEdge = new Set<RGB>();
+  if (opts.sea !== 'picked') {
+    const { width, height } = img;
+    const markEdge = (p: number): void => {
+      if (opts.ignoreTransparent && img.data[p * 4 + 3] < 128) return;
+      atEdge.add(rgbAt(p));
+    };
+    for (let x = 0; x < width; x++) {
+      markEdge(x);
+      markEdge((height - 1) * width + x);
+    }
+    for (let y = 0; y < height; y++) {
+      markEdge(y * width);
+      markEdge(y * width + width - 1);
+    }
   }
 
   // The sea is decided once and said out loud, because "this came out wrong" and
@@ -195,8 +220,8 @@ export function detectFlatColorRegions(
   // `auto` is the rule that answers both kinds of map without asking. A PNG with
   // real transparency has already said where the water is, and picking a colour
   // instead would pick the largest province. A map with no transparency has said
-  // nothing, and there the most common colour is the ocean, because there is
-  // more water than land.
+  // nothing, and there the most common colour that reaches the edge of the image
+  // is the ocean.
   const transparentShare = opts.ignoreTransparent ? ignored.transparent / total : 0;
   const trustTransparency = transparentShare >= opts.transparentShare;
   const seaColor =
@@ -204,7 +229,9 @@ export function detectFlatColorRegions(
       ? opts.seaColor
       : opts.sea === 'transparent' || trustTransparency
         ? -1
-        : mostFrequent(seaVotes);
+        : mostFrequent(seaVotes, atEdge) >= 0
+          ? mostFrequent(seaVotes, atEdge)
+          : mostFrequent(seaVotes, null);
   const seaChoice: SeaChoice =
     opts.sea === 'picked' && opts.seaColor >= 0
       ? 'picked'
@@ -317,12 +344,14 @@ export function detectFlatColorRegions(
 
 /**
  * The most frequent colour, ties broken by value so the answer does not depend
- * on Map iteration order.
+ * on Map iteration order. When `allowed` is given, only those colours are
+ * eligible; `null` means no filter.
  */
-function mostFrequent(votes: Map<RGB, number>): number {
+function mostFrequent(votes: Map<RGB, number>, allowed: ReadonlySet<RGB> | null): number {
   let best = -1;
   let bestCount = 0;
   for (const [rgb, count] of votes) {
+    if (allowed && !allowed.has(rgb)) continue;
     if (count > bestCount || (count === bestCount && rgb < best)) {
       best = rgb;
       bestCount = count;
