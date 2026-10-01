@@ -15,10 +15,15 @@
             <option value="es">Español</option>
             <option value="en">English</option>
           </select>
+          <a class="meta-link" href="./import.html" data-i18n="match.import">Importar mapa</a>
           <span class="version" id="app-version" data-i18n-title="match.version" title="Versión en ejecución"></span>
         </p>
         <section id="controls">
           <h2 data-i18n="match.title">Partida</h2>
+          <label class="map-row">
+            <span data-i18n="match.map">Mapa</span>
+            <select id="map-picker" data-i18n-title="match.map" title="Mapa"></select>
+          </label>
           <div class="row">
             <button id="btn-play" type="button" data-i18n-title="match.play" title="Reproducir / Pausar">▶</button>
             <button id="btn-restart" type="button" data-i18n-title="match.restart" title="Reiniciar">↺</button>

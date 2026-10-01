@@ -2,7 +2,7 @@ import './style.css';
 
 import type { Ownership } from '@mbrg/shared';
 
-import { handmadeMap } from './maps/handmade.js';
+import { mapIdFromUrl, listMaps, resolveMap } from './library.js';
 import { applyI18n, getLang, onLangChange, setLang, t, type Lang } from './i18n.js';
 import { renderLog } from './log.js';
 import { CameraController } from './camera.js';
@@ -35,6 +35,7 @@ const zoomFitBtn = document.querySelector<HTMLButtonElement>('#btn-zoom-fit');
 const minimapEl = document.querySelector<HTMLCanvasElement>('#minimap');
 const versionEl = document.querySelector<HTMLElement>('#app-version');
 const langSelect = document.querySelector<HTMLSelectElement>('#lang');
+const mapSelect = document.querySelector<HTMLSelectElement>('#map-picker');
 
 // Show which build is running, so a shared link is never ambiguous.
 if (versionEl) versionEl.textContent = `v${__APP_VERSION__}`;
@@ -64,8 +65,29 @@ function syncUrl(seed: number): void {
   window.history.replaceState(null, '', url);
 }
 
-const playback = new Playback(handmadeMap, seedFromUrl() ?? DEFAULT_SEED);
-const colors = initialColors(handmadeMap);
+// The active map: the built-in one unless `?map=` names an imported map.
+const active = resolveMap(mapIdFromUrl());
+const map = active.map;
+const playback = new Playback(map, seedFromUrl() ?? DEFAULT_SEED);
+const colors = initialColors(map);
+
+// Map picker: the built-in map plus anything imported. Choosing one reloads,
+// which is deliberate — a match is a whole match, not a state to be swapped
+// halfway through.
+if (mapSelect) {
+  for (const entry of listMaps()) {
+    const option = document.createElement('option');
+    option.value = entry.id;
+    option.textContent = entry.builtIn ? entry.name : `${entry.name} · ${entry.size ?? ''}`;
+    mapSelect.append(option);
+  }
+  mapSelect.value = active.id;
+  mapSelect.addEventListener('change', () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('map', mapSelect.value);
+    window.location.href = url.toString();
+  });
+}
 
 // Animation state: crossfade fills from `fromOwners` to `toOwners`.
 let fromOwners: Ownership = playback.owners;
@@ -80,9 +102,9 @@ function draw(
   fills?: ReturnType<typeof interpolateFills>,
   labels?: FactionLabel[],
 ): void {
-  if (canvas && camera) drawMap(canvas, handmadeMap, owners, colors, camera.camera, fills, labels);
+  if (canvas && camera) drawMap(canvas, map, owners, colors, camera.camera, fills, labels);
   if (minimapEl && camera) {
-    drawMinimap(minimapEl, handmadeMap, owners, colors, camera.camera, camera.viewport, fills);
+    drawMinimap(minimapEl, map, owners, colors, camera.camera, camera.viewport, fills);
   }
 }
 
@@ -95,8 +117,8 @@ function onCameraChange(): void {
 const camera = canvas
   ? new CameraController({
       canvas,
-      mapWidth: handmadeMap.width ?? 800,
-      mapHeight: handmadeMap.height ?? 600,
+      mapWidth: map.width ?? 800,
+      mapHeight: map.height ?? 600,
       onChange: onCameraChange,
     })
   : null;
@@ -105,12 +127,12 @@ const camera = canvas
 if (minimapEl && camera) {
   new MinimapController({
     canvas: minimapEl,
-    map: handmadeMap,
+    map,
     onPick: (wx, wy) => camera.centerOn(wx, wy),
   });
   // The minimap box hugs the map's aspect ratio (set from data, not hardcoded).
-  const mapW = handmadeMap.width ?? 800;
-  const mapH = handmadeMap.height ?? 600;
+  const mapW = map.width ?? 800;
+  const mapH = map.height ?? 600;
   minimapEl.style.aspectRatio = `${mapW} / ${mapH}`;
 }
 
@@ -123,8 +145,8 @@ zoomFitBtn?.addEventListener('click', () => camera?.fit());
  *  on the final size with no pop. */
 function animatingLabels(t: number): FactionLabel[] {
   const ctx2d = canvas?.getContext('2d') ?? null;
-  const from = ctx2d ? fitLabels(ctx2d, handmadeMap, fromOwners) : layoutLabels(handmadeMap, fromOwners);
-  const to = ctx2d ? fitLabels(ctx2d, handmadeMap, toOwners) : layoutLabels(handmadeMap, toOwners);
+  const from = ctx2d ? fitLabels(ctx2d, map, fromOwners) : layoutLabels(map, fromOwners);
+  const to = ctx2d ? fitLabels(ctx2d, map, toOwners) : layoutLabels(map, toOwners);
   return interpolateLabels(from, to, t);
 }
 
@@ -157,13 +179,13 @@ function onState(): void {
     animDur = Math.min(ANIM_MAX_MS, playback.speedMs * 0.7);
     if (raf === null) raf = requestAnimationFrame(animationFrame);
   }
-  if (logList) renderLog(logList, playback.match, playback.current, colors, handmadeMap);
+  if (logList) renderLog(logList, playback.match, playback.current, colors, map);
   if (statsBody) {
     renderStats(statsBody, {
-      map: handmadeMap,
+      map,
       owners: playback.owners,
       colors,
-      total: handmadeMap.territories.length,
+      total: map.territories.length,
       winner: playback.finished ? playback.match.winner : null,
       events: revealedEvents(playback.match, playback.current),
     });
@@ -203,13 +225,13 @@ seedInput?.addEventListener('keydown', (event) => {
 if (seedInput) seedInput.value = String(playback.match.seed);
 syncUrl(playback.match.seed);
 draw(playback.owners);
-if (logList) renderLog(logList, playback.match, playback.current, colors, handmadeMap);
+if (logList) renderLog(logList, playback.match, playback.current, colors, map);
 if (statsBody) {
   renderStats(statsBody, {
-    map: handmadeMap,
+    map,
     owners: playback.owners,
     colors,
-    total: handmadeMap.territories.length,
+    total: map.territories.length,
     winner: playback.finished ? playback.match.winner : null,
     events: revealedEvents(playback.match, playback.current),
   });

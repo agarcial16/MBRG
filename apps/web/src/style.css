@@ -67,6 +67,36 @@ body {
   cursor: pointer;
 }
 
+.meta-link {
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-decoration: underline dotted;
+}
+
+.meta-link:hover {
+  color: #fff;
+}
+
+.map-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+}
+
+#map-picker {
+  flex: 1;
+  min-width: 0;
+  background: var(--panel);
+  color: #fff;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  padding: 4px;
+}
+
 #sidebar section {
   margin-bottom: 18px;
 }
