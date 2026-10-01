@@ -1,4 +1,4 @@
-import { createRaster, type RasterImage } from '@mbrg/map-tools';
+import type { RasterImage } from '@mbrg/map-tools';
 
 /**
  * The one place the importer touches the DOM.
@@ -94,48 +94,30 @@ export function detectScale(width: number, height: number, maxEdge = MAX_DETECT_
  * far faster than touching 12M pixels from JavaScript, and good enough: the
  * result is what every downstream pass sees.
  */
-export function rasterForDetection(
-  image: CanvasImageSource & { width: number; height: number },
-  maxEdge = MAX_DETECT_EDGE,
-): RasterImage {
+export function rasterForDetection(image: RasterImage, maxEdge = MAX_DETECT_EDGE): RasterImage {
   const scale = detectScale(image.width, image.height, maxEdge);
-  if (scale === null) return imageToRaster(image);
+  if (scale === null) return image;
+
+  const full = document.createElement('canvas');
+  full.width = image.width;
+  full.height = image.height;
+  const fullCtx = full.getContext('2d', { willReadFrequently: true });
+  if (!fullCtx) throw new Error('canvas 2d is unavailable in this browser');
+  fullCtx.putImageData(
+    new ImageData(new Uint8ClampedArray(image.data), image.width, image.height),
+    0,
+    0,
+  );
+
   // Round rather than truncate, so the last row is not lost by a fraction.
   const width = Math.max(1, Math.round(image.width * scale));
   const height = Math.max(1, Math.round(image.height * scale));
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const small = document.createElement('canvas');
+  small.width = width;
+  small.height = height;
+  const ctx = small.getContext('2d', { willReadFrequently: true });
   if (!ctx) throw new Error('canvas 2d is unavailable in this browser');
-  ctx.drawImage(image, 0, 0, width, height);
+  ctx.drawImage(full, 0, 0, width, height);
   const { data } = ctx.getImageData(0, 0, width, height);
   return { width, height, data: new Uint8ClampedArray(data.buffer) };
-}
-
-/** Draw a raster onto a canvas at its natural size (used for the preview). */
-export function drawRaster(canvas: HTMLCanvasElement, raster: RasterImage, alpha = 1): void {
-  canvas.width = raster.width;
-  canvas.height = raster.height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  ctx.clearRect(0, 0, raster.width, raster.height);
-  if (alpha >= 1) {
-    ctx.putImageData(new ImageData(new Uint8ClampedArray(raster.data), raster.width, raster.height), 0, 0);
-    return;
-  }
-  // Partly transparent: an offscreen copy plus globalAlpha, because putImageData
-  // ignores the context's alpha.
-  const buffer = createRaster(raster.width, raster.height);
-  buffer.data.set(raster.data);
-  const off = document.createElement('canvas');
-  off.width = raster.width;
-  off.height = raster.height;
-  const offCtx = off.getContext('2d');
-  if (!offCtx) return;
-  offCtx.putImageData(new ImageData(new Uint8ClampedArray(buffer.data), raster.width, raster.height), 0, 0);
-  ctx.globalAlpha = alpha;
-  ctx.drawImage(off, 0, 0);
-  ctx.globalAlpha = 1;
 }

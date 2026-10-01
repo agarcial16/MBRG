@@ -74,7 +74,14 @@
       <section class="panel" id="preview-panel" hidden>
         <h2 data-i18n="import.step3">3 · Revisa el resultado</h2>
         <div class="preview-wrap">
-          <canvas id="preview"></canvas>
+          <div class="preview-stage">
+            <canvas id="preview"></canvas>
+            <div class="preview-zoom">
+              <button id="preview-fit" type="button" title="Ajustar" data-i18n-title="match.zoomFit">⛶</button>
+              <button id="preview-in" type="button" title="Acercar" data-i18n-title="match.zoomIn">+</button>
+              <button id="preview-out" type="button" title="Alejar" data-i18n-title="match.zoomOut">−</button>
+            </div>
+          </div>
           <div class="preview-legend">
             <label class="toggle">
               <input id="show-source" type="checkbox" />

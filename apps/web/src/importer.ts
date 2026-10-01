@@ -13,7 +13,8 @@ import {
 } from '@mbrg/map-tools';
 import type { Coord, MapFormatV1 } from '@mbrg/shared';
 
-import { decodeImageFile, decodeImageUrl, drawRaster, rasterForDetection } from './decode.js';
+import { CameraController } from './camera.js';
+import { decodeImageFile, decodeImageUrl, rasterForDetection } from './decode.js';
 import { applyI18n, getLang, onLangChange, setLang, t, type Lang } from './i18n.js';
 import { saveMap, suggestMapName } from './library.js';
 import { applyNames, cleanName, namesByColor, parseNameFile } from './naming.js';
@@ -61,6 +62,9 @@ const regionNameInput = document.querySelector<HTMLInputElement>('#region-name')
 const namedCount = document.querySelector<HTMLElement>('#named-count')!;
 const namesFileInput = document.querySelector<HTMLInputElement>('#names-file')!;
 const busyBadge = document.querySelector<HTMLElement>('#busy')!;
+const previewFitBtn = document.querySelector<HTMLButtonElement>('#preview-fit');
+const previewInBtn = document.querySelector<HTMLButtonElement>('#preview-in');
+const previewOutBtn = document.querySelector<HTMLButtonElement>('#preview-out');
 
 interface Tuning {
   tolerance: number;
@@ -74,10 +78,26 @@ interface Tuning {
 }
 
 let raster: RasterImage | null = null;
+/**
+ * The image as it was handed to us, at full resolution. Only the preview reads
+ * it: a boundary inspected at 3x has to be the boundary that is in the file, not
+ * the one the detection worked on.
+ */
+let source: RasterImage | null = null;
+/**
+ * What the detection reads, capped at `MAX_DETECT_EDGE`. Every pixel pass is
+ * linear in this, so on a 4000x3000 photo it is the difference between a slider
+ * that keeps up and one that locks the page for seconds. Same aspect ratio, same
+ * colours, fewer pixels — the map comes out the same shape at a smaller size.
+ */
+let detection: RasterImage | null = null;
 let mapName = '';
 let result: AssemblyResult | null = null;
 let selected: string | null = null;
 let previewCtx: CanvasRenderingContext2D | null = null;
+let camera: CameraController | null = null;
+/** The source image as a bitmap, so zooming redraws it without re-decoding. */
+let sourceCanvas: HTMLCanvasElement | null = null;
 /** Names typed by the user, keyed by territory id so they survive re-detection. */
 let names = new Map<string, string>();
 /** Ids whose names did not survive the last re-detection, reported once. */
@@ -221,7 +241,7 @@ const imageParam = new URLSearchParams(window.location.search).get('image');
 if (imageParam) {
   void decodeImageUrl(imageParam)
     .then((loaded) => {
-      raster = loaded;
+      adoptImage(loaded);
       mapName = imageParam.split('/').pop() || 'imported';
       nameInput.value = mapName.replace(/\.[a-z0-9]+$/i, '');
       tuningPanel.hidden = false;
@@ -232,7 +252,7 @@ if (imageParam) {
 
 async function load(file: File): Promise<void> {
   try {
-    raster = await decodeImageFile(file);
+    adoptImage(await decodeImageFile(file));
   } catch (error) {
     showFatal(error instanceof Error ? error.message : String(error));
     return;
@@ -242,6 +262,21 @@ async function load(file: File): Promise<void> {
   selected = null;
   tuningPanel.hidden = false;
   detect();
+}
+
+/**
+ * Take a decoded image and split it in two: what we look at, and what we
+ * analyse. Both come from the same file, so they can never disagree about the
+ * map's shape — only about how many pixels each one carries.
+ */
+function adoptImage(image: RasterImage): void {
+  source = image;
+  detection = rasterForDetection(image);
+  sourceCanvas = rasterToCanvas(image);
+  // The camera works in the *detection* space, because that is the space the
+  // polygons live in. Handing it the source size frames a rectangle half again
+  // as large as the map, which is why the fit view used to sit off-centre.
+  startCamera(detection.width, detection.height);
 }
 
 function tuning(): Tuning {
@@ -261,9 +296,9 @@ function tuning(): Tuning {
 
 /** Run detection and redraw. Debounced, because it is linear in pixels. */
 function detect(): void {
-  if (!raster) return;
+  if (!detection) return;
   const options = tuning();
-  const flat: FlatColorResult = detectFlatColorRegions(raster, options);
+  const flat: FlatColorResult = detectFlatColorRegions(detection, options);
   const adjacency = detectAdjacency(flat, { maxGap: options.maxGap });
   const contours = traceContours(flat, {
     simplify: options.simplify,
@@ -309,7 +344,7 @@ function renderSeaInfo(flat: FlatColorResult): void {
 }
 
 function render(): void {
-  if (!raster || !result) return;
+  if (!detection || !result) return;
   previewPanel.hidden = false;
   issuesPanel.hidden = false;
   regionsPanel.hidden = false;
@@ -340,19 +375,49 @@ function render(): void {
     : t('import.savedHint', { name: nameInput.value || mapName });
 }
 
+/**
+ * Draw the preview through the camera, so zooming and panning are the same
+ * gestures the viewer already has.
+ *
+ * The source overlay is drawn from the *full resolution* image: it is the
+ * reference the user compares the detected map against, and half a pixel of it
+ * is exactly the difference between "the border is right" and "the border is
+ * two pixels off". It sits under the detected map, scaled to the same world
+ * coordinates.
+ */
 function drawPreview(): void {
-  if (!raster || !result) return;
+  if (!detection || !result) return;
   if (!previewCtx) previewCtx = preview.getContext('2d');
   const ctx = previewCtx;
   if (!ctx) return;
 
-  preview.width = raster.width;
-  preview.height = raster.height;
-  if (showSource?.checked) drawRaster(preview, raster, 0.45);
-  else {
-    ctx.clearRect(0, 0, raster.width, raster.height);
-    ctx.fillStyle = '#0b0b18';
-    ctx.fillRect(0, 0, raster.width, raster.height);
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = preview.clientWidth;
+  const cssH = preview.clientHeight;
+  if (cssW <= 0 || cssH <= 0) return;
+  const bw = Math.round(cssW * dpr);
+  const bh = Math.round(cssH * dpr);
+  if (preview.width !== bw || preview.height !== bh) {
+    preview.width = bw;
+    preview.height = bh;
+  }
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#0b0b18';
+  ctx.fillRect(0, 0, cssW, cssH);
+
+  const cam = camera?.camera;
+  if (!cam) return;
+  ctx.save();
+  ctx.translate(cam.tx, cam.ty);
+  ctx.scale(cam.scale, cam.scale);
+
+  const ratio = detection.width / (source?.width ?? detection.width);
+  if (showSource?.checked && sourceCanvas) {
+    ctx.globalAlpha = 0.45;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(sourceCanvas, 0, 0, (source?.width ?? 1) * ratio, (source?.height ?? 1) * ratio);
+    ctx.globalAlpha = 1;
   }
 
   // Draw the detected map itself, not the source: this is what will be played.
@@ -361,23 +426,62 @@ function drawPreview(): void {
     const territory = result.map.territories.find((t) => t.id === entry.id);
     if (!territory) continue;
     const isSelected = selected === entry.id;
-    const alpha = !dimmed || isSelected ? 0.85 : 0.2;
-    ctx.globalAlpha = alpha;
+    ctx.globalAlpha = !dimmed || isSelected ? 0.85 : 0.2;
     ctx.beginPath();
     traceRing(ctx, territory.polygon);
     for (const hole of territory.holes ?? []) traceRing(ctx, hole);
     ctx.fillStyle = `#${entry.color.toString(16).padStart(6, '0')}`;
     ctx.fill('evenodd');
-    ctx.lineWidth = isSelected ? 3 : 1;
+    // Constant width on screen, whatever the zoom: a border that grows with the
+    // camera would hide the very boundary you zoomed in to check.
+    ctx.lineWidth = (isSelected ? 3 : 1) / cam.scale;
     ctx.strokeStyle = isSelected ? '#ffffff' : 'rgba(0,0,0,0.6)';
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function traceRing(ctx: CanvasRenderingContext2D, ring: Coord[]): void {
   ring.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
   ctx.closePath();
+}
+
+/** The source image as a drawable bitmap, rebuilt only when the image changes. */
+function rasterToCanvas(image: RasterImage): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.putImageData(
+      new ImageData(new Uint8ClampedArray(image.data), image.width, image.height),
+      0,
+      0,
+    );
+  }
+  return canvas;
+}
+
+/**
+ * Point the preview camera at a freshly loaded image.
+ *
+ * Rebuilt per image rather than reused, because it bakes in the map's size for
+ * the fit and the zoom limits, and those are properties of the image.
+ */
+function startCamera(width: number, height: number): void {
+  camera = new CameraController({
+    canvas: preview,
+    mapWidth: width,
+    mapHeight: height,
+    onChange: () => {
+      if (result) drawPreview();
+    },
+  });
+  previewFitBtn?.addEventListener('click', () => camera?.fit());
+  previewInBtn?.addEventListener('click', () => camera?.zoomIn());
+  previewOutBtn?.addEventListener('click', () => camera?.zoomOut());
+  drawPreview();
 }
 
 function renderRegions(territories: AssemblyResult['territories']): void {
@@ -536,11 +640,14 @@ function showFatal(message: string): void {
 // "click a place on the map" and a second button to keep track of would be worse
 // than remembering which one is armed.
 preview?.addEventListener('click', (event) => {
-  if (!result || !raster) return;
+  if (!result || !detection || !camera) return;
   const rect = preview.getBoundingClientRect();
-  const x = Math.floor(((event.clientX - rect.left) / rect.width) * raster.width);
-  const y = Math.floor(((event.clientY - rect.top) / rect.height) * raster.height);
-  if (x < 0 || y < 0 || x >= raster.width || y >= raster.height) return;
+  // Through the camera, not by dividing by the canvas size: the preview is a
+  // viewport now, so the click lands wherever the map currently is.
+  const [wx, wy] = camera.screenToWorld(event.clientX - rect.left, event.clientY - rect.top);
+  const x = Math.floor(wx);
+  const y = Math.floor(wy);
+  if (x < 0 || y < 0 || x >= detection.width || y >= detection.height) return;
   if (seaSelect?.value === 'mark') {
     pickSeaAt(x, y);
     return;
@@ -564,9 +671,9 @@ seaSelect?.addEventListener('change', () => {
  * click should feel immediate.
  */
 function pickSeaAt(x: number, y: number): void {
-  if (!raster) return;
-  const i = (y * raster.width + x) * BYTES_PER_PIXEL;
-  if (raster.data[i + 3] < 128) {
+  if (!detection) return;
+  const i = (y * detection.width + x) * BYTES_PER_PIXEL;
+  if (detection.data[i + 3] < 128) {
     // Clicking transparent water is the easy case: transparency is already how
     // the sea is read by default, so the pick is "no pick".
     pickedSea = null;
@@ -574,7 +681,7 @@ function pickSeaAt(x: number, y: number): void {
     detect();
     return;
   }
-  pickedSea = (raster.data[i] << 16) | (raster.data[i + 1] << 8) | raster.data[i + 2];
+  pickedSea = (detection.data[i] << 16) | (detection.data[i + 1] << 8) | detection.data[i + 2];
   detect();
 }
 

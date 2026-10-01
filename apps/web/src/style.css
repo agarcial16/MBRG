@@ -240,13 +240,63 @@ body.importer {
   flex-wrap: wrap;
 }
 
-#preview {
-  max-width: 100%;
-  max-height: 62vh;
+/*
+ * The preview is a viewport now, not a scaled-down bitmap: the canvas fills
+ * this box and the map inside it is positioned by the camera. Zooming a map
+ * with thousands of provinces means inspecting a boundary, and you cannot do
+ * that from a thumbnail.
+ */
+.preview-stage {
+  position: relative;
+  flex: 1 1 420px;
+  min-width: 0;
+  height: 62vh;
+  min-height: 320px;
   background: #0b0b18;
   border: 1px solid var(--border);
   border-radius: 6px;
+  overflow: hidden;
+}
+
+#preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  /* The source overlay is a photograph, the detected map is not: pixelated
+     keeps a zoomed-in boundary readable instead of a blur of interpolated
+     pixels, which is what you are looking at. */
   image-rendering: pixelated;
+}
+
+#preview.dragging {
+  cursor: grabbing;
+}
+
+.preview-zoom {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.preview-zoom button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+  background: rgba(12, 12, 24, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.preview-zoom button:hover {
+  background: rgba(124, 124, 224, 0.35);
 }
 
 .preview-legend {
