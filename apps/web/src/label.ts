@@ -338,11 +338,19 @@ function blockAnchor(group: Territory[], geom: BlockGeom): Coord {
 // --- Label curves -----------------------------------------------------------
 
 /** Curve construction tuning (relative to the corridor length). */
-const CURVE_STEPS = 24; // transverse samples walked along the corridor
-const CURVE_SMOOTH = 2; // moving-average passes (endpoints fixed)
-const CURVE_MAX_BEND = 0.6; // max lateral correction per step = 0.6 × step
-const CURVE_MIN_ARC = 0.5; // distrust a walk below 50% of the straight corridor
 const GLYPH_AVG = 0.6; // rough advance of a bold glyph in em (layout estimate)
+/** Samples used to draw a crescent arc. */
+const ARC_STEPS = 20;
+/**
+ * How far past the 10%/90% section centers the arc may reach at each end, as a
+ * fraction of the corridor. Tried in order: the first arc whose samples all
+ * stay inside the block wins, so a crescent never bulges out of the land.
+ */
+const ARC_EXTEND = [0.1, 0.05, 0];
+/** Below this sagitta the three section centers are just noise: keep it straight. */
+const ARC_MIN_SAGITTA = 0.03;
+/** A crescent must beat the straight line by this much font size to be worth it. */
+const ARC_GAIN = 1.15;
 
 /**
  * How far a local tangent may tilt from the label's base axis before the label
@@ -408,27 +416,6 @@ function curveOf(pts: Coord[], boundary: Segment[]): LabelCurve {
 }
 
 /**
- * Moving average over interior points; a smoothed point is kept only if it
- * stays inside the block (averaging must never cut across a concave notch).
- */
-function smoothCurve(pts: Coord[], passes: number, zones: Zone[]): Coord[] {
-  let out = pts.slice();
-  for (let pass = 0; pass < passes; pass++) {
-    const next: Coord[] = [out[0]];
-    for (let i = 1; i < out.length - 1; i++) {
-      const a = out[i - 1];
-      const b = out[i];
-      const c = out[i + 1];
-      const m: Coord = [(a[0] + 2 * b[0] + c[0]) / 4, (a[1] + 2 * b[1] + c[1]) / 4];
-      next.push(pointInBlock(m, zones) ? m : b);
-    }
-    next.push(out[out.length - 1]);
-    out = next;
-  }
-  return out;
-}
-
-/**
  * The straight corridor as a 2-point curve (the default label axis, and the
  * fallback whenever a curve can't be trusted). Endpoints are pulled a hair
  * inside the block: the rays stop *on* the border, and a centerline point that
@@ -452,91 +439,118 @@ function straightCurve(
   );
 }
 
+/** Circumcenter of three points, or null when they are (near) collinear. */
+function circumcenter(a: Coord, b: Coord, c: Coord): Coord | null {
+  const d = 2 * (a[0] * (b[1] - c[1]) + b[0] * (c[1] - a[1]) + c[0] * (a[1] - b[1]));
+  if (Math.abs(d) < 1e-9) return null;
+  const a2 = a[0] * a[0] + a[1] * a[1];
+  const b2 = b[0] * b[0] + b[1] * b[1];
+  const c2 = c[0] * c[0] + c[1] * c[1];
+  return [
+    (a2 * (b[1] - c[1]) + b2 * (c[1] - a[1]) + c2 * (a[1] - b[1])) / d,
+    (a2 * (c[0] - b[0]) + b2 * (a[0] - c[0]) + c2 * (b[0] - a[0])) / d,
+  ];
+}
+
 /**
- * Walk the corridor and bend the centerline toward the local middle: at every
- * step the transverse cross-section is measured with two rays (the whole
- * segment is inside by ray property) and the walk advances to its center —
- * with a per-step bend limit so the curve stays readable. Falls back to the
- * straight corridor when the walk can't stay inside or gets truncated.
+ * One crescent — a single circular arc — through the three transverse section
+ * centers of the straight corridor (start, middle, end).
+ *
+ * The three points are all inside the block (each section is the middle of a
+ * segment that two rays proved to be inside), so the arc through them bends
+ * exactly where the block is thick, and the sagitta gives both the radius and
+ * the *side*: an interior or an exterior crescent for free. Sampling 1 → 2 → 3
+ * keeps the tangent rotating monotonically, so a crescent can never fold back
+ * on itself the way a free walk used to.
+ *
+ * Returns null when the block is effectively straight, the arc would swing too
+ * far to stay readable, or any sample would leave the block: the caller then
+ * keeps the straight line.
  */
-function buildCurve(
+function crescentCurve(
   anchor: Coord,
   dir: Coord,
   dFwd: number,
   dBack: number,
   boundary: Segment[],
   zones: Zone[],
-): LabelCurve {
-  const straight = (): LabelCurve => straightCurve(anchor, dir, dFwd, dBack, boundary);
+): LabelCurve | null {
   const L = dFwd + dBack;
-  const step = L / CURVE_STEPS;
-  const eps = step * 0.25;
-  const budget = L - 2 * eps;
-  if (!(L > 1e-6) || !(budget > 1e-6) || boundary.length === 0) return straight();
+  if (!(L > 1e-6) || boundary.length === 0) return null;
+  const start: Coord = [anchor[0] - dir[0] * dBack, anchor[1] - dir[1] * dBack];
+  const end: Coord = [anchor[0] + dir[0] * dFwd, anchor[1] + dir[1] * dFwd];
+  const at = (t: number): Coord => [
+    start[0] + (end[0] - start[0]) * t,
+    start[1] + (end[1] - start[1]) * t,
+  ];
+  // Middle of the transverse section at t: a whole segment inside the block
+  // (both rays stop at the border), so its midpoint is inside too.
+  const sectionCenter = (p: Coord): Coord | null => {
+    const n: Coord = [-dir[1], dir[0]];
+    const t1 = rayDistance(p, n, boundary);
+    const t2 = rayDistance(p, [-n[0], -n[1]], boundary);
+    if (!isFinite(t1) || !isFinite(t2)) return null;
+    return [p[0] + (n[0] * (t1 - t2)) / 2, p[1] + (n[1] * (t1 - t2)) / 2];
+  };
 
-  let c: Coord = [anchor[0] - dir[0] * (dBack - eps), anchor[1] - dir[1] * (dBack - eps)];
-  let tangent: Coord = [dir[0], dir[1]];
-  const pts: Coord[] = [];
-  let moved = 0;
-  let guard = 0;
-  while (moved < budget - 1e-6 && guard++ < CURVE_STEPS * 4) {
-    pts.push([c[0], c[1]]);
-    const nx = -tangent[1];
-    const ny = tangent[0];
-    const t1 = rayDistance(c, [nx, ny], boundary); // +n side
-    const t2 = rayDistance(c, [-nx, -ny], boundary); // -n side
-    if (!isFinite(t1) || !isFinite(t2)) break;
-    // Move to the center of the cross-section, clamped for aesthetics.
-    let latX = (nx * (t1 - t2)) / 2;
-    let latY = (ny * (t1 - t2)) / 2;
-    const lat = Math.hypot(latX, latY);
-    const maxLat = step * CURVE_MAX_BEND;
-    if (lat > maxLat) {
-      latX *= maxLat / lat;
-      latY *= maxLat / lat;
+  const a = sectionCenter(at(0.1));
+  const b = sectionCenter(at(0.5));
+  const c = sectionCenter(at(0.9));
+  if (!a || !b || !c) return null;
+
+  // Sagitta of b against the a→c chord: the whole point of the crescent. If
+  // it's noise, the block is a rectangle-ish corridor and straight wins.
+  const cdx = c[0] - a[0];
+  const cdy = c[1] - a[1];
+  const chord = Math.hypot(cdx, cdy);
+  if (!(chord > 1e-6)) return null;
+  const sagitta = Math.abs((b[0] - a[0]) * (cdy / chord) - (b[1] - a[1]) * (cdx / chord));
+  if (sagitta < L * ARC_MIN_SAGITTA) return null;
+
+  const center = circumcenter(a, b, c);
+  if (!center) return null;
+  const radius = Math.hypot(a[0] - center[0], a[1] - center[1]);
+  if (!isFinite(radius) || radius <= 1e-6) return null;
+
+  // Angles of the three points around the center: the middle one must fall
+  // *between* the ends, otherwise the arc would bulge the wrong way round.
+  const ang = (p: Coord): number => Math.atan2(p[1] - center[1], p[0] - center[0]);
+  const wrap = (rad: number): number => {
+    let w = rad;
+    while (w > Math.PI) w -= 2 * Math.PI;
+    while (w < -Math.PI) w += 2 * Math.PI;
+    return w;
+  };
+  const d1 = wrap(ang(b) - ang(a));
+  const d2 = wrap(ang(c) - ang(b));
+  if (Math.abs(d1) < 1e-6 || Math.abs(d2) < 1e-6) return null;
+  if (d1 * d2 <= 0) return null; // b is not between a and c: wrong bulge
+  // A hook is not a crescent: beyond 120° the label stops reading as one line.
+  if (Math.abs(d1) + Math.abs(d2) > (120 * Math.PI) / 180) return null;
+
+  const phiA = ang(a);
+  // The three centers sit at 10% / 50% / 90% of the corridor, so the arc through
+  // them stops short. Extending it along the *same circle* to cover the full
+  // run is worth trying — the fitted circle rarely matches the block all the
+  // way to the ends, so back off until every sample stays inside.
+  const turn = d1 + d2;
+  const sgn = turn < 0 ? -1 : 1;
+  for (const frac of ARC_EXTEND) {
+    const extend = (frac * L) / radius; // radians covering `frac` at each end
+    const from = phiA - sgn * extend;
+    const to = phiA + turn + sgn * extend;
+    const pts: Coord[] = [];
+    for (let i = 0; i <= ARC_STEPS; i++) {
+      const phi = from + ((to - from) * i) / ARC_STEPS;
+      pts.push([center[0] + radius * Math.cos(phi), center[1] + radius * Math.sin(phi)]);
     }
-    let adv = Math.min(step, budget - moved);
-    let advanced = false;
-    for (let k = 0; k < 4; k++) {
-      // Whole step, then folded back into the readable cone around `dir`:
-      // clamping only the lateral part still lets the tilt accumulate step
-      // after step, which is how the walk used to end up serpentine.
-      let dx = latX + tangent[0] * adv;
-      let dy = latY + tangent[1] * adv;
-      const dLen = Math.hypot(dx, dy);
-      if (dLen > 1e-9) {
-        const cosA = (dx * dir[0] + dy * dir[1]) / dLen;
-        const sinA = (dy * dir[0] - dx * dir[1]) / dLen;
-        if (Math.abs(sinA) > Math.abs(cosA) * Math.tan(MAX_TANGENT_DEV)) {
-          const a = (sinA < 0 ? -1 : 1) * MAX_TANGENT_DEV;
-          const cos = Math.cos(a) * dLen;
-          const sin = Math.sin(a) * dLen;
-          dx = cos * dir[0] - sin * dir[1];
-          dy = sin * dir[0] + cos * dir[1];
-        }
-      }
-      const np: Coord = [c[0] + dx, c[1] + dy];
-      if (pointInBlock(np, zones)) {
-        if (dLen > 1e-9) tangent = [dx / dLen, dy / dLen];
-        c = np;
-        moved += adv;
-        advanced = true;
-        break;
-      }
-      adv *= 0.5;
-    }
-    if (!advanced) break; // can't stay inside: keep what we walked
+    if (pts.some((p) => !pointInBlock(p, zones))) continue;
+    const curve = curveOf(pts, boundary);
+    if (!isFinite(curve.total) || curve.total <= 0) continue;
+    if (!isReadable(curve, dir)) return null; // more reach won't fix legibility
+    return curve;
   }
-  pts.push([c[0], c[1]]);
-
-  const smoothed = smoothCurve(pts, CURVE_SMOOTH, zones);
-  if (smoothed.length < 2) return straight();
-  const curve = curveOf(smoothed, boundary);
-  // A truncated walk would give the text too little room — use the straight corridor.
-  if (!isFinite(curve.total) || curve.total < L * CURVE_MIN_ARC) return straight();
-  // The walk may wander (that's the serpentine we don't want): if the result
-  // doesn't read as a single line along the corridor, keep the straight axis.
-  return isReadable(curve, dir) ? curve : straight();
+  return null;
 }
 
 /** Local block thickness at arc offset `s` (linear interpolation). */
@@ -709,10 +723,39 @@ function blockShape(group: Territory[], geom: BlockGeom, anchor: Coord, text: st
   const dir: Coord = [Math.cos(angle), Math.sin(angle)];
   const dFwd = rayDistance(anchor, dir, boundary);
   const dBack = rayDistance(anchor, [-dir[0], -dir[1]], boundary);
-  const curve = buildCurve(anchor, dir, dFwd, dBack, boundary, zones);
+
+  // Straight first — a rectangle-ish block should never get a fancy curve just
+  // because one was available. The crescent is only worth its readability cost
+  // when it buys a clearly bigger label, i.e. when the straight line is
+  // pinched (a concave block) or too short (a curved one).
+  const straight = straightCurve(anchor, dir, dFwd, dBack, boundary);
+  const spanOf = (c: LabelCurve): number => c.total * SPAN_MARGIN;
+  let curve = straight;
+  let size = labelSize(straight, areaSize, text);
+  const crescent = crescentCurve(anchor, dir, dFwd, dBack, boundary, zones);
+  if (crescent) {
+    const arcSize = labelSize(crescent, areaSize, text);
+    if (arcSize > size * ARC_GAIN) {
+      curve = crescent;
+      size = arcSize;
+    }
+  }
+  return { size, angle, span: spanOf(curve), curve };
+}
+
+/**
+ * Font size this curve can actually deliver: capped by the block's thickness
+ * under the estimated glyphs, and by the room the run gives the name. Both
+ * caps bite in practice, and a crescent can win on either one — a curved block
+ * gives a longer run, a pinched one more thickness — so both must be compared
+ * before deciding to curve.
+ */
+function labelSize(curve: LabelCurve, areaSize: number, text: string): number {
+  const n = [...text].length;
   const span = curve.total * SPAN_MARGIN;
-  const size = thicknessCap(curve, areaSize, span, text);
-  return { size, angle, span, curve };
+  const byThickness = thicknessCap(curve, areaSize, span, text);
+  if (n === 0 || span <= 0) return byThickness;
+  return Math.min(byThickness, span / (n * GLYPH_AVG));
 }
 
 /**
