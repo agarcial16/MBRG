@@ -77,7 +77,13 @@ function realisticMap() {
   label('SOL', 230, 110);
   label('ESTALIA', 320, 110);
 
-  const flat = detectFlatColorRegions(img, { minRegionArea: 64 });
+  // The sea is named, not guessed: this background is opaque, so without this
+  // it would be one enormous province holding the whole coastline.
+  const flat = detectFlatColorRegions(img, {
+    minRegionArea: 64,
+    sea: 'picked',
+    seaColor: SEA,
+  });
   const adjacency = detectAdjacency(flat);
   const contours = traceContours(flat, { simplify: 0 });
   return { img, flat, adjacency, contours, assembled: assembleMap(flat, adjacency, contours, { name: 'real' }) };

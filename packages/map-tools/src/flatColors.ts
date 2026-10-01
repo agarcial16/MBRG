@@ -1,15 +1,35 @@
-import { colorDistance, luminance, type RGB, type RasterImage } from './raster.js';
+import { colorDistance, luminance, parseHex, type RGB, type RasterImage } from './raster.js';
 
 /**
  * Mode A: one flat colour per region.
  *
  * The naive read — "every distinct RGB is a region" — falls apart on real
- * exports: JPEG artefacts, anti-aliased border pixels and dithering produce
+ * exports: JPEG artefacts, anti-aliasing border pixels and dithering produce
  * thousands of near-identical colours, and each becomes its own speck of land.
  * So colours are first counted, then the frequent ones *represent* regions and
  * the rare ones are absorbed into the nearest representative (that's what the
- * tolerance is for), and finally a bucket too small to be a province is
- * discarded as speckle.
+ * tolerance is for).
+ *
+ * Three decisions here are what make the difference between "a pile of garbage"
+ * and "a map", and all three came out of trying it on a real one:
+ *
+ * 1. **Regions are connected, not just coloured.** A colour bucket can hold
+ *    hundreds of separate pieces — every letter of "RUSSIAN FED" drawn in the
+ *    same grey, or a texture that repeats. Reporting that as one province gives
+ *    it a hundred neighbours, which is nonsense, and calls every map "split".
+ *    So each bucket is cut into its 4-connected pieces and each piece is a
+ *    region. This is the single biggest change to how a real map reads.
+ *
+ * 2. **The sea is identified, not guessed from darkness.** "Dark and greyy =
+ *    border" was a reasonable assumption for maps on white paper and a disaster
+ *    for a night-theme map, where most of the image is dark and gets thrown
+ *    away. The sea is now either transparency or a colour the user can see and
+ *    pick, and dark pixels are just land unless they were chosen as sea.
+ *
+ * 3. **Smallness is relative.** A letter is 0.5% of the province it sits on, a
+ *    real province is never that small compared to its peers. So the floor is a
+ *    fraction of the *median* region rather than a pixel count, which is what
+ *    makes the same setting work on a 400px map and a 4000px one.
  *
  * Cost is linear in pixels plus a pass over distinct colours: a full EU4-size
  * bitmap (~11.5M pixels) is a couple of seconds at worst, and the flat-colour
@@ -25,17 +45,19 @@ export interface FlatColorOptions {
   /** Ignore regions smaller than this many pixels. */
   minRegionArea: number;
   /**
-   * Ignore near-black pixels, whatever their colour: map borders are drawn
-   * dark and anti-aliasing makes them grey, and they are borders, not land.
+   * Fraction of the median region area below which a region is dropped. This is
+   * what removes painted text: letters are a rounding error next to a province,
+   * and there are far more of them, so the median sits firmly on the provinces.
    */
-  borderLuminance: number;
+  smallRegionRatio: number;
   /**
-   * A pixel is only a border if it is dark *and* unsaturated. Luminance alone
-   * is not enough: pure blue has a luminance of 29, and dropping it would
-   * delete a perfectly valid province. Real borders are black or grey, so they
-   * carry almost no colour.
+   * How the sea is found. `auto` takes the most common colour in the image,
+   * which works because there is more water than land on most maps; `picked`
+   * takes `seaColor`, which is what the user gets after clicking the sea.
    */
-  borderChroma: number;
+  sea: 'auto' | 'picked' | 'transparent';
+  /** Sea colour for `sea: 'picked'`, as 0xRRGGBB. */
+  seaColor: number;
   /** Treat fully transparent pixels as "not land" (sea / background). */
   ignoreTransparent: boolean;
 }
@@ -43,24 +65,28 @@ export interface FlatColorOptions {
 export const DEFAULT_FLAT_COLOR_OPTIONS: FlatColorOptions = {
   tolerance: 32,
   minRegionArea: 24,
-  borderLuminance: 40,
-  borderChroma: 24,
+  // 2%: an enclave of 60x60 inside a 600x600 province survives (0.1% is
+  // dropped), while a painted letter, at a few hundred pixels against a
+  // province in the thousands, does not.
+  smallRegionRatio: 0.02,
+  sea: 'transparent',
+  seaColor: -1,
   ignoreTransparent: true,
 };
 
-/**
- * Is this colour a map border rather than land? Dark *and* grey: a black or
- * grey line is a border, a dark blue or dark green is a province.
- */
-export function isBorderColor(rgb: RGB, options: FlatColorOptions): boolean {
-  if (luminance(rgb) > options.borderLuminance) return false;
-  const r = (rgb >> 16) & 0xff;
-  const g = (rgb >> 8) & 0xff;
-  const b = rgb & 0xff;
-  return Math.max(r, g, b) - Math.min(r, g, b) <= options.borderChroma;
+/** Why the importer threw pixels away, to explain it in the validation screen. */
+export interface IgnoredPixels {
+  /** Transparent background, when transparency is read as sea. */
+  transparent: number;
+  /** Pixels matching the sea colour. */
+  sea: number;
+  /** Speckle: colour buckets and connected pieces below the area floor. */
+  speckle: number;
+  /** Total pixels in the image. */
+  total: number;
 }
 
-/** A detected flat-colour region. */
+/** A detected flat-colour region: one connected piece of land. */
 export interface ColorRegion {
   /** 0-based index, assigned by descending area so index 0 is the biggest. */
   index: number;
@@ -79,15 +105,28 @@ export interface FlatColorResult {
   height: number;
   regions: ColorRegion[];
   /**
-   * Region index per pixel, row-major, or -1 where there is no land. This is
+   * Region index per pixel, row-major, or -1 where there is not land. This is
    * the intermediate form the rest of the importer works on: adjacency, contour
    * tracing and validation all read labels rather than colours.
    */
   labels: Int32Array;
-  /** Pixels that are not land: transparent, dark, or speckle. */
-  ignoredPixels: number;
+  /** Where the non-land pixels went, so the screen can say so. */
+  ignored: IgnoredPixels;
+  /** The colour that was read as sea, or null when there was none. */
+  seaColor: RGB | null;
   /** Distinct colours counted in the image, before merging or filtering. */
   distinctColors: number;
+  /**
+ * Area that covers half the map, the reference the relative floor is measured
+ * against. Not a plain median: see `weightedMedian`.
+ */
+  medianArea: number;
+  /**
+   * Connected pieces dropped by the relative floor. Almost always painted
+   * text; reported so the user can tell "my map has names on it" from "my map
+   * is broken".
+   */
+  droppedSmallRegions: number;
 }
 
 /**
@@ -101,35 +140,64 @@ export function detectFlatColorRegions(
 ): FlatColorResult {
   const opts: FlatColorOptions = { ...DEFAULT_FLAT_COLOR_OPTIONS, ...options };
   const total = img.width * img.height;
-  let ignoredPixels = 0;
+  const ignored: IgnoredPixels = { transparent: 0, sea: 0, speckle: 0, total };
 
-  // 1. Count every candidate colour. Land pixels only: transparent and dark
-  //    pixels are borders/sea and never become regions.
+  // 1. Count every colour, transparency aside, and find the sea.
+  //
+  //    The sea is decided from the histogram rather than from a colour test,
+  //    because "this is dark" is only meaningful on paper maps. `auto` takes the
+  //    single most frequent colour, on the grounds that there is more water
+    // than land; `picked` takes what the user clicked.
   const histogram = new Map<RGB, number>();
+  const seaVotes = new Map<RGB, number>();
   for (let p = 0; p < total; p++) {
     const i = p * 4;
     if (opts.ignoreTransparent && img.data[i + 3] < 128) {
-      ignoredPixels++;
+      ignored.transparent++;
       continue;
     }
     const rgb = (img.data[i] << 16) | (img.data[i + 1] << 8) | img.data[i + 2];
-    if (isBorderColor(rgb, opts)) {
-      ignoredPixels++;
-      continue;
-    }
     histogram.set(rgb, (histogram.get(rgb) ?? 0) + 1);
+    if (opts.sea === 'auto') seaVotes.set(rgb, (seaVotes.get(rgb) ?? 0) + 1);
   }
 
-  // 2. Most frequent colour becomes a region and absorbs the nearby ones.
-  //    Sorting by (count desc, colour asc) keeps it deterministic and makes
-  //    the biggest region index 0.
-  const ranked = [...histogram.entries()].sort(
-    ([ca, na], [cb, nb]) => nb - na || ca - cb,
-  );
+  const seaColor =
+    opts.sea === 'picked'
+      ? opts.seaColor
+      : opts.sea === 'auto'
+        ? mostFrequent(seaVotes)
+        : -1;
+  const isSea = (rgb: number): boolean =>
+    seaColor >= 0 && colorDistance(rgb, seaColor) <= opts.tolerance;
+
+  // 2. Re-walk the pixels, dropping the sea, and bucket the rest by colour.
+  //
+  //    Buckets are provisional: a bucket is a *colour*, and one colour can hold
+  //    many separate pieces, so step 4 cuts them apart.
+  const buckets = new Map<RGB, number[]>();
+  const labels = new Int32Array(total).fill(-1);
+  for (let p = 0; p < total; p++) {
+    const i = p * 4;
+    if (opts.ignoreTransparent && img.data[i + 3] < 128) continue; // already counted
+    const rgb = (img.data[i] << 16) | (img.data[i + 1] << 8) | img.data[i + 2];
+    if (isSea(rgb)) {
+      ignored.sea++;
+      continue;
+    }
+    const bucket = buckets.get(rgb);
+    if (bucket) bucket.push(p);
+    else buckets.set(rgb, [p]);
+  }
+
+  // 3. Absorb rare colours into the nearest frequent representative.
+  //    Sorting by (count desc, colour asc) keeps it deterministic and makes the
+  //    biggest representative index 0.
+  const ranked = [...buckets.entries()]
+    .map(([color, pixels]) => [color, pixels] as const)
+    .sort(([ca, na], [cb, nb]) => nb.length - na.length || ca - cb);
 
   const representatives: RGB[] = [];
-  /** colour → region index, so step 3 is a single lookup per pixel. */
-  const colorToRegion = new Map<RGB, number>();
+  const bucketToRepresentative: Map<RGB, number> = new Map();
   for (const [color] of ranked) {
     let target = -1;
     for (let r = 0; r < representatives.length; r++) {
@@ -142,35 +210,200 @@ export function detectFlatColorRegions(
       target = representatives.length;
       representatives.push(color);
     }
-    colorToRegion.set(color, target);
+    bucketToRepresentative.set(color, target);
   }
 
-  // 3. Walk the pixels once more and fill the regions, recording a label per
-  //    pixel (a region *slot*, renumbered in the next step).
-  const pixelsByRegion: number[][] = representatives.map(() => []);
-  const labels = new Int32Array(total).fill(-1);
-  for (let p = 0; p < total; p++) {
-    const i = p * 4;
-    const rgb = (img.data[i] << 16) | (img.data[i + 1] << 8) | img.data[i + 2];
-    const region = colorToRegion.get(rgb);
-    if (region === undefined) continue; // already counted as ignored above
-    pixelsByRegion[region].push(p);
-    labels[p] = region;
+  // Pixels grouped by representative, ready to be cut into pieces.
+  const byRepresentative: number[][] = representatives.map(() => []);
+  for (const [color, pixels] of buckets) {
+    const representative = bucketToRepresentative.get(color)!;
+    const target = byRepresentative[representative];
+    for (const p of pixels) target.push(p);
   }
 
-  // 4. Drop speckle: a bucket too small to be a province is noise, not land.
+  // 4. Cut each colour into its 4-connected pieces. Only neighbours within one
+  //    colour join, so this is a scan of the label grid, not a flood fill per
+  //    region: a pixel joins the piece of the pixel above it or to its left,
+  //    when they share a colour, which is enough to make each piece one set.
+  const pieces = splitConnected(byRepresentative, img.width, img.height, repsAt(byRepresentative, labels));
+
+  // 5. Drop speckle: a piece too small to be a province is noise, not land.
+  //    Two floors, both needed. The absolute one catches the noise that never
+  //    joins anything; the relative one catches painted text, whose letters are
+  //    big enough to pass any pixel count yet tiny next to the provinces around
+  //    them.
+  const areas = pieces.map((piece) => piece.pixels.length);
+  const medianArea = weightedMedian(areas);
+  const floor = Math.max(opts.minRegionArea, medianArea * opts.smallRegionRatio);
+
   const regions: ColorRegion[] = [];
-  for (let r = 0; r < pixelsByRegion.length; r++) {
-    const pixels = pixelsByRegion[r];
-    if (pixels.length < opts.minRegionArea) {
-      ignoredPixels += pixels.length;
-      for (const p of pixels) labels[p] = -1; // it was never land
+  let droppedSmallRegions = 0;
+  for (const piece of pieces) {
+    if (piece.pixels.length < floor) {
+      droppedSmallRegions++;
+      ignored.speckle += piece.pixels.length;
+      for (const p of piece.pixels) labels[p] = -1;
       continue;
     }
     const index = regions.length;
-    for (const p of pixels) labels[p] = index;
-    regions.push({ index, color: representatives[r], area: pixels.length, pixels });
+    for (const p of piece.pixels) labels[p] = index;
+    regions.push({
+      index,
+      color: representatives[piece.representative],
+      area: piece.pixels.length,
+      pixels: piece.pixels,
+    });
   }
 
-  return { width: img.width, height: img.height, regions, labels, ignoredPixels, distinctColors: histogram.size };
+  return {
+    width: img.width,
+    height: img.height,
+    regions,
+    labels,
+    ignored,
+    seaColor: seaColor >= 0 ? seaColor : null,
+    distinctColors: histogram.size,
+    medianArea,
+    droppedSmallRegions,
+  };
 }
+
+/**
+ * The most frequent colour, ties broken by value so the answer does not depend
+ * on Map iteration order.
+ */
+function mostFrequent(votes: Map<RGB, number>): number {
+  let best = -1;
+  let bestCount = 0;
+  for (const [rgb, count] of votes) {
+    if (count > bestCount || (count === bestCount && rgb < best)) {
+      best = rgb;
+      bestCount = count;
+    }
+  }
+  return bestCount > 0 ? best : -1;
+}
+
+/**
+ * The area that covers half the map, counting pixels rather than pieces.
+ *
+ * A plain median would be useless here, and not for a subtle reason: painted
+ * text produces *more* pieces than the map has provinces — a map of 200
+ * provinces with 2000 letters has 2200 pieces, and the middle of that sorted
+ * list is a letter. The median would then define a letter as the typical
+ * province and drop the real ones. Weighting by area asks the question that
+ * actually matters: what size covers half the land on this map? Letters never
+ * get there, however many of them there are.
+ */
+function weightedMedian(areas: number[]): number {
+  if (areas.length === 0) return 0;
+  const sorted = [...areas].sort((a, b) => a - b);
+  let total = 0;
+  for (const area of sorted) total += area;
+  if (total === 0) return 0;
+  let seen = 0;
+  for (const area of sorted) {
+    seen += area;
+    if (seen * 2 >= total) return area;
+  }
+  return sorted[sorted.length - 1];
+}
+
+interface Piece {
+  /** Which colour representative this piece was cut from. */
+  representative: number;
+  pixels: number[];
+}
+
+/** Write the representative index of each pixel into `out`, or -1. */
+function repsAt(byRepresentative: number[][], out: Int32Array): Int32Array {
+  out.fill(-1);
+  for (let r = 0; r < byRepresentative.length; r++) {
+    for (const p of byRepresentative[r]) out[p] = r;
+  }
+  return out;
+}
+
+/**
+ * Split each representative's pixels into 4-connected pieces, largest first.
+ *
+ * A scan, not a flood fill: a pixel joins the piece of the pixel above or to its
+ * left when they share a representative, so one pass over the list in row-major
+ * order is enough. The list is sorted by construction (the histogram walk went
+ * row-major), which is what makes the scan valid.
+ */
+function splitConnected(
+  byRepresentative: number[][],
+  width: number,
+  height: number,
+  representativeAt: Int32Array,
+): Piece[] {
+  const total = width * height;
+  // DSU over every pixel that belongs to some representative.
+  const parent = new Int32Array(total);
+  for (let i = 0; i < total; i++) parent[i] = i;
+  const find = (i: number): number => {
+    let root = i;
+    while (parent[root] !== root) root = parent[root];
+    // Path compression, so a long horizontal province stays near-linear.
+    while (parent[i] !== root) {
+      const next = parent[i];
+      parent[i] = root;
+      i = next;
+    }
+    return root;
+  };
+  const union = (a: number, b: number): void => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent[ra] = rb;
+  };
+
+  for (let r = 0; r < byRepresentative.length; r++) {
+    for (const p of byRepresentative[r]) {
+      if (p % width !== 0 && representativeAt[p - 1] === r) union(p, p - 1);
+      if (p >= width && representativeAt[p - width] === r) union(p, p - width);
+    }
+  }
+
+  const pieces = new Map<number, Piece>();
+  for (let r = 0; r < byRepresentative.length; r++) {
+    for (const p of byRepresentative[r]) {
+      const root = find(p);
+      let piece = pieces.get(root);
+      if (!piece) {
+        piece = { representative: r, pixels: [] };
+        pieces.set(root, piece);
+      }
+      piece.pixels.push(p);
+    }
+  }
+
+  // Largest first, then by colour, so region indices are stable across runs and
+  // index 0 is the biggest region on the map.
+  return [...pieces.values()].sort(
+    (a, b) => b.pixels.length - a.pixels.length || a.representative - b.representative,
+  );
+}
+
+/**
+ * Legacy helper kept for the diagnostics the validation screen prints: a pixel
+ * is dark *and* grey when it is much darker than a province but carries no hue.
+ * Not used to decide land any more (see the module comment), only to explain
+ * why a map looked the way it did.
+ */
+export function isBorderColor(rgb: RGB, maxLuminance = 40, maxChroma = 24): boolean {
+  if (luminance(rgb) > maxLuminance) return false;
+  const r = (rgb >> 16) & 0xff;
+  const g = (rgb >> 8) & 0xff;
+  const b = rgb & 0xff;
+  return Math.max(r, g, b) - Math.min(r, g, b) <= maxChroma;
+}
+
+/** Hex string for a colour, for messages that name a region. */
+export function describeRgb(rgb: RGB): string {
+  return `#${rgb.toString(16).padStart(6, '0')}`;
+}
+
+/** `parseHex` re-exported so the UI can turn a clicked colour into a number. */
+export { parseHex };

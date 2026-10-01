@@ -14,12 +14,18 @@ interface Fixture {
   indexOf: (hex: string) => number;
   /** Colours this region borders, e.g. `neighborsOf('#ff0000') === ['#00ff00']`. */
   neighborsOf: (hex: string) => string[];
+  /** Every region index with this colour: one per connected piece. */
+  indicesOf: (hex: string) => number[];
   islandsAsColors: () => string[];
 }
 
 /**
  * Region indices are assigned by descending area, not by position in the art,
  * so tests address regions by colour and let the fixture do the lookup.
+ *
+ * A colour can be several regions — two patches of the same colour that do not
+ * touch are two provinces, not one broken one — so `neighborsOf` answers for
+ * the colour as a whole. Tests that care about one specific piece use `indicesOf`.
  */
 function detect(art: string[], minRegionArea = 1): Fixture {
   const img = rasterFromArt(art, { ...PAL, Y: '#ffff00' });
@@ -28,18 +34,24 @@ function detect(art: string[], minRegionArea = 1): Fixture {
 
   const colorOf = (index: number): string =>
     `#${(result.regions[index]?.color ?? 0).toString(16).padStart(6, '0')}`;
-  const indexOf = (hex: string): number => {
+  const indicesOf = (hex: string): number[] => {
     const want = parseHex(hex);
-    const found = result.regions.find((r) => r.color === want);
-    if (!found) throw new Error(`no region with colour ${hex}`);
-    return found.index;
+    const found = result.regions.filter((r) => r.color === want);
+    if (found.length === 0) throw new Error(`no region with colour ${hex}`);
+    return found.map((r) => r.index);
   };
+  const indexOf = (hex: string): number => indicesOf(hex)[0];
 
   return {
     result,
     adjacency,
     indexOf,
-    neighborsOf: (hex) => (adjacency.neighbors.get(indexOf(hex)) ?? []).map(colorOf),
+    indicesOf,
+    neighborsOf: (hex) => [
+      ...new Set(
+        indicesOf(hex).flatMap((index) => (adjacency.neighbors.get(index) ?? []).map(colorOf)),
+      ),
+    ].sort(),
     islandsAsColors: () => adjacency.islands.map(colorOf),
   };
 }
@@ -95,17 +107,19 @@ describe('detectAdjacency', () => {
   });
 
   it('treats a corner-only touch as no border, and says so', () => {
-    // Red and blue meet at a single corner; green sits between them.
+    // Red and blue meet at a single corner; green sits between them, in two
+    // pieces of its own, since those two pixels only touch at that corner.
     const f = detect(['RG', 'GB']);
     expect(f.neighborsOf('#ff0000')).toEqual(['#00ff00']);
     expect(f.neighborsOf('#00ff00')).toEqual(['#0000ff', '#ff0000']);
     expect(f.neighborsOf('#0000ff')).toEqual(['#00ff00']);
+    // Two regions for the two green pixels: same colour, separate provinces.
+    expect(f.indicesOf('#00ff00')).toHaveLength(2);
     const corners = f.adjacency.cornerTouches.map(
       ([a, b]) => `${colorName(f, a)}|${colorName(f, b)}`,
     );
-    // Pairs are emitted in region-index order, and here indices are
-    // colour-ordered: blue comes before red.
-    expect(corners).toEqual(['#0000ff|#ff0000']);
+    // Pairs are emitted in region-index order: blue|red, and the two greens.
+    expect(corners).toEqual(['#0000ff|#ff0000', '#00ff00|#00ff00']);
   });
 
   it('counts a region reachable only diagonally as an island', () => {
@@ -137,17 +151,16 @@ function colorName(f: Fixture, index: number): string {
 
 describe('label map', () => {
   it('carries the image size and labels in row-major order', () => {
+    // Red appears twice, on opposite corners, so it is two regions.
     const img = rasterFromArt(['RG', 'BR'], PAL);
     const result = detectFlatColorRegions(img, { minRegionArea: 1 });
     expect(result.width).toBe(2);
     expect(result.height).toBe(2);
-    const indexOf = (hex: string) => result.regions.find((r) => r.color === parseHex(hex))!.index;
-    expect([...result.labels]).toEqual([
-      indexOf('#ff0000'),
-      indexOf('#00ff00'),
-      indexOf('#0000ff'),
-      indexOf('#ff0000'),
-    ]);
+    const [redA, redB] = result.regions.filter((r) => r.color === parseHex('#ff0000'));
+    const green = result.regions.find((r) => r.color === parseHex('#00ff00'))!;
+    const blue = result.regions.find((r) => r.color === parseHex('#0000ff'))!;
+    expect(redA.index).not.toBe(redB.index);
+    expect([...result.labels]).toEqual([redA.index, green.index, blue.index, redB.index]);
   });
 
   it('marks speckle as -1 once it is dropped', () => {

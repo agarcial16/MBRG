@@ -4,8 +4,8 @@ export type { AssemblyOptions, AssemblyResult, ImportIssue, ImportIssueCode, Ter
 export { assembleMap, formatIssue, territoryId } from './assemble.js';
 export type { ContourLoop, ContourOptions, ContourResult } from './contours.js';
 export { DEFAULT_CONTOUR_OPTIONS, pointInRing, simplifyRing, traceContours } from './contours.js';
-export type { ColorRegion, FlatColorOptions, FlatColorResult } from './flatColors.js';
-export { DEFAULT_FLAT_COLOR_OPTIONS, detectFlatColorRegions, isBorderColor } from './flatColors.js';
+export type { ColorRegion, FlatColorOptions, FlatColorResult, IgnoredPixels } from './flatColors.js';
+export { DEFAULT_FLAT_COLOR_OPTIONS, describeRgb, detectFlatColorRegions, isBorderColor } from './flatColors.js';
 export type { RasterImage, RGB } from './raster.js';
 export {
   alphaAt,

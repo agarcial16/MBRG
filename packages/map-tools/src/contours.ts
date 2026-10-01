@@ -83,8 +83,10 @@ export interface ContourResult {
   /** Region index → loops of other regions that sit inside it (its holes). */
   holesByRegion: Map<number, ContourLoop[]>;
   /**
-   * Regions whose land falls into several disconnected pieces. A single
-   * `polygon` plus `holes` cannot express that, so validation has to say so.
+   * Regions with more than one outer ring, which a single `polygon` cannot
+   * express. Connectivity now makes this impossible by construction — a region
+   * is one connected piece, so it can only have one enclosing outline — and this
+   * is kept as the invariant check that says so rather than as a live path.
    */
   splitRegions: number[];
   /**

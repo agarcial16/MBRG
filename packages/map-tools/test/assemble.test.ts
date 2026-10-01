@@ -9,9 +9,9 @@ import { rasterFromArt } from './fixtures/raster.js';
 const PAL = { R: '#ff0000', G: '#00ff00', B: '#0000ff', Y: '#ffff00', '.': null } as const;
 
 /** Run the whole pipeline the importer uses, in memory. */
-function importArt(art: string[], name = 'test map', minRegionArea = 1) {
+function importArt(art: string[], name = 'test map', minRegionArea = 1, smallRegionRatio = 0) {
   const img = rasterFromArt(art, PAL);
-  const flat = detectFlatColorRegions(img, { minRegionArea });
+  const flat = detectFlatColorRegions(img, { minRegionArea, smallRegionRatio });
   const adjacency = detectAdjacency(flat);
   const contours = traceContours(flat);
   return assembleMap(flat, adjacency, contours, { name });
@@ -86,25 +86,45 @@ describe('assembleMap', () => {
     expect(warnings.filter((w) => w.code === 'island')).toHaveLength(1);
   });
 
-  it('warns about a region split in two and keeps one outline', () => {
+  it('land cut in two becomes two provinces with no finding at all', () => {
+    // Regions are connected pieces, so a colour in two separate places is two
+    // provinces and there is nothing to report. The split warning used to fire
+    // here and told the user to redraw the map; that advice was wrong, since the
+    // two halves are perfectly playable next to their own neighbour.
     const { map, warnings, territories } = importArt(['RRRRR', 'GGGGG', 'RRRRR']);
-    const split = territories.filter((t) => t.split);
-    expect(split).toHaveLength(1);
-    const issue = warnings.find((w) => w.code === 'regionSplit');
-    expect(issue).toBeDefined();
-    expect(issue!.params.pieces).toBe(2);
-    expect(issue!.detail).toMatch(/split into 2 pieces/);
-    // It still produces a usable polygon rather than throwing.
-    const withPolygon = map.territories.find((t) => t.id === split[0].id)!;
-    expect(withPolygon.polygon.length).toBeGreaterThanOrEqual(3);
+    expect(territories.filter((t) => t.split)).toHaveLength(0);
+    expect(warnings.some((w) => w.code === 'regionSplit')).toBe(false);
+    expect(map.territories).toHaveLength(3);
+    expect(map.territories.every((t) => t.polygon.length >= 3)).toBe(true);
   });
 
-  it('counts skipped pixels and diagonal crossings with their totals', () => {
-    const { warnings } = importArt(['RRRR', 'RRRR', '....', '..BB']);
+  it('counts speckle separately from sea and transparency', () => {
+    // A 4 px floor drops the 2 px of blue and keeps the 8 px of red; the
+    // transparent frame is background and must not be counted as land that
+    // went missing.
+    const { warnings } = importArt(['RRRR', 'RRRR', '....', '..BB'], 'test map', 4);
     const skipped = warnings.find((w) => w.code === 'skippedPixels');
     expect(skipped).toBeDefined();
-    expect(skipped!.numbers!.count).toBeGreaterThan(0);
+    expect(skipped!.numbers!.count).toBe(2);
     expect(skipped!.numbers!.total).toBe(16);
+    expect(skipped!.detail).toMatch(/speckle/);
+  });
+
+  it('warns about the small regions it dropped, with the count', () => {
+    // A 20x20 province, a one-pixel letter on it and a 6x6 enclave beside it.
+    // The pixel minimum cannot catch the letter — 1 px passes a floor of 1 —
+    // but the relative floor can, because it is nothing next to the province.
+    const size = 20;
+    const rows = Array.from({ length: size }, () => 'R'.repeat(size));
+    const withLetter = [...rows];
+    withLetter[5] = 'RRRRG' + 'R'.repeat(size - 5);
+    const withEnclave = [...withLetter];
+    withEnclave.splice(10, 6, ...Array.from({ length: 6 }, () => 'R'.repeat(7) + 'B'.repeat(6) + 'R'.repeat(7)));
+    const { warnings } = importArt(withEnclave, 'test map', 1, 0.02);
+    const dropped = warnings.find((w) => w.code === 'smallRegionsDropped');
+    expect(dropped).toBeDefined();
+    expect(dropped!.numbers!.count).toBe(1); // the letter, not the enclave
+    expect(dropped!.detail).toMatch(/province names painted on it/);
   });
 
   it('keeps a region with no neighbours out of trouble', () => {

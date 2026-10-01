@@ -85,10 +85,19 @@ describe('mapas con texto pintado', () => {
   it('nunca descarta un enclava, por pequeño que sea', () => {
     // A tiny province inside a big one is another territory, and dropping its
     // hole would let the surrounding fill paint over it.
+    //
+    // `smallRegionRatio: 0` on purpose: with only these two regions the relative
+    // floor would compare a 1 px enclave against a 7200 px province and drop it
+    // as speckle, which is a different question from the one this test asks.
     const img = createRaster(130, 70, SEA);
     fill(img, 0, 0, 120, 60, RED);
     setPixel(img, 60, 30, GREEN, 255);
-    const flat = detectFlatColorRegions(img, { minRegionArea: 1 });
+    const flat = detectFlatColorRegions(img, {
+      minRegionArea: 1,
+      smallRegionRatio: 0,
+      sea: 'picked',
+      seaColor: SEA,
+    });
     const contours = traceContours(flat, { simplify: 0, minHoleRatio: 0.9 });
     const outer = flat.regions.find((r) => r.color === RED)!;
     const inner = flat.regions.find((r) => r.color === GREEN)!;

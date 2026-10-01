@@ -65,6 +65,7 @@ export type ImportIssueCode =
   | 'mostlyIslands'
   | 'diagonalCrossings'
   | 'tinyHolesDropped'
+  | 'smallRegionsDropped'
   | 'skippedPixels'
   | 'invalid';
 
@@ -96,8 +97,10 @@ export function formatIssue(issue: ImportIssue): string {
       return `${count} outline(s) cross diagonally where four regions meet; their shape is approximate — nudge the borders so they do not touch at a point`;
     case 'tinyHolesDropped':
       return `${count} small hole(s) were dropped as noise; if the image had text painted on it, the letters were read as lakes — the fill will cover them`;
+    case 'smallRegionsDropped':
+      return `${count} small region(s) were dropped for being tiny next to their neighbours; on most maps these are the province names painted on it — lower the minimum area if they were meant to be provinces`;
     case 'skippedPixels':
-      return `${count} px were skipped as sea, borders or speckle out of ${total}`;
+      return `${count} px of speckle were skipped out of ${total}`;
     case 'invalid':
       return issue.detail;
   }
@@ -177,9 +180,22 @@ export function assembleMap(
   if (contours.droppedHoles > 0) {
     warnings.push(issue('tinyHolesDropped', { count: contours.droppedHoles }));
   }
-  if (flat.ignoredPixels > 0) {
+  // Regions dropped for being small next to their peers. Almost always the
+  // province names painted on the map, and worth saying out loud: they are gone
+  // from the map, so a user who *did* mean them as provinces needs to know to
+  // lower the area floor.
+  if (flat.droppedSmallRegions > 0) {
+    warnings.push(issue('smallRegionsDropped', { count: flat.droppedSmallRegions }));
+  }
+  // Sea and transparency are not findings, they are the expected background, so
+  // they only get reported when there is a third category hiding among them:
+  // speckle, which is the part that was land and was thrown away.
+  if (flat.ignored.speckle > 0) {
     warnings.push(
-      issue('skippedPixels', { count: flat.ignoredPixels, total: flat.width * flat.height }),
+      issue('skippedPixels', {
+        count: flat.ignored.speckle,
+        total: flat.width * flat.height,
+      }),
     );
   }
 

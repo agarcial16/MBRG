@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { detectAdjacency } from '../src/adjacency.js';
 import { detectFlatColorRegions } from '../src/flatColors.js';
 import { simplifyRing, traceContours, type ContourResult, type ContourLoop } from '../src/contours.js';
 import { parseHex, type RGB } from '../src/raster.js';
@@ -11,27 +12,36 @@ interface Fixture {
   result: ReturnType<typeof detectFlatColorRegions>;
   contours: ContourResult;
   indexOf: (hex: string) => number;
+  /** Every region index with this colour: one per connected piece. */
+  indicesOf: (hex: string) => number[];
   ringsOf: (hex: string) => ContourLoop[];
   holesOf: (hex: string) => ContourLoop[];
   /** The single ring of a region, asserting there is exactly one. */
   ringOf: (hex: string) => ContourLoop;
+  /** Colours this region's colour borders, sorted. */
+  neighborsOf: (hex: string) => string[];
 }
 
 function detect(art: string[], simplify = 0): Fixture {
   const img = rasterFromArt(art, PAL);
   const result = detectFlatColorRegions(img, { minRegionArea: 1 });
   const contours = traceContours(result, { simplify });
-  const indexOf = (hex: string): number => {
+  const indicesOf = (hex: string): number[] => {
     const want = parseHex(hex) as RGB;
-    const found = result.regions.find((r) => r.color === want);
-    if (!found) throw new Error(`no region with colour ${hex}`);
-    return found.index;
+    const found = result.regions.filter((r) => r.color === want);
+    if (found.length === 0) throw new Error(`no region with colour ${hex}`);
+    return found.map((r) => r.index);
   };
+  const indexOf = (hex: string): number => indicesOf(hex)[0];
+  const colorOf = (index: number): string =>
+    `#${(result.regions[index]?.color ?? 0).toString(16).padStart(6, '0')}`;
+  const adjacency = detectAdjacency(result);
   const ringsOf = (hex: string) => contours.ringsByRegion.get(indexOf(hex)) ?? [];
   return {
     result,
     contours,
     indexOf,
+    indicesOf,
     ringsOf,
     holesOf: (hex) => contours.holesByRegion.get(indexOf(hex)) ?? [],
     ringOf: (hex) => {
@@ -39,6 +49,12 @@ function detect(art: string[], simplify = 0): Fixture {
       if (rings.length !== 1) throw new Error(`${hex} has ${rings.length} rings`);
       return rings[0];
     },
+    neighborsOf: (hex) =>
+      [
+        ...new Set(
+          indicesOf(hex).flatMap((index) => (adjacency.neighbors.get(index) ?? []).map(colorOf)),
+        ),
+      ].sort(),
   };
 }
 
@@ -73,8 +89,10 @@ describe('traceContours: geometry', () => {
   });
 
   it('walks every loop exactly once, with no repeated closing point', () => {
+    // Four regions: the two green pixels only touch at the centre corner, so
+    // they are two provinces and the map has four outlines, not three.
     const f = detect(['RRG', 'GGB']);
-    expect(f.contours.loops.length).toBe(3);
+    expect(f.contours.loops.length).toBe(4);
     for (const loop of f.contours.loops) {
       expect(loop.points.length).toBeGreaterThanOrEqual(3);
       const first = loop.points[0];
@@ -148,10 +166,14 @@ describe('traceContours: holes and disconnection', () => {
     ]);
   });
 
-  it('flags a region whose land is split in two', () => {
-    // Red above and below, green in the middle cutting clean through.
+  it('land cut in two is two regions, not one broken one', () => {
+    // Red above and below, green in the middle cutting clean through. Regions
+    // are connected pieces, so this is two red provinces and nothing is
+    // reported: there is no such thing as a split region any more.
     const f = detect(['RRRRR', 'GGGGG', 'RRRRR']);
-    expect(f.contours.splitRegions).toContain(f.indexOf('#ff0000'));
+    expect(f.indicesOf('#ff0000')).toHaveLength(2);
+    expect(f.result.regions).toHaveLength(3);
+    expect(f.contours.splitRegions).toEqual([]);
   });
 
   it('does not flag a donut as split: that is a hole, not two pieces', () => {
@@ -162,10 +184,11 @@ describe('traceContours: holes and disconnection', () => {
 
   it('bordering a region is not the same as being inside it', () => {
     // Red is cut in two by the green strip. Both halves border green, but
-    // neither is inside green, so green gets no hole and red is flagged split.
+    // neither is inside green, so green gets no hole. This is the check that
+    // keeps a shared border from being reported as an enclave.
     const f = detect(['RRRRR', 'GGGGG', 'RRRRR']);
     expect(f.holesOf('#00ff00')).toEqual([]);
-    expect(f.contours.splitRegions).toEqual([f.indexOf('#ff0000')]);
+    expect(f.neighborsOf('#ff0000')).toEqual(['#00ff00']);
   });
 
   it('an enclave is a hole, and the region it sits in is not', () => {

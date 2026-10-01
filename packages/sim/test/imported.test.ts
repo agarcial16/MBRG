@@ -19,7 +19,13 @@ function rasterFromArt(art: string[], palette: Record<string, string | null>) {
   for (let y = 0; y < art.length; y++) {
     for (let x = 0; x < width; x++) {
       const hex = palette[art[y][x]];
-      if (hex === null) continue; // stays transparent
+      // Explicitly transparent, not "left at the default": the default is
+      // opaque black, which is land now that darkness alone no longer marks a
+      // border, and a black sea would swallow the whole map.
+      if (hex === null) {
+        setPixel(img, x, y, 0x000000, 0);
+        continue;
+      }
       const n = parseInt(hex.replace('#', ''), 16);
       setPixel(img, x, y, n, 255);
     }
