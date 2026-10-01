@@ -598,7 +598,8 @@ li.region.selected {
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 260px;
+  /* Viewport units so the log yields to the ranking on a short window. */
+  max-height: min(30vh, 260px);
   overflow-y: auto;
   font-size: 0.82rem;
   display: flex;
@@ -633,6 +634,18 @@ li.region.selected {
   border-radius: 50%;
   flex-shrink: 0;
   display: inline-block;
+}
+
+/*
+ * The ranking scrolls on its own instead of dragging the whole sidebar. Capped in
+ * viewport units rather than pixels so it gives up space to the log on a short
+ * window instead of pushing it off the bottom.
+ */
+.stat-rows {
+  max-height: min(38vh, 420px);
+  overflow-y: auto;
+  /* Room for the scrollbar, so a row never sits under it. */
+  padding-right: 2px;
 }
 
 .stat-row {

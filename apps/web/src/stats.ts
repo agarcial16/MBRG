@@ -46,6 +46,11 @@ function duringRow(emoji: string, label: string, names: string, count: string): 
  * Power ranking: provinces per living faction (sorted by size), bars relative
  * to the total territory count, a winner banner when the match is over, and a
  * live "Durante la partida" block (top killer / top capturer).
+ *
+ * The rows get their own scroll. On an imported map there are hundreds of them,
+ * and scrolling the whole sidebar to reach the last province pushed the winner
+ * banner and the top-killer block off the top — the two lines that answer "who is
+ * winning" on a 200-province map are exactly the ones that must not move.
  */
 export function renderStats(container: HTMLElement, view: StatsView): void {
   const { map, owners, colors, total, winner, events } = view;
@@ -66,6 +71,8 @@ export function renderStats(container: HTMLElement, view: StatsView): void {
     container.append(banner);
   }
 
+  const rows = document.createElement('div');
+  rows.className = 'stat-rows';
   for (const [id, count] of ranked) {
     const row = document.createElement('div');
     row.className = 'stat-row';
@@ -87,8 +94,9 @@ export function renderStats(container: HTMLElement, view: StatsView): void {
     countEl.textContent = `${count}/${total}`;
 
     row.append(dot(colors[id] ?? '#888899'), label, bar, countEl);
-    container.append(row);
+    rows.append(row);
   }
+  container.append(rows);
 
   // Live summary of the match so far (one kill + N captured provinces per round).
   if (events.length > 0) {
