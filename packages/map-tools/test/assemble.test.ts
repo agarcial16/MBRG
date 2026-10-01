@@ -8,11 +8,23 @@ import { rasterFromArt } from './fixtures/raster.js';
 
 const PAL = { R: '#ff0000', G: '#00ff00', B: '#0000ff', Y: '#ffff00', '.': null } as const;
 
-/** Run the whole pipeline the importer uses, in memory. */
-function importArt(art: string[], name = 'test map', minRegionArea = 1, smallRegionRatio = 0) {
+/**
+ * Run the whole pipeline the importer uses, in memory.
+ *
+ * `maxGap` defaults to 0 so a couple of transparent rows in a tiny fixture stay
+ * open water. These tests are about what the assembler does with the findings,
+ * and the bridge that spans a thin outline has its own file.
+ */
+function importArt(
+  art: string[],
+  name = 'test map',
+  minRegionArea = 1,
+  smallRegionRatio = 0,
+  maxGap = 0,
+) {
   const img = rasterFromArt(art, PAL);
   const flat = detectFlatColorRegions(img, { minRegionArea, smallRegionRatio });
-  const adjacency = detectAdjacency(flat);
+  const adjacency = detectAdjacency(flat, { maxGap });
   const contours = traceContours(flat);
   return assembleMap(flat, adjacency, contours, { name });
 }

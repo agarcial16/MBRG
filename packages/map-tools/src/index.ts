@@ -1,5 +1,11 @@
-export type { AdjacencyResult } from './adjacency.js';
-export { detectAdjacency, islandIds, labelAt, neighborIdLists } from './adjacency.js';
+export type { AdjacencyOptions, AdjacencyResult } from './adjacency.js';
+export {
+  DEFAULT_ADJACENCY_OPTIONS,
+  detectAdjacency,
+  islandIds,
+  labelAt,
+  neighborIdLists,
+} from './adjacency.js';
 export type { AssemblyOptions, AssemblyResult, ImportIssue, ImportIssueCode, TerritorySummary } from './assemble.js';
 export { assembleMap, formatIssue, territoryId } from './assemble.js';
 export type { ContourLoop, ContourOptions, ContourResult } from './contours.js';

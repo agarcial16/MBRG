@@ -23,14 +23,18 @@ interface Fixture {
  * Region indices are assigned by descending area, not by position in the art,
  * so tests address regions by colour and let the fixture do the lookup.
  *
+ * `maxGap` defaults to 0 so these tests keep meaning what they say: they are
+ * about which pixels touch, and the bridge across a thin outline has its own file
+ * (bridge.test.ts) because it changes some of these answers on purpose.
+ *
  * A colour can be several regions — two patches of the same colour that do not
  * touch are two provinces, not one broken one — so `neighborsOf` answers for
  * the colour as a whole. Tests that care about one specific piece use `indicesOf`.
  */
-function detect(art: string[], minRegionArea = 1): Fixture {
+function detect(art: string[], minRegionArea = 1, maxGap = 0): Fixture {
   const img = rasterFromArt(art, { ...PAL, Y: '#ffff00' });
   const result = detectFlatColorRegions(img, { minRegionArea });
-  const adjacency = detectAdjacency(result);
+  const adjacency = detectAdjacency(result, { maxGap });
 
   const colorOf = (index: number): string =>
     `#${(result.regions[index]?.color ?? 0).toString(16).padStart(6, '0')}`;
@@ -125,6 +129,20 @@ describe('detectAdjacency', () => {
   it('counts a region reachable only diagonally as an island', () => {
     const f = detect(['RR', '..', 'BB']);
     expect(f.islandsAsColors().sort()).toEqual(['#0000ff', '#ff0000']);
+  });
+
+  it('with a bridge on, the same diagonal pair becomes a border', () => {
+    // The interaction between the two rules, stated rather than left implicit:
+    // red and blue are a corner touch, and with a 1 px outline between them they
+    // are also one pixel apart down a column. On a real map with outlines that
+    // is the normal case, and the outline is the reason they should count as
+    // bordering — so the bridge wins, and `cornerTouches` stays empty so the same
+    // pair is not reported both ways.
+    const f = detect(['RR', '..', 'BB'], 1, 1);
+    expect(f.neighborsOf('#ff0000')).toEqual(['#0000ff']);
+    expect(f.adjacency.islands).toHaveLength(0);
+    expect(f.adjacency.cornerTouches).toEqual([]);
+    expect(f.adjacency.bridged).toHaveLength(1);
   });
 
   it('does not report a corner touch between regions that also share a border', () => {
