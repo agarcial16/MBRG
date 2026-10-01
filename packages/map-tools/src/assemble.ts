@@ -62,7 +62,9 @@ export type ImportIssueCode =
   | 'regionWithoutOutline'
   | 'regionSplit'
   | 'island'
+  | 'mostlyIslands'
   | 'diagonalCrossings'
+  | 'tinyHolesDropped'
   | 'skippedPixels'
   | 'invalid';
 
@@ -88,8 +90,12 @@ export function formatIssue(issue: ImportIssue): string {
       return `region ${id} (${color}) is split into ${pieces} pieces; only the largest outline is kept — merge it with a neighbour or redraw the map`;
     case 'island':
       return `region ${id} (${color}) is an island: it borders no other region, so it needs a sea link to be reachable`;
+    case 'mostlyIslands':
+      return `${count} of ${total} regions ended up as islands. A dark outline drawn around every province splits the map into pieces: outline pixels are not land, so they cannot bridge two regions. Use flat colours that touch, or an outline-free image`;
     case 'diagonalCrossings':
       return `${count} outline(s) cross diagonally where four regions meet; their shape is approximate — nudge the borders so they do not touch at a point`;
+    case 'tinyHolesDropped':
+      return `${count} small hole(s) were dropped as noise; if the image had text painted on it, the letters were read as lakes — the fill will cover them`;
     case 'skippedPixels':
       return `${count} px were skipped as sea, borders or speckle out of ${total}`;
     case 'invalid':
@@ -157,9 +163,19 @@ export function assembleMap(
     });
   }
 
-  const ambiguous = contours.loops.filter((l) => l.ambiguous);
-  if (ambiguous.length > 0) {
-    warnings.push(issue('diagonalCrossings', { count: ambiguous.length }));
+  if (contours.ambiguousLoops > 0) {
+    warnings.push(issue('diagonalCrossings', { count: contours.ambiguousLoops }));
+  }
+  // One "island" warning per region is noise when *everything* is an island:
+  // the cause is a single decision (a dark outline around every province splits
+  // the map into pieces, since a border pixel is not land and cannot bridge two
+  // regions). Say that once, or the user reads 200 identical findings.
+  const islandCount = adjacency.islands.length;
+  if (territories.length > 1 && islandCount * 2 > territories.length) {
+    warnings.push(issue('mostlyIslands', { count: islandCount, total: territories.length }));
+  }
+  if (contours.droppedHoles > 0) {
+    warnings.push(issue('tinyHolesDropped', { count: contours.droppedHoles }));
   }
   if (flat.ignoredPixels > 0) {
     warnings.push(
