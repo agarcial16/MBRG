@@ -74,7 +74,16 @@ export interface ColorRegion {
 
 /** Everything the importer learned from the image in mode A. */
 export interface FlatColorResult {
+  /** Image size, carried along so the labels below are self-describing. */
+  width: number;
+  height: number;
   regions: ColorRegion[];
+  /**
+   * Region index per pixel, row-major, or -1 where there is no land. This is
+   * the intermediate form the rest of the importer works on: adjacency, contour
+   * tracing and validation all read labels rather than colours.
+   */
+  labels: Int32Array;
   /** Pixels that are not land: transparent, dark, or speckle. */
   ignoredPixels: number;
   /** Distinct colours counted in the image, before merging or filtering. */
@@ -136,14 +145,17 @@ export function detectFlatColorRegions(
     colorToRegion.set(color, target);
   }
 
-  // 3. Walk the pixels once more and fill the regions.
+  // 3. Walk the pixels once more and fill the regions, recording a label per
+  //    pixel (a region *slot*, renumbered in the next step).
   const pixelsByRegion: number[][] = representatives.map(() => []);
+  const labels = new Int32Array(total).fill(-1);
   for (let p = 0; p < total; p++) {
     const i = p * 4;
     const rgb = (img.data[i] << 16) | (img.data[i + 1] << 8) | img.data[i + 2];
     const region = colorToRegion.get(rgb);
     if (region === undefined) continue; // already counted as ignored above
     pixelsByRegion[region].push(p);
+    labels[p] = region;
   }
 
   // 4. Drop speckle: a bucket too small to be a province is noise, not land.
@@ -152,15 +164,13 @@ export function detectFlatColorRegions(
     const pixels = pixelsByRegion[r];
     if (pixels.length < opts.minRegionArea) {
       ignoredPixels += pixels.length;
+      for (const p of pixels) labels[p] = -1; // it was never land
       continue;
     }
-    regions.push({
-      index: regions.length,
-      color: representatives[r],
-      area: pixels.length,
-      pixels,
-    });
+    const index = regions.length;
+    for (const p of pixels) labels[p] = index;
+    regions.push({ index, color: representatives[r], area: pixels.length, pixels });
   }
 
-  return { regions, ignoredPixels, distinctColors: histogram.size };
+  return { width: img.width, height: img.height, regions, labels, ignoredPixels, distinctColors: histogram.size };
 }
