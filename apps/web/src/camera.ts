@@ -38,9 +38,21 @@ export function fitCamera(view: Size, mapW: number, mapH: number): Camera {
   };
 }
 
+/** Scale inside `limits`. */
+export function clampScale(scale: number, limits: ScaleLimits): number {
+  return Math.min(Math.max(scale, limits.min), limits.max);
+}
+
 /**
  * Keep the camera usable: scale inside `limits`, and the map never escapes —
  * when zoomed in it must cover the viewport, when smaller it stays centered.
+ *
+ * When the scale does have to be pulled back inside the limits, the translation
+ * is re-derived from the clamped scale so the world point that was at the centre
+ * of the viewport stays there. Keeping the old translation would move the map
+ * under the user, and not by a little: the translation was computed against the
+ * scale we are now discarding, so on a big zoom step the view lands somewhere
+ * else entirely and the zoom reads as "did nothing" or "jumped".
  */
 export function clampCamera(
   cam: Camera,
@@ -49,12 +61,25 @@ export function clampCamera(
   mapH: number,
   limits: ScaleLimits,
 ): Camera {
-  const scale = Math.min(Math.max(cam.scale, limits.min), limits.max);
+  const scale = clampScale(cam.scale, limits);
+  const anchored = anchorToCentre(cam, view, scale);
   const sw = mapW * scale;
   const sh = mapH * scale;
-  const tx = sw >= view.width ? Math.min(Math.max(cam.tx, view.width - sw), 0) : (view.width - sw) / 2;
-  const ty = sh >= view.height ? Math.min(Math.max(cam.ty, view.height - sh), 0) : (view.height - sh) / 2;
+  const tx = sw >= view.width ? Math.min(Math.max(anchored.tx, view.width - sw), 0) : (view.width - sw) / 2;
+  const ty = sh >= view.height ? Math.min(Math.max(anchored.ty, view.height - sh), 0) : (view.height - sh) / 2;
   return { scale, tx, ty };
+}
+
+/** Same camera at `scale`, with the viewport centre left over the same world point. */
+function anchorToCentre(cam: Camera, view: Size, scale: number): Camera {
+  if (scale === cam.scale) return cam;
+  const cx = view.width / 2;
+  const cy = view.height / 2;
+  return {
+    scale,
+    tx: cx - ((cx - cam.tx) / cam.scale) * scale,
+    ty: cy - ((cy - cam.ty) / cam.scale) * scale,
+  };
 }
 
 /** Zoom by `factor` keeping the world point under the screen cursor fixed. */
@@ -68,6 +93,29 @@ export function zoomAt(cam: Camera, factor: number, sx: number, sy: number): Cam
 /** Pan by a screen-space delta. */
 export function panBy(cam: Camera, dx: number, dy: number): Camera {
   return { scale: cam.scale, tx: cam.tx + dx, ty: cam.ty + dy };
+}
+
+/**
+ * Zoom by `factor` around a screen point, stopping at the scale limits.
+ *
+ * The scale is clamped *before* the zoom maths rather than overshooting and
+ * being pulled back afterwards. Both routes end at the same camera, but only this
+ * one keeps the wheel quiet once it reaches the limit: a notch that overshoots
+ * then snaps back is visible, and at the far end of the range every single notch
+ * does it.
+ */
+export function zoomToLimit(
+  cam: Camera,
+  factor: number,
+  sx: number,
+  sy: number,
+  view: Size,
+  mapW: number,
+  mapH: number,
+  limits: ScaleLimits,
+): Camera {
+  const target = clampScale(cam.scale * factor, limits);
+  return clampCamera(zoomAt(cam, target / cam.scale, sx, sy), view, mapW, mapH, limits);
 }
 
 /** Screen (CSS px inside the canvas) → world coordinates. */
@@ -180,7 +228,17 @@ export class CameraController {
     this.userAdjusted = true;
     const cx = sx ?? this.view.width / 2;
     const cy = sy ?? this.view.height / 2;
-    this.apply(zoomAt(this.cam, factor, cx, cy));
+    this.cam = zoomToLimit(
+      this.cam,
+      factor,
+      cx,
+      cy,
+      this.view,
+      this.options.mapWidth,
+      this.options.mapHeight,
+      this.limits,
+    );
+    this.options.onChange();
   }
 
   private onResize(): void {
