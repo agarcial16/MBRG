@@ -98,16 +98,82 @@ describe('assembleMap', () => {
     expect(warnings.filter((w) => w.code === 'island')).toHaveLength(1);
   });
 
-  it('land cut in two becomes two provinces with no finding at all', () => {
-    // Regions are connected pieces, so a colour in two separate places is two
-    // provinces and there is nothing to report. The split warning used to fire
-    // here and told the user to redraw the map; that advice was wrong, since the
-    // two halves are perfectly playable next to their own neighbour.
+  it('piezas del mismo color son UNA provincia con N polygons', () => {
+    // A mainland and two islands, all in the same colour. Before grouping they
+    // were three provinces, which let the enemy annex the mainland and leave the
+    // islands standing under a flag of their own.
+    const { map, territories, errors, warnings } = importArt([
+      'RRRR.....RR.....',
+      'RRRR.....RR.....',
+      'RRRR.....RR.....',
+      'RRRRBBBBBBBBBB..',
+      'RRRR.....RR.....',
+      'RRRR.....RR.....',
+      'RRRR.....RR.....',
+    ]);
+    expect(errors).toEqual([]);
+    expect(map.territories).toHaveLength(2);
+
+    const red = map.territories.find((t) => t.polygons.length === 3)!;
+    const blue = map.territories.find((t) => t.polygons.length === 1)!;
+    expect(red).toBeDefined();
+    expect(territories.find((t) => t.id === red.id)!.pieces).toBe(3);
+    expect(warnings.some((w) => w.code === 'regionSplit')).toBe(true);
+    // It borders blue once, not once per piece.
+    expect(red.neighbors).toEqual([blue.id]);
+    expect(blue.neighbors).toEqual([red.id]);
+  });
+
+  it('avisa de una pieza perdida al otro lado del mapa', () => {
+    // Red on one side, a bit of red on the other, blue between the two. The red
+    // speck is half a map away from its mainland, which is a question worth
+    // asking out loud even though the grouping cannot know the answer.
+    const art = [
+      'RRRRRRRRRR....................RRRR',
+      'RRRRRRRRRR....................RRRR',
+      'RRRRRRRRRR....................RRRR',
+      '..........BBBBBBBBBB..............',
+      'RRRRRRRRRR....................RRRR',
+      'RRRRRRRRRR....................RRRR',
+      'RRRRRRRRRR....................RRRR',
+    ];
+    const { map, errors, warnings } = importArt(art);
+    expect(errors).toEqual([]);
+    const stray = warnings.filter((w) => w.code === 'strayPiece');
+    expect(stray).toHaveLength(1);
+    expect(stray[0].numbers?.strayGap).toBeGreaterThan(0);
+    // Still one province: the warning reports the oddity, it does not split.
+    expect(map.territories).toHaveLength(2);
+  });
+
+  it('no avisa de pieza perdida si el archipielago esta cerca', () => {
+    const { errors, warnings } = importArt([
+      'RRRRRRRRRR...RRRR.....',
+      'RRRRRRRRRR...RRRR.....',
+      'RRRRRRRRRR...RRRR.....',
+      '..........BBBBBBBBB...',
+      'RRRRRRRRRR...RRRR.....',
+      'RRRRRRRRRR...RRRR.....',
+      'RRRRRRRRRR...RRRR.....',
+    ]);
+    expect(errors).toEqual([]);
+    expect(warnings.some((w) => w.code === 'strayPiece')).toBe(false);
+    expect(warnings.some((w) => w.code === 'regionSplit')).toBe(true);
+  });
+
+  it('una provincia partida se agrupa y se dice que hay piezas', () => {
+    // The same colour above and below a green band. These are two connected
+    // pieces, so the machinery reports two *regions* — and they are still one
+    // province, conquered together, with the piece count said out loud.
     const { map, warnings, territories } = importArt(['RRRRR', 'GGGGG', 'RRRRR']);
-    expect(territories.filter((t) => t.split)).toHaveLength(0);
-    expect(warnings.some((w) => w.code === 'regionSplit')).toBe(false);
-    expect(map.territories).toHaveLength(3);
-    expect(map.territories.every((t) => t.polygons[0].length >= 3)).toBe(true);
+    expect(map.territories).toHaveLength(2);
+    const red = map.territories.find((t) => t.polygons.length === 2)!;
+    expect(red).toBeDefined();
+    expect(red.neighbors).toHaveLength(1);
+    expect(warnings.some((w) => w.code === 'regionSplit')).toBe(true);
+    const summary = territories.find((t) => t.id === red.id)!;
+    expect(summary.split).toBe(true);
+    expect(summary.pieces).toBe(2);
   });
 
   it('counts speckle separately from sea and transparency', () => {

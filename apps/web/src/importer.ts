@@ -539,7 +539,7 @@ function renderRegions(territories: AssemblyResult['territories']): void {
       entry.neighbors.length === 1 ? t('import.border') : t('import.borders')
     }`;
     if (entry.island) meta.append(badge('import.badgeIsland'));
-    if (entry.split) meta.append(badge('import.badgeSplit'));
+    if (entry.split) meta.append(badge('import.badgeSplit', { pieces: entry.pieces }));
     if (entry.cornerOnly) meta.append(badge('import.badgeCorner'));
 
     li.append(swatch, label, meta);
@@ -547,10 +547,10 @@ function renderRegions(territories: AssemblyResult['territories']): void {
   }
 }
 
-function badge(key: Parameters<typeof t>[0]): HTMLElement {
+function badge(key: Parameters<typeof t>[0], vars?: Record<string, string | number>): HTMLElement {
   const el = document.createElement('em');
   el.className = 'badge';
-  el.textContent = t(key);
+  el.textContent = vars ? t(key, vars) : t(key);
   return el;
 }
 
@@ -615,6 +615,8 @@ function describe(finding: ImportIssue): string {
       return t('import.issueNoOutline', { id, color });
     case 'regionSplit':
       return t('import.issueSplit', { id, color, pieces: pieces ?? 0 });
+    case 'strayPiece':
+      return t('import.issueStray', { id, color, strayGap: finding.numbers?.strayGap ?? 0 });
     case 'island':
       return t('import.issueIsland', { id, color });
     case 'mostlyIslands':

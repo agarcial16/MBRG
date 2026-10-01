@@ -83,7 +83,7 @@ const es = {
   'import.border': 'frontera',
   'import.borders': 'fronteras',
   'import.badgeIsland': 'isla',
-  'import.badgeSplit': 'partida',
+  'import.badgeSplit': '{pieces} piezas',
   'import.badgeCorner': 'solo esquina',
   'import.noIssues': 'Sin avisos: el mapa es jugable.',
   'import.failed': 'No se pudo leer la imagen',
@@ -93,7 +93,9 @@ const es = {
   'import.export': 'Exportar JSON',
   'import.issueNoOutline': 'La región {id} ({color}) no tiene contorno y se ha descartado',
   'import.issueSplit':
-    'La región {id} ({color}) está partida en {pieces} trozos; solo se guarda el mayor: únela con una vecina o redibuja el mapa',
+    'La región {id} ({color}) está repartida en {pieces} trozos del mismo color; se guarda como UNA provincia que se conquista entera. Si eran provincias distintas, dales colores distintos en la imagen',
+  'import.issueStray':
+    'La región {id} ({color}) tiene un trozo a {strayGap} px de su cuerpo principal, más lejos que el propio cuerpo. Se conserva, pero seguramente sea una marca suelta y no parte de la provincia',
   'import.issueIsland':
     'La región {id} ({color}) es una isla: no linda con ninguna otra, así que necesita un enlace marítimo para ser alcanzable',
   'import.issueMostlyIslands':
@@ -178,7 +180,7 @@ const en: Record<MessageKey, string> = {
   'import.border': 'border',
   'import.borders': 'borders',
   'import.badgeIsland': 'island',
-  'import.badgeSplit': 'split',
+  'import.badgeSplit': '{pieces} pieces',
   'import.badgeCorner': 'corner only',
   'import.noIssues': 'No findings: the map is playable.',
   'import.failed': 'The image could not be read',
@@ -188,7 +190,9 @@ const en: Record<MessageKey, string> = {
   'import.export': 'Export JSON',
   'import.issueNoOutline': 'Region {id} ({color}) has no outline and was dropped',
   'import.issueSplit':
-    'Region {id} ({color}) is split into {pieces} pieces; only the largest is kept: merge it with a neighbour or redraw the map',
+    'Region {id} ({color}) is spread over {pieces} pieces of the same colour; it is kept as ONE province, conquered whole. If they were meant to be separate provinces, give them different colours in the image',
+  'import.issueStray':
+    'Region {id} ({color}) has a piece {strayGap} px from its main body, further than the body itself is long. It is kept, but it is probably a stray mark rather than part of the province',
   'import.issueIsland':
     'Region {id} ({color}) is an island: it borders nothing, so it needs a sea link to be reachable',
   'import.issueMostlyIslands':

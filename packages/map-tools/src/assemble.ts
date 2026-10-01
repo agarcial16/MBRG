@@ -1,4 +1,4 @@
-import { validateMap, type MapFormatV1, type Territory } from '@mbrg/shared';
+import { validateMap, type Coord, type MapFormatV1, type Territory } from '@mbrg/shared';
 
 import type { AdjacencyResult } from './adjacency.js';
 import type { ContourResult } from './contours.js';
@@ -26,19 +26,36 @@ export interface AssemblyOptions {
   idPrefix?: string;
 }
 
+/**
+ * How far a piece may sit from its province's main body, as a multiple of that
+ * body's own size, before it is reported as a probable stray mark.
+ *
+ * Measured against the province and not against the image, so the rule means the
+ * same thing on a 400px map and a 4000px one: "is this further from its mainland
+ * than the mainland is long?". An island off the coast passes easily; a speck in
+ * another continent does not.
+ *
+ * One is the only honest threshold. Any lower and every real archipelago in the
+ * Med gets a finding, which is exactly the kind of noise that teaches people to
+ * stop reading warnings.
+ */
+const STRAY_FACTOR = 1;
+
 export interface TerritorySummary {
   id: string;
-  /** Region index in the detection result. */
+  /** Region index of the biggest piece, which is the one that names the id. */
   index: number;
   /** Representative colour, kept for the UI overlay only. Never in the map. */
   color: RGB;
-  /** Area in pixels². */
+  /** Area in pixels², summed over every piece. */
   area: number;
   neighbors: string[];
   /** No land neighbour: needs a maritime link or it is unreachable. */
   island: boolean;
-  /** Land falls in several disconnected pieces, which one polygon cannot hold. */
+  /** Land falls in several disconnected pieces. Now supported, not a defect. */
   split: boolean;
+  /** How many pieces it is made of, for the "N pieces" badge. */
+  pieces: number;
   /** Only borders another region at a corner. */
   cornerOnly: boolean;
 }
@@ -61,6 +78,7 @@ export interface AssemblyResult {
 export type ImportIssueCode =
   | 'regionWithoutOutline'
   | 'regionSplit'
+  | 'strayPiece'
   | 'island'
   | 'mostlyIslands'
   | 'diagonalCrossings'
@@ -73,8 +91,8 @@ export interface ImportIssue {
   code: ImportIssueCode;
   /** About the specific region, for the codes that name one. */
   params: { id: string; color: string; pieces?: number };
-  /** Totals, for the codes that are not about one region. */
-  numbers?: { count: number; total: number };
+  /** Totals and measurements, for the codes that are not about one region. */
+  numbers?: { count: number; total: number; strayGap?: number };
   /** The original message, for logs and as a fallback. */
   detail: string;
 }
@@ -84,11 +102,14 @@ export function formatIssue(issue: ImportIssue): string {
   const { id, color, pieces } = issue.params;
   const count = issue.numbers?.count ?? 0;
   const total = issue.numbers?.total ?? 0;
+  const strayGap = issue.numbers?.strayGap ?? 0;
   switch (issue.code) {
     case 'regionWithoutOutline':
       return `region ${id} (${color}) has no outline and was skipped`;
     case 'regionSplit':
-      return `region ${id} (${color}) is split into ${pieces} pieces; only the largest outline is kept — merge it with a neighbour or redraw the map`;
+      return `region ${id} (${color}) is split into ${pieces} pieces; they were kept as ONE province, conquered together — if they were meant to be separate provinces, give them different colours`;
+    case 'strayPiece':
+      return `region ${id} (${color}) has a piece far away from its main body (${strayGap} px away); it is kept, but it is probably a stray mark rather than part of the province`;
     case 'island':
       return `region ${id} (${color}) is an island: it borders no other region, so it needs a sea link to be reachable`;
     case 'mostlyIslands':
@@ -125,44 +146,96 @@ export function assembleMap(
   const territories: Territory[] = [];
   const summaries: TerritorySummary[] = [];
 
+  // Same colour = same province. A country drawn as a mainland plus a few
+  // islands, or a province whose enclave was cut off by a neighbour, arrives
+  // here as several *regions* (regions are connected pieces, which is what makes
+  // adjacency and contour tracing work at all) but is ONE territory. Grouping by
+  // colour is what puts them back together, and it is also the only honest reading
+  // of a flat-colour map: two provinces of the same colour are indistinguishable
+  // to a detector, so treating them as one is a decision we can state rather than
+  // an accident we have to apologize for.
+  const groups = new Map<RGB, ColorRegion[]>();
   for (const region of flat.regions) {
-    const id = territoryId(region.index, prefix);
-    const rings = contours.ringsByRegion.get(region.index) ?? [];
-    if (rings.length === 0) {
-      warnings.push(issue('regionWithoutOutline', { id, color: describeColor(region) }));
+    const bucket = groups.get(region.color);
+    if (bucket) bucket.push(region);
+    else groups.set(region.color, [region]);
+  }
+  for (const members of groups.values()) {
+    // Biggest piece first; it is the one that names the province, so the id is
+    // stable for a given image and the pieces keep a defined order.
+    members.sort((a, b) => b.area - a.area || a.index - b.index);
+  }
+  const owner = new Map<number, string>();
+  for (const members of groups.values()) {
+    const id = territoryId(members[0].index, prefix);
+    for (const region of members) owner.set(region.index, id);
+  }
+
+  for (const [color, members] of groups) {
+    const main = members[0];
+    const id = owner.get(main.index)!;
+    const label = describeColor(main);
+
+    const polygons: Coord[][] = [];
+    const holes: Coord[][] = [];
+    const neighborIds = new Set<string>();
+    for (const region of members) {
+      for (const ring of contours.ringsByRegion.get(region.index) ?? []) {
+        polygons.push(ring.points);
+      }
+      for (const loop of contours.holesByRegion.get(region.index) ?? []) {
+        holes.push(loop.points);
+      }
+      for (const n of adjacency.neighbors.get(region.index) ?? []) {
+        const neighborId = owner.get(n);
+        // A same-colour neighbour is this very province (see `owner`): a gap
+        // closed between two of its pieces. Dropping it is not a shortcut — a
+        // province that neighbours itself is rejected by `validateMap`.
+        if (neighborId !== undefined && neighborId !== id) neighborIds.add(neighborId);
+      }
+    }
+    if (polygons.length === 0) {
+      // No region of this colour produced an outline, so there is nothing to draw.
+      if (members.length === 1) {
+        warnings.push(issue('regionWithoutOutline', { id, color: label }));
+      }
       continue;
     }
 
-    const neighbors = (adjacency.neighbors.get(region.index) ?? []).map((n) => territoryId(n, prefix));
-    const holes = (contours.holesByRegion.get(region.index) ?? []).map((loop) => loop.points);
-    const island = adjacency.islands.includes(region.index);
-    const territory: Territory = {
+    // An island is a province with no land neighbour, which is a property of the
+    // whole province and not of any one piece: a mainland with an island next to
+    // it is not an island, whatever the island piece says on its own.
+    const neighbors = [...neighborIds].sort();
+    const island = adjacency.islands.includes(main.index);
+    territories.push({
       id,
       name: id,
       neighbors,
-      polygons: [rings[0].points],
+      polygons,
       ...(holes.length > 0 ? { holes } : {}),
-    };
-    territories.push(territory);
+    });
 
-    const split = rings.length > 1;
-    if (split) {
-      warnings.push(
-        issue('regionSplit', { id, color: describeColor(region), pieces: rings.length }),
-      );
+    const pieces = polygons.length;
+    if (pieces > 1) {
+      warnings.push(issue('regionSplit', { id, color: label, pieces }));
+      const stray = farthestPieceGap(polygons);
+      if (stray > STRAY_FACTOR * boxDiagonal(boundsOf(polygons[0]))) {
+        warnings.push(issue('strayPiece', { id, color: label, strayGap: Math.round(stray) }));
+      }
     }
     if (island) {
-      warnings.push(issue('island', { id, color: describeColor(region) }));
+      warnings.push(issue('island', { id, color: label }));
     }
     summaries.push({
       id,
-      index: region.index,
-      color: region.color,
-      area: region.area,
+      index: main.index,
+      color,
+      area: members.reduce((sum, region) => sum + region.area, 0),
       neighbors,
       island,
-      split,
-      cornerOnly: island && cornerTouching.has(region.index),
+      split: pieces > 1,
+      pieces,
+      cornerOnly: island && members.every((region) => cornerTouching.has(region.index)),
     });
   }
 
@@ -173,7 +246,12 @@ export function assembleMap(
   // the cause is a single decision (a dark outline around every province splits
   // the map into pieces, since a border pixel is not land and cannot bridge two
   // regions). Say that once, or the user reads 200 identical findings.
-  const islandCount = adjacency.islands.length;
+  //
+  // Counted over provinces rather than over the underlying regions: after
+  // grouping by colour, one province can hold several regions, and comparing a
+  // region count against a province count would trip the threshold on maps that
+  // are nothing but archipelagos.
+  const islandCount = summaries.filter((s) => s.island).length;
   if (territories.length > 1 && islandCount * 2 > territories.length) {
     warnings.push(issue('mostlyIslands', { count: islandCount, total: territories.length }));
   }
@@ -220,12 +298,29 @@ export function assembleMap(
   return { map, territories: summaries, issues: [...errors, ...warnings], errors, warnings };
 }
 
-function issue(code: ImportIssueCode, args: { id?: string; color?: string; pieces?: number; count?: number; total?: number; detail?: string }): ImportIssue {
+function issue(
+  code: ImportIssueCode,
+  args: {
+    id?: string;
+    color?: string;
+    pieces?: number;
+    count?: number;
+    total?: number;
+    strayGap?: number;
+    detail?: string;
+  },
+): ImportIssue {
   const built: ImportIssue = {
     code,
     params: { id: args.id ?? '', color: args.color ?? '', ...(args.pieces !== undefined ? { pieces: args.pieces } : {}) },
-    ...(args.count !== undefined || args.total !== undefined
-      ? { numbers: { count: args.count ?? 0, total: args.total ?? 0 } }
+    ...(args.count !== undefined || args.total !== undefined || args.strayGap !== undefined
+      ? {
+          numbers: {
+            count: args.count ?? 0,
+            total: args.total ?? 0,
+            ...(args.strayGap !== undefined ? { strayGap: args.strayGap } : {}),
+          },
+        }
       : {}),
     detail: args.detail ?? '',
   };
@@ -235,4 +330,53 @@ function issue(code: ImportIssueCode, args: { id?: string; color?: string; piece
 
 function describeColor(region: ColorRegion): string {
   return `#${region.color.toString(16).padStart(6, '0')}`;
+}
+
+/**
+ * The widest gap between the province's main piece (`polygons[0]`) and any of
+ * its others, measured between bounding boxes and so 0 when they overlap.
+ *
+ * A rough shape on purpose: the alternative is a full segment-to-segment distance
+ * for every pair of pieces on every province of every map, to answer a question
+ * whose answer only ever feeds a warning. Boxes are enough to tell an island off
+ * its coast from a speck in another continent.
+ */
+function farthestPieceGap(polygons: Coord[][]): number {
+  const main = boundsOf(polygons[0]);
+  let worst = 0;
+  for (let i = 1; i < polygons.length; i++) {
+    worst = Math.max(worst, boxGap(main, boundsOf(polygons[i])));
+  }
+  return worst;
+}
+
+interface Box {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+function boundsOf(ring: Coord[]): Box {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const [x, y] of ring) {
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+function boxGap(a: Box, b: Box): number {
+  const dx = Math.max(0, Math.max(a.minX - b.maxX, b.minX - a.maxX));
+  const dy = Math.max(0, Math.max(a.minY - b.maxY, b.minY - a.maxY));
+  return Math.hypot(dx, dy);
+}
+
+function boxDiagonal(box: Box): number {
+  return Math.hypot(box.maxX - box.minX, box.maxY - box.minY);
 }
