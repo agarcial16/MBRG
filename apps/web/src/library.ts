@@ -1,4 +1,4 @@
-import { validateMap, type MapFormatV1 } from '@mbrg/shared';
+import { normalizeMap, validateMap, type MapFormatV1 } from '@mbrg/shared';
 
 import { handmadeMap } from './maps/handmade.js';
 
@@ -44,7 +44,14 @@ function readStore(): MapEntry[] {
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isUsableEntry);
+    // Maps saved before `polygons` are lifted on read, so an imported map does
+    // not disappear from the library just because the format moved on.
+    return parsed
+      .map((entry) => {
+        const usable = isUsableEntry(entry);
+        return usable ? { ...entry, map: normalizeMap(entry.map) as MapFormatV1 } : null;
+      })
+      .filter((entry): entry is MapEntry => entry !== null);
   } catch {
     return []; // corrupt or blocked storage: fall back to just the built-in map
   }

@@ -71,11 +71,15 @@ export function drawMinimap(
   // Fills (mid-animation crossfade colors included).
   const resolved = fills ?? territoryColorsOf(owners, colors);
   for (const t of map.territories) {
-    const [first, ...rest] = t.polygon;
     ctx.beginPath();
-    ctx.moveTo(first[0], first[1]);
-    for (const [x, y] of rest) ctx.lineTo(x, y);
-    ctx.closePath();
+    // Every piece: an island the minimap does not draw is an island the player
+    // cannot find on the minimap.
+    for (const poly of t.polygons) {
+      const [first, ...rest] = poly;
+      ctx.moveTo(first[0], first[1]);
+      for (const [x, y] of rest) ctx.lineTo(x, y);
+      ctx.closePath();
+    }
     ctx.fillStyle = resolved[t.id] ?? '#888899';
     ctx.fill();
     ctx.strokeStyle = 'rgb(13 13 21 / 70%)';

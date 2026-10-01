@@ -8,7 +8,7 @@ import type {
   RoundEvent,
   SimOptions,
 } from '@mbrg/shared';
-import { buildAdjacency, validateMap } from '@mbrg/shared';
+import { buildAdjacency, mainRing, validateMap } from '@mbrg/shared';
 
 import { Rng } from './rng.js';
 
@@ -31,7 +31,10 @@ function getGraph(map: MapFormatV1): MapGraph {
   const adjacency = buildAdjacency(map);
   const centroids = new Map<string, Coord>();
   for (const t of map.territories) {
-    centroids.set(t.id, polygonCentroid(t.polygon));
+    // The biggest ring, not an average over all of them: a province with an
+    // island next to it would otherwise get a centroid out in the water, and the
+    // maritime fallback would send the annexation to the wrong side.
+    centroids.set(t.id, polygonCentroid(mainRing(t)));
   }
   const graph: MapGraph = { adjacency, centroids };
   graphCache.set(map, graph);

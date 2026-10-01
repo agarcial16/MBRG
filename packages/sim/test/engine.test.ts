@@ -59,7 +59,7 @@ describe('createInitialMatch', () => {
     const solo = {
       version: 1 as const,
       name: 'solo',
-      territories: [{ id: 'X', neighbors: [] as string[], polygon: [[0, 0], [1, 0], [1, 1]] }],
+      territories: [{ id: 'X', neighbors: [] as string[], polygons: [[[0, 0], [1, 0], [1, 1]]] }],
     };
     const state = createInitialMatch(solo, { seed: 1 });
     expect(state.done).toBe(true);
@@ -71,8 +71,8 @@ describe('createInitialMatch', () => {
       version: 1 as const,
       name: 'bad',
       territories: [
-        { id: 'A', neighbors: ['B'], polygon: [[0, 0], [1, 0], [1, 1]] },
-        { id: 'B', neighbors: [] as string[], polygon: [[2, 0], [3, 0], [3, 1]] },
+        { id: 'A', neighbors: ['B'], polygons: [[[0, 0]], [1, 0], [1, 1]] },
+        { id: 'B', neighbors: [] as string[], polygons: [[[2, 0]], [3, 0], [3, 1]] },
       ],
     };
     expect(() => createInitialMatch(asymmetric, { seed: 1 })).toThrow(/Invalid map/);
@@ -171,6 +171,51 @@ describe('islands', () => {
     // Last round is the maritime fallback: ISLE is one of the two survivors.
     const last = final.log[1];
     expect([last.eliminated, last.annexer]).toContain('ISLE');
+  });
+
+  it('una provincia con mainland e isla es una sola y se conquista de golpe', () => {
+    // A split province used to be reported as two, which let a faction be
+    // annexed halfway — from wherever the enemy happened to be standing.
+    const map: MapFormatV1 = {
+      version: 1,
+      name: 'mainland-plus-island',
+      territories: [
+        {
+          id: 'A',
+          neighbors: ['B'],
+          polygons: [
+            [
+              [0, 0],
+              [40, 0],
+              [40, 40],
+              [0, 40],
+            ],
+            [
+              [400, 0],
+              [404, 0],
+              [404, 4],
+              [400, 4],
+            ],
+          ],
+        },
+        {
+          id: 'B',
+          neighbors: ['A'],
+          polygons: [
+            [
+              [40, 0],
+              [80, 0],
+              [80, 40],
+              [40, 40],
+            ],
+          ],
+        },
+      ],
+    };
+    const final = simulate(map, { seed: 4 });
+    expect(final.log).toHaveLength(1); // 2 provinces → 1 round, not 2
+    expect(final.log[0].gained).toHaveLength(1);
+    expect(final.winner).toBe(final.log[0].annexer);
   });
 });
 

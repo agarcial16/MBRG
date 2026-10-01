@@ -57,10 +57,13 @@ describe('curvas de etiqueta', () => {
       for (let i = 1; i < l.curve.cum.length; i++) {
         expect(l.curve.cum[i]).toBeGreaterThan(l.curve.cum[i - 1]);
       }
-      // Every centerline point is inside some zone of the faction.
+      // Every centerline point is inside some piece of the faction.
+      type Zone = (typeof l.zones)[number];
+      const owningZone = (p: Coord): Zone | undefined =>
+        l.zones.find((z) => z.outers.some((o) => pointInPolygon(p, o)));
       for (const p of l.curve.pts) {
-        expect(l.zones.some((z) => pointInPolygon(p, z.outer)), `${l.text}: ${p} fuera`).toBe(true);
-        for (const h of l.zones.find((z) => pointInPolygon(p, z.outer))?.holes ?? []) {
+        expect(owningZone(p), `${l.text}: ${p} fuera`).toBeDefined();
+        for (const h of owningZone(p)?.holes ?? []) {
           expect(pointInPolygon(p, h), `${l.text}: ${p} en un hueco`).toBe(false);
         }
       }
@@ -86,6 +89,48 @@ describe('curvas de etiqueta', () => {
   });
 });
 
+describe('provincia con varias piezas', () => {
+  // A mainland and an island: one province, one label, one anchor. The island
+  // must not drag the anchor — nor the corridor — out over open water.
+  const archipelago: MapFormatV1 = {
+    version: 1,
+    name: 'archipelago',
+    width: 400,
+    height: 100,
+    territories: [
+      {
+        id: 'M',
+        name: 'Maritima',
+        neighbors: [],
+        polygons: [
+          [
+            [0, 30],
+            [60, 30],
+            [60, 70],
+            [0, 70],
+          ],
+          [
+            [300, 40],
+            [320, 40],
+            [320, 60],
+            [300, 60],
+          ],
+        ],
+      },
+    ],
+  };
+
+  it('la etiqueta se ancla en la pieza grande, no en el mar', () => {
+    const [label] = layoutOf(archipelago, { M: 'M' });
+    expect(label.text).toBe('Maritima');
+    expect(pointInPolygon([label.x, label.y], archipelago.territories[0].polygons[0])).toBe(true);
+    // The centreline stays on the mainland instead of spanning mainland→island.
+    for (const p of label.curve.pts) {
+      expect(pointInPolygon(p, archipelago.territories[0].polygons[0])).toBe(true);
+    }
+  });
+});
+
 describe('bloque en forma de anillo (hueco)', () => {
   it('el ancla y la curva evitan el hueco', () => {
     const frame: MapFormatV1 = {
@@ -98,12 +143,12 @@ describe('bloque en forma de anillo (hueco)', () => {
           id: 'R',
           name: 'Ring',
           neighbors: ['L'],
-          polygon: [
+          polygons: [[
             [0, 0],
             [100, 0],
             [100, 100],
             [0, 100],
-          ],
+          ]],
           holes: [
             [
               [20, 20],
@@ -117,12 +162,12 @@ describe('bloque en forma de anillo (hueco)', () => {
           id: 'L',
           name: 'Lake',
           neighbors: ['R'],
-          polygon: [
+          polygons: [[
             [30, 30],
             [70, 30],
             [70, 70],
             [30, 70],
-          ],
+          ]],
         },
       ],
     };
@@ -131,7 +176,7 @@ describe('bloque en forma de anillo (hueco)', () => {
     expect(ring.text).toBe('Ring');
     // The ring's centerline runs through the border band, never through the hole.
     for (const p of ring.curve.pts) {
-      expect(pointInPolygon(p, frame.territories[0].polygon)).toBe(true);
+      expect(pointInPolygon(p, frame.territories[0].polygons[0])).toBe(true);
       expect(pointInPolygon(p, frame.territories[0].holes![0]), `${p} dentro del hueco`).toBe(false);
     }
   });
@@ -144,7 +189,7 @@ function oneTerritory(polygon: Coord[], name: string): MapFormatV1 {
     name: 'fixture',
     width: 400,
     height: 400,
-    territories: [{ id: 'X', name, neighbors: [], polygon }],
+    territories: [{ id: 'X', name, neighbors: [], polygons: [polygon] }],
   };
 }
 

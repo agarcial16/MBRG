@@ -140,7 +140,7 @@ export function assembleMap(
       id,
       name: id,
       neighbors,
-      polygon: rings[0].points,
+      polygons: [rings[0].points],
       ...(holes.length > 0 ? { holes } : {}),
     };
     territories.push(territory);

@@ -1,4 +1,5 @@
 import type { Coord, FactionId, MapFormatV1, Ownership, Territory } from '@mbrg/shared';
+import { mainRing } from '@mbrg/shared';
 
 import { edgeKey } from './topology.js';
 import { factionName } from './names.js';
@@ -112,9 +113,15 @@ function pointInPolygon(p: Coord, poly: Coord[]): boolean {
   return inside;
 }
 
-/** A territory's filled area: outer ring plus holes (lakes / enclaves). */
+/**
+ * A territory's filled area: every one of its pieces minus its holes.
+ *
+ * `outers` rather than one ring because a province can be an archipelago, and a
+ * label sitting on the mainland has to be able to call a point "inside" when it
+ * happens to land on the island.
+ */
 export interface Zone {
-  outer: Coord[];
+  outers: Coord[][];
   holes: Coord[][];
 }
 
@@ -133,7 +140,7 @@ interface BlockGeom {
 
 /** Computes zones + union boundary for a faction's provinces. */
 function blockGeometry(group: Territory[]): BlockGeom {
-  const zones: Zone[] = group.map((t) => ({ outer: t.polygon, holes: t.holes ?? [] }));
+  const zones: Zone[] = group.map((t) => ({ outers: t.polygons, holes: t.holes ?? [] }));
   const counts = new Map<string, { seg: Segment; n: number }>();
   const addRing = (ring: Coord[]): void => {
     for (let i = 0; i < ring.length; i++) {
@@ -145,7 +152,7 @@ function blockGeometry(group: Territory[]): BlockGeom {
     }
   };
   for (const z of zones) {
-    addRing(z.outer);
+    for (const outer of z.outers) addRing(outer);
     for (const h of z.holes) addRing(h);
   }
   const boundary: Segment[] = [];
@@ -153,9 +160,16 @@ function blockGeometry(group: Territory[]): BlockGeom {
   return { zones, boundary };
 }
 
-/** Inside the zone: within the outer ring and outside every hole. */
+/** Inside the zone: within some outer ring and outside every hole. */
 function pointInZone(p: Coord, z: Zone): boolean {
-  if (!pointInPolygon(p, z.outer)) return false;
+  let inside = false;
+  for (const outer of z.outers) {
+    if (pointInPolygon(p, outer)) {
+      inside = true;
+      break;
+    }
+  }
+  if (!inside) return false;
   for (const h of z.holes) if (pointInPolygon(p, h)) return false;
   return true;
 }
@@ -273,9 +287,12 @@ const CORRIDOR_RAYS = 72; // corridor directions probed over 180° (every 2.5°)
 /** A guaranteed-plausible label point for a single territory. */
 function territoryAnchor(t: Territory): Coord {
   if (t.center) return t.center;
-  const c = polygonCentroid(t.polygon);
-  if (pointInPolygon(c, t.polygon)) return c;
-  return vertexAverage(t.polygon);
+  // The biggest piece, so a province with an island next to it does not get its
+  // label (or its anchor) out at sea between the two.
+  const ring = mainRing(t);
+  const c = polygonCentroid(ring);
+  if (pointInPolygon(c, ring)) return c;
+  return vertexAverage(ring);
 }
 
 /**
@@ -291,11 +308,13 @@ function blockAnchor(group: Territory[], geom: BlockGeom): Coord {
   let maxX = -Infinity;
   let maxY = -Infinity;
   for (const z of zones) {
-    for (const [x, y] of z.outer) {
-      if (x < minX) minX = x;
-      if (y < minY) minY = y;
-      if (x > maxX) maxX = x;
-      if (y > maxY) maxY = y;
+    for (const outer of z.outers) {
+      for (const [x, y] of outer) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
     }
   }
   const w = maxX - minX;
@@ -326,7 +345,8 @@ function blockAnchor(group: Territory[], geom: BlockGeom): Coord {
   let largest = group[0];
   let largestArea = -1;
   for (const t of group) {
-    const area = Math.abs(signedArea(t.polygon));
+    let area = 0;
+    for (const ring of t.polygons) area += Math.abs(signedArea(ring));
     if (area > largestArea) {
       largestArea = area;
       largest = t;
@@ -693,7 +713,9 @@ function blockShape(group: Territory[], geom: BlockGeom, anchor: Coord, text: st
 } {
   const { boundary, zones } = geom;
   let area = 0;
-  for (const t of group) area += Math.abs(signedArea(t.polygon)) / 2;
+  for (const t of group) {
+    for (const ring of t.polygons) area += Math.abs(signedArea(ring)) / 2;
+  }
   const areaSize = Math.max(MIN_SIZE, Math.min(MAX_SIZE, area ** 0.25 * AREA_K));
 
   let bestSpan = -1;
@@ -799,11 +821,13 @@ function bboxShape(
   let maxX = -Infinity;
   let maxY = -Infinity;
   for (const t of group) {
-    for (const [px, py] of t.polygon) {
-      if (px < minX) minX = px;
-      if (py < minY) minY = py;
-      if (px > maxX) maxX = px;
-      if (py > maxY) maxY = py;
+    for (const ring of t.polygons) {
+      for (const [px, py] of ring) {
+        if (px < minX) minX = px;
+        if (py < minY) minY = py;
+        if (px > maxX) maxX = px;
+        if (py > maxY) maxY = py;
+      }
     }
   }
   const w = maxX - minX;

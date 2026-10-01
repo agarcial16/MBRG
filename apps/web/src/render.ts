@@ -94,12 +94,16 @@ function edgeSharing(map: MapFormatV1): Map<string, string[]> {
   if (cached) return cached;
   const index = new Map<string, string[]>();
   for (const t of map.territories) {
-    const poly = t.polygon;
-    for (let i = 0; i < poly.length; i++) {
-      const key = edgeKey(poly[i], poly[(i + 1) % poly.length]);
-      const list = index.get(key);
-      if (list) list.push(t.id);
-      else index.set(key, [t.id]);
+    // Every ring of every piece: an island of one province shares edges the same
+    // way its mainland does, and a border that only half got indexed would be
+    // stroked by the wrong side.
+    for (const ring of [...t.polygons, ...(t.holes ?? [])]) {
+      for (let i = 0; i < ring.length; i++) {
+        const key = edgeKey(ring[i], ring[(i + 1) % ring.length]);
+        const list = index.get(key);
+        if (list) list.push(t.id);
+        else index.set(key, [t.id]);
+      }
     }
   }
   edgeCache.set(map, index);
@@ -158,7 +162,7 @@ export function drawMap(
   //    cuts them out, so ring orientation does not have to be normalised.
   for (const t of map.territories) {
     ctx.beginPath();
-    tracePath(ctx, t.polygon);
+    for (const poly of t.polygons) tracePath(ctx, poly);
     for (const hole of t.holes ?? []) tracePath(ctx, hole);
     ctx.fillStyle = resolved[t.id] ?? FALLBACK;
     ctx.fill('evenodd');
@@ -173,7 +177,7 @@ export function drawMap(
   ctx.beginPath();
   for (const t of map.territories) {
     const owner = owners[t.id];
-    for (const ring of [t.polygon, ...(t.holes ?? [])]) {
+    for (const ring of [...t.polygons, ...(t.holes ?? [])]) {
       for (let i = 0; i < ring.length; i++) {
         const p1 = ring[i];
         const p2 = ring[(i + 1) % ring.length];

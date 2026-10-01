@@ -15,12 +15,12 @@ function mapOf(...ids: string[]): MapFormatV1 {
     // What the importer writes: the id doubles as the placeholder name, so
     // "has a name" is just "name differs from id".
     name: id,
-    polygon: [
+    polygons: [[
       [0, 0],
       [10, 0],
       [10, 10],
       [0, 10],
-    ],
+    ]],
     neighbors: ids.filter((other) => other !== id).sort(),
   }));
   return { version: 1, name: 'test', width: 100, height: 100, territories };
@@ -50,7 +50,7 @@ describe('applyNames', () => {
     const { map, kept } = applyNames(before, new Map([['a', 'Aurelia']]));
     expect(map.territories.map((t) => t.name)).toEqual(['Aurelia', 'b']);
     expect(map.width).toBe(before.width);
-    expect(map.territories[0].polygon).toEqual(before.territories[0].polygon);
+    expect(map.territories[0].polygons[0]).toEqual(before.territories[0].polygons[0]);
     expect(kept).toBe(1);
   });
 

@@ -94,13 +94,13 @@ describe('imported maps are playable', () => {
     const green = map.territories.find((t) => t.id === 'p1')!;
     const blue = map.territories.find((t) => t.id === 'p2')!;
     expect(green.holes).toHaveLength(1);
-    expect(key(green.holes![0])).toBe(key(blue.polygon));
+    expect(key(green.holes![0])).toBe(key(blue.polygons[0]));
 
     // The lake, on the other hand, belongs to no territory at all.
     const red = map.territories.find((t) => t.id === 'p0')!;
     expect(red.holes).toHaveLength(1);
     const lake = key(red.holes![0]);
-    expect(map.territories.some((t) => key(t.polygon) === lake)).toBe(false);
+    expect(map.territories.some((t) => key(t.polygons[0]) === lake)).toBe(false);
   });
 
   it('starts a match and runs it to a single winner', () => {
@@ -136,7 +136,7 @@ describe('imported maps are playable', () => {
     // stroke a seam where nothing changed hands.
     const shared = new Map<string, number>();
     for (const t of map.territories) {
-      const rings = [t.polygon, ...(t.holes ?? [])];
+      const rings = [t.polygons[0], ...(t.holes ?? [])];
       for (const ring of rings) {
         for (let i = 0; i < ring.length; i++) {
           const a = ring[i];

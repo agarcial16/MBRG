@@ -40,7 +40,7 @@ describe('assembleMap', () => {
     expect(map.territories).toHaveLength(2);
 
     const [a, b] = map.territories;
-    expect(a.polygon.length).toBeGreaterThanOrEqual(3);
+    expect(a.polygons[0].length).toBeGreaterThanOrEqual(3);
     // Adjacency is symmetric and names the other territory.
     expect(a.neighbors).toEqual([b.id]);
     expect(b.neighbors).toEqual([a.id]);
@@ -57,7 +57,7 @@ describe('assembleMap', () => {
     const { map, errors } = importArt(['RRG', 'GGB']);
     expect(errors).toEqual([]);
     // Re-validating the assembled map is the same check, run again.
-    expect(map.territories.every((t) => t.polygon.length >= 3)).toBe(true);
+    expect(map.territories.every((t) => t.polygons[0].length >= 3)).toBe(true);
   });
 
   it('puts an enclave in as a hole of the region around it', () => {
@@ -78,7 +78,7 @@ describe('assembleMap', () => {
     const { map, errors } = importArt(['R']);
     expect(errors).toEqual([]);
     expect(map.territories).toHaveLength(1);
-    expect(map.territories[0].polygon.length).toBeGreaterThanOrEqual(3);
+    expect(map.territories[0].polygons[0].length).toBeGreaterThanOrEqual(3);
   });
 
   it('warns about an island instead of silently shipping an unreachable one', () => {
@@ -107,7 +107,7 @@ describe('assembleMap', () => {
     expect(territories.filter((t) => t.split)).toHaveLength(0);
     expect(warnings.some((w) => w.code === 'regionSplit')).toBe(false);
     expect(map.territories).toHaveLength(3);
-    expect(map.territories.every((t) => t.polygon.length >= 3)).toBe(true);
+    expect(map.territories.every((t) => t.polygons[0].length >= 3)).toBe(true);
   });
 
   it('counts speckle separately from sea and transparency', () => {

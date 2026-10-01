@@ -36,8 +36,8 @@ const other: MapFormatV1 = {
   width: 80,
   height: 40,
   territories: [
-    { id: 'a', name: 'a', neighbors: ['b'], polygon: [[0, 0], [40, 0], [40, 40], [0, 40]] },
-    { id: 'b', name: 'b', neighbors: ['a'], polygon: [[40, 0], [80, 0], [80, 40], [40, 40]] },
+    { id: 'a', name: 'a', neighbors: ['b'], polygons: [[[0, 0], [40, 0], [40, 40], [0, 40]]] },
+    { id: 'b', name: 'b', neighbors: ['a'], polygons: [[[40, 0], [80, 0], [80, 40], [40, 40]]] },
   ],
 };
 

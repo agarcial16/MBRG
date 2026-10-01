@@ -1,4 +1,4 @@
-import type { MapFormatV1, Territory } from './map.js';
+import type { Coord, MapFormatV1, Territory } from './map.js';
 
 export interface ValidationResult {
   errors: string[];
@@ -14,11 +14,46 @@ function isFinitePair(value: unknown): value is [number, number] {
   );
 }
 
+/** The old single-ring shape, as it still lives in people's saved maps. */
+interface LegacyTerritory {
+  polygon?: Coord[];
+  polygons?: Coord[][];
+}
+
+/**
+ * Accept the pre-`polygons` shape and lift it into the current one.
+ *
+ * A territory used to carry one ring called `polygon`; it now carries `polygons`,
+ * one per connected piece. The old field is still found in maps already sitting
+ * in localStorage from before the change, and silently dropping those maps would
+ * mean deleting the user's imported work on the next load. The rename is pure
+ * bookkeeping, so the migration is a wrap: one ring becomes a list of one.
+ *
+ * Returns a new object; the input is left untouched.
+ */
+export function normalizeMap(map: unknown): unknown {
+  if (typeof map !== 'object' || map === null || Array.isArray(map)) return map;
+  const candidate = map as { territories?: unknown };
+  if (!Array.isArray(candidate.territories)) return map;
+  return {
+    ...(map as object),
+    territories: candidate.territories.map((t) => {
+      if (typeof t !== 'object' || t === null) return t;
+      const legacy = t as LegacyTerritory;
+      if (Array.isArray(legacy.polygons)) return t;
+      if (!Array.isArray(legacy.polygon)) return t;
+      const { polygon: _dropped, ...rest } = legacy as object & { polygon: Coord[] };
+      return { ...rest, polygons: [legacy.polygon as Coord[]] };
+    }),
+  };
+}
+
 /**
  * Runtime validation of a `MapFormat` v1 map. Accepts `unknown` so it can be
  * used directly on untrusted JSON (file import, network payload).
  */
 export function validateMap(map: unknown): ValidationResult {
+  map = normalizeMap(map);
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -62,14 +97,20 @@ export function validateMap(map: unknown): ValidationResult {
     if (!Array.isArray(raw.neighbors)) {
       errors.push(`"${raw.id}".neighbors must be an array`);
     }
-    if (!Array.isArray(raw.polygon) || raw.polygon.length < 3) {
-      errors.push(`"${raw.id}".polygon needs at least 3 points`);
+    if (!Array.isArray(raw.polygons) || raw.polygons.length === 0) {
+      errors.push(`"${raw.id}".polygons needs at least one ring`);
     } else {
-      for (const [j, pt] of raw.polygon.entries()) {
-        if (!isFinitePair(pt)) {
-          errors.push(`"${raw.id}".polygon[${j}] must be [x, y] with finite numbers`);
+      raw.polygons.forEach((ring: unknown, i: number) => {
+        if (!Array.isArray(ring) || ring.length < 3) {
+          errors.push(`"${raw.id}".polygons[${i}] needs at least 3 points`);
+        } else {
+          for (const [j, pt] of (ring as unknown[]).entries()) {
+            if (!isFinitePair(pt)) {
+              errors.push(`"${raw.id}".polygons[${i}][${j}] must be [x, y] with finite numbers`);
+            }
+          }
         }
-      }
+      });
     }
     if (raw.center !== undefined && !isFinitePair(raw.center)) {
       errors.push(`"${raw.id}".center must be [x, y] with finite numbers`);

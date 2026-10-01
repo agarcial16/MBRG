@@ -445,7 +445,7 @@ function drawPreview(): void {
     const isSelected = selected === entry.id;
     ctx.globalAlpha = !dimmed || isSelected ? 0.85 : 0.2;
     ctx.beginPath();
-    traceRing(ctx, territory.polygon);
+    for (const ring of territory.polygons) traceRing(ctx, ring);
     for (const hole of territory.holes ?? []) traceRing(ctx, hole);
     ctx.fillStyle = `#${entry.color.toString(16).padStart(6, '0')}`;
     ctx.fill('evenodd');
@@ -704,7 +704,7 @@ function pickSeaAt(x: number, y: number): void {
 
 function territoryAt(x: number, y: number, map: MapFormatV1): string | null {
   for (const territory of map.territories) {
-    if (!pointInRing(territory.polygon, x, y)) continue;
+    if (!territory.polygons.some((ring) => pointInRing(ring, x, y))) continue;
     // A point inside an enclave's hole is not inside the surrounding region.
     if ((territory.holes ?? []).some((hole) => pointInRing(hole, x, y))) continue;
     return territory.id;
