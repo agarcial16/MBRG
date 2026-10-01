@@ -374,6 +374,19 @@ li.region.selected {
   outline-offset: 1px;
 }
 
+/* The name file is a secondary route next to typing, so it reads as a quiet
+   option rather than competing with the field. */
+.names-file {
+  margin-top: 10px;
+  font-size: 0.9rem;
+}
+
+.names-file input[type='file'] {
+  max-width: 260px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 /* "Working…" — the debounce is short but not instant, and a spinner-less line of
    text is enough to explain why the map has not moved yet. */
 #busy {

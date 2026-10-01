@@ -101,6 +101,14 @@
           <input id="region-name" type="text" maxlength="24" />
         </div>
         <p class="summary" id="named-count" hidden></p>
+        <label class="toggle names-file">
+          <input id="names-file" type="file" accept=".json,application/json" />
+          <span data-i18n="import.namesFromFile">Cargar nombres desde un JSON</span>
+        </label>
+        <p class="hint" data-i18n="import.namesFileHint">
+          Un objeto de «#color»: «nombre». El color es el de la provincia en tu imagen, así que
+          solo funciona con mapas de color plano.
+        </p>
         <div id="issues"></div>
         <div class="actions">
           <input id="map-name" type="text" maxlength="40" />

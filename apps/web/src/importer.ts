@@ -16,7 +16,7 @@ import type { Coord, MapFormatV1 } from '@mbrg/shared';
 import { decodeImageFile, decodeImageUrl, drawRaster, rasterForDetection } from './decode.js';
 import { applyI18n, getLang, onLangChange, setLang, t, type Lang } from './i18n.js';
 import { saveMap, suggestMapName } from './library.js';
-import { applyNames, cleanName } from './naming.js';
+import { applyNames, cleanName, namesByColor, parseNameFile } from './naming.js';
 import type { RasterImage } from '@mbrg/map-tools';
 
 /** Injected at build time from apps/web/package.json. */
@@ -59,6 +59,7 @@ const seaInfo = document.querySelector<HTMLElement>('#sea-info')!;
 const nameRow = document.querySelector<HTMLElement>('#namerow')!;
 const regionNameInput = document.querySelector<HTMLInputElement>('#region-name')!;
 const namedCount = document.querySelector<HTMLElement>('#named-count')!;
+const namesFileInput = document.querySelector<HTMLInputElement>('#names-file')!;
 const busyBadge = document.querySelector<HTMLElement>('#busy')!;
 
 interface Tuning {
@@ -158,6 +159,61 @@ showSource?.addEventListener('change', () => render());
 
 // Renaming applies as you type: no "apply" step to forget.
 regionNameInput?.addEventListener('input', () => renameSelected(regionNameInput.value));
+
+/**
+ * A name file beats typing 200 names.
+ *
+ * Keyed by colour, which only works on a flat-colour map, and that limitation is
+ * reported rather than glossed over: a colour that matched more than one province
+ * is either two provinces sharing a colour in the source map or one province the
+ * detection split, and the user needs to know which before they trust the names.
+ */
+namesFileInput?.addEventListener('change', async () => {
+  const file = namesFileInput.files?.[0];
+  if (!file) return;
+  try {
+    const { byColor, rejected } = parseNameFile(await file.text());
+    if (byColor.size === 0) {
+      showFatal(t('import.namesFileEmpty'));
+      return;
+    }
+    const applied = namesByColor(result?.territories ?? [], byColor);
+    // The file wins over what is on screen: it is the deliberate act, and the
+    // user can still edit any province afterwards.
+    names = new Map([...names, ...applied.names]);
+    lostNames = [];
+    detect();
+    renderNameFileNotes(applied, rejected);
+  } catch (error) {
+    showFatal(error instanceof Error ? error.message : String(error));
+  }
+});
+
+function renderNameFileNotes(
+  applied: ReturnType<typeof namesByColor>,
+  rejected: number,
+): void {
+  issuesBox.prepend(issue('warn', t('import.namesFromFileDone', { count: applied.matched })));
+  if (rejected > 0) {
+    issuesBox.prepend(issue('warn', t('import.namesFileRejected', { count: rejected })));
+  }
+  if (applied.unmatched.length > 0) {
+    issuesBox.prepend(
+      issue('warn', t('import.namesFileUnmatched', { count: applied.unmatched.length })),
+    );
+  }
+  if (applied.shared.length > 0) {
+    issuesBox.prepend(
+      issue(
+        'warn',
+        t('import.namesFileShared', {
+          count: applied.shared.length,
+          names: applied.shared.slice(0, 5).join(', '),
+        }),
+      ),
+    );
+  }
+}
 
 // `?image=<url>` loads a map without going through the file picker, which is
 // how a map that needs debugging gets shared.

@@ -58,3 +58,86 @@ export function applyNames(
 
   return { map: { ...map, territories }, kept: seen.size, dropped };
 }
+
+/**
+ * Read a name file: a flat map of colour to name.
+ *
+ * ```json
+ * { "#c0392b": "Aurelia", "#27ae60": "Borgoña" }
+ * ```
+ *
+ * Keys are matched loosely on purpose — `c0392b`, `#c0392b` and `#C0392B` are the
+ * same colour, and a name file written by hand or copied out of a CSS block will
+ * not agree on the punctuation. A `colors` wrapper is also accepted, because that
+ * is what a names file wants to grow into (labels, ids) and having two shapes to
+ * remember is worse than accepting one extra.
+ *
+ * Anything that is not a colour → name pair is dropped rather than throwing: a
+ * name file is hand-written, and a typo in one line should cost one province, not
+ * the whole upload.
+ */
+export function parseNameFile(text: string): {
+  byColor: Map<string, string>;
+  rejected: number;
+} {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch (error) {
+    throw new Error(`the name file is not valid JSON: ${(error as Error).message}`);
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('the name file must be an object of "#colour": "name" pairs');
+  }
+  // Accept both { "#abc": "x" } and { "colors": { "#abc": "x" } }.
+  const source =
+    typeof (parsed as { colors?: unknown }).colors === 'object' &&
+    (parsed as { colors: unknown }).colors !== null
+      ? ((parsed as { colors: Record<string, unknown> }).colors)
+      : (parsed as Record<string, unknown>);
+
+  const byColor = new Map<string, string>();
+  let rejected = 0;
+  for (const [key, value] of Object.entries(source)) {
+    const name = cleanName(typeof value === 'string' ? value : '');
+    if (!name || !/^#?[0-9a-f]{3,8}$/i.test(key.trim())) {
+      rejected++;
+      continue;
+    }
+    byColor.set(key.trim().toLowerCase().replace(/^#/, ''), name);
+  }
+  return { byColor, rejected };
+}
+
+/**
+ * Name the provinces of a map by the colour of the region they came from.
+ *
+ * This only works in mode A, where every province has a colour of its own, and
+ * it is worth saying so out loud: in a colouring-book map two regions are told
+ * apart by the lines around them and their colours are arbitrary, so a name file
+ * cannot address them at all.
+ *
+ * A colour can produce several provinces — a region that connectivity split, or
+ * one province appearing twice on the map — and they all get the same name. That
+ * is reported per colour rather than hidden, because it is usually the sign that
+ * the map's colours are not as unique as they looked.
+ */
+export function namesByColor(
+  territories: readonly { id: string; color?: number }[],
+  byColor: ReadonlyMap<string, string>,
+): { names: Map<string, string>; matched: number; unmatched: string[]; shared: string[] } {
+  const names = new Map<string, string>();
+  const hits = new Map<string, string[]>();
+  for (const territory of territories) {
+    const color = territory.color;
+    if (color === undefined) continue;
+    const name = byColor.get(color.toString(16).padStart(6, '0'));
+    if (!name) continue;
+    names.set(territory.id, name);
+    const list = hits.get(name) ?? [];
+    list.push(territory.id);
+    hits.set(name, list);
+  }
+  const shared = [...hits.entries()].filter(([, ids]) => ids.length > 1).map(([name]) => name);
+  return { names, matched: names.size, unmatched: [...byColor.keys()].filter((c) => !hits.has(byColor.get(c)!)), shared };
+}

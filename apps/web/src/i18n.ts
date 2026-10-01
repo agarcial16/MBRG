@@ -59,6 +59,15 @@ const es = {
     'No se ha detectado mar: se está leyendo el fondo opaco como tierra. Marca el mar con un clic.',
   'import.nameOf': 'Nombre de la provincia seleccionada',
   'import.named': '{named} de {total} provincias con nombre',
+  'import.namesFromFile': 'Cargar nombres desde un JSON',
+  'import.namesFileHint':
+    'Un objeto de «#color»: «nombre». El color es el de la provincia en tu imagen, así que solo funciona con mapas de color plano.',
+  'import.namesFileEmpty': 'El fichero no contenía ningún par de color y nombre válido',
+  'import.namesFileRejected': '{count} línea(s) del fichero no son un par de color y nombre, y se han ignorado',
+  'import.namesFileUnmatched': '{count} color(es) del fichero no aparecen en el mapa',
+  'import.namesFileShared':
+    '{count} color(es) del fichero han nombrado más de una provincia ({names}). Suele querer decir que dos provincias de tu imagen comparten color.',
+  'import.namesFromFileDone': 'Se han nombrado {count} provincias desde el fichero',
   'import.namesLost':
     'Se han perdido {count} nombres: el ajuste de la detección ha creado o destruido provincias. Vuelve a nombrarlas.',
   'import.drop': 'Arrastra una imagen aquí o haz clic para elegirla',
@@ -145,6 +154,15 @@ const en: Record<MessageKey, string> = {
     'No sea was found: an opaque background is being read as land. Mark the sea with a click.',
   'import.nameOf': 'Name of the selected province',
   'import.named': '{named} of {total} provinces named',
+  'import.namesFromFile': 'Load names from a JSON file',
+  'import.namesFileHint':
+    'An object of "#colour": "name" pairs. The colour is the one the province has in your image, so this only works on flat-colour maps.',
+  'import.namesFileEmpty': 'The file held no valid colour/name pair',
+  'import.namesFileRejected': '{count} line(s) in the file were not a colour/name pair and were ignored',
+  'import.namesFileUnmatched': '{count} colour(s) in the file do not appear on the map',
+  'import.namesFileShared':
+    '{count} colour(s) in the file named more than one province ({names}). That usually means two provinces in your image share a colour.',
+  'import.namesFromFileDone': '{count} provinces named from the file',
   'import.namesLost':
     '{count} name(s) were lost: the detection settings created or destroyed provinces. Name them again.',
   'import.drop': 'Drop an image here, or click to choose one',
