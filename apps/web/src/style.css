@@ -44,11 +44,27 @@ body {
 }
 
 .version {
-  margin: 2px 0 16px;
   color: var(--muted);
   font-size: 0.7rem;
   font-family: ui-monospace, monospace;
   opacity: 0.7;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 16px;
+}
+
+#lang {
+  background: var(--panel);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  padding: 2px 4px;
+  cursor: pointer;
 }
 
 #sidebar section {

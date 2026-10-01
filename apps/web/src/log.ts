@@ -1,5 +1,6 @@
 import type { FactionId, MapFormatV1, MatchState } from '@mbrg/shared';
 
+import { t } from './i18n.js';
 import { factionName } from './names.js';
 
 function dot(color: string): HTMLSpanElement {
@@ -33,7 +34,7 @@ export function renderLog(
   if (entries.length === 0) {
     const empty = document.createElement('li');
     empty.className = 'empty';
-    empty.textContent = 'Sin eventos todavía — pulsa ▶';
+    empty.textContent = t('log.empty');
     container.append(empty);
     return;
   }

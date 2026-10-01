@@ -3,6 +3,7 @@ import './style.css';
 import type { Ownership } from '@mbrg/shared';
 
 import { handmadeMap } from './maps/handmade.js';
+import { applyI18n, getLang, onLangChange, setLang, t, type Lang } from './i18n.js';
 import { renderLog } from './log.js';
 import { CameraController } from './camera.js';
 import { interpolateLabels, layoutLabels, type FactionLabel } from './label.js';
@@ -33,9 +34,20 @@ const zoomOutBtn = document.querySelector<HTMLButtonElement>('#btn-zoom-out');
 const zoomFitBtn = document.querySelector<HTMLButtonElement>('#btn-zoom-fit');
 const minimapEl = document.querySelector<HTMLCanvasElement>('#minimap');
 const versionEl = document.querySelector<HTMLElement>('#app-version');
+const langSelect = document.querySelector<HTMLSelectElement>('#lang');
 
 // Show which build is running, so a shared link is never ambiguous.
 if (versionEl) versionEl.textContent = `v${__APP_VERSION__}`;
+
+// Spanish is the default in the markup; the resolver may pick either.
+document.documentElement.lang = getLang();
+if (langSelect) langSelect.value = getLang();
+applyI18n();
+onLangChange(() => {
+  applyI18n();
+  onState(); // re-render log/stats/hud in the new language
+});
+langSelect?.addEventListener('change', () => setLang(langSelect.value as Lang));
 
 /** Seed from `?seed=…` (shareable link), or null when absent/invalid. */
 function seedFromUrl(): number | null {
@@ -128,7 +140,10 @@ function animationFrame(now: number): void {
 
 function updateHud(): void {
   if (roundLabel) {
-    roundLabel.textContent = `Ronda ${playback.current} / ${playback.totalRounds}`;
+    roundLabel.textContent = t('match.round', {
+      current: playback.current,
+      total: playback.totalRounds,
+    });
   }
   if (playBtn) playBtn.textContent = playback.playing ? '⏸' : '▶';
 }

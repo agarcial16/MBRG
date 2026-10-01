@@ -1,5 +1,6 @@
 import type { FactionId, MapFormatV1, MatchState, Ownership, RoundEvent } from '@mbrg/shared';
 
+import { t } from './i18n.js';
 import { factionName } from './names.js';
 
 function dot(color: string): HTMLSpanElement {
@@ -61,7 +62,7 @@ export function renderStats(container: HTMLElement, view: StatsView): void {
   if (winner) {
     const banner = document.createElement('div');
     banner.className = 'winner';
-    banner.textContent = `🏆 ${factionName(map, winner)} gana la partida`;
+    banner.textContent = `🏆 ${t('stats.wins', { name: factionName(map, winner) })}`;
     container.append(banner);
   }
 
@@ -104,13 +105,13 @@ export function renderStats(container: HTMLElement, view: StatsView): void {
     box.className = 'during';
     const title = document.createElement('div');
     title.className = 'during-title';
-    title.textContent = 'Durante la partida';
+    title.textContent = t('stats.during');
     box.append(title);
     if (topKiller) {
-      box.append(duringRow('⚔️', 'Mayor asesino:', topKiller.names, `(${topKiller.value})`));
+      box.append(duringRow('⚔️', t('stats.topKiller'), topKiller.names, `(${topKiller.value})`));
     }
     if (topCapturer) {
-      box.append(duringRow('🚩', 'Más capturas:', topCapturer.names, `(+${topCapturer.value})`));
+      box.append(duringRow('🚩', t('stats.topCaptures'), topCapturer.names, `(+${topCapturer.value})`));
     }
     container.append(box);
   }
