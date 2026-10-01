@@ -35,7 +35,7 @@ precisamente lo que lo arregla.
 
 ## Cómo jugar
 
-1. Abre la [demo publicada](https://agarc.github.io/mbrg/).
+1. Abre la [demo publicada](https://agarcial16.github.io/MBRG/).
 2. Pulsa **▶**. Cada ronda cae una facción y otra se la come entera.
 3. Cambia la **semilla** y pulsa *Aplicar* para generar otra partida distinta.
 4. Comparte la URL: lleva la semilla dentro, así que quien la abre ve **exactamente

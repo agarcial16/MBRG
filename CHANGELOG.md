@@ -38,4 +38,4 @@ facciones se van eliminando y anexando ronda a ronda.
 - **Sin guardado**: no hay historial, ni rankings, ni calendario de rondas.
 - **Sin Discord**: el bot es la Fase 4.
 
-[0.1.0-alpha]: https://github.com/agarc/mbrg/releases/tag/v0.1.0-alpha
+[0.1.0-alpha]: https://github.com/agarcial16/MBRG/releases/tag/v0.1.0-alpha
