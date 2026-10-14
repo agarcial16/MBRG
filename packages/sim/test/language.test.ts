@@ -12,8 +12,10 @@ const VALIDATION_KINDS = [
   'invalid-territory-id',
   'invalid-neighbors',
   'duplicate-territory-id',
+  'invalid-kind',
   'missing-owner',
   'invalid-owner',
+  'sea-owner',
   'unknown-field',
   'unknown-neighbor',
   'self-neighbor',
@@ -37,6 +39,7 @@ const BAD_MAPS: unknown[] = [
   },
   { territories: [t(1, 1, [1, 9, 2, 2]), t(2, 1, [3]), t(3, 3, []), t(4, 1, [])] },
   { territories: [] },
+  { territories: [{ id: 1, kind: 'x', neighbors: [] }, { id: 2, kind: 'sea', owner: 1, neighbors: [] }] },
 ];
 
 function collectKinds(): Set<string> {

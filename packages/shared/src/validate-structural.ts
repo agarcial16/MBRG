@@ -1,5 +1,6 @@
 import type { ValidationError } from './errors';
 import { isValidId } from './ids';
+import { entryKind } from './kinds';
 
 export interface StructuralResult {
   /** Errors in emission order (not yet sorted by FR-11). */
@@ -8,7 +9,7 @@ export interface StructuralResult {
   blocking: boolean;
 }
 
-const TERRITORY_FIELDS = ['id', 'owner', 'neighbors'];
+const TERRITORY_FIELDS = ['id', 'owner', 'neighbors', 'kind'];
 
 const isPlainObject = (x: unknown): x is Record<string, unknown> =>
   typeof x === 'object' && x !== null && !Array.isArray(x);
@@ -71,9 +72,17 @@ export function validateStructural(input: unknown): StructuralResult {
       block({ kind: 'invalid-neighbors', position, ...idData });
     }
 
-    const owner = Object.hasOwn(t, 'owner') ? t.owner : null;
-    if (owner === null) errors.push({ kind: 'missing-owner', position, ...idData });
-    else if (!isValidId(owner)) errors.push({ kind: 'invalid-owner', position, ...idData });
+    // FR-58, FR-65..FR-67: the kind decides which owner rule applies; none of these block (FR-64).
+    const kind = entryKind(t);
+    if (kind === 'invalid') {
+      errors.push({ kind: 'invalid-kind', position, ...idData });
+    } else if (kind === 'sea') {
+      if (Object.hasOwn(t, 'owner')) errors.push({ kind: 'sea-owner', position, ...idData });
+    } else {
+      const owner = Object.hasOwn(t, 'owner') ? t.owner : null;
+      if (owner === null) errors.push({ kind: 'missing-owner', position, ...idData });
+      else if (!isValidId(owner)) errors.push({ kind: 'invalid-owner', position, ...idData });
+    }
 
     for (const field of sortedKeys(t)) {
       if (!TERRITORY_FIELDS.includes(field)) {

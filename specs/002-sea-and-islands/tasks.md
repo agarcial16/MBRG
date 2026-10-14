@@ -23,7 +23,7 @@ Rules for every task:
   - Commit: `feat(shared): drop multiple-initial-territories, adopt FR-64 table`.
   - Done when: no title contains FR-6 or FR-25 (`rg "\bFR-(6|25)\b" packages/*/test` finds none in titles); traceability green with `PENDING`.
 
-- [ ] **T3. Structural validation of kinds.** FR-58, FR-59, FR-61, FR-64 (structural, blocking marks), FR-65, FR-66 (structural), FR-67, FR-68, NFR-8 (b: no unknown-field for kind, no missing-owner on sea, sea-owner), NFR-12
+- [x] **T3. Structural validation of kinds.** FR-58, FR-59, FR-61, FR-64 (structural, blocking marks), FR-65, FR-66 (structural), FR-67, FR-68, NFR-8 (b: no unknown-field for kind, no missing-owner on sea, sea-owner), NFR-12
   - Files: `packages/shared/src/validate-structural.ts`, `packages/shared/test/{validate-sea.test.ts,validate-structural.test.ts}`, `packages/sim/test/language.test.ts` (add `invalid-kind`, `sea-owner` to the literal list and `BAD_MAPS` entries that produce them).
   - Tests first: plan section 10 structural items; every structural kind at once with exact order; `invalid-kind` and `sea-owner` in the `nonBlocking` list; FR-61 sea/invalid-kind entries with bad id or neighbors are blocking; FR-28 no mutation.
   - Code: plan section 4 structural pseudocode; `invalid-kind`/`sea-owner` pushed, never `block`.
