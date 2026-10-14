@@ -8,13 +8,19 @@ const sources = {
   ...import.meta.glob('../../shared/src/**/*.ts', { query: '?raw', import: 'default', eager: true }),
 } as Record<string, string>;
 
-const BLOCK_COMMENT = /\/\*[\s\S]*?\*\//g;
-const LINE_COMMENT = /\/\/.*$/gm;
-const STRING_LITERAL = /'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"|`(?:\\.|[^`\\])*`/g;
+const STRING_LITERAL = /'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"|`(?:\\.|[^`\\])*`/;
+const COMMENT = /\/\*[\s\S]*?\*\/|\/\/.*$/;
+// One pass: a string literal is matched before a comment can start inside it, so `'a//b'` stays intact.
+const TOKENS = new RegExp(`(${STRING_LITERAL.source})|${COMMENT.source}`, 'gm');
+
+/** Removes real comments only; string literals (and any `//` inside them) are kept. */
+function stripComments(src: string): string {
+  return src.replace(TOKENS, (_m, str: string | undefined) => str ?? '');
+}
 
 /** Removes comments and string literals so the scan sees code only. */
 export function codeOnly(src: string): string {
-  return src.replace(BLOCK_COMMENT, '').replace(LINE_COMMENT, '').replace(STRING_LITERAL, '""');
+  return src.replace(TOKENS, (_m, str: string | undefined) => (str === undefined ? '' : '""'));
 }
 
 const FORBIDDEN_MODULES = new Set([
@@ -33,7 +39,7 @@ const IMPORT_SPECIFIERS = [
 
 /** Import specifiers naming I/O modules, or dynamic imports that are not a plain literal. Run before strings are stripped. */
 export function importViolations(src: string): string[] {
-  const text = src.replace(BLOCK_COMMENT, '').replace(LINE_COMMENT, '');
+  const text = stripComments(src);
   const found: string[] = [];
   for (const re of IMPORT_SPECIFIERS) {
     for (const m of text.matchAll(re)) if (isForbiddenModule(m[2] as string)) found.push(m[2] as string);
@@ -100,6 +106,10 @@ describe('NFR-1 purity', () => {
     for (const code of [
       "import x from 'node:fs';",
       "import x from 'fs';",
+      "import 'fs';",
+      "import 'node:fs';",
+      "import 'fs'; // side effect",
+      "import x from 'node:fs'; // a // b",
       "import { y } from \"path\";",
       "export * from 'node:os';",
       "const m = import('node:fs');",
@@ -107,6 +117,9 @@ describe('NFR-1 purity', () => {
     ]) {
       expect(importViolations(code).length, code).toBeGreaterThan(0);
     }
+    // `//` inside a specifier is not a comment: the import after it must still be seen.
+    expect(importViolations("import a from 'https://x.test/a'; import b from 'fs';")).toContain('fs');
+    expect(importViolations("import a from './a//b';\nimport 'fs';")).toContain('fs');
     expect(importViolations("import { a } from './ids';\nimport type { B } from '@mbrg/shared';")).toStrictEqual([]);
   });
 
