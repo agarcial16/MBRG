@@ -34,7 +34,7 @@ packages/sim/src/
   factions.ts     (new)   ownerOf, livingFactions moved out of internal.ts (no import cycle) FR-34, FR-35
   internal.ts             initialState skips sea; playRound uses candidates            FR-72, FR-75, FR-79
   candidates.ts   (new)   absorptionCandidates (FR-81), coast/sea-sharing/widening    FR-75..FR-78, FR-81
-  (match.ts, rng.ts, types.ts, inputs.ts, index.ts unchanged)
+  (rng.ts, types.ts, inputs.ts, index.ts unchanged; match.ts only changes its imports and the source of the `ownerOf` re-export)
 packages/shared/test/     kinds.test.ts (new), validate-sea.test.ts (new); edits listed in section 9
 packages/sim/test/
   helpers/sea-maps.ts (new)   seaMap builder + fixtures (sections 7, 8)

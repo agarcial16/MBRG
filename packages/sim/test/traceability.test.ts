@@ -59,7 +59,7 @@ describe('traceability', () => {
     expect([...found].sort()).toStrictEqual(['FR-10', 'FR-12']);
   });
 
-  it('NFR-13 the expected list holds FR-81 and NFR-13 and excludes the retired ids', () => {
+  it('NFR-13 the expected list holds the highest ids and excludes the retired ids', () => {
     expect(expected).toContain('FR-81');
     expect(expected).toContain('NFR-13');
     expect(expected).toContain('FR-60');
@@ -67,7 +67,7 @@ describe('traceability', () => {
     for (const id of RETIRED) expect(expected).not.toContain(id);
   });
 
-  it('NFR-13 extraction does not mistake FR-60 or NFR-6 for a retired id', () => {
+  it('NFR-13 extraction does not mistake ids sharing a retired prefix for retired ids', () => {
     const found = tracedIds({ 'x/a.test.ts': "it('NFR-6 FR-60 FR-69 a', () => {});" });
     expect([...found].sort()).toStrictEqual(['FR-60', 'FR-69', 'NFR-6']);
     expect(found.has('FR-6')).toBe(false);
@@ -78,6 +78,10 @@ describe('traceability', () => {
     expect(RETIRED.filter((id) => planted.has(id))).toStrictEqual(['FR-6', 'FR-25']);
     const used = tracedIds(testSources);
     expect(RETIRED.filter((id) => used.has(id))).toStrictEqual([]);
+  });
+
+  it('NFR-13 this file self-traces exactly the ids it verifies', () => {
+    expect([...TRACED_HERE].sort()).toStrictEqual(['FR-55', 'FR-56', 'NFR-13']);
   });
 
   it('NFR-13 every expected requirement id appears in a test name', () => {
