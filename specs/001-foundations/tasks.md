@@ -59,11 +59,11 @@ Rules for every task: one `feat/...` (or `chore/...`) branch and PR into `rewrit
   - Commit: `test(sim): add fairness, scale, purity and language tests`.
   - Done when: all four suites green locally and in CI.
 
-- [x] **T10. Traceability (commits done; CI demo pending gh auth), CI demonstration and close-out.** FR-55, FR-56, done criteria
+- [x] **T10. Traceability, CI demonstration and close-out.** FR-55, FR-56, done criteria
   - Files: `packages/sim/test/traceability.test.ts`, `specs/001-foundations/spec.md` (status -> `implemented`, at the end), `MEMORY.md`.
   - Tests first: traceability test reads all test sources (raw glob) and asserts every FR-1..FR-54 and NFR-1..NFR-6 id appears in a test name; fails listing missing ids.
   - CI demo: open one passing PR and one PR with an intentionally failing test; screenshot/link of the failed check; close the failing PR unmerged.
   - Commit: `test: add requirement traceability check`; `docs: mark spec 001 implemented`.
   - Done when: traceability test green, both CI runs linked in the PR description, `MEMORY.md` updated with state, decisions and lessons of spec 001.
   - Progress: [x] `traceability.test.ts` written and green (also checks the `ci.yml` config for FR-55/FR-56); [x] missing coverage added (`packages/shared/test/map-shape.test.ts` for FR-1, FR-2); [x] `MEMORY.md` updated.
-  - Done: [x] commits; [x] reviewer validation (approved); [x] spec status -> `implemented`. Pending: [ ] push, PRs and CI demo (blocked: `gh` not authenticated, run `gh auth login`).
+  - Done: [x] commits; [x] reviewer validation (approved); [x] spec status -> `implemented`. [x] push; [x] PR #1 (https://github.com/agarcial16/MBRG/pull/1) with passing CI run (https://github.com/agarcial16/MBRG/actions/runs/38621911157); [x] CI demo: PR #2 with an intentional failing test, failing run (https://github.com/agarcial16/MBRG/actions/runs/38621989106), PR #2 closed unmerged.
