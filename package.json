@@ -1,0 +1,19 @@
+{
+  "name": "mbrg",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p packages/shared/tsconfig.json && tsc -p packages/sim/tsconfig.json && tsc -p tsconfig.test.json"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
+  }
+}
