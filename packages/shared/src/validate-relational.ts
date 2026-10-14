@@ -1,9 +1,10 @@
 import type { ValidationError } from './errors';
 import { isValidId } from './ids';
+import { entryKind } from './kinds';
 import type { FactionId, MapData, TerritoryId } from './types';
 
 /**
- * FR-21..FR-27, FR-69. Precondition: the structural phase found no blocking error, so every entry
+ * FR-21..FR-27, FR-66, FR-69..FR-71. Precondition: the structural phase found no blocking error, so every entry
  * is an object with a unique valid id and a list of valid neighbor ids. Owners may still be missing or
  * invalid. Only reads the input.
  *
@@ -42,9 +43,12 @@ export function validateRelational(map: MapData): ValidationError[] {
     }
   }
 
-  // FR-26, FR-69: factions are the distinct valid owners; several territories per faction are fine.
+  // FR-26, FR-69, FR-70: factions are the distinct valid own owners of land entries (D4: an inherited
+  // owner does not count). Owners on sea and invalid-kind entries are never counted. Several territories
+  // per faction are fine.
   const factions = new Set<FactionId>();
   for (const t of territories) {
+    if (entryKind(t) !== 'land' || !Object.hasOwn(t, 'owner')) continue;
     const owner: unknown = (t as { owner?: unknown }).owner;
     if (isValidId(owner)) factions.add(owner);
   }

@@ -30,7 +30,7 @@ Rules for every task:
   - Commit: `feat(shared): validate entry kinds and sea zone owners`.
   - Done when: structural tests green with exact `toStrictEqual` lists; language test produces every FR-64 kind.
 
-- [ ] **T4. Relational validation with sea.** FR-66 (relational), FR-70, FR-71, FR-62 (validation), FR-63 (validation), NFR-8
+- [x] **T4. Relational validation with sea.** FR-66 (relational), FR-70, FR-71, FR-62 (validation), FR-63 (validation), NFR-8
   - Files: `packages/shared/src/validate-relational.ts`, `packages/shared/test/validate-sea.test.ts`.
   - Tests first: invalid-kind + relational errors in one pass; invalid-kind + blocking elsewhere -> structural only; invalid-kind bridge; owners on sea/invalid-kind never counted; only-sea map; one faction + seas; islands through sea connected; groups with sea ids; one-way land-sea link; moved sea zone; `kind: 'land'` added gives identical results; NFR-8 (a) over the 001 validation fixtures and each (b) difference; D4 inherited owner not counted.
   - Code: factions = own valid owners of land entries (D4); connectivity unchanged.

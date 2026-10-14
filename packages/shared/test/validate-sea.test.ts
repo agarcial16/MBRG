@@ -265,3 +265,167 @@ describe('structural validation of kinds', () => {
     expect(input).toStrictEqual(copy);
   });
 });
+
+// Full validation (structural + relational), as validateMap returns it.
+const fullErrors = (input: unknown) => {
+  const r = validateMap(input);
+  return r.ok ? [] : r.errors;
+};
+
+describe('relational validation with sea', () => {
+  it('FR-66 an invalid-kind entry with unknown, self, duplicate and asymmetric links reports all in one pass', () => {
+    const input = {
+      territories: [land(1, 1, [2]), land(2, 2, [1]), { id: 3, kind: 'x', neighbors: [9, 3, 1, 1, 2] }],
+    };
+    expect(fullErrors(input)).toStrictEqual([
+      { kind: 'invalid-kind', position: 2, id: 3 },
+      { kind: 'unknown-neighbor', territory: 3, neighbor: 9 },
+      { kind: 'self-neighbor', territory: 3 },
+      { kind: 'duplicate-neighbor', territory: 3, neighbor: 1 },
+      { kind: 'asymmetric-adjacency', from: 3, to: 1 },
+      { kind: 'asymmetric-adjacency', from: 3, to: 2 },
+      { kind: 'disconnected-map', groups: [[1, 2], [3]] },
+    ]);
+  });
+
+  it('FR-66 invalid-kind plus a blocking error elsewhere gives only structural errors', () => {
+    const input = { territories: [{ id: 1, kind: 'x', neighbors: [9] }, { id: 2, owner: 1, neighbors: 'n' }] };
+    expect(fullErrors(input).map((e) => e.kind)).toStrictEqual(['invalid-neighbors', 'invalid-kind']);
+  });
+
+  it('FR-66 FR-71 an invalid-kind entry is the only bridge and still connects the map', () => {
+    const input = { territories: [land(1, 1, [2]), { id: 2, kind: 'x', neighbors: [1, 3] }, land(3, 2, [2])] };
+    expect(fullErrors(input)).toStrictEqual([{ kind: 'invalid-kind', position: 1, id: 2 }]);
+  });
+
+  it('FR-66 FR-70 owners on invalid-kind entries never count as factions', () => {
+    const input = { territories: [land(1, 1, [2]), { id: 2, kind: 'x', owner: 2, neighbors: [1] }] };
+    expect(fullErrors(input)).toStrictEqual([
+      { kind: 'invalid-kind', position: 1, id: 2 },
+      { kind: 'too-few-factions', count: 1 },
+    ]);
+  });
+
+  it('FR-70 an owner on a sea zone is sea-owner and never counts as a faction', () => {
+    const input = { territories: [land(1, 1, [2, 3]), land(2, 2, [1, 3]), { ...sea(3, [1, 2]), owner: 3 }] };
+    expect(fullErrors(input)).toStrictEqual([{ kind: 'sea-owner', position: 2, id: 3 }]);
+    const lone = { territories: [land(1, 1, [2]), { ...sea(2, [1]), owner: 3 }] };
+    expect(fullErrors(lone)).toStrictEqual([
+      { kind: 'sea-owner', position: 1, id: 2 },
+      { kind: 'too-few-factions', count: 1 },
+    ]);
+  });
+
+  it('FR-70 a map of only sea zones gives too-few-factions 0 and the sea groups', () => {
+    const input = { territories: [sea(1, [2]), sea(2, [1]), sea(3, [])] };
+    expect(fullErrors(input)).toStrictEqual([
+      { kind: 'too-few-factions', count: 0 },
+      { kind: 'disconnected-map', groups: [[1, 2], [3]] },
+    ]);
+    expect(fullErrors({ territories: [sea(1, [])] })).toStrictEqual([{ kind: 'too-few-factions', count: 0 }]);
+  });
+
+  it('FR-70 one faction with seas gives too-few-factions 1, a faction on two lands counts once', () => {
+    const input = { territories: [land(1, 5, [3]), land(2, 5, [3]), sea(3, [1, 2])] };
+    expect(fullErrors(input)).toStrictEqual([{ kind: 'too-few-factions', count: 1 }]);
+  });
+
+  it('FR-70 D4 an inherited owner is not a faction: it is only missing-owner', () => {
+    const e = Object.create({ owner: 2 }) as Record<string, unknown>;
+    Object.assign(e, { id: 2, neighbors: [1] });
+    const input = { territories: [land(1, 1, [2]), e] };
+    expect(fullErrors(input)).toStrictEqual([
+      { kind: 'missing-owner', position: 1, id: 2 },
+      { kind: 'too-few-factions', count: 1 },
+    ]);
+  });
+
+  it('FR-71 FR-62 two islands joined only through a sea zone are connected', () => {
+    const input = { territories: [land(1, 1, [3]), land(2, 2, [3]), sea(3, [1, 2])] };
+    expect(validateMap(input).ok).toBe(true);
+  });
+
+  it('FR-71 FR-62 disconnected groups list sea ids in entry order; a lone sea zone is its own group', () => {
+    const input = {
+      territories: [land(1, 1, [3]), sea(5, []), land(2, 2, [3]), sea(3, [1, 2]), land(4, 3, [6]), sea(6, [4])],
+    };
+    expect(fullErrors(input)).toStrictEqual([{ kind: 'disconnected-map', groups: [[1, 2, 3], [5], [4, 6]] }]);
+  });
+
+  it('FR-71 a one-way land-sea link is asymmetric-adjacency and does not connect', () => {
+    const input = { territories: [land(1, 1, [2]), sea(2, []), land(3, 2, [2])] };
+    expect(fullErrors(input)).toStrictEqual([
+      { kind: 'asymmetric-adjacency', from: 1, to: 2 },
+      { kind: 'asymmetric-adjacency', from: 3, to: 2 },
+      { kind: 'disconnected-map', groups: [[1], [2], [3]] },
+    ]);
+  });
+
+  it('FR-62 moving a sea zone in the list changes only positions and group order', () => {
+    const a = [land(1, 1, [3]), land(2, 2, [3]), sea(3, [1, 2]), land(4, 3, [])];
+    const b = [sea(3, [1, 2]), land(1, 1, [3]), land(2, 2, [3]), land(4, 3, [])];
+    expect(fullErrors({ territories: a })).toStrictEqual([{ kind: 'disconnected-map', groups: [[1, 2, 3], [4]] }]);
+    expect(fullErrors({ territories: b })).toStrictEqual([{ kind: 'disconnected-map', groups: [[3, 1, 2], [4]] }]);
+    const bad = [{ ...sea(3, [1, 2]), owner: 1 }, land(1, 1, [3]), land(2, 2, [])];
+    const badMoved = [land(1, 1, [3]), land(2, 2, []), { ...sea(3, [1, 2]), owner: 1 }];
+    expect(fullErrors({ territories: bad }).map((e) => e.kind)).toStrictEqual(
+      fullErrors({ territories: badMoved }).map((e) => e.kind),
+    );
+  });
+
+  it('FR-63 adding kind "land" to all or some entries gives identical results', () => {
+    const maps: Array<{ territories: Array<Record<string, unknown>> }> = [
+      { territories: [land(1, 1, [2]), land(2, 2, [1, 3]), sea(3, [2])] },
+      { territories: [land(1, 1, [2, 9]), land(2, 1, [1]), land(3, 3, [])] },
+      { territories: [{ id: 1, neighbors: [] }, land(2, 2, [1])] },
+      { territories: [land(1, 1, [2]), land(2, 2, [1])] },
+    ];
+    for (const m of maps) {
+      const some = { territories: m.territories.map((e, i) => (i === 0 && !('kind' in e) ? { ...e, kind: 'land' } : e)) };
+      const all = { territories: m.territories.map((e) => ('kind' in e ? e : { ...e, kind: 'land' })) };
+      expect(fullErrors(some)).toStrictEqual(fullErrors(m));
+      expect(fullErrors(all)).toStrictEqual(fullErrors(m));
+    }
+  });
+
+  const OLD_FIXTURES: Array<[string, unknown[], unknown[]]> = [
+    ['valid', [land(1, 1, [2]), land(2, 2, [1])], []],
+    ['one faction', [land(1, 5, [2]), land(2, 5, [1])], [{ kind: 'too-few-factions', count: 1 }]],
+    [
+      'one way',
+      [land(1, 1, [2]), land(2, 2, [])],
+      [
+        { kind: 'asymmetric-adjacency', from: 1, to: 2 },
+        { kind: 'disconnected-map', groups: [[1], [2]] },
+      ],
+    ],
+    [
+      'unknown and self',
+      [land(1, 1, [1, 9]), land(2, 2, [])],
+      [
+        { kind: 'unknown-neighbor', territory: 1, neighbor: 9 },
+        { kind: 'self-neighbor', territory: 1 },
+        { kind: 'disconnected-map', groups: [[1], [2]] },
+      ],
+    ],
+    ['multi-territory faction', [land(1, 7, [2]), land(2, 8, [1, 3]), land(3, 7, [2])], []],
+  ];
+  it.each(OLD_FIXTURES)('NFR-8 (a) the 001 fixture "%s" (no kind field) gives the same errors', (_l, entries, expected) => {
+    expect(fullErrors({ territories: entries })).toStrictEqual(expected);
+  });
+
+  it('NFR-8 (b) the only differences from 001: kind accepted, sea needs no owner, factions are land owners', () => {
+    expect(validateMap({ territories: [land(1, 1, [3]), land(2, 2, [3]), sea(3, [1, 2])] }).ok).toBe(true);
+    const lone = { territories: [land(1, 1, [2]), { ...sea(2, [1]), owner: 2 }] };
+    expect(fullErrors(lone).map((e) => e.kind)).toStrictEqual(['sea-owner', 'too-few-factions']);
+  });
+
+  it('FR-28 relational validation with sea and invalid-kind entries does not mutate its input', () => {
+    const input = {
+      territories: [land(1, 1, [3, 9]), land(2, 2, [3]), sea(3, [1, 2]), { id: 4, kind: 'q', neighbors: [1] }],
+    };
+    const copy = structuredClone(input);
+    validateMap(input);
+    expect(input).toStrictEqual(copy);
+  });
+});
