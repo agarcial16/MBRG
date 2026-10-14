@@ -58,7 +58,7 @@ Rules for every task:
   - Commit: `feat(sim): absorb through land and shared sea zones`.
   - Done when: all tests green; `git diff --exit-code -- packages/sim/test/golden` clean.
 
-- [ ] **T8. Golden matches with sea.** NFR-9, FR-51
+- [x] **T8. Golden matches with sea.** NFR-9, FR-51
   - Files: `packages/sim/test/helpers/sea-maps.ts` (4 maps), `packages/sim/test/golden-sea.test.ts`, `packages/sim/test/golden/sea-*.json` (4 new).
   - Tests first: each map valid with its T; property test per pair (i)-(iv) at hard-coded round k (plan section 7), seed S and k found once by a throwaway local search over seeds 0..999 (not committed).
   - Generate: `npx vitest -u packages/sim/test/golden-sea.test.ts`; review every new file; confirm only `sea-*.json` are new and the four 001 files are untouched.
