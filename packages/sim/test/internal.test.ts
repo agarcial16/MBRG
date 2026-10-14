@@ -132,6 +132,30 @@ describe('round engine', () => {
     expect(neighborFactions(map, s, 2)).toStrictEqual([3]);
   });
 
+  it('FR-36 two candidates are ordered by the current state, not the initial one (D3)', () => {
+    // Initial owners: t1=1, t2=2, t3=3, t4=4 -> initial faction order [1,2,3,4].
+    // Faction 4 touches t1 and t2. Now t1 belongs to faction 3 (first owned territory: t1)
+    // and faction 2 first owns t2, so the CURRENT order is [3,2,4]. Frozen initial order
+    // would give [2,3].
+    const map = mapFrom(
+      [1, 2, 3, 4],
+      [
+        [4, 1],
+        [4, 2],
+        [2, 3],
+      ],
+    );
+    const s = stateOf(1, [
+      [1, 3],
+      [2, 2],
+      [3, 3],
+      [4, 4],
+    ]);
+    expect(livingFactions(initialState(map))).toStrictEqual([1, 2, 3, 4]);
+    expect(livingFactions(s)).toStrictEqual([3, 2, 4]);
+    expect(neighborFactions(map, s, 4)).toStrictEqual([3, 2]);
+  });
+
   it('FR-36 the neighbor relation counts mutual links only', () => {
     // 1 lists 2, but 2 does not list 1: not a neighbor.
     const map: MapData = {
