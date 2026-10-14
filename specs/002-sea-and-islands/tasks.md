@@ -77,9 +77,9 @@ Rules for every task:
   - Local part done: `PENDING` deleted; traceability covers FR-1..FR-81 and NFR-1..NFR-13 minus FR-6/FR-25 (a temporarily renamed title was reported as missing, then reverted).
   - Reviewer's optional suggestions applied in one extra commit (`factions.ts` splits the import cycle; `Clasico` allowance limited to sim `types.ts`; `TRACED_HERE` derived from this file's titles; comments aligned; NFR-8 (b) `invalid-kind` test; `isSeaZone` doc).
   - Still pending (not done by the implementer):
-    - [ ] Reviewer validates FR by FR against the spec done criteria.
+    - [x] Reviewer validates FR by FR against the spec done criteria (APPROVED at 7404bea, 311 tests).
     - [ ] Push the branch; open the PR into `rewrite` (issues linked per D3); CI green on the PR.
     - [ ] Squash merge, only after the user's OK.
-    - [ ] Spec status -> `implemented` (commit `docs: mark spec 002 implemented`), last.
+    - [x] Spec status -> `implemented` (commit `docs: mark spec 002 implemented`).
   - Commits: `test: trace spec 002 requirements`; `docs: mark spec 002 implemented`.
   - Done when: traceability green, CI run linked in the PR, four 001 goldens byte-identical, `MEMORY.md` updated (state, decisions, lessons; drop the obsolete FR-6 lesson).

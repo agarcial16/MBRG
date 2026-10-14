@@ -1,5 +1,5 @@
 # Spec 002 — Sea and islands
-Status: approved
+Status: implemented
 
 ## Context and goal
 Spec 001 only accepts maps in which every territory is land, every faction starts with exactly one territory, and the whole map is connected by land. Real maps have seas, islands and countries made of several provinces (Japan, Denmark). Spec 001 lists "islands and archipelagos" as future work and rejects them today as `disconnected-map`.
