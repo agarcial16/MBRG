@@ -40,9 +40,7 @@ const TRACED_HERE = ['FR-55', 'FR-56', 'NFR-13'];
  * Spec 002 ids that no test names yet. Each task removes the ids it covers; T10 deletes this list.
  * A test below fails if an id stays here after a test names it.
  */
-const PENDING: string[] = [
-  'NFR-10', 'NFR-11',
-];
+const PENDING: string[] = [];
 
 const expected = [
   ...Array.from({ length: 81 }, (_, i) => `FR-${i + 1}`),

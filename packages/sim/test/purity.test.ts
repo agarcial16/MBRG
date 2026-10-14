@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { validateMap } from '@mbrg/shared';
 import { getRounds, getState, totalRounds } from '../src/index';
 import { gridMap } from './helpers/maps';
+import { denmarkMap, oceanMap } from './helpers/sea-maps';
 
 const sources = {
   ...import.meta.glob('../src/**/*.ts', { query: '?raw', import: 'default', eager: true }),
@@ -88,12 +89,23 @@ describe('NFR-1 purity', () => {
     const r = getRounds(map, 99, 24);
     const s = getState(map, 99, 24);
     expect(r.ok && s.ok).toBe(true);
+
+    // NFR-1 with sea: candidates, widening through open ocean and the sea-aware validation.
+    for (const sea of [denmarkMap(), oceanMap()]) {
+      expect(validateMap(sea).ok).toBe(true);
+      const tt = totalRounds(sea);
+      expect(tt.ok).toBe(true);
+      if (!tt.ok) continue;
+      expect(getRounds(sea, 7, tt.value).ok).toBe(true);
+      expect(getState(sea, 7, tt.value).ok).toBe(true);
+    }
   });
 
   it('NFR-1 the source scan covers shared and sim sources', () => {
     const files = Object.keys(sources);
     expect(files.some((f) => f.endsWith('/shared/src/validate.ts'))).toBe(true);
     expect(files.some((f) => f.endsWith('/src/match.ts') && !f.includes('shared'))).toBe(true);
+    expect(files.some((f) => f.endsWith('/src/candidates.ts'))).toBe(true);
     expect(files.length).toBeGreaterThanOrEqual(12);
   });
 

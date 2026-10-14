@@ -65,7 +65,7 @@ Rules for every task:
   - Commit: `test(sim): add golden matches with sea zones`.
   - Done when: 4 goldens committed, green with `CI=1`, property tests green.
 
-- [ ] **T9. Fairness, scale and purity with sea.** NFR-10, NFR-11, NFR-12, NFR-1
+- [x] **T9. Fairness, scale and purity with sea.** NFR-10, NFR-11, NFR-12, NFR-1
   - Files: `packages/sim/test/{fairness-sea.test.ts,scale-sea.test.ts,purity.test.ts}` (purity: add a full sea match to the throwing-clock run).
   - Tests first: NFR-10 round-0 candidate assertion then the 10,000-seed distribution within ±5 pp; NFR-11 map per plan section 8 (valid, no land-to-land link, T = 499, < 1000 ms).
   - Commit: `test(sim): add fairness and scale tests with sea zones`.
