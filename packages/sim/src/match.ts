@@ -2,10 +2,11 @@
 import { validateMap } from '@mbrg/shared';
 import type { MapData, Result, ValidationError } from '@mbrg/shared';
 import { checkRound, checkSeed } from './inputs';
-import { initialState, livingFactions, playRound } from './internal';
+import { livingFactions } from './factions';
+import { initialState, playRound } from './internal';
 import type { MatchError, MatchState, RoundRecord } from './types';
 
-export { ownerOf } from './internal';
+export { ownerOf } from './factions';
 
 /** FR-42: T = number of factions - 1. */
 export function totalRounds(map: unknown): Result<number, ValidationError> {

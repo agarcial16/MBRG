@@ -75,6 +75,7 @@ Rules for every task:
   - Files: `packages/sim/test/traceability.test.ts` (delete `PENDING`), `specs/002-sea-and-islands/spec.md` (status -> `implemented`, last), `MEMORY.md` (local).
   - Tests first: with `PENDING` removed the check expects FR-1..FR-81 and NFR-1..NFR-13 minus FR-6/FR-25; fix any gap it reports.
   - Local part done: `PENDING` deleted; traceability covers FR-1..FR-81 and NFR-1..NFR-13 minus FR-6/FR-25 (a temporarily renamed title was reported as missing, then reverted).
+  - Reviewer's optional suggestions applied in one extra commit (`factions.ts` splits the import cycle; `Clasico` allowance limited to sim `types.ts`; `TRACED_HERE` derived from this file's titles; comments aligned; NFR-8 (b) `invalid-kind` test; `isSeaZone` doc).
   - Still pending (not done by the implementer):
     - [ ] Reviewer validates FR by FR against the spec done criteria.
     - [ ] Push the branch; open the PR into `rewrite` (issues linked per D3); CI green on the PR.

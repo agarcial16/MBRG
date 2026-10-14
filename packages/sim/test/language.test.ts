@@ -73,6 +73,11 @@ function collectKinds(): Set<string> {
   return kinds;
 }
 
+/** Only sim `types.ts` may quote the UI-string name "Clásico"; any other non-ASCII fails. */
+function nonAsciiView(file: string, src: string): string {
+  return file === '../src/types.ts' ? src.replaceAll('Clásico', 'Classico') : src;
+}
+
 describe('NFR-6 language', () => {
   it('NFR-6 NFR-12 every error kind produced is in the literal spec list, and all of them are produced', () => {
     const produced = collectKinds();
@@ -97,16 +102,25 @@ describe('NFR-6 language', () => {
     }
   });
 
-  it('NFR-6 sim and shared sources contain only ASCII, except the UI-string name "Clásico" quoted in a comment', () => {
+  it('NFR-6 sim and shared sources contain only ASCII, except the UI-string name "Clásico" quoted in sim types.ts', () => {
     const files = {
       ...import.meta.glob('../src/**/*.ts', { query: '?raw', import: 'default', eager: true }),
       ...import.meta.glob('../../shared/src/**/*.ts', { query: '?raw', import: 'default', eager: true }),
     } as Record<string, string>;
     expect(Object.keys(files).length).toBeGreaterThanOrEqual(12);
     const offenders = Object.entries(files)
-      .filter(([, src]) => /[^\x00-\x7F]/.test(src.replaceAll('Clásico', 'Classico')))
+      .filter(([f, src]) => /[^\x00-\x7F]/.test(nonAsciiView(f, src)))
       .map(([f]) => f);
     expect(offenders).toStrictEqual([]);
+  });
+
+  it('NFR-6 the "Clásico" allowance covers sim types.ts only', () => {
+    const word = 'a Clásico b';
+    const nonAscii = (f: string, s: string) => /[^\x00-\x7F]/.test(nonAsciiView(f, s));
+    expect(nonAscii('../src/types.ts', word)).toBe(false);
+    expect(nonAscii('../src/candidates.ts', word)).toBe(true);
+    expect(nonAscii('../../shared/src/types.ts', word)).toBe(true);
+    expect(nonAscii('../src/types.ts', 'a é b')).toBe(true);
   });
 });
 

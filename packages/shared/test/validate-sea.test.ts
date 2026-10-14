@@ -306,6 +306,16 @@ describe('relational validation with sea', () => {
     ]);
   });
 
+  it('NFR-8 (b) an invalid-kind entry gets invalid-kind and no owner check; its owner is not a faction', () => {
+    const badOwner = { territories: [land(1, 1, [2, 3]), land(2, 2, [1, 3]), { id: 3, kind: 'x', owner: 'bad', neighbors: [1, 2] }] };
+    expect(fullErrors(badOwner)).toStrictEqual([{ kind: 'invalid-kind', position: 2, id: 3 }]);
+    const lone = { territories: [land(1, 1, [2]), { id: 2, kind: 'x', owner: 2, neighbors: [1] }] };
+    expect(fullErrors(lone)).toStrictEqual([
+      { kind: 'invalid-kind', position: 1, id: 2 },
+      { kind: 'too-few-factions', count: 1 },
+    ]);
+  });
+
   it('FR-70 an owner on a sea zone is sea-owner and never counts as a faction', () => {
     const input = { territories: [land(1, 1, [2, 3]), land(2, 2, [1, 3]), { ...sea(3, [1, 2]), owner: 3 }] };
     expect(fullErrors(input)).toStrictEqual([{ kind: 'sea-owner', position: 2, id: 3 }]);

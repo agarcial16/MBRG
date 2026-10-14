@@ -12,7 +12,10 @@ export function entryKind(entry: object): EntryKind {
   return 'invalid';
 }
 
-/** FR-57, FR-58: narrows a validated entry to a sea zone; uses the own-property kind rule of `entryKind`. */
+/**
+ * FR-57, FR-58: narrows a validated entry to a sea zone; uses the own-property kind rule of `entryKind`.
+ * Assumes a validated map: an unvalidated entry with a corrupt kind such as 'Sea' reads as not-sea.
+ */
 export function isSeaZone(entry: MapEntry): entry is SeaZone {
   return entryKind(entry) === 'sea';
 }

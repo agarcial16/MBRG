@@ -52,8 +52,9 @@ describe('001 goldens unchanged by kind land (NFR-7, FR-63)', () => {
 });
 
 // ---- NFR-9: new goldens with sea zones ----
-// Each (map, seed, round k) was found once by a throwaway local search over seeds 0..11 (not
-// committed): the first seed where the named property holds at some round. The golden files are
+// Each (map, seed, round k) was found once by a throwaway local search (not committed): the first
+// seed where the named property holds at some round. The search range was 0..11 and the committed
+// goldens were found within seeds 0..1. The golden files are
 // written only with `npx vitest -u packages/sim/test/golden-sea.test.ts`; CI never writes them.
 
 const pretty = (x: unknown): string => JSON.stringify(x, null, 2) + '\n';

@@ -2,6 +2,7 @@
 import { isSeaZone } from '@mbrg/shared';
 import type { FactionId, MapData, Result, TerritoryId } from '@mbrg/shared';
 import { absorptionCandidates } from './candidates';
+import { livingFactions } from './factions';
 import { pickIndex, roundRng } from './rng';
 import { MODE } from './types';
 import type { MatchState, RoundRecord, SimError } from './types';
@@ -13,25 +14,6 @@ export function initialState(map: MapData): MatchState {
     round: 0,
     owners: map.territories.flatMap((t): [TerritoryId, FactionId][] => (isSeaZone(t) ? [] : [[t.id, t.owner]])),
   };
-}
-
-/** FR-34: owner of a territory by id. */
-export function ownerOf(state: MatchState, territory: TerritoryId): FactionId | undefined {
-  for (const [t, f] of state.owners) if (t === territory) return f;
-  return undefined;
-}
-
-/** Distinct owners in first-seen order of the current state (faction order). */
-export function livingFactions(state: MatchState): FactionId[] {
-  const seen = new Set<FactionId>();
-  const out: FactionId[] = [];
-  for (const [, f] of state.owners) {
-    if (!seen.has(f)) {
-      seen.add(f);
-      out.push(f);
-    }
-  }
-  return out;
 }
 
 /**

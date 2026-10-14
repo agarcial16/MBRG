@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import ownSource from './traceability.test.ts?raw';
 
 const testSources = import.meta.glob('../../*/test/**/*.test.ts', {
   query: '?raw',
@@ -33,8 +34,13 @@ export function tracedIds(sources: Record<string, string>): Set<string> {
 /** Ids retired by spec 002 (superseded by FR-60, FR-69 and FR-70): never allowed in a test title. */
 const RETIRED = ['FR-6', 'FR-25'];
 
-/** FR-55, FR-56 and NFR-13 are traced by the tests in this file, which the scan skips. */
-const TRACED_HERE = ['FR-55', 'FR-56', 'NFR-13'];
+/** Ids traced by the test titles of this very file (the scan of other files skips it). */
+const OWN_SOURCE = ownSource;
+// Only real declarations (an it/describe call opening its line); code quoted inside a string is ignored.
+const OWN_DECLARATIONS = OWN_SOURCE.split(/\r?\n/)
+  .filter((l) => /^\s*(?:it|test|describe)(?:\.\w+)*\(/.test(l))
+  .join('\n');
+const TRACED_HERE = [...tracedIds({ 'x/own.test.ts': OWN_DECLARATIONS })];
 
 const expected = [
   ...Array.from({ length: 81 }, (_, i) => `FR-${i + 1}`),

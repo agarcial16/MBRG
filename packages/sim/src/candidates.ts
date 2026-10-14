@@ -1,7 +1,7 @@
 // Internal absorption candidates (FR-81). Not re-exported from index.ts.
 import { isSeaZone } from '@mbrg/shared';
 import type { FactionId, MapData, MapEntry } from '@mbrg/shared';
-import { livingFactions } from './internal';
+import { livingFactions } from './factions';
 import type { MatchState } from './types';
 
 /** FR-81: the absorption candidates of a faction and how they were found. */

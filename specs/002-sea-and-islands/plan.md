@@ -3,7 +3,7 @@ Spec: `specs/002-sea-and-islands/spec.md` (`Status: approved`). Planner calls ap
 
 ## 0. Starting point (branch `rewrite`, 8f60ea8)
 - `packages/shared/src`: `types.ts` (`Territory {id, owner, neighbors}`, `MapData`), `errors.ts` (union + `VALIDATION_KIND_ORDER`, 16 kinds), `validate-structural.ts` (index walk, own-property reads, `TERRITORY_FIELDS`), `validate-relational.ts` (neighbor checks, FR-25/FR-26 faction map, BFS over all entries), `validate.ts` (`firstPosition`, `sortErrors`, `validateMap`).
-- `packages/sim/src`: `internal.ts` (`initialState`, `ownerOf`, `livingFactions`, `neighborFactions`, `playRound`), `match.ts`, `rng.ts` (sfc32, `roundRng`, `pickIndex`), `types.ts`, `inputs.ts`, `index.ts` (exports exactly `MODE, getRounds, getState, ownerOf, totalRounds`; a test pins this list).
+- `packages/sim/src`: `factions.ts` (`ownerOf`, `livingFactions`; shared by `internal.ts` and `candidates.ts` so they do not import each other), `internal.ts` (`initialState`, `neighborFactions`, `playRound`), `match.ts`, `rng.ts` (sfc32, `roundRng`, `pickIndex`), `types.ts`, `inputs.ts`, `index.ts` (exports exactly `MODE, getRounds, getState, ownerOf, totalRounds`; a test pins this list).
 - Tests: 14 files, 169 tests; goldens `sim/test/golden/{pair-seed0,hand8-seed42,grid5x5-seed4294967295,sfc32-seed0}.json` via `toMatchFileSnapshot`; traceability expects FR-1..FR-54, NFR-1..NFR-6.
 - `specs/002-sea-and-islands/` is untracked; it is committed first on the feature branch (T1).
 
@@ -31,6 +31,7 @@ packages/shared/src/
   validate.ts             firstPosition handles invalid-kind and sea-owner            FR-62, FR-64
   index.ts                re-export new types and kinds helpers
 packages/sim/src/
+  factions.ts     (new)   ownerOf, livingFactions moved out of internal.ts (no import cycle) FR-34, FR-35
   internal.ts             initialState skips sea; playRound uses candidates            FR-72, FR-75, FR-79
   candidates.ts   (new)   absorptionCandidates (FR-81), coast/sea-sharing/widening    FR-75..FR-78, FR-81
   (match.ts, rng.ts, types.ts, inputs.ts, index.ts unchanged)
@@ -44,7 +45,7 @@ packages/sim/test/
   fairness-sea.test.ts, scale-sea.test.ts (new)   NFR-10, NFR-11
   language.test.ts, traceability.test.ts, match.test.ts, ...  edited (section 9)
 ```
-Decision: new code in two new files (`kinds.ts`, `candidates.ts`) instead of growing `validate-structural.ts` / `internal.ts`. `candidates.ts` is internal: `index.ts` does not re-export it. Discarded: putting candidate search in `internal.ts` (mixes the round engine with graph search; harder to review FR by FR).
+Decision: new code in two new files (`kinds.ts`, `candidates.ts`) instead of growing `validate-structural.ts` / `internal.ts`. `candidates.ts` is internal: `index.ts` does not re-export it (nor `factions.ts`; the public `ownerOf` is re-exported by `match.ts`). Discarded: putting candidate search in `internal.ts` (mixes the round engine with graph search; harder to review FR by FR).
 
 ## 3. Shared types (FR-57, FR-58)
 ```ts
@@ -161,7 +162,7 @@ Decision: compute candidates in a separate pure function and keep the two `pickI
   | `sea-denmark` | Germany G (land to Denmark's Jutland, no coast on K), Denmark Dk = Jutland + Zealand (Zealand on Kattegat K), Sweden Sw on K, Poland P land to G | (ii) direct candidates contain a land-only faction (G) and a sea-only one (Sw) |
   | `sea-ocean` | chain S1-S2-S3-S4, S2 and S3 open ocean; island factions X, Y on S1, Z, W on S4; one coastal continent pair | (iii) `how: 'widened'`, `distance >= 2` |
   | `sea-japan` | faction J owns 3 islands on 3 different zones (no J land link between them); continent factions | (iv) map assertion: J's islands not linked through J's land at round 0; record k transfers >= 2 territories |
-  Seed S and round k: the implementer searches seeds 0..999 once with a throwaway local script (not committed) for the smallest S where the property holds at some round, then hard-codes S and k with a comment. Each map is also asserted valid and its T checked.
+  Seed S and round k: the implementer searches seeds once (a bounded range, 0..999 at most) with a throwaway local script (not committed) for the first S where the property holds at some round (done: search range 0..11, found within 0..1 for the committed goldens), then hard-codes S and k with a comment. Each map is also asserted valid and its T checked.
 - **Exact-distance fixtures (NFR-9 tail)**: hand-built maps + states in `candidates.test.ts` giving `widened` with distance exactly 1 and exactly 2.
 
 ## 8. Fixtures for NFR-10 and NFR-11

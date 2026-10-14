@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { MapData } from '@mbrg/shared';
 import * as sim from '../src/index';
 import { absorptionCandidates } from '../src/candidates';
-import { initialState, livingFactions, neighborFactions, playRound } from '../src/internal';
+import { livingFactions } from '../src/factions';
+import { initialState, neighborFactions, playRound } from '../src/internal';
 import type { MatchState } from '../src/types';
 import { gridMap, mapFrom } from './helpers/maps';
 import { land, sea, seaMapFrom } from './helpers/sea-maps';
@@ -136,7 +137,7 @@ describe('absorption candidates, widening through the sea (FR-77, FR-78, NFR-9)'
       [[1, 2], [2, 3], [3, 4], [4, 5]],
     );
     expect(absorptionCandidates(map, initialState(map), 1)).toStrictEqual(widened(2, [2]));
-    // An open-ocean zone touching a rival is not a direct sharer: a faction on the coast of zone 3 only.
+    // Faction 2 touches only zone 3, which is not a coast of faction 1: it is found by widening, not directly.
     const ocean = seaMapFrom([land(1, 1), sea(2), sea(3), land(4, 2)], [[1, 2], [2, 3], [3, 4]]);
     expect(absorptionCandidates(ocean, initialState(ocean), 1).how).toBe('widened');
   });
