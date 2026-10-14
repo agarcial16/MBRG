@@ -12,7 +12,7 @@ export function entryKind(entry: object): EntryKind {
   return 'invalid';
 }
 
-/** FR-57: narrows a validated entry to a sea zone. */
+/** FR-57, FR-58: narrows a validated entry to a sea zone; uses the own-property kind rule of `entryKind`. */
 export function isSeaZone(entry: MapEntry): entry is SeaZone {
-  return entry.kind === 'sea';
+  return entryKind(entry) === 'sea';
 }

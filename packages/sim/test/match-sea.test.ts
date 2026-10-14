@@ -195,3 +195,39 @@ describe('match with sea zones (FR-60, FR-72..FR-80)', () => {
     }
   });
 });
+
+describe('inherited kind is not sea (FR-58 FR-72 FR-80)', () => {
+  /** Same entry, but `kind: 'sea'` sits on the prototype (not own), as non-JSON input could. */
+  const withInheritedSea = (map: MapData, id: number): MapData => ({
+    territories: map.territories.map((t) =>
+      t.id === id ? (Object.assign(Object.create({ kind: 'sea' }) as object, t) as typeof t) : t,
+    ),
+  });
+
+  it('FR-58 FR-72 FR-80 a land entry with an inherited sea kind stays land: state, rounds and match work', () => {
+    const base = seaMapFrom([land(1, 1), land(2, 2)], [[1, 2]]);
+    const map = withInheritedSea(base, 2);
+    expect(initialState(map).owners).toStrictEqual([[1, 1], [2, 2]]);
+    expect(total(map)).toBe(1);
+    const recs = rounds(map, 7, 1);
+    expect(recs).toHaveLength(1);
+    const s = getState(map, 7, 1);
+    expect(s.ok).toBe(true);
+    if (!s.ok) throw new Error('unexpected failure');
+    expect(ownerOf(s.value, 2)).toBeDefined();
+  });
+
+  it('FR-58 FR-75 FR-80 absorptionCandidates treats an inherited sea kind as land, same as the plain map', () => {
+    const plain = widenMap();
+    for (const id of [1, 2, 3, 6]) {
+      const map = withInheritedSea(plain, id);
+      expect(initialState(map).owners).toStrictEqual(initialState(plain).owners);
+      expect(total(map)).toBe(total(plain));
+      const state = initialState(plain);
+      for (const f of livingFactions(state)) {
+        expect(absorptionCandidates(map, state, f)).toStrictEqual(absorptionCandidates(plain, state, f));
+      }
+      expect(rounds(map, 3, total(map))).toStrictEqual(rounds(plain, 3, total(plain)));
+    }
+  });
+});

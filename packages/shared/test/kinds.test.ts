@@ -35,6 +35,12 @@ describe('entry kind rule', () => {
     expect(entryKind(bad)).toBe('land');
   });
 
+  it('FR-58 isSeaZone is false for an inherited kind and true for an own one', () => {
+    const inherited = Object.assign(Object.create({ kind: 'sea' }) as object, { id: 2, owner: 2, neighbors: [1] }) as MapEntry;
+    expect(isSeaZone(inherited)).toBe(false);
+    expect(isSeaZone({ id: 2, neighbors: [1], kind: 'sea' })).toBe(true);
+  });
+
   it('FR-57 isSeaZone narrows the entry union', () => {
     const land: LandTerritory = { id: 1, owner: 5, neighbors: [2] };
     const landTagged: LandTerritory = { id: 3, owner: 6, neighbors: [], kind: 'land' };

@@ -56,7 +56,7 @@ interface MapData { territories: MapEntry[] }
 type EntryKind = 'land' | 'sea' | 'invalid';
 ```
 - `entryKind(entry: object): EntryKind` (pure, `kinds.ts`): `!Object.hasOwn(entry, 'kind')` -> `'land'`; value `=== 'land'` -> `'land'`; `=== 'sea'` -> `'sea'`; anything else (undefined present, null, `''`, `'Sea'`, numbers, booleans, lists, objects) -> `'invalid'`. Inherited `kind` is ignored (own-property presence, FR-58). Used by validation; the only place where the kind rule lives.
-- `isSeaZone(t: MapEntry): t is SeaZone` = `t.kind === 'sea'`. Used by sim on validated maps (narrows the union, so `t.owner` is only reachable on land).
+- `isSeaZone(t: MapEntry): t is SeaZone` = `entryKind(t) === 'sea'` (same own-property rule as validation: an inherited `kind` is not sea, FR-58). Used by sim on validated maps (narrows the union, so `t.owner` is only reachable on land).
 - `kind?: 'land'` keeps every 001 map (no `kind`) assignable to `MapData`; runtime validation, not the type, rejects a present `kind: undefined`.
 - Decision D1: rename `Territory` to `LandTerritory` and add `MapEntry`. Discarded: keeping the name `Territory` for the union (001 code and readers take "territory" as owned land, inviting `t.owner` on sea zones) and making `owner` optional on one interface (loses the compile-time guarantee that sea has no owner).
 - `ValidationError` gains `{ kind: 'invalid-kind'; position: number; id?: TerritoryId }` and `{ kind: 'sea-owner'; position: number; id?: TerritoryId }`; `multiple-initial-territories` is removed from the union (FR-69). `id` omitted (never undefined) when invalid, as in 001.
