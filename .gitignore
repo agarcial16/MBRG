@@ -4,3 +4,4 @@ dist/
 coverage/
 AGENTS.md
 MEMORY.md
+.claude/
