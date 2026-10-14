@@ -190,6 +190,8 @@ describe('structural validation', () => {
       { territories: [{ id: 1, neighbors: [] }] },
       { territories: [{ id: 1, owner: 0, neighbors: [] }] },
       { extra: 1, territories: [{ id: 1, owner: 1, neighbors: [], name: 'x' }] },
+      { territories: [{ id: 1, kind: 'x', neighbors: [] }] },
+      { territories: [{ id: 1, kind: 'sea', owner: 1, neighbors: [] }] },
     ];
     for (const input of nonBlocking) expect(validateStructural(input).blocking).toBe(false);
   });

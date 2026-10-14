@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { MapData } from '@mbrg/shared';
 import { validateMap } from '@mbrg/shared';
-import { initialState, livingFactions, neighborFactions, ownerOf, playRound } from '../src/internal';
+import { livingFactions, ownerOf } from '../src/factions';
+import { initialState, neighborFactions, playRound } from '../src/internal';
 import type { MatchState } from '../src/types';
 import { MODE } from '../src/types';
 import { gridMap, lineMap, mapFrom, pairMap, ringMap } from './helpers/maps';

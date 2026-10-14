@@ -73,22 +73,19 @@ describe('relational validation', () => {
     ]);
   });
 
-  it('FR-25 FR-6 a faction owning several territories gives multiple-initial-territories in map order', () => {
+  it('FR-60 FR-69 a faction owning several territories is valid: no multiple-initial-territories error', () => {
     const input = {
       territories: [t(1, 7, [2, 3]), t(2, 8, [1, 3]), t(3, 7, [1, 2]), t(4, 8, [3])],
     };
     expect(errorsOf(input)).toStrictEqual([
       { kind: 'asymmetric-adjacency', from: 4, to: 3 },
-      { kind: 'multiple-initial-territories', faction: 7, territories: [1, 3] },
-      { kind: 'multiple-initial-territories', faction: 8, territories: [2, 4] },
       { kind: 'disconnected-map', groups: [[1, 2, 3], [4]] },
     ]);
   });
 
-  it('FR-26 FR-25 all territories owned by one faction gives multiple-initial-territories and too-few-factions 1', () => {
+  it('FR-70 FR-69 all territories owned by one faction gives only too-few-factions 1', () => {
     const input = { territories: [t(1, 5, [2]), t(2, 5, [1])] };
     expect(errorsOf(input)).toStrictEqual([
-      { kind: 'multiple-initial-territories', faction: 5, territories: [1, 2] },
       { kind: 'too-few-factions', count: 1 },
     ]);
   });
@@ -158,7 +155,7 @@ describe('relational validation', () => {
     expect(validateMap(input).ok).toBe(true);
   });
 
-  it('FR-5 FR-6 a valid map (one territory per faction, mutual links, connected) is accepted as the same object', () => {
+  it('FR-5 FR-59 a valid map (one territory per faction, mutual links, connected) is accepted as the same object', () => {
     const input = { territories: [t(1, 1, [2]), t(2, 2, [1, 3]), t(3, 3, [2])] };
     const r = validateMap(input);
     expect(r.ok).toBe(true);
@@ -220,7 +217,7 @@ describe('relational validation', () => {
     expect(errorsOf(input)).toStrictEqual(expected);
   });
 
-  it('FR-9 FR-11 FR-21..FR-27 every relational kind at once: exact list and order', () => {
+  it('FR-9 FR-11 FR-21..FR-27 FR-64 every relational kind at once: exact list and order', () => {
     const input = {
       territories: [
         t(1, 1, [2, 99, 1, 2, 3]), // unknown 99, self, duplicate 2, one-way to 3
@@ -236,7 +233,6 @@ describe('relational validation', () => {
       { kind: 'duplicate-neighbor', territory: 1, neighbor: 2 },
       { kind: 'asymmetric-adjacency', from: 1, to: 3 },
       { kind: 'asymmetric-adjacency', from: 2, to: 3 },
-      { kind: 'multiple-initial-territories', faction: 1, territories: [1, 2, 3, 4] },
       { kind: 'too-few-factions', count: 1 },
       { kind: 'disconnected-map', groups: [[1, 2], [3], [4]] },
     ]);

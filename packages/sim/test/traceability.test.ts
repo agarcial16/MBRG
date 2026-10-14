@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import ownSource from './traceability.test.ts?raw';
 
 const testSources = import.meta.glob('../../*/test/**/*.test.ts', {
   query: '?raw',
@@ -30,10 +31,21 @@ export function tracedIds(sources: Record<string, string>): Set<string> {
   return found;
 }
 
+/** Ids retired by spec 002 (superseded by FR-60, FR-69 and FR-70): never allowed in a test title. */
+const RETIRED = ['FR-6', 'FR-25'];
+
+/** Ids traced by the test titles of this very file (the scan of other files skips it). */
+const OWN_SOURCE = ownSource;
+// Only real declarations (an it/describe call opening its line); code quoted inside a string is ignored.
+const OWN_DECLARATIONS = OWN_SOURCE.split(/\r?\n/)
+  .filter((l) => /^\s*(?:it|test|describe)(?:\.\w+)*\(/.test(l))
+  .join('\n');
+const TRACED_HERE = [...tracedIds({ 'x/own.test.ts': OWN_DECLARATIONS })];
+
 const expected = [
-  ...Array.from({ length: 54 }, (_, i) => `FR-${i + 1}`),
-  ...Array.from({ length: 6 }, (_, i) => `NFR-${i + 1}`),
-];
+  ...Array.from({ length: 81 }, (_, i) => `FR-${i + 1}`),
+  ...Array.from({ length: 13 }, (_, i) => `NFR-${i + 1}`),
+].filter((id) => !RETIRED.includes(id));
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -47,8 +59,34 @@ describe('traceability', () => {
     expect([...found].sort()).toStrictEqual(['FR-10', 'FR-12']);
   });
 
-  it('every FR-1..FR-54 and NFR-1..NFR-6 appears in a test name', () => {
+  it('NFR-13 the expected list holds the highest ids and excludes the retired ids', () => {
+    expect(expected).toContain('FR-81');
+    expect(expected).toContain('NFR-13');
+    expect(expected).toContain('FR-60');
+    expect(expected).toContain('NFR-6');
+    for (const id of RETIRED) expect(expected).not.toContain(id);
+  });
+
+  it('NFR-13 extraction does not mistake ids sharing a retired prefix for retired ids', () => {
+    const found = tracedIds({ 'x/a.test.ts': "it('NFR-6 FR-60 FR-69 a', () => {});" });
+    expect([...found].sort()).toStrictEqual(['FR-60', 'FR-69', 'NFR-6']);
+    expect(found.has('FR-6')).toBe(false);
+  });
+
+  it('NFR-13 a retired id in a test title is detected and none is in use', () => {
+    const planted = tracedIds({ 'x/a.test.ts': "it('FR-25 FR-6 a', () => {});" });
+    expect(RETIRED.filter((id) => planted.has(id))).toStrictEqual(['FR-6', 'FR-25']);
+    const used = tracedIds(testSources);
+    expect(RETIRED.filter((id) => used.has(id))).toStrictEqual([]);
+  });
+
+  it('NFR-13 this file self-traces exactly the ids it verifies', () => {
+    expect([...TRACED_HERE].sort()).toStrictEqual(['FR-55', 'FR-56', 'NFR-13']);
+  });
+
+  it('NFR-13 every expected requirement id appears in a test name', () => {
     const found = tracedIds(testSources);
+    for (const id of TRACED_HERE) found.add(id);
     const missing = expected.filter((id) => !found.has(id));
     expect(missing, `ids without a test name: ${missing.join(', ')}`).toStrictEqual([]);
   });

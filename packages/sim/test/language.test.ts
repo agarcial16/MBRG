@@ -4,7 +4,7 @@ import { MODE, getRounds, getState, totalRounds } from '../src/index';
 import { initialState, playRound } from '../src/internal';
 import { gridMap, mapFrom, pairMap } from './helpers/maps';
 
-// Literal lists copied from the spec (FR-10, FR-32, FR-38, FR-45, FR-46), not imported from src.
+// Literal lists copied from the spec (FR-64, FR-32, FR-38, FR-45, FR-46), not imported from src.
 const VALIDATION_KINDS = [
   'invalid-map',
   'invalid-territories',
@@ -12,14 +12,15 @@ const VALIDATION_KINDS = [
   'invalid-territory-id',
   'invalid-neighbors',
   'duplicate-territory-id',
+  'invalid-kind',
   'missing-owner',
   'invalid-owner',
+  'sea-owner',
   'unknown-field',
   'unknown-neighbor',
   'self-neighbor',
   'duplicate-neighbor',
   'asymmetric-adjacency',
-  'multiple-initial-territories',
   'too-few-factions',
   'disconnected-map',
 ];
@@ -38,6 +39,7 @@ const BAD_MAPS: unknown[] = [
   },
   { territories: [t(1, 1, [1, 9, 2, 2]), t(2, 1, [3]), t(3, 3, []), t(4, 1, [])] },
   { territories: [] },
+  { territories: [{ id: 1, kind: 'x', neighbors: [] }, { id: 2, kind: 'sea', owner: 1, neighbors: [] }] },
 ];
 
 function collectKinds(): Set<string> {
@@ -71,8 +73,13 @@ function collectKinds(): Set<string> {
   return kinds;
 }
 
+/** Only sim `types.ts` may quote the UI-string name "Clásico"; any other non-ASCII fails. */
+function nonAsciiView(file: string, src: string): string {
+  return file === '../src/types.ts' ? src.replaceAll('Clásico', 'Classico') : src;
+}
+
 describe('NFR-6 language', () => {
-  it('NFR-6 every error kind produced is in the literal spec list, and all of them are produced', () => {
+  it('NFR-6 NFR-12 every error kind produced is in the literal spec list, and all of them are produced', () => {
     const produced = collectKinds();
     for (const k of produced) expect(SPEC_KINDS).toContain(k);
     expect([...produced].sort()).toStrictEqual([...SPEC_KINDS].sort());
@@ -95,16 +102,25 @@ describe('NFR-6 language', () => {
     }
   });
 
-  it('NFR-6 sim and shared sources contain only ASCII, except the UI-string name "Clásico" quoted in a comment', () => {
+  it('NFR-6 sim and shared sources contain only ASCII, except the UI-string name "Clásico" quoted in sim types.ts', () => {
     const files = {
       ...import.meta.glob('../src/**/*.ts', { query: '?raw', import: 'default', eager: true }),
       ...import.meta.glob('../../shared/src/**/*.ts', { query: '?raw', import: 'default', eager: true }),
     } as Record<string, string>;
     expect(Object.keys(files).length).toBeGreaterThanOrEqual(12);
     const offenders = Object.entries(files)
-      .filter(([, src]) => /[^\x00-\x7F]/.test(src.replaceAll('Clásico', 'Classico')))
+      .filter(([f, src]) => /[^\x00-\x7F]/.test(nonAsciiView(f, src)))
       .map(([f]) => f);
     expect(offenders).toStrictEqual([]);
+  });
+
+  it('NFR-6 the "Clásico" allowance covers sim types.ts only', () => {
+    const word = 'a Clásico b';
+    const nonAscii = (f: string, s: string) => /[^\x00-\x7F]/.test(nonAsciiView(f, s));
+    expect(nonAscii('../src/types.ts', word)).toBe(false);
+    expect(nonAscii('../src/candidates.ts', word)).toBe(true);
+    expect(nonAscii('../../shared/src/types.ts', word)).toBe(true);
+    expect(nonAscii('../src/types.ts', 'a é b')).toBe(true);
   });
 });
 

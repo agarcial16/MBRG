@@ -3,6 +3,7 @@ import * as api from '../src/index';
 import { getRounds, getState, ownerOf, totalRounds } from '../src/index';
 import { initialState } from '../src/internal';
 import type { MatchError } from '../src/index';
+import type { MapData } from '@mbrg/shared';
 import { lineMap, mapFrom, pairMap, ringMap } from './helpers/maps';
 
 type R<T = unknown> = { ok: true; value: T } | { ok: false; errors: MatchError[] };
@@ -79,9 +80,8 @@ describe('round checks', () => {
     }
   });
   it('FR-29 a map that fails validation cannot start a match', () => {
-    const oneFaction = mapFrom([1, 2], [[1, 2]]);
-    oneFaction.territories[1]!.owner = 1;
-    expect(errs(getState(oneFaction, 1, 0)).map((e) => e.kind)).toContain('multiple-initial-territories');
+    const oneFaction = mapFrom([1, 1], [[1, 2]]);
+    expect(errs(getState(oneFaction, 1, 0)).map((e) => e.kind)).toContain('too-few-factions');
     expect(getRounds(null, 1, 0).ok).toBe(false);
   });
 });
@@ -144,6 +144,25 @@ describe('results', () => {
 describe('public exports', () => {
   it('plan 6 export list is exact', () => {
     expect(Object.keys(api).sort()).toEqual(['MODE', 'getRounds', 'getState', 'ownerOf', 'totalRounds']);
+  });
+});
+
+describe('sea zones in the initial state', () => {
+  const seaMap = (): MapData => ({
+    territories: [
+      { id: 1, owner: 10, neighbors: [3] },
+      { id: 3, kind: 'sea', neighbors: [1, 2] },
+      { id: 2, owner: 20, neighbors: [3] },
+    ],
+  });
+  it('FR-72 the initial state holds land only, in map order, and a sea id has no owner', () => {
+    const s = initialState(seaMap());
+    expect(s.owners).toStrictEqual([
+      [1, 10],
+      [2, 20],
+    ]);
+    expect(ownerOf(s, 3)).toBeUndefined();
+    expect(ownerOf(s, 1)).toBe(10);
   });
 });
 

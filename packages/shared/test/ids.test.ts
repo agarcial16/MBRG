@@ -40,7 +40,7 @@ describe('ids', () => {
 });
 
 describe('errors', () => {
-  it('FR-10 kind order matches the spec table exactly', () => {
+  it('FR-10 FR-64 kind order matches the FR-64 table exactly', () => {
     const expected: ValidationError['kind'][] = [
       'invalid-map',
       'invalid-territories',
@@ -48,14 +48,15 @@ describe('errors', () => {
       'invalid-territory-id',
       'invalid-neighbors',
       'duplicate-territory-id',
+      'invalid-kind',
       'missing-owner',
       'invalid-owner',
+      'sea-owner',
       'unknown-field',
       'unknown-neighbor',
       'self-neighbor',
       'duplicate-neighbor',
       'asymmetric-adjacency',
-      'multiple-initial-territories',
       'too-few-factions',
       'disconnected-map',
     ];
