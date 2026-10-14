@@ -36,12 +36,6 @@ const RETIRED = ['FR-6', 'FR-25'];
 /** FR-55, FR-56 and NFR-13 are traced by the tests in this file, which the scan skips. */
 const TRACED_HERE = ['FR-55', 'FR-56', 'NFR-13'];
 
-/**
- * Spec 002 ids that no test names yet. Each task removes the ids it covers; T10 deletes this list.
- * A test below fails if an id stays here after a test names it.
- */
-const PENDING: string[] = [];
-
 const expected = [
   ...Array.from({ length: 81 }, (_, i) => `FR-${i + 1}`),
   ...Array.from({ length: 13 }, (_, i) => `NFR-${i + 1}`),
@@ -80,17 +74,11 @@ describe('traceability', () => {
     expect(RETIRED.filter((id) => used.has(id))).toStrictEqual([]);
   });
 
-  it('NFR-13 every expected requirement id appears in a test name, except the pending ones', () => {
+  it('NFR-13 every expected requirement id appears in a test name', () => {
     const found = tracedIds(testSources);
     for (const id of TRACED_HERE) found.add(id);
-    const missing = expected.filter((id) => !found.has(id) && !PENDING.includes(id));
+    const missing = expected.filter((id) => !found.has(id));
     expect(missing, `ids without a test name: ${missing.join(', ')}`).toStrictEqual([]);
-  });
-
-  it('NFR-13 pending ids are real expected ids and no test names them yet', () => {
-    const found = tracedIds(testSources);
-    expect(PENDING.filter((id) => !expected.includes(id))).toStrictEqual([]);
-    expect(PENDING.filter((id) => found.has(id)), 'remove covered ids from PENDING').toStrictEqual([]);
   });
 
   // FR-55/FR-56 are about the hosted CI. A unit test cannot run GitHub; it only

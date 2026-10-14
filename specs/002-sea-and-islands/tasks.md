@@ -71,9 +71,14 @@ Rules for every task:
   - Commit: `test(sim): add fairness and scale tests with sea zones`.
   - Done when: suites green locally and with `CI=1`.
 
-- [ ] **T10. Traceability, CI and close-out.** NFR-13, done criteria
+- [~] **T10. Traceability, CI and close-out.** NFR-13, done criteria
   - Files: `packages/sim/test/traceability.test.ts` (delete `PENDING`), `specs/002-sea-and-islands/spec.md` (status -> `implemented`, last), `MEMORY.md` (local).
   - Tests first: with `PENDING` removed the check expects FR-1..FR-81 and NFR-1..NFR-13 minus FR-6/FR-25; fix any gap it reports.
-  - Then: reviewer validates FR by FR against the spec done criteria; push the branch; open the PR into `rewrite` (issues linked per D3); CI green on the PR; squash merge only after the user's OK.
+  - Local part done: `PENDING` deleted; traceability covers FR-1..FR-81 and NFR-1..NFR-13 minus FR-6/FR-25 (a temporarily renamed title was reported as missing, then reverted).
+  - Still pending (not done by the implementer):
+    - [ ] Reviewer validates FR by FR against the spec done criteria.
+    - [ ] Push the branch; open the PR into `rewrite` (issues linked per D3); CI green on the PR.
+    - [ ] Squash merge, only after the user's OK.
+    - [ ] Spec status -> `implemented` (commit `docs: mark spec 002 implemented`), last.
   - Commits: `test: trace spec 002 requirements`; `docs: mark spec 002 implemented`.
   - Done when: traceability green, CI run linked in the PR, four 001 goldens byte-identical, `MEMORY.md` updated (state, decisions, lessons; drop the obsolete FR-6 lesson).
