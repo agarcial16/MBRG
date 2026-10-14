@@ -41,7 +41,6 @@ const TRACED_HERE = ['FR-55', 'FR-56', 'NFR-13'];
  * A test below fails if an id stays here after a test names it.
  */
 const PENDING: string[] = [
-  'FR-73', 'FR-74', 'FR-79', 'FR-80',
   'NFR-10', 'NFR-11',
 ];
 

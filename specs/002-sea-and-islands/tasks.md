@@ -51,7 +51,7 @@ Rules for every task:
   - Commit: `feat(sim): widen absorption reach one sea hop at a time`.
   - Done when: widening and `none` tests green.
 
-- [ ] **T7. Wire candidates into the round engine.** FR-60, FR-62, FR-63 (match), FR-73, FR-74, FR-75 (pick), FR-78 (playRound), FR-79, FR-80, NFR-7
+- [x] **T7. Wire candidates into the round engine.** FR-60, FR-62, FR-63 (match), FR-73, FR-74, FR-75 (pick), FR-78 (playRound), FR-79, FR-80, NFR-7
   - Files: `packages/sim/src/internal.ts`, `packages/sim/test/{match-sea.test.ts,golden-sea.test.ts}` (NFR-7 part only).
   - Tests first: plan section 10 `match-sea` list (hand replay of both draws, seeds 0..199; faction order examples; moved sea zone for seeds 0..99; sea never in states/records; T and finish with multi-territory factions; `playRound` -> `isolated-faction` with sea); 001 goldens read raw and compared with `kind: 'land'` on every entry and on every other entry.
   - Code: `playRound` uses `absorptionCandidates(...).factions`; nothing else.
