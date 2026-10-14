@@ -119,3 +119,103 @@ describe('NFR-7 candidates equal land-neighbor factions on maps without sea', ()
     }
   });
 });
+
+const widened = (distance: number, factions: number[]) => ({ how: 'widened', distance, factions });
+
+describe('absorption candidates, widening through the sea (FR-77, FR-78, NFR-9)', () => {
+  it('FR-77 NFR-9 widened at exactly distance 1: the next zone touches a rival', () => {
+    // 1 (f1) - coast zone 2 - zone 3 - 4 (f2). Zone 2 is f1 own coast and touches no other faction.
+    const map = seaMapFrom([land(1, 1), sea(2), sea(3), land(4, 2)], [[1, 2], [2, 3], [3, 4]]);
+    expect(absorptionCandidates(map, initialState(map), 1)).toStrictEqual(widened(1, [2]));
+    expect(absorptionCandidates(map, initialState(map), 2)).toStrictEqual(widened(1, [1]));
+  });
+
+  it('FR-77 NFR-9 widened at exactly distance 2: open-ocean zones are used only while widening', () => {
+    const map = seaMapFrom(
+      [land(1, 1), sea(2), sea(3), sea(4), land(5, 2)],
+      [[1, 2], [2, 3], [3, 4], [4, 5]],
+    );
+    expect(absorptionCandidates(map, initialState(map), 1)).toStrictEqual(widened(2, [2]));
+    // An open-ocean zone touching a rival is not a direct sharer: a faction on the coast of zone 3 only.
+    const ocean = seaMapFrom([land(1, 1), sea(2), sea(3), land(4, 2)], [[1, 2], [2, 3], [3, 4]]);
+    expect(absorptionCandidates(ocean, initialState(ocean), 1).how).toBe('widened');
+  });
+
+  it('FR-77 stops at the first distance with a candidate: nearer faction only, farther one left out', () => {
+    const map = seaMapFrom(
+      [land(1, 1), sea(2), sea(3), land(4, 2), sea(5), land(6, 3)],
+      [[1, 2], [2, 3], [3, 4], [3, 5], [5, 6]],
+    );
+    expect(absorptionCandidates(map, initialState(map), 1)).toStrictEqual(widened(1, [2]));
+  });
+
+  it('FR-77 factions found at the same distance are all included once, in faction order', () => {
+    // Zone 3 at distance 1 touches f3 (twice), f2; zone 4 at distance 1 touches f2 again.
+    const map = seaMapFrom(
+      [land(1, 1), sea(2), sea(3), sea(4), land(5, 3), land(6, 3), land(7, 2), land(8, 2)],
+      [[1, 2], [2, 3], [2, 4], [3, 5], [3, 6], [3, 7], [4, 8]],
+    );
+    expect(absorptionCandidates(map, initialState(map), 1)).toStrictEqual(widened(1, [3, 2]));
+    // Faction order follows the state: here faction 2 appears before faction 3.
+    const state: MatchState = {
+      mode: 'classic',
+      round: 1,
+      owners: [[1, 1], [7, 2], [8, 2], [5, 3], [6, 3]],
+    };
+    expect(livingFactions(state)).toStrictEqual([1, 2, 3]);
+    expect(absorptionCandidates(map, state, 1)).toStrictEqual(widened(1, [2, 3]));
+  });
+
+  it('FR-77 every zone at the next distance is checked, not only the first one found', () => {
+    // Zone 3 (first at distance 1) touches nobody; zone 4 (second) touches the rival.
+    const map = seaMapFrom(
+      [land(1, 1), sea(2), sea(3), sea(4), land(5, 2)],
+      [[1, 2], [2, 3], [2, 4], [4, 5]],
+    );
+    expect(absorptionCandidates(map, initialState(map), 1)).toStrictEqual(widened(1, [2]));
+  });
+
+  it('FR-77 the zone reach grows one hop at a time from every coast zone of a multi-territory faction', () => {
+    const map = seaMapFrom(
+      [land(1, 1), land(2, 1), sea(3), sea(4), sea(5), sea(7), land(6, 2)],
+      [[1, 3], [3, 5], [2, 4], [4, 5], [5, 7], [7, 6]],
+    );
+    expect(absorptionCandidates(map, initialState(map), 1)).toStrictEqual(widened(2, [2]));
+  });
+
+  it('FR-77 widening uses only mutual sea-to-sea links', () => {
+    const map = seaMapFrom([land(1, 1), sea(2), sea(3), land(4, 2)], [[1, 2], [3, 4]], [[2, 3]]);
+    expect(absorptionCandidates(map, initialState(map), 1)).toStrictEqual(none);
+    const back = seaMapFrom([land(1, 1), sea(2), sea(3), land(4, 2)], [[1, 2], [3, 4]], [[3, 2]]);
+    expect(absorptionCandidates(back, initialState(back), 1)).toStrictEqual(none);
+  });
+
+  it('FR-77 the reach ignores the faction own land and cycles in the sea graph', () => {
+    const map = seaMapFrom(
+      [land(1, 1), land(2, 1), sea(3), sea(4), sea(5), land(6, 2)],
+      [[1, 3], [2, 4], [3, 4], [4, 5], [3, 5], [5, 6]],
+    );
+    expect(absorptionCandidates(map, initialState(map), 1)).toStrictEqual(widened(1, [2]));
+  });
+
+  it('FR-78 NFR-9 an isolated faction gets none on a hand-built disconnected map without sea', () => {
+    const map = mapFrom([1, 2, 3], [[2, 3]]);
+    expect(absorptionCandidates(map, initialState(map), 1)).toStrictEqual(none);
+    expect(absorptionCandidates(map, initialState(map), 2)).toStrictEqual(direct([3]));
+  });
+
+  it('FR-78 NFR-9 an isolated faction gets none on a disconnected map with sea zones', () => {
+    // Island 1 with its zones 2, 3 (reaches nothing); 4 and 5 are elsewhere linked by land-sea.
+    const map = seaMapFrom(
+      [land(1, 1), sea(2), sea(3), land(4, 2), sea(5), land(6, 3)],
+      [[1, 2], [2, 3], [4, 5], [5, 6]],
+    );
+    expect(absorptionCandidates(map, initialState(map), 1)).toStrictEqual(none);
+    expect(absorptionCandidates(map, initialState(map), 2)).toStrictEqual(direct([3]));
+  });
+
+  it('FR-78 a faction with no coast and no land neighbor gets none, even beside open sea', () => {
+    const map = seaMapFrom([land(1, 1), land(2, 2), sea(3)], [[2, 3]]);
+    expect(absorptionCandidates(map, initialState(map), 1)).toStrictEqual(none);
+  });
+});

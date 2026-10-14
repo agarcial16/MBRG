@@ -44,7 +44,7 @@ Rules for every task:
   - Commit: `feat(sim): add absorption candidates with shared sea zones`.
   - Done when: candidate tests green; public export test unchanged and green.
 
-- [ ] **T6. Widening through the sea and isolated faction.** FR-77, FR-78, NFR-9 (exact-distance fixtures)
+- [x] **T6. Widening through the sea and isolated faction.** FR-77, FR-78, NFR-9 (exact-distance fixtures)
   - Files: `packages/sim/src/candidates.ts`, `packages/sim/test/candidates.test.ts`.
   - Tests first: widened at exactly distance 1 and exactly 2; open-ocean zones only used while widening; factions found at the same distance all included once, in faction order; `none` on disconnected maps with and without sea zones (map fails only `disconnected-map`).
   - Code: breadth-first loop of plan section 5.
