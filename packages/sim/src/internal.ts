@@ -1,15 +1,16 @@
 // Internal round engine (FR-39). Not re-exported from index.ts.
+import { isSeaZone } from '@mbrg/shared';
 import type { FactionId, MapData, Result, TerritoryId } from '@mbrg/shared';
 import { pickIndex, roundRng } from './rng';
 import { MODE } from './types';
 import type { MatchState, RoundRecord, SimError } from './types';
 
-/** FR-33: round 0, every territory owned by its initial owner. */
+/** FR-33, FR-72: round 0, every land territory owned by its initial owner; sea zones are skipped. */
 export function initialState(map: MapData): MatchState {
   return {
     mode: MODE,
     round: 0,
-    owners: map.territories.map((t): [TerritoryId, FactionId] => [t.id, t.owner]),
+    owners: map.territories.flatMap((t): [TerritoryId, FactionId][] => (isSeaZone(t) ? [] : [[t.id, t.owner]])),
   };
 }
 
