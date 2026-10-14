@@ -37,7 +37,7 @@ Rules for every task:
   - Commit: `feat(shared): count land owners only and connect through sea`.
   - Done when: every validation edge case of the spec has a passing test.
 
-- [ ] **T5. Direct absorption candidates (internal operation).** FR-75 (set, order, no weighting), FR-76, FR-81, NFR-7 (candidates)
+- [x] **T5. Direct absorption candidates (internal operation).** FR-75 (set, order, no weighting), FR-76, FR-81, NFR-7 (candidates)
   - Files: `packages/sim/src/candidates.ts`, `packages/sim/test/{helpers/sea-maps.ts,candidates.test.ts}`.
   - Tests first: island through a shared zone; Denmark mix (G land-only, Sw sea-only, G also on the zone counted once); several shared zones counted once; landlocked faction; unshared coast; lake; bay; one-way land-sea link does not touch; FR-81 shape and not exported from `@mbrg/sim`; NFR-7 `direct` equal to `neighborFactions` for every round of reference matches without sea (hand8, grid, a multi-territory map).
   - Code: plan section 5 direct part; empty group returns `none` (widening comes in T6). Not wired into `playRound` yet.
