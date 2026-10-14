@@ -10,8 +10,10 @@ function firstPosition(e: ValidationError): number {
     case 'invalid-territory':
     case 'invalid-territory-id':
     case 'invalid-neighbors':
+    case 'invalid-kind':
     case 'missing-owner':
     case 'invalid-owner':
+    case 'sea-owner':
       return e.position;
     case 'duplicate-territory-id':
       return e.positions[0] ?? -1;
@@ -23,7 +25,7 @@ function firstPosition(e: ValidationError): number {
   }
 }
 
-/** FR-11: stable sort by kind (FR-10 table order), then by position. Returns a new array. */
+/** FR-11: stable sort by kind (FR-64 table order), then by position. Returns a new array. */
 export function sortErrors(errors: readonly ValidationError[]): ValidationError[] {
   const rank = (e: ValidationError): number => VALIDATION_KIND_ORDER.indexOf(e.kind);
   return [...errors].sort((a, b) => rank(a) - rank(b) || firstPosition(a) - firstPosition(b));

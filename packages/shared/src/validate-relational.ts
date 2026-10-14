@@ -3,12 +3,12 @@ import { isValidId } from './ids';
 import type { FactionId, MapData, TerritoryId } from './types';
 
 /**
- * FR-21..FR-27. Precondition: the structural phase found no blocking error, so every entry is an
- * object with a unique valid id and a list of valid neighbor ids. Owners may still be missing or
+ * FR-21..FR-27, FR-69. Precondition: the structural phase found no blocking error, so every entry
+ * is an object with a unique valid id and a list of valid neighbor ids. Owners may still be missing or
  * invalid. Only reads the input.
  *
- * Errors are emitted in map order (territory order, then neighbor-list order, then faction order
- * of first territory); validateMap's stable sort by kind (FR-11) keeps that order inside a kind.
+ * Errors are emitted in map order (territory order, then neighbor-list order);
+ * validateMap's stable sort by kind (FR-11) keeps that order inside a kind.
  */
 export function validateRelational(map: MapData): ValidationError[] {
   const errors: ValidationError[] = [];
@@ -42,19 +42,11 @@ export function validateRelational(map: MapData): ValidationError[] {
     }
   }
 
-  // FR-25, FR-26: factions are the distinct valid owners, in order of first territory.
-  const factions = new Map<FactionId, TerritoryId[]>();
+  // FR-26, FR-69: factions are the distinct valid owners; several territories per faction are fine.
+  const factions = new Set<FactionId>();
   for (const t of territories) {
     const owner: unknown = (t as { owner?: unknown }).owner;
-    if (!isValidId(owner)) continue;
-    const owned = factions.get(owner);
-    if (owned) owned.push(t.id);
-    else factions.set(owner, [t.id]);
-  }
-  for (const [faction, owned] of factions) {
-    if (owned.length > 1) {
-      errors.push({ kind: 'multiple-initial-territories', faction, territories: owned });
-    }
+    if (isValidId(owner)) factions.add(owner);
   }
   if (factions.size < 2) errors.push({ kind: 'too-few-factions', count: factions.size });
 

@@ -4,7 +4,7 @@ import { MODE, getRounds, getState, totalRounds } from '../src/index';
 import { initialState, playRound } from '../src/internal';
 import { gridMap, mapFrom, pairMap } from './helpers/maps';
 
-// Literal lists copied from the spec (FR-10, FR-32, FR-38, FR-45, FR-46), not imported from src.
+// Literal lists copied from the spec (FR-64, FR-32, FR-38, FR-45, FR-46), not imported from src.
 const VALIDATION_KINDS = [
   'invalid-map',
   'invalid-territories',
@@ -19,7 +19,6 @@ const VALIDATION_KINDS = [
   'self-neighbor',
   'duplicate-neighbor',
   'asymmetric-adjacency',
-  'multiple-initial-territories',
   'too-few-factions',
   'disconnected-map',
 ];
@@ -72,7 +71,7 @@ function collectKinds(): Set<string> {
 }
 
 describe('NFR-6 language', () => {
-  it('NFR-6 every error kind produced is in the literal spec list, and all of them are produced', () => {
+  it('NFR-6 NFR-12 every error kind produced is in the literal spec list, and all of them are produced', () => {
     const produced = collectKinds();
     for (const k of produced) expect(SPEC_KINDS).toContain(k);
     expect([...produced].sort()).toStrictEqual([...SPEC_KINDS].sort());

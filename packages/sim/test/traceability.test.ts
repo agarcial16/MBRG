@@ -30,10 +30,26 @@ export function tracedIds(sources: Record<string, string>): Set<string> {
   return found;
 }
 
-const expected = [
-  ...Array.from({ length: 54 }, (_, i) => `FR-${i + 1}`),
-  ...Array.from({ length: 6 }, (_, i) => `NFR-${i + 1}`),
+/** Ids retired by spec 002 (superseded by FR-60, FR-69 and FR-70): never allowed in a test title. */
+const RETIRED = ['FR-6', 'FR-25'];
+
+/** FR-55, FR-56 and NFR-13 are traced by the tests in this file, which the scan skips. */
+const TRACED_HERE = ['FR-55', 'FR-56', 'NFR-13'];
+
+/**
+ * Spec 002 ids that no test names yet. Each task removes the ids it covers; T10 deletes this list.
+ * A test below fails if an id stays here after a test names it.
+ */
+const PENDING: string[] = [
+  'FR-61', 'FR-62', 'FR-63', 'FR-65', 'FR-66', 'FR-67', 'FR-68', 'FR-71',
+  'FR-73', 'FR-74', 'FR-75', 'FR-76', 'FR-77', 'FR-78', 'FR-79', 'FR-80', 'FR-81',
+  'NFR-7', 'NFR-8', 'NFR-9', 'NFR-10', 'NFR-11',
 ];
+
+const expected = [
+  ...Array.from({ length: 81 }, (_, i) => `FR-${i + 1}`),
+  ...Array.from({ length: 13 }, (_, i) => `NFR-${i + 1}`),
+].filter((id) => !RETIRED.includes(id));
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -47,10 +63,38 @@ describe('traceability', () => {
     expect([...found].sort()).toStrictEqual(['FR-10', 'FR-12']);
   });
 
-  it('every FR-1..FR-54 and NFR-1..NFR-6 appears in a test name', () => {
+  it('NFR-13 the expected list holds FR-81 and NFR-13 and excludes the retired ids', () => {
+    expect(expected).toContain('FR-81');
+    expect(expected).toContain('NFR-13');
+    expect(expected).toContain('FR-60');
+    expect(expected).toContain('NFR-6');
+    for (const id of RETIRED) expect(expected).not.toContain(id);
+  });
+
+  it('NFR-13 extraction does not mistake FR-60 or NFR-6 for a retired id', () => {
+    const found = tracedIds({ 'x/a.test.ts': "it('NFR-6 FR-60 FR-69 a', () => {});" });
+    expect([...found].sort()).toStrictEqual(['FR-60', 'FR-69', 'NFR-6']);
+    expect(found.has('FR-6')).toBe(false);
+  });
+
+  it('NFR-13 a retired id in a test title is detected and none is in use', () => {
+    const planted = tracedIds({ 'x/a.test.ts': "it('FR-25 FR-6 a', () => {});" });
+    expect(RETIRED.filter((id) => planted.has(id))).toStrictEqual(['FR-6', 'FR-25']);
+    const used = tracedIds(testSources);
+    expect(RETIRED.filter((id) => used.has(id))).toStrictEqual([]);
+  });
+
+  it('NFR-13 every expected requirement id appears in a test name, except the pending ones', () => {
     const found = tracedIds(testSources);
-    const missing = expected.filter((id) => !found.has(id));
+    for (const id of TRACED_HERE) found.add(id);
+    const missing = expected.filter((id) => !found.has(id) && !PENDING.includes(id));
     expect(missing, `ids without a test name: ${missing.join(', ')}`).toStrictEqual([]);
+  });
+
+  it('NFR-13 pending ids are real expected ids and no test names them yet', () => {
+    const found = tracedIds(testSources);
+    expect(PENDING.filter((id) => !expected.includes(id))).toStrictEqual([]);
+    expect(PENDING.filter((id) => found.has(id)), 'remove covered ids from PENDING').toStrictEqual([]);
   });
 
   // FR-55/FR-56 are about the hosted CI. A unit test cannot run GitHub; it only

@@ -16,7 +16,7 @@ Rules for every task:
   - Commits: `docs: add spec, plan and tasks 002 sea and islands`; `feat(shared): add sea zone types and entry kind rule`.
   - Done when: new tests green; typecheck green (every `t.owner` read narrowed); 001 tests and goldens unchanged.
 
-- [ ] **T2. FR-64 kind table, remove multiple-initial-territories, retired ids.** FR-64 (table, order), FR-69, FR-60 (validation), NFR-12 (removal), NFR-13
+- [x] **T2. FR-64 kind table, remove multiple-initial-territories, retired ids.** FR-64 (table, order), FR-69, FR-60 (validation), NFR-12 (removal), NFR-13
   - Files: `packages/shared/src/{errors.ts,validate-relational.ts,validate.ts}`, `packages/shared/test/{ids.test.ts,validate-relational.test.ts}`, `packages/sim/test/{language.test.ts,traceability.test.ts}`.
   - Tests first: migration rows of plan section 9 for FR-6/FR-25 tests, `FR-10 FR-64` order test, every-relational-kind test, language list without `multiple-initial-territories`; traceability: `RETIRED = ['FR-6', 'FR-25']`, retired-id rejection, list contains FR-81 and NFR-13 and excludes retired ids, extractor self-test (`NFR-6`, `FR-60` never yield `FR-6`), and `PENDING` (002 ids not yet traced).
   - Code: union and `VALIDATION_KIND_ORDER` per FR-64 (new kinds typed, not yet emitted); delete the FR-25 block; `firstPosition` cases for `invalid-kind` and `sea-owner`.
