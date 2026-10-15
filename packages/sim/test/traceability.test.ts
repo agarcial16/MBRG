@@ -42,10 +42,25 @@ const OWN_DECLARATIONS = OWN_SOURCE.split(/\r?\n/)
   .join('\n');
 const TRACED_HERE = [...tracedIds({ 'x/own.test.ts': OWN_DECLARATIONS })];
 
+const LAST_FR = 131;
+const LAST_NFR = 23;
+
+/** NFR-19: 003b ids, not yet required; removed by 003b ("NFR-19 completion"). */
+const PENDING_003B = [
+  'FR-105',
+  ...Array.from({ length: 21 }, (_, i) => `FR-${i + 111}`),
+  'NFR-14',
+  'NFR-16',
+  'NFR-17',
+  'NFR-20',
+  'NFR-21',
+  'NFR-23',
+];
+
 const expected = [
-  ...Array.from({ length: 81 }, (_, i) => `FR-${i + 1}`),
-  ...Array.from({ length: 13 }, (_, i) => `NFR-${i + 1}`),
-].filter((id) => !RETIRED.includes(id));
+  ...Array.from({ length: LAST_FR }, (_, i) => `FR-${i + 1}`),
+  ...Array.from({ length: LAST_NFR }, (_, i) => `NFR-${i + 1}`),
+].filter((id) => !RETIRED.includes(id) && !PENDING_003B.includes(id));
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -67,6 +82,35 @@ describe('traceability', () => {
     for (const id of RETIRED) expect(expected).not.toContain(id);
   });
 
+  it('NFR-13 NFR-19 the expected list ends at the last spec ids and excludes retired and pending ids', () => {
+    // Pin the upper bounds: pending ids are filtered out, so they cannot prove them.
+    expect(LAST_FR).toBe(131);
+    expect(LAST_NFR).toBe(23);
+    const everything = new Set([...expected, ...PENDING_003B, ...RETIRED]);
+    const spec = [
+      ...Array.from({ length: 131 }, (_, i) => `FR-${i + 1}`),
+      ...Array.from({ length: 23 }, (_, i) => `NFR-${i + 1}`),
+    ];
+    expect([...everything].sort()).toStrictEqual([...spec].sort());
+    expect(everything.size).toBe(154);
+    for (const id of ['FR-110', 'NFR-22', 'FR-104']) expect(expected).toContain(id);
+    for (const id of ['FR-132', 'NFR-24', 'FR-6', 'FR-25', 'FR-105', 'NFR-23']) {
+      expect(expected).not.toContain(id);
+    }
+  });
+
+  it('NFR-19 the pending set is exactly the 003b ids', () => {
+    const literal = [
+      'FR-105',
+      'FR-111', 'FR-112', 'FR-113', 'FR-114', 'FR-115', 'FR-116', 'FR-117',
+      'FR-118', 'FR-119', 'FR-120', 'FR-121', 'FR-122', 'FR-123', 'FR-124',
+      'FR-125', 'FR-126', 'FR-127', 'FR-128', 'FR-129', 'FR-130', 'FR-131',
+      'NFR-14', 'NFR-16', 'NFR-17', 'NFR-20', 'NFR-21', 'NFR-23',
+    ];
+    expect(literal).toHaveLength(28);
+    expect([...PENDING_003B].sort()).toStrictEqual([...literal].sort());
+  });
+
   it('NFR-13 extraction does not mistake ids sharing a retired prefix for retired ids', () => {
     const found = tracedIds({ 'x/a.test.ts': "it('NFR-6 FR-60 FR-69 a', () => {});" });
     expect([...found].sort()).toStrictEqual(['FR-60', 'FR-69', 'NFR-6']);
@@ -80,11 +124,11 @@ describe('traceability', () => {
     expect(RETIRED.filter((id) => used.has(id))).toStrictEqual([]);
   });
 
-  it('NFR-13 this file self-traces exactly the ids it verifies', () => {
-    expect([...TRACED_HERE].sort()).toStrictEqual(['FR-55', 'FR-56', 'NFR-13']);
+  it('NFR-13 NFR-19 this file self-traces exactly the ids it verifies', () => {
+    expect([...TRACED_HERE].sort()).toStrictEqual(['FR-55', 'FR-56', 'NFR-13', 'NFR-19']);
   });
 
-  it('NFR-13 every expected requirement id appears in a test name', () => {
+  it('NFR-13 NFR-19 every expected requirement id appears in a test name', () => {
     const found = tracedIds(testSources);
     for (const id of TRACED_HERE) found.add(id);
     const missing = expected.filter((id) => !found.has(id));
