@@ -2,7 +2,7 @@ import { ColorManagement, LinearSRGBColorSpace, NearestFilter, NoColorSpace, NoT
 import type { DataTexture } from 'three';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import type { Rgb } from '@mbrg/shared';
-import { BORDER_PRIORITY, EDGE_BIAS } from '../src/core/borders';
+import { BORDER_PRIORITY, EDGE_BIAS, WIDTH_LEVELS } from '../src/core/borders';
 import type { Camera, Viewport } from '../src/core/camera';
 import { buildEntryIndex, factionColorList, factionIndexOf, ownerTable } from '../src/core/entries';
 import type { EntryIndex } from '../src/core/entries';
@@ -172,6 +172,8 @@ describe('FR-138 FR-139 FR-140 theme and view reach the shader as data', () => {
     const u = scene.material.uniforms;
     const widths = BORDER_PRIORITY.map((c) => THEME.width[c]);
     expect(u.uWidths!.value).toStrictEqual(widths);
+    expect(widths).toStrictEqual([4, 2, 1, 1, 1, 4]);
+    for (const w of widths) expect(WIDTH_LEVELS as readonly number[]).toContain(w);
     const border = u.uBorderColors!.value as { x: number; y: number; z: number }[];
     expect(border).toHaveLength(BORDER_PRIORITY.length);
     BORDER_PRIORITY.forEach((c, i) => {
@@ -249,9 +251,18 @@ describe('FR-136 FR-138 FR-139 the shader is a port of the reference rule', () =
     expect(ids).toStrictEqual(BORDER_PRIORITY.map((_, i) => i));
   });
 
-  it('FR-139 the shader tests the 2-pixel classes before the 1-pixel ones and each class at its own width only', () => {
-    expect(FRAGMENT_SHADER).toMatch(/w = wi == 0 \? 2\.0 : 1\.0/);
+  it('FR-139 the shader tests the widest classes first, from the shared width levels, and each class at its own width only', () => {
+    expect(WIDTH_LEVELS).toStrictEqual([4, 2, 1]);
+    expect(FRAGMENT_SHADER).toContain('WIDTH_LEVELS[3] = float[3](4.0, 2.0, 1.0)');
+    expect(FRAGMENT_SHADER).toContain(`wi < ${WIDTH_LEVELS.length}`);
+    expect(FRAGMENT_SHADER).toMatch(/float w = WIDTH_LEVELS\[wi\];/);
     expect(FRAGMENT_SHADER).toMatch(/uWidths\[c\] == w/);
+  });
+
+  it('FR-139 the shader has no hard-coded width choice and its only loop bound is the number of levels', () => {
+    expect(FRAGMENT_SHADER.match(/wi\s*<\s*\d+/g)).toStrictEqual([`wi < ${WIDTH_LEVELS.length}`]);
+    expect(FRAGMENT_SHADER).not.toMatch(/wi\s*==\s*\d/);
+    expect(FRAGMENT_SHADER).not.toMatch(/\?\s*\d+\.\d+\s*:\s*\d+\.\d+/);
   });
 
   it('FR-136 the shader positions are relative to the camera, so large map coordinates keep their precision', () => {

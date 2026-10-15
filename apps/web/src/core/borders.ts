@@ -20,8 +20,11 @@ export interface IndexGrid {
 /** Winner order when several classes meet on one screen pixel: first wins. */
 export const BORDER_PRIORITY: readonly BorderClass[] = ['faction', 'outer', 'coast', 'shore', 'sea-zone', 'territory'];
 
-/** Line widths in screen pixels, tried in this order; a class is tested at its own width only. */
-const WIDTH_LEVELS = [2, 1] as const;
+/**
+ * Line widths in screen pixels, widest first; a class is tested at its own width only.
+ * Single source for `shade` and for the GLSL port (amendment 2026-10-15).
+ */
+export const WIDTH_LEVELS = [4, 2, 1] as const;
 
 /**
  * Tie-break, in screen pixels. A 1-pixel line on an edge that falls exactly on a pixel boundary has

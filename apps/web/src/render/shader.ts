@@ -2,7 +2,7 @@
 // `core/borders.ts`, which is the normative rule: same names, same order of tests, same tie-break bias.
 // It reads the id image with texelFetch only (no filtering, FR-134) and computes every position
 // relative to the camera, so float32 keeps its precision at the largest scale (plan section 15).
-import { BORDER_PRIORITY, EDGE_BIAS } from '../core/borders';
+import { BORDER_PRIORITY, EDGE_BIAS, WIDTH_LEVELS } from '../core/borders';
 
 /** One full-screen quad: positions are already clip-space coordinates. */
 export const VERTEX_SHADER = `in vec3 position;
@@ -13,6 +13,9 @@ void main() {
 
 /** Border class constants numbered in the priority order of the reference (lowest number wins). */
 const CLASS_CONSTANTS = BORDER_PRIORITY.map((name, i) => `const int C_${name.toUpperCase().replace('-', '_')} = ${i};`).join('\n');
+
+/** The width levels of the reference, widest first, as GLSL float literals: `4.0, 2.0, 1.0`. */
+const WIDTH_LIST = WIDTH_LEVELS.map((w) => w.toFixed(1)).join(', ');
 
 export const FRAGMENT_SHADER = `precision highp float;
 precision highp int;
@@ -40,6 +43,7 @@ layout(location = 0) out highp vec4 outColor;
 
 ${CLASS_CONSTANTS}
 const float EDGE_BIAS = ${EDGE_BIAS.toFixed(8)};
+const float WIDTH_LEVELS[${WIDTH_LEVELS.length}] = float[${WIDTH_LEVELS.length}](${WIDTH_LIST});
 
 int byteAt(sampler2D table, int i) {
   return int(floor(texelFetch(table, ivec2(i, 0), 0).r * 255.0 + 0.5));
@@ -83,8 +87,8 @@ void main() {
 
   const vec2 DIRS[4] = vec2[4](vec2(1.0, 0.0), vec2(-1.0, 0.0), vec2(0.0, 1.0), vec2(0.0, -1.0));
   int found = 0;
-  for (int wi = 0; wi < 2; wi++) {
-    float w = wi == 0 ? 2.0 : 1.0;
+  for (int wi = 0; wi < ${WIDTH_LEVELS.length}; wi++) {
+    float w = WIDTH_LEVELS[wi];
     for (int di = 0; di < 4; di++) {
       vec2 dir = DIRS[di];
       float o = (w * 0.5 + (dir.x + dir.y) * EDGE_BIAS) / uScale;

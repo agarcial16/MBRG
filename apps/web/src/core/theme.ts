@@ -5,6 +5,9 @@ import type { Rgb } from '@mbrg/shared';
 export type FillClass = 'land' | 'sea' | 'outside';
 export type BorderClass = 'faction' | 'territory' | 'coast' | 'sea-zone' | 'outer' | 'shore';
 
+/** Line widths in screen (CSS) pixels that exist (amendment 2026-10-15 adds 4). */
+export type BorderWidth = 1 | 2 | 4;
+
 /** Territory line parameters (spec Definitions): S0, S1, Amax, D. */
 export interface TerritoryLineParams {
   fadeStart: number;
@@ -20,7 +23,7 @@ export interface Theme {
   /** Opaque colour of every class except `territory` (its colour comes from the owner). */
   border: Readonly<Record<Exclude<BorderClass, 'territory'>, Rgb>>;
   /** Width in screen (CSS) pixels. */
-  width: Readonly<Record<BorderClass, 1 | 2>>;
+  width: Readonly<Record<BorderClass, BorderWidth>>;
   territoryLine: TerritoryLineParams;
 }
 
@@ -57,13 +60,13 @@ export const BORDER_COLORS: Readonly<Record<Exclude<BorderClass, 'territory'>, R
   'sea-zone': hex('#7fa6c6'),
 };
 
-export const BORDER_WIDTHS: Readonly<Record<BorderClass, 1 | 2>> = {
-  faction: 2,
+export const BORDER_WIDTHS: Readonly<Record<BorderClass, BorderWidth>> = {
+  faction: 4,
   outer: 2,
   coast: 1,
   'sea-zone': 1,
   shore: 1,
-  territory: 1,
+  territory: 4,
 };
 
 /** Initial territory line values (tuned in T9). */

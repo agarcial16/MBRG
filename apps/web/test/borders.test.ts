@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Rgb } from '@mbrg/shared';
-import { borderClass, renderReference, shade, type IndexGrid } from '../src/core/borders';
+import { WIDTH_LEVELS, borderClass, renderReference, shade, type IndexGrid } from '../src/core/borders';
 import { territoryOpacity } from '../src/core/lines';
 import { BACKGROUND, BORDER_COLORS, BORDER_WIDTHS, SEA, THEME, type BorderClass } from '../src/core/theme';
 import type { Camera, Viewport } from '../src/core/camera';
@@ -64,8 +64,9 @@ const PAIRS: Record<BorderClass, [number, number]> = {
   outer: [1, 0],
   shore: [4, 0],
 };
-const SCALES = [0.5, 1, 4, 16, 32];
-const WIDTHS: Record<BorderClass, number> = { faction: 2, territory: 1, coast: 1, 'sea-zone': 1, outer: 2, shore: 1 };
+const SCALES = [0.5, 1, 3, 4, 5, 7, 8, 10, 16, 32];
+/** Amendment 2026-10-15: faction and territory lines are 4 px, outer 2 px, the rest 1 px. */
+const WIDTHS: Record<BorderClass, number> = { faction: 4, territory: 4, coast: 1, 'sea-zone': 1, outer: 2, shore: 1 };
 
 /** Two halves of a 64 x 64 grid split at 32 (vertical edge) or at row 32 (horizontal edge). */
 function halves(a: number, b: number, vertical: boolean): IndexGrid {
@@ -110,7 +111,7 @@ describe('FR-138 border class of the edge between two values', () => {
     const same: Rgb[] = [FACTION_COLORS[0]!, FACTION_COLORS[1]!, FACTION_COLORS[1]!, FACTION_COLORS[3]!];
     const grid = halves(1, 2, true);
     const img = render(grid, OWNERS, { x: 32, y: 32, scale: 16 }, 1, VP, same);
-    expect(runOf(img, BORDER_COLORS.faction, 4, true).length).toBe(2);
+    expect(runOf(img, BORDER_COLORS.faction, 4, true).length).toBe(4);
     // Different colours for one faction's two territories: still a territory line, no faction line.
     const img2 = render(halves(1, 3, true), OWNERS, { x: 32, y: 32, scale: 16 }, 1, VP, same);
     expect(runOf(img2, BORDER_COLORS.faction, 4, true).length).toBe(0);
@@ -176,7 +177,7 @@ describe('FR-136 fill colours', () => {
     }
   });
 
-  it('FR-136 pixels more than 1 screen pixel from every edge show exactly the fill of their map unit', () => {
+  it('FR-136 pixels more than 2 screen pixels from every edge show exactly the fill of their map unit', () => {
     const grid = gridFrom(
       [
         [1, 2, 4],
@@ -202,9 +203,18 @@ describe('FR-136 fill colours', () => {
 });
 
 describe('FR-139 border widths in screen pixels', () => {
-  it('FR-139 the width settings are 2 for faction and outer and 1 for coast, sea-zone, shore and territory', () => {
+  it('FR-139 the width settings are 4 for faction and territory, 2 for outer and 1 for coast, sea-zone and shore', () => {
     expect(BORDER_WIDTHS).toStrictEqual(WIDTHS);
+    expect(BORDER_WIDTHS.faction).toBe(4);
+    expect(BORDER_WIDTHS.territory).toBe(BORDER_WIDTHS.faction);
     expect(THEME.width).toBe(BORDER_WIDTHS);
+  });
+
+  it('FR-139 the width levels are 4, 2, 1 from the widest, and every theme width is one of them', () => {
+    expect(WIDTH_LEVELS).toStrictEqual([4, 2, 1]);
+    for (const [cls, w] of Object.entries(THEME.width)) {
+      expect(WIDTH_LEVELS as readonly number[], cls).toContain(w);
+    }
   });
 
   for (const cls of ['faction', 'coast', 'sea-zone', 'outer', 'shore'] as const) {
@@ -268,20 +278,61 @@ describe('FR-139 border widths in screen pixels', () => {
     for (const scale of [1, 4, 16, 32]) {
       const img = render(grid, OWNERS, { x: 32, y: 32, scale }, 1, { width: 20, height: 16 });
       for (let line = 0; line < img.height; line++) {
-        expect(runOf(img, BORDER_COLORS.faction, line, true).length, `scale ${scale} row ${line}`).toBe(2);
+        expect(runOf(img, BORDER_COLORS.faction, line, true).length, `scale ${scale} row ${line}`).toBe(4);
       }
     }
   });
 
-  it('FR-139 the territory line is 1 screen pixel wide at the maximum scale', () => {
+  it('FR-139 the territory line is 4 screen pixels wide at the maximum scale', () => {
     const grid = halves(1, 3, true);
     const fill = FACTION_COLORS[1]!;
     const line = [0, 1, 2].map((i) => Math.floor(fill[i]! * THEME.territoryLine.darken)) as Rgb;
     const expected = blend(fill, line, THEME.territoryLine.maxOpacity);
     for (const dpr of [1, 2]) {
       const img = render(grid, OWNERS, { x: 32, y: 32, scale: 32 }, dpr);
-      expect(runOf(img, expected, 4, true).length).toBe(dpr);
+      expect(runOf(img, expected, 4, true).length).toBe(4 * dpr);
     }
+  });
+
+  it('FR-139 faction and territory bands are 4 screen pixels, centred on the edge and continuous, at scales 1 to 32 and DPR 1 and 2', () => {
+    const fill = FACTION_COLORS[1]!;
+    const lineColor = [0, 1, 2].map((i) => Math.floor(fill[i]! * THEME.territoryLine.darken)) as Rgb;
+    for (const [cls, b] of [['faction', 2], ['territory', 3]] as const) {
+      for (const vertical of [true, false]) {
+        const grid = halves(1, b, vertical);
+        for (const scale of [1, 3, 4, 5, 7, 8, 10, 16, 32]) {
+          // A territory line is invisible at or below the fade start: measure it where it has a colour.
+          if (cls === 'territory' && scale <= THEME.territoryLine.fadeStart) continue;
+          const colour = cls === 'faction' ? BORDER_COLORS.faction : blend(fill, lineColor, territoryOpacity(scale, THEME.territoryLine));
+          for (const dpr of [1, 2]) {
+            const vp = vertical ? VP : { width: 8, height: 20 };
+            const img = render(grid, OWNERS, { x: 32, y: 32, scale }, dpr, vp);
+            const edge = ((vertical ? vp.width : vp.height) / 2) * dpr;
+            for (const line of [0, 3, 6]) {
+              const run = runOf(img, colour, line, vertical);
+              const label = `${cls} ${vertical ? 'vertical' : 'horizontal'} scale ${scale} dpr ${dpr} line ${line}`;
+              expect(run.length, label).toBeGreaterThanOrEqual(4 * dpr - 0.5);
+              expect(run.length, label).toBeLessThanOrEqual(4 * dpr + 0.5);
+              expect(run[run.length - 1]! - run[0]! + 1, `${label} contiguous`).toBe(run.length);
+              expect(Math.abs((run[0]! + run[run.length - 1]! + 1) / 2 - edge), `${label} centred`).toBeLessThanOrEqual(0.5);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('FR-139 the faction and territory lines of one render are as wide as each other', () => {
+    // T layout: entries 1 and 3 (same owner) on the left, entry 2 on the right.
+    const t = gridOf(64, 64, (x, y) => (x < 32 ? (y < 32 ? 1 : 3) : 2), KINDS);
+    const img = render(t, OWNERS, { x: 32, y: 32, scale: 16 }, 1, { width: 20, height: 20 });
+    const fill = FACTION_COLORS[1]!;
+    const lineColor = [0, 1, 2].map((i) => Math.floor(fill[i]! * THEME.territoryLine.darken)) as Rgb;
+    const territory = blend(fill, lineColor, territoryOpacity(16, THEME.territoryLine));
+    const faction = runOf(img, BORDER_COLORS.faction, 2, true);
+    const horizontal = runOf(img, territory, 2, false);
+    expect(faction.length).toBe(4);
+    expect(horizontal.length).toBe(4);
   });
 
   it('FR-139 the same border has the same width in every displayed round (owner table change)', () => {
@@ -310,7 +361,7 @@ describe('FR-138 territory lines and absorption', () => {
       const alpha = territoryOpacity(scale, THEME.territoryLine);
       const img = render(grid, OWNERS, { x: 32, y: 32, scale });
       const expected = blend(fill, lineColor, alpha);
-      expect(runOf(img, expected, 3, true).length, `scale ${scale}`).toBe(1);
+      expect(runOf(img, expected, 3, true).length, `scale ${scale}`).toBe(4);
       // Everything else on the row is the plain fill.
       let other = 0;
       for (let x = 0; x < img.width; x++) if (!eq(img.at(x, 3), fill) && !eq(img.at(x, 3), expected)) other++;
@@ -328,15 +379,94 @@ describe('FR-138 territory lines and absorption', () => {
   it('FR-138 absorption turns the faction border into a territory line in the same render', () => {
     const scale = 16;
     const before = render(grid2(), OWNERS, { x: 32, y: 32, scale });
-    expect(runOf(before, BORDER_COLORS.faction, 3, true).length).toBe(2);
+    expect(runOf(before, BORDER_COLORS.faction, 3, true).length).toBe(4);
     // Same grid and same camera: only the owner table changes, entry 2 now belongs to faction 1.
     const absorbed = ownersOf({ 1: 1, 2: 1, 3: 1, 6: 3 }, 6);
     const after = render(grid2(), absorbed, { x: 32, y: 32, scale });
     expect(runOf(after, BORDER_COLORS.faction, 3, true).length).toBe(0);
     const expected = blend(FACTION_COLORS[1]!, lineColor, territoryOpacity(scale, THEME.territoryLine));
-    expect(runOf(after, expected, 3, true).length).toBe(1);
+    expect(runOf(after, expected, 3, true).length).toBe(4);
     // Fills on both sides now have the absorber colour.
     expect(eq(after.at(18, 3), FACTION_COLORS[1]!)).toBe(true);
+  });
+
+  it('FR-138 the former border is painted on exactly the same pixels after an absorption, only colour and opacity differ', () => {
+    const absorbed = ownersOf({ 1: 1, 2: 1, 3: 1, 6: 3 }, 6);
+    const g = grid2();
+    for (const dpr of [1, 2]) {
+      for (const scale of [5, 8, 16, 32]) {
+        const cam = { x: 32, y: 32, scale };
+        const painted = (owners: readonly number[]): string[] => {
+          const out: string[] = [];
+          for (let y = 0; y < VP.height * dpr; y++) {
+            for (let x = 0; x < VP.width * dpr; x++) {
+              const s = shade(g, owners, FACTION_COLORS, THEME, cam, VP, (x + 0.5) / dpr, (y + 0.5) / dpr);
+              if (s.border !== null) out.push(`${x},${y}`);
+            }
+          }
+          return out;
+        };
+        const before = painted(OWNERS);
+        const after = painted(absorbed);
+        expect(before.length, `scale ${scale} dpr ${dpr}`).toBe(4 * dpr * VP.height * dpr);
+        expect(after, `scale ${scale} dpr ${dpr}`).toStrictEqual(before);
+      }
+    }
+    // Opaque border colour before; the darkened owner colour at the territory opacity after.
+    const scale = 16;
+    const a = render(g, OWNERS, { x: 32, y: 32, scale });
+    const b = render(g, absorbed, { x: 32, y: 32, scale });
+    expect(eq(a.at(9, 3), BORDER_COLORS.faction)).toBe(true);
+    expect(eq(b.at(9, 3), blend(FACTION_COLORS[1]!, lineColor, territoryOpacity(scale, THEME.territoryLine)))).toBe(true);
+  });
+
+  it('FR-139 a faction line over a territory line wins the overlap square and both keep their width (T-junction)', () => {
+    const t = gridOf(64, 64, (x, y) => (x < 32 ? (y < 32 ? 1 : 3) : 2), KINDS);
+    const img = render(t, OWNERS, { x: 32, y: 32, scale: 16 }, 1, { width: 20, height: 20 });
+    const territory = blend(FACTION_COLORS[1]!, lineColor, territoryOpacity(16, THEME.territoryLine));
+    // Faction band: columns 8 to 11 on every row, including the rows of the territory band.
+    for (let y = 0; y < 20; y++) for (let x = 8; x < 12; x++) expect(eq(img.at(x, y), BORDER_COLORS.faction), `${x},${y}`).toBe(true);
+    // Territory band: rows 8 to 11, left of the faction band only.
+    for (let x = 0; x < 8; x++) {
+      for (let y = 0; y < 20; y++) expect(eq(img.at(x, y), territory), `${x},${y}`).toBe(y >= 8 && y < 12);
+    }
+  });
+
+  it('FR-139 a faction line that ends at a coast leaves the sea pixels with the 1 pixel coast line only', () => {
+    // Left half entry 1; right half entry 2 above row 32 and sea (entry 4) below it.
+    const g = gridOf(64, 64, (x, y) => (x < 32 ? 1 : y < 32 ? 2 : 4), KINDS);
+    const img = render(g, OWNERS, { x: 32, y: 32, scale: 16 }, 1, { width: 20, height: 20 });
+    // Sea pixels (right of the vertical edge, below the horizontal one) are plain sea.
+    for (let y = 10; y < 20; y++) for (let x = 10; x < 20; x++) expect(eq(img.at(x, y), SEA), `${x},${y}`).toBe(true);
+    // The land side of the coast: one pixel of the coast colour, not four.
+    expect(runOf(img, BORDER_COLORS.coast, 15, true)).toStrictEqual([9]);
+    expect(runOf(img, BORDER_COLORS.coast, 15, true).length).toBe(1);
+    // Above the junction the faction line is still four pixels wide.
+    expect(runOf(img, BORDER_COLORS.faction, 3, true).length).toBe(4);
+    // The coast line along the horizontal edge (land of entry 2) is one pixel tall.
+    expect(runOf(img, BORDER_COLORS.coast, 15, false)).toStrictEqual([9]);
+  });
+
+  it('FR-139 a territory line yields to a coast line where they meet', () => {
+    // Left: entries 1 above and 3 below (one owner); right: sea.
+    const g = gridOf(64, 64, (x, y) => (x < 32 ? (y < 32 ? 1 : 3) : 4), KINDS);
+    const img = render(g, OWNERS, { x: 32, y: 32, scale: 16 }, 1, { width: 20, height: 20 });
+    const territory = blend(FACTION_COLORS[1]!, lineColor, territoryOpacity(16, THEME.territoryLine));
+    for (const y of [3, 8, 9, 10, 11, 15]) expect(eq(img.at(9, y), BORDER_COLORS.coast), `coast at 9,${y}`).toBe(true);
+    // Away from the coast the territory band is still four rows tall.
+    expect(runOf(img, territory, 4, false)).toStrictEqual([8, 9, 10, 11]);
+  });
+
+  it('FR-139 a 2 map unit wide territory at scale 0.5 is fully covered by its two lines', () => {
+    // Entry 2 (faction 2) is a strip of two map units between entries 1 and 6 (different owners).
+    const g = gridOf(64, 64, (x) => (x < 31 ? 1 : x < 33 ? 2 : 6), KINDS);
+    const img = render(g, OWNERS, { x: 32, y: 32, scale: 0.5 });
+    for (let y = 0; y < img.height; y++) {
+      const row = Array.from({ length: img.width }, (_, x) => img.at(x, y));
+      expect(row.some((c) => eq(c, FACTION_COLORS[2]!)), `row ${y}: the strip fill shows`).toBe(false);
+      // The strip pixel (screen x 9) and the pixels around it are faction line.
+      expect(eq(img.at(9, y), BORDER_COLORS.faction), `row ${y}`).toBe(true);
+    }
   });
 
   it('FR-138 at scales at or below the fade start the absorbed border disappears completely', () => {
@@ -453,6 +583,11 @@ describe('FR-140 classes do not depend on the camera', () => {
       const s = shade(grid, OWNERS, FACTION_COLORS, THEME, { x: 32, y: 32, scale }, vp, 9.75, 4);
       expect(s.border, `scale ${scale}`).toBe('faction');
       expect(s.fill).toBe('land');
+      // 4 px line: 1.75 screen pixels from the edge is inside it, 2.25 is outside, whatever the scale.
+      expect(shade(grid, OWNERS, FACTION_COLORS, THEME, { x: 32, y: 32, scale }, vp, 8.25, 4).border, `scale ${scale} inside`).toBe('faction');
+      expect(shade(grid, OWNERS, FACTION_COLORS, THEME, { x: 32, y: 32, scale }, vp, 7.75, 4).border, `scale ${scale} outside`).toBeNull();
+      expect(shade(grid, OWNERS, FACTION_COLORS, THEME, { x: 32, y: 32, scale }, vp, 11.75, 4).border, `scale ${scale} inside right`).toBe('faction');
+      expect(shade(grid, OWNERS, FACTION_COLORS, THEME, { x: 32, y: 32, scale }, vp, 12.25, 4).border, `scale ${scale} outside right`).toBeNull();
     }
   });
 
