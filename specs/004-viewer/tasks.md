@@ -19,7 +19,7 @@ Rules for every task:
   - Commits: `docs: add spec, plan and tasks 004 viewer`; `chore(web): add viewer workspace and tooling`.
   - Done when: `npm ci` is clean; the lockfile diff is the workspace link plus the confirmed packages (and three's/vite's transitive packages, if any); typecheck covers `apps/web` src and tests; NFR-26 green; licences recorded.
 
-- [ ] **T2. Camera, address parameters, round navigation, UI strings.** FR-144, FR-145, FR-146, FR-147, FR-148, FR-149, FR-150, FR-151, FR-153, FR-154, NFR-28
+- [x] **T2. Camera, address parameters, round navigation, UI strings.** FR-144, FR-145, FR-146, FR-147, FR-148, FR-149, FR-150, FR-151, FR-153, FR-154, NFR-28
   - Files: `apps/web/src/core/{camera.ts,address.ts,navigation.ts,strings.ts}`, `apps/web/test/{camera.test.ts,address.test.ts,navigation.test.ts,strings-language.test.ts,helpers/scan.ts}`.
   - Tests first: plan section 13 camera, address and navigation lists (every spec edge case of the address, the 1-px pointer rules, limits, clamp, resize, reset, format/parse round trip); NFR-28 scan rule of plan section 10 (ASCII outside `strings.ts`, no literal text into DOM sinks, `index.html` without text, every `STRINGS` key used and non-empty, English viewer-internal kinds listed), proven by planting a Spanish literal.
   - Code: plan sections 4 and 5.
