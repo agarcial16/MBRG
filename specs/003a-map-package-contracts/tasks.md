@@ -65,7 +65,7 @@ Rules for every task:
   - Commit: `test(shared): purity and language of map package checks`.
   - Done when: both suites green; the existing 002 purity scan and ASCII check pass over the new sources; `git diff rewrite -- packages/sim/test/language.test.ts packages/sim/test/purity.test.ts` is empty.
 
-- [ ] **T9. Traceability to FR-131/NFR-23 with the 003b pending set; no regression.** NFR-19, NFR-22
+- [x] **T9. Traceability to FR-131/NFR-23 with the 003b pending set; no regression.** NFR-19, NFR-22
   - Files: `packages/sim/test/traceability.test.ts` (only the edits of plan section 9), `packages/shared/test/no-regression.test.ts` (new).
   - Tests first: plan section 9 titles: expected list ends at FR-131/NFR-23 minus retired minus pending; pending set equals exactly the 28 ids of 003b; self-trace pin exactly FR-55, FR-56, NFR-13, NFR-19; NFR-22 public surface: `@mbrg/sim` exports exactly `MODE, getRounds, getState, ownerOf, totalRounds`, `@mbrg/shared` keeps every pre-003a runtime export and its full export list equals that plus exactly the 003a additions (goldens stay guarded by the existing golden tests). Prove the check by temporarily renaming one 003a title (reported missing) and planting a pending id removal (pin fails), then revert.
   - Commit: `test: trace spec 003a requirements`.
