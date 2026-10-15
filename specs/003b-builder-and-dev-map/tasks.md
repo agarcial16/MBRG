@@ -13,7 +13,7 @@ Rules for every task:
 ## PR1 — builder pipeline (FR-105, FR-111..FR-126, NFR-14, NFR-20, NFR-23)
 Pending set during PR1: unchanged (28 ids) until T9; **at PR1 merge: exactly FR-127, FR-128, FR-129, FR-130, FR-131, NFR-16, NFR-17, NFR-21**.
 
-- [ ] **T1. Commit spec docs; builder workspace, approved tooling, config extensions, tsx spike, library manifest test.** NFR-20, NFR-19 (scan glob step)
+- [x] **T1. Commit spec docs; builder workspace, approved tooling, config extensions, tsx spike, library manifest test.** NFR-20, NFR-19 (scan glob step)
   - Files: `specs/003b-builder-and-dev-map/{spec,plan,tasks}.md` (first commit); root `package.json` (`workspaces` + `tools/build-map`, `typecheck` + `tsc -p tools/build-map/tsconfig.json && tsc -p tools/build-map/tsconfig.test.json`), `vitest.config.ts` (`include` + `tools/*/test/**/*.test.ts`), `.gitignore` (`tools/build-map/out/`); `tools/build-map/{package.json,tsconfig.json,tsconfig.test.json}` with `pngjs` 7.0.0, `tsx`, `@types/node` (24.x), `@types/pngjs` pinned exactly; `tools/build-map/test/libraries.test.ts`; `packages/sim/test/traceability.test.ts` (second glob + builder-scan test only).
   - Tests first: NFR-20 manifest test (plan section 13, PR1 list); `NFR-19 the scanned sources include the builder tests`.
   - Spike (tsx): a 5-line `src/cli/build.ts` stub importing `validateMap` from `@mbrg/shared` (whose own imports are extensionless) runs with `npm run build-map -w @mbrg/build-map` on Node 24, exit status 0, on Windows and in CI. If it fails, stop and ask.

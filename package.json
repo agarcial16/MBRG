@@ -3,14 +3,15 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "tools/build-map"
   ],
   "engines": {
     "node": ">=24"
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -p packages/shared/tsconfig.json && tsc -p packages/sim/tsconfig.json && tsc -p tsconfig.test.json"
+    "typecheck": "tsc -p packages/shared/tsconfig.json && tsc -p packages/sim/tsconfig.json && tsc -p tsconfig.test.json && tsc -p tools/build-map/tsconfig.json && tsc -p tools/build-map/tsconfig.test.json"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

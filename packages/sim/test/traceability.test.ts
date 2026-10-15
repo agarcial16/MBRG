@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import ownSource from './traceability.test.ts?raw';
 
-const testSources = import.meta.glob('../../*/test/**/*.test.ts', {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-}) as Record<string, string>;
+const testSources = import.meta.glob(
+  ['../../*/test/**/*.test.ts', '../../../tools/*/test/**/*.test.ts'],
+  {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  },
+) as Record<string, string>;
 
 const ciWorkflow = Object.values(
   import.meta.glob('../../../.github/workflows/ci.yml', {
@@ -65,6 +68,11 @@ const expected = [
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
     expect(Object.keys(testSources).length).toBeGreaterThanOrEqual(10);
+  });
+
+  it('NFR-19 the scanned sources include the builder tests', () => {
+    const builder = Object.keys(testSources).filter((p) => p.includes('/tools/build-map/test/'));
+    expect(builder.length).toBeGreaterThanOrEqual(1);
   });
 
   it('title extraction matches whole ids only and reads it.each titles', () => {
