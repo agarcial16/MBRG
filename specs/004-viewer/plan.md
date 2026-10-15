@@ -21,6 +21,8 @@ Spec: `specs/004-viewer/spec.md` (`Status: approved`). Covers FR-132 to FR-161 a
 | Map format, presentation, id image, `MatchState`, shared/sim exports | Unchanged (NFR-29). | No change |
 | Config extensions (spec) | Root `workspaces` + `apps/web`; root scripts `dev`, `build` (delegating to the workspace), `typecheck` + two `tsc -p` for `apps/web`; vitest `include` + `apps/*/test/**/*.test.ts`; traceability glob + `apps/*/test`. `.gitignore` already has `dist/`. No CI workflow edit. | Allowed by spec |
 
+| `lightningcss` (+ its platform packages), transitive dev dependency of `vite` 8 | Licence **MPL-2.0**, not on the 003b NFR-20 allowed list. Already in the lockfile since 001 via vitest/vite; dev-only build tooling, never shipped in the viewer bundle. **Accepted by the user 2026-10-15 for build tooling only**: it may stay as a transitive dev dependency; it must never be a direct dependency nor be imported by sources. Why: removing it is impossible without dropping vite, and MPL-2.0 is file-level copyleft that does not affect our code. | **Accepted by the user 2026-10-15** |
+
 Licences are re-checked on npm at install time (allowed list as in 003b NFR-20) and recorded in this table in the installing commit, transitive packages included (three has no runtime dependencies; vite's are already in the lockfile).
 
 ## 2. Files and responsibilities
@@ -217,6 +219,7 @@ Titles start with the ids they verify; Node environment; no DOM; exact `toStrict
 ## 14. Decisions the user must confirm
 - U1. **Approved 2026-10-15 (option A).** `@types/three` 0.186.0 as a viewer devDependency; NFR-26 amended in the spec (decision Q6: three ships no TS types; discarded: own minimal `three.d.ts`).
 - U2. **Confirmed 2026-10-15.** `vite` 8.3.4 (already locked by vitest; 7 days old, exception to the 14-day rule accepted by the user), `three` 0.186.1 (21 days old), `@types/three` 0.186.0.
+- U2b. **Accepted 2026-10-15.** MPL-2.0 of vite's transitive dev dependency `lightningcss` (and platform packages), for build tooling only (see section 1).
 - U3. Palette, sea, background and border colours of section 6 (confirmed again at the T10 review).
 - U4. Wheel step: one notch (about 100 px of `deltaY`) = factor 1.2; trackpads scale proportionally.
 - U5. Own PNG decoder in the viewer (P4) instead of browser image decoding.
