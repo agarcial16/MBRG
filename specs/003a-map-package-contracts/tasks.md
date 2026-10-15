@@ -24,7 +24,7 @@ Rules for every task:
   - Commit: `feat(shared): check presentation data structure`.
   - Done when: structural tests green with `toStrictEqual`; `rg` finds every id of this task in titles.
 
-- [ ] **T3. Presentation check, relational phase.** FR-90, FR-93 (relational, skip rule), FR-94 (relational order), FR-100, FR-101, FR-102, FR-103
+- [x] **T3. Presentation check, relational phase.** FR-90, FR-93 (relational, skip rule), FR-94 (relational order), FR-100, FR-101, FR-102, FR-103
   - Files: `packages/shared/src/{faction-order.ts,presentation.ts}`, `packages/shared/test/presentation-relational.test.ts`.
   - Tests first: plan section 10 `presentation-relational` list; sea zone entry required; faction id equal to a territory id -> unknown; participation rules of FR-102/FR-103; "España"/"españa" not duplicates; faction name equal to a territory name valid; repeated territory names valid; every relational kind at once with exact order; shuffled lists give the same result; duplicates + unknown id -> structural only.
   - Code: plan section 5 relational part; `factionOrder` = first appearance of own valid owners of land entries.
