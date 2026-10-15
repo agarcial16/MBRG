@@ -1,0 +1,9 @@
+{
+  "countries": [
+    { "country": "DEU" },
+    { "country": "ESP" },
+    { "country": "FRA" },
+    { "country": "ITA" },
+    { "country": "PRT" }
+  ]
+}

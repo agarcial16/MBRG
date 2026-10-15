@@ -89,7 +89,7 @@ Pending set during PR2: the 8 ids above until T15; **at PR2 merge: no pending se
   - Commit: `feat(build-map): extract Natural Earth source subset`.
   - Done when: tests green; `invalid-source-version` and `files` added to the builder language lists; `rg` finds FR-131.
 
-- [ ] **T11. Committed source data and provenance.** NFR-21, NFR-17 (source size measured)
+- [x] **T11. Committed source data and provenance.** NFR-21, NFR-17 (source size measured)
   - Files: `tools/build-map/data/dev-map/{grouping.json (countries only at this point),extraction-box.json}`, `tools/build-map/data/natural-earth/{provinces.json,countries.json,other-land.json,source-meta.json,PROVENANCE.md}`.
   - Steps: download Natural Earth 1:10m admin-1 and admin-0 countries locally (outside the repo; never committed); run `npm run extract -w @mbrg/build-map -- --ne <dir>` twice and compare bytes; measure total size (<= 10 MB with whole features and per-polygon other land; clip only if exceeded and say so in the note); write `PROVENANCE.md` (plan section 12).
   - Commit: `feat(build-map): add Natural Earth source subset`.
