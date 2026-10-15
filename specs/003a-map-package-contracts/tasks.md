@@ -31,7 +31,7 @@ Rules for every task:
   - Commit: `feat(shared): cross-check presentation data with the map`.
   - Done when: relational tests green; every presentation edge case of the spec has a passing test.
 
-- [ ] **T4. Pixel value encode and decode.** FR-106
+- [x] **T4. Pixel value encode and decode.** FR-106
   - Files: `packages/shared/src/{pixel-codec.ts,index.ts}`, `packages/shared/test/pixel-codec.test.ts`.
   - Tests first: the seven listed pairs both ways; both round-trip properties per plan section 6; out-of-domain values (16,777,216, −1, 1.5, −0, NaN, Infinity, `"1"`, null, BigInt) and channels (256, −1, 1.5, NaN, `"0"`, −0) -> `invalid-image`, no value, never clamped or wrapped.
   - Code: plan section 6.
