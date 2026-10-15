@@ -69,7 +69,7 @@ Pending set during PR1: unchanged (28 ids) until T9; **at PR1 merge: exactly FR-
   - Commit: `feat(build-map): add build command with atomic package writes`.
   - Done when: tests green; a manual `npm run build-map -w @mbrg/build-map` on a temp copy of the mini fixture writes three artifacts and prints the report; `rg` finds FR-111, FR-123, NFR-14.
 
-- [ ] **T9. Language list, traceability step 1, scale measurement; close PR1.** NFR-18 (003b lists), NFR-19 (pending set to 8), NFR-16 (measurement only, no id in titles)
+- [x] **T9. Language list, traceability step 1, scale measurement; close PR1.** NFR-18 (003b lists), NFR-19 (pending set to 8), NFR-16 (measurement only, no id in titles)
   - Files: `tools/build-map/test/{builder-language.test.ts,scale-probe.test.ts}`, `packages/sim/test/traceability.test.ts` (plan section 11, PR1 step).
   - Tests first: builder language literal lists (plan section 13) and ASCII-only `tools/build-map/src`; traceability: pending pin = the 8 ids, `FR-105, FR-126, NFR-14, NFR-23` expected, `FR-127, NFR-21` not expected; prove by temporarily renaming one PR1 title (reported missing), then revert.
   - Measurement: plan section 12 probe (one full build through `runBuild`, artifacts written to a temp dir); record local and CI `buildMs`/`checksMs` in the PR1 description and `MEMORY.md`; apply the decision rule (if thresholds fail, stop and propose a spec change before PR2).

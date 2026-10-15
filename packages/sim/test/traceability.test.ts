@@ -48,17 +48,8 @@ const TRACED_HERE = [...tracedIds({ 'x/own.test.ts': OWN_DECLARATIONS })];
 const LAST_FR = 131;
 const LAST_NFR = 23;
 
-/** NFR-19: 003b ids, not yet required; removed by 003b ("NFR-19 completion"). */
-const PENDING_003B = [
-  'FR-105',
-  ...Array.from({ length: 21 }, (_, i) => `FR-${i + 111}`),
-  'NFR-14',
-  'NFR-16',
-  'NFR-17',
-  'NFR-20',
-  'NFR-21',
-  'NFR-23',
-];
+/** NFR-19: 003b dev map ids (PR2), not yet required; removed by the second step of the NFR-19 completion. */
+const PENDING_003B = ['FR-127', 'FR-128', 'FR-129', 'FR-130', 'FR-131', 'NFR-16', 'NFR-17', 'NFR-21'];
 
 const expected = [
   ...Array.from({ length: LAST_FR }, (_, i) => `FR-${i + 1}`),
@@ -102,20 +93,18 @@ describe('traceability', () => {
     expect([...everything].sort()).toStrictEqual([...spec].sort());
     expect(everything.size).toBe(154);
     for (const id of ['FR-110', 'NFR-22', 'FR-104']) expect(expected).toContain(id);
-    for (const id of ['FR-132', 'NFR-24', 'FR-6', 'FR-25', 'FR-105', 'NFR-23']) {
+    for (const id of ['FR-105', 'FR-126', 'NFR-14', 'NFR-23']) expect(expected).toContain(id);
+    for (const id of ['FR-132', 'NFR-24', 'FR-6', 'FR-25', 'FR-127', 'NFR-21']) {
       expect(expected).not.toContain(id);
     }
   });
 
-  it('NFR-19 the pending set is exactly the 003b ids', () => {
+  it('NFR-19 the pending set is exactly the 003b dev map ids', () => {
     const literal = [
-      'FR-105',
-      'FR-111', 'FR-112', 'FR-113', 'FR-114', 'FR-115', 'FR-116', 'FR-117',
-      'FR-118', 'FR-119', 'FR-120', 'FR-121', 'FR-122', 'FR-123', 'FR-124',
-      'FR-125', 'FR-126', 'FR-127', 'FR-128', 'FR-129', 'FR-130', 'FR-131',
-      'NFR-14', 'NFR-16', 'NFR-17', 'NFR-20', 'NFR-21', 'NFR-23',
+      'FR-127', 'FR-128', 'FR-129', 'FR-130', 'FR-131',
+      'NFR-16', 'NFR-17', 'NFR-21',
     ];
-    expect(literal).toHaveLength(28);
+    expect(literal).toHaveLength(8);
     expect([...PENDING_003B].sort()).toStrictEqual([...literal].sort());
   });
 
