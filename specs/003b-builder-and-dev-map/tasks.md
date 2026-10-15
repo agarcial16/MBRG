@@ -27,7 +27,7 @@ Pending set during PR1: unchanged (28 ids) until T9; **at PR1 merge: exactly FR-
   - Commit: `feat(build-map): check and encode id image PNG files`.
   - Done when: tests green; `rg` finds FR-105 and NFR-23 in titles.
 
-- [ ] **T3. Input parsing, grouping table check, numbering and names.** FR-112 (`invalid-input`, input keys, no seed/round), FR-113, FR-119, FR-120, FR-121
+- [x] **T3. Input parsing, grouping table check, numbering and names.** FR-112 (`invalid-input`, input keys, no seed/round), FR-113, FR-119, FR-120, FR-121
   - Files: `tools/build-map/src/core/{types.ts,errors.ts,parse-inputs.ts,grouping.ts,numbering.ts,presentation.ts}`, `tools/build-map/test/{helpers/fixtures.ts,inputs.test.ts,grouping.test.ts,numbering-names.test.ts}`.
   - Tests first: every malformed input of FR-112 -> one `invalid-input` each in input order; every FR-113 kind alone and all at once in table order, code-unit order inside a kind, secondary order by `territory`, once per distinct data; spec edge cases (bayern twice, FRA province in a DEU territory, empty list, territory colour, missing record, unassigned province outside the frame); FR-120 order and ids; FR-121 name sources, null/empty fallbacks, trailing space kept, no name field; FR-112 pinned input keys.
   - Code: plan section 5.
