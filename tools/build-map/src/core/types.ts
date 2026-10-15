@@ -1,4 +1,4 @@
-import type { Result } from '@mbrg/shared';
+import type { IdImageError, MapData, PresentationData, PresentationError, Result, ValidationError } from '@mbrg/shared';
 
 /** FR-105: a PNG file that fails the id image file rules. Carries no data. */
 export type PngError = { kind: 'invalid-png' };
@@ -147,3 +147,50 @@ export interface BuiltPresentation {
   factions: { id: number; name?: string; color?: string }[];
   territories: { id: number; name?: string }[];
 }
+
+/** FR-123: the three package artifacts, in the order they are written. */
+export type Artifact = 'map' | 'presentation' | 'image';
+
+/** An entry of the map as the preview needs it: a land territory with its faction, or a sea zone. */
+export type PreviewEntry = { id: number; kind: 'land'; owner: number } | { id: number; kind: 'sea' };
+
+/**
+ * FR-126: everything the preview needs. `pixels` may still hold the water sentinel (a failed build
+ * previews the last assignment it computed); `factions` are in faction order with their preferred
+ * colours; `entries` are in map order.
+ */
+export interface PreviewSource {
+  width: number;
+  pixels: Uint32Array;
+  factions: { id: number; color?: string }[];
+  entries: PreviewEntry[];
+}
+
+/** Every error a build can report (FR-112, FR-113, FR-116, FR-117, FR-122, FR-105). */
+export type BuildError =
+  | InputError
+  | GroupingError
+  | SeedError
+  | { kind: 'vanished-entry'; territory: number }
+  | ValidationError
+  | PresentationError
+  | IdImageError
+  | { kind: 'png-round-trip-mismatch' }
+  | PngError;
+
+/**
+ * FR-112, FR-122: the result of the in-memory build. A failure carries a preview only when it
+ * happened after rasterization (FR-123).
+ */
+export type BuildOutcome =
+  | {
+      ok: true;
+      map: MapData;
+      presentation: PresentationData;
+      pixels: Uint32Array;
+      width: number;
+      files: Record<Artifact, Uint8Array>;
+      report: string;
+      preview: PreviewSource;
+    }
+  | { ok: false; errors: BuildError[]; preview?: PreviewSource };

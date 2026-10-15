@@ -55,7 +55,7 @@ Pending set during PR1: unchanged (28 ids) until T9; **at PR1 merge: exactly FR-
   - Commit: `feat(build-map): reassign pieces smaller than the minimum size`.
   - Done when: tests green; identity test fails under a planted tie-rule mutation; `rg` finds FR-117.
 
-- [ ] **T7. In-memory build: assembly, self-check, report, JSON, preview image.** FR-112 (determinism), FR-122, FR-124, FR-125, FR-126 (image), NFR-14 (throwing clock run)
+- [x] **T7. In-memory build: assembly, self-check, report, JSON, preview image.** FR-112 (determinism), FR-122, FR-124, FR-125, FR-126 (image), NFR-14 (throwing clock run)
   - Files: `tools/build-map/src/core/{build.ts,self-check.ts,json.ts,report.ts,preview.ts}`, `tools/build-map/test/{build.test.ts,preview.test.ts,builder-purity.test.ts}`, `helpers/fixtures.ts` ("mini" lon/lat fixture: 3 countries, island, excluded province, other land, lake, 3 seeds, W = 64, S = 4).
   - Tests first: plan section 13 `build.test.ts` and `preview.test.ts`; build twice on the fixture -> identical bytes of all three artifacts; `png-round-trip-mismatch` through an altering test codec; `.nvmrc` and CI `node-version-file` check; the throwing clock/randomness build with the real pngjs codec.
   - Code: plan section 8 (`buildInMemory(inputs, codec)`).
