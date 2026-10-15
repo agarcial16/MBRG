@@ -4,7 +4,7 @@ Natural Earth 5.1.1 admin-1 gives departments (FRA 101), provinces (ESP 52, ITA 
 states (DEU 16). `grouping.json` groups them into 70 territories; every one of the 299 province codes is
 listed exactly once (in a territory or in `excluded`). Names are Spanish and written in the table.
 Province codes and names were taken from `../natural-earth/provinces.json`, not from memory (note the source
-spellings used as keys: `Oristrano`, `Crotene`, `Seien-et-Marne`, `Haute-Rhin`).
+spellings of some province names, kept as in the data: `Oristrano`, `Crotene`, `Seien-et-Marne`, `Haute-Rhin`; the territories list province codes, and the territory keys are country-prefixed slugs).
 
 | Country | Territories | Rule |
 |---|---|---|
