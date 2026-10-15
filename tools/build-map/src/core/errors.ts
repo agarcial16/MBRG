@@ -1,4 +1,4 @@
-import type { GroupingError } from './types';
+import type { GroupingError, SeedError } from './types';
 
 /** FR-113: error kinds in the order of the spec table. */
 export const GROUPING_KIND_ORDER: readonly GroupingError['kind'][] = [
@@ -14,6 +14,14 @@ export const GROUPING_KIND_ORDER: readonly GroupingError['kind'][] = [
   'province-country-mismatch',
   'unassigned-province',
   'empty-country',
+];
+
+/** FR-116: seed error kinds in the order of the spec. */
+export const SEED_KIND_ORDER: readonly SeedError['kind'][] = [
+  'no-sea-seeds',
+  'seed-outside-frame',
+  'seed-not-water',
+  'duplicate-seed-pixel',
 ];
 
 /** Code-unit order of two texts (never locale-aware). */

@@ -99,6 +99,18 @@ export type GroupingError =
   | { kind: 'unknown-province' | 'duplicate-province-assignment' | 'unassigned-province'; province: string }
   | { kind: 'province-country-mismatch'; province: string; territory: string };
 
+/** FR-116: sea seed problems, kinds in the order of the spec; `seed` is the 0-based position in the list. */
+export type SeedError =
+  | { kind: 'no-sea-seeds' }
+  | { kind: 'seed-outside-frame' | 'seed-not-water'; seed: number; name: string }
+  | { kind: 'duplicate-seed-pixel'; seeds: number[]; x: number; y: number };
+
+/** FR-116: the pixel in which a seed point lies. */
+export interface SeedPixel {
+  x: number;
+  y: number;
+}
+
 /** FR-119, FR-120: a faction, one per selected country. */
 export interface NumberedFaction {
   id: number;

@@ -41,7 +41,7 @@ Pending set during PR1: unchanged (28 ids) until T9; **at PR1 merge: exactly FR-
   - Commit: `feat(build-map): project and rasterize provinces by pixel centre`.
   - Done when: tests green; `rg` finds FR-114, FR-115.
 
-- [ ] **T5. Sea zones and contact adjacency.** FR-116, FR-118
+- [x] **T5. Sea zones and contact adjacency.** FR-116, FR-118
   - Files: `tools/build-map/src/core/{sea.ts,adjacency.ts}`, `tools/build-map/test/{sea.test.ts,adjacency.test.ts}`.
   - Tests first: nearest seed, equal-distance tie to the first seed (a fixture where FIFO BFS would differ), lake -> background, each seed error and their order, seed on pixel edges and on the frame's east/south edge; links equal `contactPairs`, ascending neighbours, corner-only no link.
   - Code: plan section 7 (layered BFS, `buildMapData`).
