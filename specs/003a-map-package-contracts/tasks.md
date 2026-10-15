@@ -45,7 +45,7 @@ Rules for every task:
   - Commit: `feat(shared): derive pixel contact pairs from id images`.
   - Done when: contact tests green; `rg` finds FR-108 and FR-110 in titles.
 
-- [ ] **T6. Id image check against the map.** FR-107, FR-108 (adjacency equals contact), FR-109, FR-110
+- [x] **T6. Id image check against the map.** FR-107, FR-108 (adjacency equals contact), FR-109, FR-110
   - Files: `packages/shared/src/{id-image.ts,index.ts}`, `packages/shared/test/id-image.test.ts`, `packages/shared/test/helpers/package-fixtures.ts`.
   - Tests first: plan section 10 `id-image` list; each kind with exact data fields; all kinds at once in table order; adjacency errors ordered by map position of `a`, then `b` (a fixture whose map order differs from id order); invalid map -> map errors only; `invalid-image` reported alone; quadripoint with A-D linked -> `extra-adjacency`; strait drawn as a sea zone valid, direct link across it -> `extra-adjacency`; single pair unlinked -> `missing-adjacency`; exclave valid; unknown id U touching A and B -> one `unknown-pixel-id`, no adjacency error with U; linked entry without pixels -> `missing-territory-pixels` + one `extra-adjacency` per link; same image against a map with other links.
   - Code: plan section 7 `checkIdImage`, using `contactPairs`.

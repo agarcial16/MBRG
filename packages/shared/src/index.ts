@@ -36,3 +36,4 @@ export { factionOrder } from './faction-order';
 export { checkPresentation } from './presentation';
 export { encodePixel, decodePixel } from './pixel-codec';
 export { contactPairs } from './contact';
+export { checkIdImage } from './id-image';

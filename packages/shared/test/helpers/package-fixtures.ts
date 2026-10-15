@@ -53,3 +53,27 @@ export function image(
   }
   return { width: rows[0]!.length, height: rows.length, pixels };
 }
+
+/**
+ * A map from entries in map order and undirected links (made mutual). Land entries get the
+ * owner 1000 + id; ids listed in `sea` become sea zones.
+ */
+export function mapOf(
+  ids: number[],
+  links: Array<[number, number]>,
+  sea: number[] = [],
+): { territories: Array<Record<string, unknown>> } {
+  return {
+    territories: ids.map((id) => {
+      const neighbors: number[] = [];
+      for (const [a, b] of links) {
+        if (a === id) neighbors.push(b);
+        else if (b === id) neighbors.push(a);
+      }
+      neighbors.sort((x, y) => x - y);
+      return sea.includes(id)
+        ? { id, kind: 'sea', neighbors }
+        : { id, owner: 1000 + id, neighbors };
+    }),
+  };
+}
