@@ -52,7 +52,7 @@ Rules for every task:
   - Commit: `feat(shared): check id images against the map`.
   - Done when: id image tests green; every id image edge case of the spec has a passing test.
 
-- [ ] **T7. Map package tests and no modification.** FR-82, FR-83, FR-104
+- [x] **T7. Map package tests and no modification.** FR-82, FR-83, FR-104
   - Files: `packages/shared/test/{map-package.test.ts,helpers/package-fixtures.ts}`.
   - Tests first: FR-82 valid package fixture: `validateMap`, `checkPresentation`, `checkIdImage` each `ok`, inputs deep-equal to `structuredClone` copies taken before; same map with `name` or `color` on an entry -> `unknown-field`. FR-83 presentation with top-level `seed` and `round` -> one `presentation-unknown-field` each; map with top-level `round` -> `unknown-field`; both checks called twice return equal results. FR-104 deep-frozen map, presentation and pixels given to every check and function (valid and invalid inputs) never throw and stay deep-equal.
   - Code: none expected; fix any mutation found.
