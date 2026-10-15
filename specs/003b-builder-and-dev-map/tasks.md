@@ -34,7 +34,7 @@ Pending set during PR1: unchanged (28 ids) until T9; **at PR1 merge: exactly FR-
   - Commit: `feat(build-map): parse inputs, check grouping, number entries`.
   - Done when: tests green with `toStrictEqual`; `rg` finds FR-112, FR-113, FR-119, FR-120, FR-121.
 
-- [ ] **T4. Projection, frame and centre-point rasterization.** FR-114, FR-115, NFR-23 (rasterization)
+- [x] **T4. Projection, frame and centre-point rasterization.** FR-114, FR-115, NFR-23 (rasterization)
   - Files: `tools/build-map/src/core/{projection.ts,rings.ts,rasterize.ts}`, `tools/build-map/test/{projection.test.ts,rasterize.test.ts}`.
   - Tests first: plan section 13 projection and rasterize lists (edges, shared vertices, holes, overlapping holes and polygons, orientation, duplicates, zero-area rings, other land, first in map order, values only from the input ids).
   - Code: plan section 6.
