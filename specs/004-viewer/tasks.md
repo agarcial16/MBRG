@@ -11,7 +11,7 @@ Rules for every task:
 - Visual tasks (T6, T7, T9, T10) are not done without screenshots of the debug scene from fixed `seed`/`round`/`x`/`y`/`zoom` addresses, reviewed and accepted by the user (NFR-27).
 - After each task: tick it, update `MEMORY.md` locally (state, decisions with why, mistakes), and stop. The reviewer validates each task FR by FR.
 
-- [ ] **T1. Commit spec docs; viewer workspace, confirmed dependencies, config extensions, manifest test.** NFR-26
+- [x] **T1. Commit spec docs; viewer workspace, confirmed dependencies, config extensions, manifest test.** NFR-26
   - Step 0 (before installing): `npm view vite@8.3.4 time`, `npm view three time --json`, `npm view three dist-tags`, `npm view @types/three versions --json`. Choose the newest stable `three` at least 14 days old and the matching `@types/three`; write them into plan section 1; **show the user and wait for OK**.
   - Files: `specs/004-viewer/{spec,plan,tasks}.md` (first commit); root `package.json` (`workspaces` + `apps/web`; scripts `dev`, `build` delegating to `-w @mbrg/web`; `typecheck` + `tsc -p apps/web/tsconfig.json && tsc -p apps/web/tsconfig.test.json`), `vitest.config.ts` (`include` + `apps/*/test/**/*.test.ts`); `apps/web/{package.json,index.html,vite.config.ts,tsconfig.json,tsconfig.test.json}`, `apps/web/src/ui/main.ts` (stub that imports `@mbrg/shared` and `three` and logs nothing), `apps/web/test/libraries.test.ts`.
   - Tests first: plan section 11 NFR-26 list (exact deps, lockfile equality, licences, `three` imported only under `src/render` once that exists, `vite` only in `vite.config.ts`, no builder library, shared/sim still without third-party deps).
