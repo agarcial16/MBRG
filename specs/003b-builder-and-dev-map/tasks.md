@@ -95,14 +95,14 @@ Pending set during PR2: the 8 ids above until T15; **at PR2 merge: no pending se
   - Commit: `feat(build-map): add Natural Earth source subset`.
   - Done when: two extraction runs byte-identical; size recorded in the PR description; note complete (source, version, files, box, trimming, rounding, collapsing, command, Portugal approximation, licence).
 
-- [ ] **T12 (inputs done, awaiting user review of preview). Grouping table, sea seeds and parameters; first dev map build and review.** FR-127 (inputs), NFR-16 (real-data measurement)
+- [x] **T12 (user reviewed and accepted the preview on 2026-10-15). Grouping table, sea seeds and parameters; first dev map build and review.** FR-127 (inputs), NFR-16 (real-data measurement)
   - Files: `tools/build-map/data/dev-map/{grouping.json,sea-seeds.json,params.json}`.
   - Steps: group every admin-1 code into the 70 territories (DEU 16, ESP 16, FRA 13, ITA 20, PRT 5 from whole districts) with Spanish names for multi-province territories; exclude Canarias, Ceuta, Melilla, Azores, Madeira and French overseas regions; 10-20 Spanish-named seeds; params `{ width: 2048, margin: 0.02, minPieceSize: 40 }`; build with `--preview` until no error; measure build and check times on real data.
-  - Review: the user reviews `tools/build-map/out/preview.png` and the build report (grouping, Portugal approximation, islands, straits, sea zones) and gives explicit OK.
+  - Review: the user reviews `tools/build-map/out/preview.png` and the build report (grouping, Portugal approximation, islands, straits, sea zones) and gives explicit OK. DONE 2026-10-15: accepted (Santarem stays in Alentejo; thin Atlantic zone and straight sea borders accepted; lakes not reached by a sea seed stay background, FR-116).
   - Commit: `feat(build-map): add dev map grouping, seeds and parameters`.
   - Done when: build succeeds; user OK recorded in the issue; timings recorded (if above the NFR-16 thresholds, stop and propose a spec change).
 
-- [ ] **T13. Commit the dev map package and its checks.** FR-127, FR-128, FR-129, FR-131 (box covers frame), NFR-17, NFR-21
+- [x] **T13. Commit the dev map package and its checks.** FR-127, FR-128, FR-129, FR-131 (box covers frame), NFR-17, NFR-21
   - Files: `maps/dev/{map.json,presentation.json,ids.png}`, `tools/build-map/test/dev-map.test.ts`.
   - Tests first: plan section 13 `dev-map.test.ts` (FR-127 counts and names, FR-128 three checks + PNG read, FR-129 five spec-002 properties, extraction box covers every outermost pixel centre, NFR-17 sizes: PNG <= 2 MB, JSON <= 500 KB together, source data <= 10 MB, NFR-21 note contains the `source-meta.json` version).
   - Commit: `feat: add dev map of western Europe`.
