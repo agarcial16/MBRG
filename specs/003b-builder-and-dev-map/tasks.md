@@ -48,7 +48,7 @@ Pending set during PR1: unchanged (28 ids) until T9; **at PR1 merge: exactly FR-
   - Commit: `feat(build-map): grow sea zones from seeds and derive links`.
   - Done when: tests green; `rg` finds FR-116, FR-118.
 
-- [ ] **T6. Small-piece cleanup, incremental and proven identical.** FR-117
+- [x] **T6. Small-piece cleanup, incremental and proven identical.** FR-117
   - Files: `tools/build-map/src/core/pieces.ts`, `tools/build-map/test/{pieces.test.ts,helpers/cleanup-direct.ts}`.
   - Tests first: every land step 1-4 and sea step, zero-contact fall-through, corner-only -> background, ties, smallest-first with row-major tie, cascades/merges, background untouched, `vanished-entry` for land and sea (stops at first); incremental == direct on the hand fixtures and on 500 seeded generated grids.
   - Code: plan section 7 `cleanupPieces`.
