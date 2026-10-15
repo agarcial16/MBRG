@@ -381,8 +381,25 @@ describe('FR-126 the preview files', () => {
     const fs = faultyFs({ write: 1 }); // the preview is the first file written
     const r = run(['--preview'], fs);
     expect(r.status).toBe(1);
+    expect(errorsOf(r)).toStrictEqual([
+      { kind: 'preview-write-failed', preview: join(root, 'tools', 'build-map', 'out', 'preview.png') },
+    ]);
     expectOld(old);
     expect(listing(outDir())).toStrictEqual(['ids.png', 'map.json', 'presentation.json']);
+  });
+
+  it('FR-123 and FR-126 a preview that cannot be written after a failed build adds preview-write-failed and keeps status 1', () => {
+    const texts = inputTexts(miniInputs());
+    texts.seeds = JSON.stringify([{ name: 'On land', lon: 1.5, lat: 1.5 }]);
+    writeInputs(texts);
+    const old = writeOldPackage();
+    const r = run(['--preview'], faultyFs({ write: 1 }));
+    expect(r.status).toBe(1);
+    expect(errorsOf(r)).toStrictEqual([
+      { kind: 'seed-not-water', seed: 0, name: 'On land' },
+      { kind: 'preview-write-failed', preview: join(root, 'tools', 'build-map', 'out', 'preview.png') },
+    ]);
+    expectOld(old);
   });
 });
 
@@ -404,6 +421,7 @@ describe('FR-126 the preview never goes inside the package directory', () => {
       const first = JSON.parse(r.stderr.split('\n')[0]!) as Record<string, unknown>;
       expect(first.kind).toBe('usage-error');
       expect(first.reason).toBe('preview-inside-package');
+      expect(Object.keys(first).sort()).toStrictEqual(['kind', 'preview', 'reason']);
       expect(existsSync(outDir())).toBe(false);
       expect(existsSync(join(root, 'custom-out'))).toBe(false);
       expect(existsSync(join(root, 'tools', 'build-map', 'out'))).toBe(false);

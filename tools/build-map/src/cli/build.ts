@@ -52,7 +52,7 @@ function insidePackage(file: string, outDir: string): boolean {
   return rel === '' || (rel !== '..' && !rel.startsWith('..' + sep) && !isAbsolute(rel));
 }
 
-/** FR-126: writes the preview image (outside the package); false when it could not be written. */
+/** FR-126: writes the preview image (outside the package); false (after a `preview-write-failed` JSON line) when it could not be written. */
 function writePreview(file: string, source: PreviewSource, deps: BuildDeps): boolean {
   try {
     const png = deps.codec.encode(source.width, source.width, previewRgb(source));
@@ -65,7 +65,7 @@ function writePreview(file: string, source: PreviewSource, deps: BuildDeps): boo
     } catch {
       // nothing half written to remove
     }
-    deps.stderr(`preview could not be written: ${file}\n`);
+    deps.stderr(JSON.stringify({ kind: 'preview-write-failed', preview: file }) + '\n');
     return false;
   }
 }

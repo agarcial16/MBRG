@@ -66,6 +66,7 @@ Pending set during PR1: unchanged (28 ids) until T9; **at PR1 merge: exactly FR-
 - [x] **T8. Build command, atomic writes, preview files, purity scan.** FR-111, FR-123, FR-126 (location, on failure), NFR-14 (source scan)
   - Files: `tools/build-map/src/io/{read-inputs.ts,fs-ops.ts,write-package.ts}`, `tools/build-map/src/cli/build.ts`, `tools/build-map/test/{command.test.ts,builder-purity.test.ts,helpers/scan.ts}`.
   - Tests first: plan section 13 `command.test.ts` (temp dirs; write failure per artifact, first-rename failure -> `write-failed` with all temps removed, later rename failure -> `partial-write` with remaining temps removed; previous artifacts byte-identical; preview on failure after rasterization only; unreadable input -> `invalid-input`; `.gitignore` line; no network) and the NFR-14 scan tests (exemption list exactly the two zlib functions; planted `node:fs`, `gzipSync`, namespace/default zlib import, `require`, dynamic import, `pngjs` import in core flagged).
+  - Amendment (user decision): a preview that cannot be written fails the build (exit 1, package untouched) with JSON kind `preview-write-failed`; a preview inside the package is `usage-error` (`preview-inside-package`, exit 2); both listed in the builder language test.
   - Code: plan section 9.
   - Commit: `feat(build-map): add build command with atomic package writes`.
   - Done when: tests green; a manual `npm run build-map -w @mbrg/build-map` on a temp copy of the mini fixture writes three artifacts and prints the report; `rg` finds FR-111, FR-123, NFR-14.

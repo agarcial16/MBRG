@@ -1,12 +1,17 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { GROUPING_KIND_ORDER, SEED_KIND_ORDER } from '../src/core/errors';
+import { runBuild } from '../src/cli/build';
 import { buildInMemory } from '../src/core/build';
 import { checkGrouping } from '../src/core/grouping';
 import { parseBuildInputs } from '../src/core/parse-inputs';
 import { checkPngFile } from '../src/core/png-check';
 import type { BuildInputs, PngCodec } from '../src/core/types';
+import { realFs, type FsOps } from '../src/io/fs-ops';
 import { pngCodec } from '../src/io/png-codec';
-import type { FsOps } from '../src/io/fs-ops';
+import { INPUT_FILES } from '../src/io/read-inputs';
 import { writePackage } from '../src/io/write-package';
 import { inputTexts, miniInputs, province } from './helpers/fixtures';
 
@@ -30,6 +35,7 @@ const GROUPING_KINDS = [
 const SEED_KINDS = ['no-sea-seeds', 'seed-outside-frame', 'seed-not-water', 'duplicate-seed-pixel'];
 const BUILD_KINDS = ['vanished-entry', 'png-round-trip-mismatch'];
 const WRITE_KINDS = ['write-failed', 'partial-write'];
+const COMMAND_KINDS = ['preview-write-failed', 'usage-error'];
 const BUILDER_KINDS = [
   ...INPUT_KINDS,
   ...PNG_KINDS,
@@ -37,6 +43,7 @@ const BUILDER_KINDS = [
   ...SEED_KINDS,
   ...BUILD_KINDS,
   ...WRITE_KINDS,
+  ...COMMAND_KINDS,
 ];
 /** Data fields of the builder errors (the kind is always present). */
 const DATA_FIELDS = [
@@ -52,6 +59,7 @@ const DATA_FIELDS = [
   'artifact',
   'replaced',
   'notReplaced',
+  'preview',
 ];
 const ALLOWED_KEYS = ['kind', ...DATA_FIELDS];
 /** Labels of the report, in order, and the keys of its indented item lines (FR-124). */
@@ -201,6 +209,35 @@ function writeErrors(): Err[] {
   return out;
 }
 
+/** The command's own errors, from real runs on a temporary root: a preview inside the package, a preview that cannot be written. */
+function commandErrors(): Err[] {
+  const root = mkdtempSync(join(tmpdir(), 'mbrg-lang-'));
+  try {
+    const texts = inputTexts(miniInputs());
+    for (const name of Object.keys(INPUT_FILES) as (keyof typeof INPUT_FILES)[]) {
+      const file = join(root, 'tools', 'build-map', 'data', INPUT_FILES[name]);
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, texts[name]);
+    }
+    const out: Err[] = [];
+    const collect = (args: string[], fs: FsOps = realFs): void => {
+      let stderr = '';
+      runBuild(args, { fs, codec: pngCodec, root, stdout: () => undefined, stderr: (s) => (stderr += s) });
+      for (const line of stderr.split(String.fromCharCode(10))) if (line.startsWith('{')) out.push(JSON.parse(line) as Err);
+    };
+    collect(['--preview=maps/dev/preview.png']);
+    collect(['--preview'], {
+      ...realFs,
+      writeFile: () => {
+        throw new Error('disk full');
+      },
+    });
+    return out;
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 function allErrors(): Err[] {
   return [
     ...inputErrors(),
@@ -209,6 +246,7 @@ function allErrors(): Err[] {
     ...seedErrors(),
     ...buildErrors(),
     ...writeErrors(),
+    ...commandErrors(),
   ];
 }
 
@@ -238,6 +276,7 @@ describe('NFR-18 language of the builder', () => {
     expect(kinds(seedErrors())).toStrictEqual([...SEED_KINDS].sort());
     expect(kinds(buildErrors())).toStrictEqual([...BUILD_KINDS].sort());
     expect(kinds(writeErrors())).toStrictEqual([...WRITE_KINDS].sort());
+    expect(kinds(commandErrors())).toStrictEqual([...COMMAND_KINDS].sort());
   });
 
   it('NFR-18 every key of every produced error is a listed data field, and every listed field is produced', () => {
