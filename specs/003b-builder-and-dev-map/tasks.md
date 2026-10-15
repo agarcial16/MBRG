@@ -62,7 +62,7 @@ Pending set during PR1: unchanged (28 ids) until T9; **at PR1 merge: exactly FR-
   - Commit: `feat(build-map): assemble and self-check the map package in memory`.
   - Done when: tests green; the mini package passes `validateMap`, `checkPresentation`, `checkIdImage`; `rg` finds FR-122, FR-124, FR-125, FR-126.
 
-- [ ] **T8. Build command, atomic writes, preview files, purity scan.** FR-111, FR-123, FR-126 (location, on failure), NFR-14 (source scan)
+- [x] **T8. Build command, atomic writes, preview files, purity scan.** FR-111, FR-123, FR-126 (location, on failure), NFR-14 (source scan)
   - Files: `tools/build-map/src/io/{read-inputs.ts,fs-ops.ts,write-package.ts}`, `tools/build-map/src/cli/build.ts`, `tools/build-map/test/{command.test.ts,builder-purity.test.ts,helpers/scan.ts}`.
   - Tests first: plan section 13 `command.test.ts` (temp dirs; write failure per artifact, first-rename failure -> `write-failed` with all temps removed, later rename failure -> `partial-write` with remaining temps removed; previous artifacts byte-identical; preview on failure after rasterization only; unreadable input -> `invalid-input`; `.gitignore` line; no network) and the NFR-14 scan tests (exemption list exactly the two zlib functions; planted `node:fs`, `gzipSync`, namespace/default zlib import, `require`, dynamic import, `pngjs` import in core flagged).
   - Code: plan section 9.
