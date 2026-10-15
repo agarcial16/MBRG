@@ -9,7 +9,7 @@ import { extract, type ExtractError, type ExtractFiles } from '../src/extract/ex
 import { readShapefile } from '../src/extract/read-shapefile';
 import { realFs } from '../src/io/fs-ops';
 import { inputTexts, miniInputs } from './helpers/fixtures';
-import { ADMIN0, ADMIN1, FIXTURE_BOX, VERSION0, VERSION1, neFiles } from './helpers/ne-fixture';
+import { ADMIN0, ADMIN1, FIXTURE_BOX, VERSION0, VERSION1, adminOneFeatures, adminZeroFeatures, neFiles } from './helpers/ne-fixture';
 
 const decoder = new TextDecoder();
 
@@ -149,6 +149,15 @@ describe('FR-131 extraction of the committed source subset', () => {
     expect(second.name_es).toBe('España Dos');
     expect(json(files.provinces).features.every((f: any) => !/\s$/.test(f.properties.name))).toBe(true);
     expect(json(files.countries)[0].name).toBe('Alpha');
+  });
+
+  it('FR-131 removes the NUL padding of the fixed-width fields like the real files', async () => {
+    const files = await succeeded(neFiles({}, adminOneFeatures(), adminZeroFeatures(), 0x00));
+    const provinces = json(files.provinces).features;
+    expect(provinces[1].properties).toStrictEqual({ adm1_code: 'AAA-2', adm0_a3: 'AAA', name: 'Alpha Two', name_es: 'España Dos' });
+    expect(json(files.countries)[0]).toStrictEqual({ adm0_a3: 'AAA', name: 'Alpha', name_es: 'Alfa' });
+    expect(Buffer.from(files.provinces).includes(0)).toBe(false);
+    expect(Buffer.from(files.provinces).toString('utf-8')).not.toContain('\u0000');
   });
 
   it('FR-131 reads an outer ring with its hole, and several outer rings, correctly', async () => {

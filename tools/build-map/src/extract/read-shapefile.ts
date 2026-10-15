@@ -5,7 +5,7 @@ import type { SourceFeature, SourcePolygon } from '../core/types';
 /**
  * FR-131: the only module that imports `shapefile`. It reads a polygon shapefile and its dBASE
  * table from two ArrayBuffers and returns plain records (properties and polygons). Fixed-width
- * text fields come back without their space padding (decoding, not a trim of names). The library
+ * text fields come back without their space or NUL padding (decoding, not a trim of names). The library
  * can also open paths and URLs; only ArrayBuffers are accepted here so it never touches a file or
  * the network, and the caller (the extract command) does the file reading.
  */
@@ -18,8 +18,17 @@ export async function readShapefile(shp: ArrayBuffer, dbf: ArrayBuffer): Promise
   for (;;) {
     const result = await source.read();
     if (result.done || result.value === undefined) return features;
-    features.push({ props: { ...result.value.properties }, polygons: polygonsOf(result.value.geometry) });
+    features.push({ props: unpadded(result.value.properties), polygons: polygonsOf(result.value.geometry) });
   }
+}
+
+/** DBF text values lose their trailing space and NUL padding (the real files pad with NUL). */
+function unpadded(properties: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(properties)) {
+    out[key] = typeof value === 'string' ? value.replace(/[\x00 ]+$/, '') : value;
+  }
+  return out;
 }
 
 type Position = [number, number];

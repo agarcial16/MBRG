@@ -69,8 +69,8 @@ export function shpBytes(features: readonly { rings: Point[][] }[]): Uint8Array 
   return out;
 }
 
-/** The .dbf file: every field is text, space-padded on the right to a width of at least `minWidth` bytes. */
-export function dbfBytes(rows: readonly Record<string, string>[], minWidth = 24): Uint8Array {
+/** The .dbf file: every field is text, padded on the right (space, or NUL like the real data) to a width of at least `minWidth` bytes. */
+export function dbfBytes(rows: readonly Record<string, string>[], minWidth = 24, pad = 0x20): Uint8Array {
   const encoder = new TextEncoder();
   const names = Object.keys(rows[0] ?? {});
   const widths = names.map((n) => Math.max(minWidth, ...rows.map((r) => encoder.encode(r[n] ?? '').length)));
@@ -94,7 +94,7 @@ export function dbfBytes(rows: readonly Record<string, string>[], minWidth = 24)
     out[at++] = 0x20;
     names.forEach((name, i) => {
       const bytes = encoder.encode(row[name] ?? '');
-      out.fill(0x20, at, at + widths[i]!);
+      out.fill(pad, at, at + widths[i]!);
       out.set(bytes, at);
       at += widths[i]!;
     });
@@ -178,13 +178,14 @@ export function neFiles(
   versions: { admin1?: string | null; admin0?: string | null } = {},
   admin1: FixtureFeature[] = adminOneFeatures(),
   admin0: FixtureFeature[] = adminZeroFeatures(),
+  pad = 0x20,
 ): Record<string, Uint8Array> {
   const encoder = new TextEncoder();
   const files: Record<string, Uint8Array> = {
     [`${ADMIN1}.shp`]: shpBytes(admin1),
-    [`${ADMIN1}.dbf`]: dbfBytes(admin1.map((f) => f.row)),
+    [`${ADMIN1}.dbf`]: dbfBytes(admin1.map((f) => f.row), 24, pad),
     [`${ADMIN0}.shp`]: shpBytes(admin0),
-    [`${ADMIN0}.dbf`]: dbfBytes(admin0.map((f) => f.row)),
+    [`${ADMIN0}.dbf`]: dbfBytes(admin0.map((f) => f.row), 24, pad),
   };
   const one = versions.admin1 === undefined ? '5.1.2\n' : versions.admin1;
   const zero = versions.admin0 === undefined ? '5.1.2\r\n' : versions.admin0;

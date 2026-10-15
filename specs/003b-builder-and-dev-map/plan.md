@@ -280,7 +280,7 @@ runExtract(args): --ne <dir>: reads ne_10m_admin_1_states_provinces.{shp,dbf} + 
                   ne_10m_admin_0_countries.{shp,dbf} + .VERSION.txt as ArrayBuffers; selected countries from
                   data/dev-map/grouping.json; box from data/dev-map/extraction-box.json; writes data/natural-earth/*.json
 read-shapefile.ts: shapefile.open(shpBuffer, dbfBuffer, { encoding: 'utf-8' }); read all -> GeoJSON features
-                   (ring classification by the library); DBF space padding removed (decoding, spec FR-131)
+                   (ring classification by the library); DBF space or NUL padding (trailing) removed (decoding, spec FR-131)
 extract(records, versionTexts, selected, box, decimals = 5):   PURE
   version texts per dataset, trailing line breaks removed: missing or different -> invalid-source-version(files sorted)
   fields matched case-insensitively, written lower case
