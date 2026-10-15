@@ -49,12 +49,14 @@ export function writePackage(
     return { ok: false, errors: [{ kind: 'write-failed', artifact: 'map' }] };
   }
 
+  const attempted: string[] = [];
   for (const entry of entries) {
     try {
+      attempted.push(entry.temp);
       fs.writeFile(entry.temp, files[entry.artifact]);
     } catch {
-      // the failing file may be half written: it is removed with the others
-      remove(entries.map((e) => e.temp));
+      // the failing file may be half written: it is removed with the others this run wrote, not stale ones
+      remove(attempted);
       return { ok: false, errors: [{ kind: 'write-failed', artifact: entry.artifact }] };
     }
   }

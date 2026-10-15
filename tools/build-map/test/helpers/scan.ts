@@ -66,7 +66,7 @@ export function scanSource(src: string): string[] {
   const text = stripComments(src);
   for (const m of text.matchAll(STATIC_IMPORT)) {
     const spec = m[3]!;
-    if (spec === 'node:zlib' || spec === 'zlib') {
+    if (spec === 'node:zlib') {
       if (!zlibClauseAllowed(m[1]!)) found.push(`zlib import outside the exemption: ${m[0].trim()}`);
     } else if (!spec.startsWith('./') && !spec.startsWith('../') && spec !== '@mbrg/shared') {
       found.push(`import of ${spec}`);

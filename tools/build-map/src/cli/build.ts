@@ -1,4 +1,4 @@
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { buildInMemory } from '../core/build';
 import { parseBuildInputs } from '../core/parse-inputs';
@@ -46,6 +46,12 @@ function parseArgs(args: string[], root: string): Options | string {
   return options;
 }
 
+/** True when `file` is the package directory or lies inside it, after normalisation (case-blind on Windows). */
+function insidePackage(file: string, outDir: string): boolean {
+  const rel = relative(outDir, file);
+  return rel === '' || (rel !== '..' && !rel.startsWith('..' + sep) && !isAbsolute(rel));
+}
+
 /** FR-126: writes the preview image (outside the package); false when it could not be written. */
 function writePreview(file: string, source: PreviewSource, deps: BuildDeps): boolean {
   try {
@@ -79,6 +85,13 @@ export function runBuild(args: string[], deps: BuildDeps): number {
   const printErrors = (errors: readonly unknown[]): void => {
     for (const error of errors) deps.stderr(JSON.stringify(error) + '\n');
   };
+
+  // FR-126: the preview lives outside the package; a path inside it is a usage error, before any read or write.
+  if (options.preview !== undefined && insidePackage(options.preview, options.out)) {
+    printErrors([{ kind: 'usage-error', reason: 'preview-inside-package', preview: options.preview }]);
+    deps.stderr(`${USAGE}\n`);
+    return 2;
+  }
 
   const texts = readInputTexts(options.data, deps.fs);
   const parsed = parseBuildInputs(texts as Record<InputName, string>);

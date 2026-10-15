@@ -81,7 +81,8 @@ describe('NFR-14 the source scan of the builder core', () => {
       expect(scanSource(`import { ${name} } from 'node:zlib';\nexport const f = ${name};`)).toStrictEqual([]);
     }
     expect(scanSource("import { deflateSync, inflateSync } from 'node:zlib';")).toStrictEqual([]);
-    expect(scanSource("import { inflateSync } from 'zlib';")).toStrictEqual([]);
+    // NFR-14 names node:zlib: the bare specifier is not exempt.
+    expect(scanSource("import { inflateSync } from 'zlib';").length).toBeGreaterThan(0);
     // Every other synchronous function of node:zlib is flagged.
     const others = Object.keys(zlib).filter(
       (k) => typeof (zlib as Record<string, unknown>)[k] === 'function' && !ZLIB_EXEMPT.includes(k),

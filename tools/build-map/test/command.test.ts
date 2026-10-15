@@ -244,6 +244,19 @@ describe('FR-123 failures leave the package alone', () => {
     });
   }
 
+  it('FR-123 a failed write removes only the temporary files this run wrote, not stale ones', () => {
+    writeInputs();
+    const old = writeOldPackage();
+    const stale = join(outDir(), 'ids.png.tmp');
+    writeFileSync(stale, 'stale temp of another run');
+    const r = run([], faultyFs({ write: 2 }));
+    expect(r.status).toBe(1);
+    expect(errorsOf(r)).toStrictEqual([{ kind: 'write-failed', artifact: 'presentation' }]);
+    expect(listing(outDir())).toStrictEqual(['ids.png', 'ids.png.tmp', 'map.json', 'presentation.json']);
+    expect(read(stale).toString()).toBe('stale temp of another run');
+    expectOld(old);
+  });
+
   it('FR-123 a failed first rename gives write-failed for that artifact and removes every temporary file', () => {
     writeInputs();
     const old = writeOldPackage();
@@ -369,6 +382,65 @@ describe('FR-126 the preview files', () => {
     const r = run(['--preview'], fs);
     expect(r.status).toBe(1);
     expectOld(old);
+    expect(listing(outDir())).toStrictEqual(['ids.png', 'map.json', 'presentation.json']);
+  });
+});
+
+describe('FR-126 the preview never goes inside the package directory', () => {
+  const insideCases: [string, () => string][] = [
+    ['a relative path inside', () => 'maps/dev/preview.png'],
+    ['an absolute path inside', () => join(outDir(), 'preview.png')],
+    ['a path normalised by .. into the package', () => 'maps/other/../dev/preview.png'],
+    ['a path that leaves and re-enters with ..', () => 'maps/dev/../dev/sub/preview.png'],
+    ['the package directory itself', () => 'maps/dev'],
+    ['a path inside a package directory given with --out', () => 'custom-out/preview.png'],
+  ];
+  for (const [label, path] of insideCases) {
+    it(`FR-126 ${label} is a usage error: exit 2, a JSON error line, nothing written`, () => {
+      writeInputs();
+      const out = path().startsWith('custom-out') ? ['--out=custom-out'] : [];
+      const r = run([...out, `--preview=${path()}`]);
+      expect(r.status).toBe(2);
+      const first = JSON.parse(r.stderr.split('\n')[0]!) as Record<string, unknown>;
+      expect(first.kind).toBe('usage-error');
+      expect(first.reason).toBe('preview-inside-package');
+      expect(existsSync(outDir())).toBe(false);
+      expect(existsSync(join(root, 'custom-out'))).toBe(false);
+      expect(existsSync(join(root, 'tools', 'build-map', 'out'))).toBe(false);
+    });
+  }
+
+  it('FR-126 the default preview file is rejected when --out puts the package over its folder', () => {
+    writeInputs();
+    const r = run(['--out=tools/build-map/out', '--preview']);
+    expect(r.status).toBe(2);
+    expect(existsSync(join(root, 'tools', 'build-map', 'out'))).toBe(false);
+  });
+
+  it('FR-126 a path that differs only in letter case is inside on Windows', () => {
+    if (process.platform !== 'win32') return;
+    writeInputs();
+    const r = run(['--preview=MAPS/DEV/preview.png']);
+    expect(r.status).toBe(2);
+    expect(existsSync(outDir())).toBe(false);
+  });
+
+  it('FR-126 a failing build with a preview inside the package is still a usage error and writes nothing', () => {
+    const texts = inputTexts(miniInputs());
+    texts.seeds = JSON.stringify([{ name: 'On land', lon: 1.5, lat: 1.5 }]);
+    writeInputs(texts);
+    const old = writeOldPackage();
+    const r = run(['--preview=maps/dev/preview.png']);
+    expect(r.status).toBe(2);
+    expect(JSON.parse(r.stderr.split('\n')[0]!)).toMatchObject({ kind: 'usage-error' });
+    expect(listing(outDir())).toStrictEqual(['ids.png', 'map.json', 'presentation.json']);
+    expectOld(old);
+  });
+
+  it('FR-126 a sibling folder whose name starts like the package directory is not inside it', () => {
+    writeInputs();
+    expect(run(['--preview=maps/dev2/preview.png']).status).toBe(0);
+    expect(existsSync(join(root, 'maps', 'dev2', 'preview.png'))).toBe(true);
     expect(listing(outDir())).toStrictEqual(['ids.png', 'map.json', 'presentation.json']);
   });
 });

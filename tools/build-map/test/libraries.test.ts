@@ -123,6 +123,7 @@ describe('NFR-20 libraries', () => {
     const importers = Object.entries(builderSources)
       .filter(([, src]) => importedSpecifiers(src).some((s) => s === 'pngjs' || s.startsWith('pngjs/')))
       .map(([p]) => p);
+    expect(importers).toContain('../src/io/png-codec.ts');
     expect(importers.every((p) => p === '../src/io/png-codec.ts')).toBe(true);
   });
 });

@@ -43,7 +43,7 @@ function mini(change: (inputs: BuildInputs) => void): BuildInputs {
 }
 
 describe('FR-112 determinism: inputs fully determine the output', () => {
-  it('FR-112 building twice from the same inputs gives identical bytes of all three artifacts', () => {
+  it('FR-112 and FR-125 building twice from the same inputs gives identical bytes of all three artifacts', () => {
     const a = buildOk();
     const b = buildOk();
     expect(same(a.files.map, b.files.map)).toBe(true);
@@ -81,6 +81,41 @@ describe('FR-112 determinism: inputs fully determine the output', () => {
     const outcome = build(mini((i) => (i.grouping.excluded = [])));
     expect(outcome).toStrictEqual({ ok: false, errors: [{ kind: 'unassigned-province', province: 'CC-X' }] });
     expect('preview' in outcome).toBe(false);
+  });
+});
+
+describe('FR-114 the frame comes from the non-excluded provinces only', () => {
+  it('FR-114 an excluded province far outside the land changes neither the centre, the frame nor the pixels', () => {
+    const far = mini((i) => {
+      const x = i.provinces.find((p) => p.props.adm1_code === 'CC-X')!;
+      x.polygons = [
+        {
+          outer: {
+            coords: [
+              [60, -50],
+              [70, -50],
+              [70, -40],
+              [60, -40],
+              [60, -50],
+            ],
+          },
+          holes: [],
+        },
+      ];
+    });
+    const without = mini((i) => {
+      i.provinces = i.provinces.filter((p) => p.props.adm1_code !== 'CC-X');
+      i.grouping.excluded = [];
+    });
+    const a = buildOk(far);
+    const b = buildOk(without);
+    const frameLines = (r: string): string[] =>
+      r.split('\n').filter((l) => l.startsWith('projectionCenter:') || l.startsWith('frame:'));
+    expect(frameLines(a.report)).toHaveLength(2);
+    expect(frameLines(a.report)).toStrictEqual(frameLines(b.report));
+    expect(a.pixels).toStrictEqual(b.pixels);
+    expect(same(a.files.image, b.files.image)).toBe(true);
+    expect(same(a.files.map, b.files.map)).toBe(true);
   });
 });
 
