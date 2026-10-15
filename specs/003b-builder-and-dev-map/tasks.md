@@ -119,4 +119,5 @@ Pending set during PR2: the 8 ids above until T15; **at PR2 merge: no pending se
   - Tests first: `NFR-19 the expected list excludes only the retired ids` (152 ids, computed); pending pin test removed; self-trace pin unchanged; prove by temporarily renaming one PR2 title (reported missing), then revert.
   - Steps: NFR-22 process check (plan section 11); reviewer validates FR by FR against the spec done criteria; push; open PR2 (`Closes` T10..T15 issues); CI green; squash merge only with the user's OK.
   - Commits: `test: trace spec 003b requirements`; `docs: mark spec 003b implemented`.
+  - Local part done (not ticked: push, PR, CI, merge and the manual extraction check are pending): traceability step 2 committed, NFR-22 process check clean, spec status `implemented`.
   - Done when: CI green on the PR; no pending set; manual check done: extraction reproduces the committed source data from the real Natural Earth files; `MEMORY.md` updated (state, decisions, lessons; "~40-60 provinces" replaced by the 70 territories; next step spec 004).

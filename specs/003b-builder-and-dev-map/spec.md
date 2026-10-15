@@ -1,5 +1,5 @@
 # Spec 003b — Builder and dev map
-Status: approved
+Status: implemented
 
 ## Context and goal
 Roadmap step 2 is "viewer on a real map". The viewer cannot be judged without a real map at target scale (lesson: 4x4 test maps hid every real bug), so step 2 is split into: 003a map package contracts, **003b builder and dev map** (this spec), 004 viewer and 005 labels and transitions.
