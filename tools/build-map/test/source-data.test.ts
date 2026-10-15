@@ -65,7 +65,8 @@ describe('NFR-17 and NFR-21 the committed Natural Earth source subset', () => {
     for (const name of FILES) {
       const content = text(join(source, name));
       expect(content.includes('\r'), name).toBe(false);
-      expect(content.includes('\u0000') || content.includes('\u0000'), name).toBe(false);
+      expect(content.includes(String.fromCharCode(0)), name).toBe(false);
+      expect(content.includes('\\u0000'), name).toBe(false);
     }
   });
 });
