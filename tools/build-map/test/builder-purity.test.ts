@@ -67,6 +67,13 @@ describe('NFR-14 the source scan of the builder core', () => {
     expect(files.some((f) => f.includes('/io/') || f.includes('/cli/'))).toBe(false);
   });
 
+  it('NFR-14 the scan covers the pure extraction step and not its shapefile adapter', () => {
+    const files = Object.keys(coreSources);
+    expect(files.filter((f) => f.includes('/extract/'))).toStrictEqual(['../src/extract/extract.ts']);
+    // the adapter really is outside the pure scan: it imports the file-capable library
+    expect(scanSource("import * as shapefile from 'shapefile';").length).toBeGreaterThan(0);
+  });
+
   it('NFR-14 the core uses no I/O, clock, randomness, network or other built-in module', () => {
     const violations: string[] = [];
     for (const [file, src] of Object.entries(coreSources)) {

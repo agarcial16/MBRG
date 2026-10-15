@@ -82,33 +82,33 @@ Pending set during PR1: unchanged (28 ids) until T9; **at PR1 merge: exactly FR-
 ## PR2 — dev map (FR-127..FR-131, NFR-16, NFR-17, NFR-21)
 Pending set during PR2: the 8 ids above until T15; **at PR2 merge: no pending set; expected = FR-1..FR-131 + NFR-1..NFR-23 minus FR-6, FR-25 (152 ids)**.
 
-- [ ] **T10. Extraction step on a synthetic Natural Earth fixture.** FR-131 (automated part), NFR-20 (approved list + `shapefile`)
+- [x] **T10. Extraction step on a synthetic Natural Earth fixture.** (licences checked at install: shapefile BSD-3-Clause; array-source, path-source, slice-source, stream-source, file-source BSD-3-Clause; commander MIT; text-encoding 0.6.4 Unlicense = public domain) FR-131 (automated part), NFR-20 (approved list + `shapefile`)
   - Files: `tools/build-map/src/extract/{read-shapefile.ts,shapefile.d.ts,extract.ts}`, `tools/build-map/src/cli/extract.ts`, `tools/build-map/package.json` (`extract` script; `shapefile` 0.6.6 pinned; transitive licences checked, `text-encoding` included: if outside the NFR-20 list, stop and ask), `tools/build-map/test/{extract.test.ts,helpers/ne-fixture.ts,libraries.test.ts,builder-purity.test.ts}`.
   - Tests first: selection, kept properties (lower case), whole features, per-polygon other land (one feature with a near and a far polygon), rounding to 5 decimals, collapsing, DBF padding removed, outer + hole read correctly, metadata record, `invalid-source-version` (missing and different texts, trailing line break ignored, `files` sorted), two runs byte-identical; `shapefile` only given ArrayBuffers and imported only by `read-shapefile.ts`; purity scan covers `src/extract/extract.ts`.
   - Code: plan section 10.
   - Commit: `feat(build-map): extract Natural Earth source subset`.
   - Done when: tests green; `invalid-source-version` and `files` added to the builder language lists; `rg` finds FR-131.
 
-- [ ] **T11. Committed source data and provenance.** NFR-21, NFR-17 (source size measured)
+- [x] **T11. Committed source data and provenance.** NFR-21, NFR-17 (source size measured)
   - Files: `tools/build-map/data/dev-map/{grouping.json (countries only at this point),extraction-box.json}`, `tools/build-map/data/natural-earth/{provinces.json,countries.json,other-land.json,source-meta.json,PROVENANCE.md}`.
   - Steps: download Natural Earth 1:10m admin-1 and admin-0 countries locally (outside the repo; never committed); run `npm run extract -w @mbrg/build-map -- --ne <dir>` twice and compare bytes; measure total size (<= 10 MB with whole features and per-polygon other land; clip only if exceeded and say so in the note); write `PROVENANCE.md` (plan section 12).
   - Commit: `feat(build-map): add Natural Earth source subset`.
   - Done when: two extraction runs byte-identical; size recorded in the PR description; note complete (source, version, files, box, trimming, rounding, collapsing, command, Portugal approximation, licence).
 
-- [ ] **T12. Grouping table, sea seeds and parameters; first dev map build and review.** FR-127 (inputs), NFR-16 (real-data measurement)
+- [x] **T12 (user reviewed and accepted the preview on 2026-10-15). Grouping table, sea seeds and parameters; first dev map build and review.** FR-127 (inputs), NFR-16 (real-data measurement)
   - Files: `tools/build-map/data/dev-map/{grouping.json,sea-seeds.json,params.json}`.
   - Steps: group every admin-1 code into the 70 territories (DEU 16, ESP 16, FRA 13, ITA 20, PRT 5 from whole districts) with Spanish names for multi-province territories; exclude Canarias, Ceuta, Melilla, Azores, Madeira and French overseas regions; 10-20 Spanish-named seeds; params `{ width: 2048, margin: 0.02, minPieceSize: 40 }`; build with `--preview` until no error; measure build and check times on real data.
-  - Review: the user reviews `tools/build-map/out/preview.png` and the build report (grouping, Portugal approximation, islands, straits, sea zones) and gives explicit OK.
+  - Review: the user reviews `tools/build-map/out/preview.png` and the build report (grouping, Portugal approximation, islands, straits, sea zones) and gives explicit OK. DONE 2026-10-15: accepted (Santarem stays in Alentejo; thin Atlantic zone and straight sea borders accepted; lakes not reached by a sea seed stay background, FR-116).
   - Commit: `feat(build-map): add dev map grouping, seeds and parameters`.
   - Done when: build succeeds; user OK recorded in the issue; timings recorded (if above the NFR-16 thresholds, stop and propose a spec change).
 
-- [ ] **T13. Commit the dev map package and its checks.** FR-127, FR-128, FR-129, FR-131 (box covers frame), NFR-17, NFR-21
+- [x] **T13. Commit the dev map package and its checks.** FR-127, FR-128, FR-129, FR-131 (box covers frame), NFR-17, NFR-21
   - Files: `maps/dev/{map.json,presentation.json,ids.png}`, `tools/build-map/test/dev-map.test.ts`.
   - Tests first: plan section 13 `dev-map.test.ts` (FR-127 counts and names, FR-128 three checks + PNG read, FR-129 five spec-002 properties, extraction box covers every outermost pixel centre, NFR-17 sizes: PNG <= 2 MB, JSON <= 500 KB together, source data <= 10 MB, NFR-21 note contains the `source-meta.json` version).
   - Commit: `feat: add dev map of western Europe`.
   - Done when: tests green; `rg` finds FR-127, FR-128, FR-129, NFR-17, NFR-21.
 
-- [ ] **T14. Rebuild test and timing thresholds.** FR-130, NFR-16
+- [x] **T14. Rebuild test and timing thresholds.** FR-130, NFR-16
   - Files: `tools/build-map/test/rebuild.test.ts`; delete `tools/build-map/test/scale-probe.test.ts`.
   - Tests first: one full rebuild through `runBuild` from the committed inputs into a temp dir, explicit timeout 180 s: build (inputs read to three artifacts written) < 60 s (NFR-16), map and presentation bytes equal to `maps/dev`, decoded pixels equal to the committed PNG; validation + presentation + id image checks of the dev map < 1 s. Prove by temporarily editing one byte of `maps/dev/map.json` (fails), then revert.
   - Commit: `test(build-map): rebuild the dev map and check timings`.
@@ -119,4 +119,5 @@ Pending set during PR2: the 8 ids above until T15; **at PR2 merge: no pending se
   - Tests first: `NFR-19 the expected list excludes only the retired ids` (152 ids, computed); pending pin test removed; self-trace pin unchanged; prove by temporarily renaming one PR2 title (reported missing), then revert.
   - Steps: NFR-22 process check (plan section 11); reviewer validates FR by FR against the spec done criteria; push; open PR2 (`Closes` T10..T15 issues); CI green; squash merge only with the user's OK.
   - Commits: `test: trace spec 003b requirements`; `docs: mark spec 003b implemented`.
+  - Local part done (not ticked: push, PR, CI, merge and the manual extraction check are pending): traceability step 2 committed, NFR-22 process check clean, spec status `implemented`.
   - Done when: CI green on the PR; no pending set; manual check done: extraction reproduces the committed source data from the real Natural Earth files; `MEMORY.md` updated (state, decisions, lessons; "~40-60 provinces" replaced by the 70 territories; next step spec 004).

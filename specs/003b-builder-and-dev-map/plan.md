@@ -26,7 +26,7 @@ Spec: `specs/003b-builder-and-dev-map/spec.md` (`Status: approved`, amended in p
 | `@types/pngjs` | 6.0.5 (installed 2026-10-15) | devDependency | tooling exception (types of an approved library) | MIT | type check | `@types/node` |
 | `tsx` | 4.23.15 (installed 2026-10-15) | devDependency | tooling exception (TypeScript launcher) | MIT | `build-map` and `extract` scripts | installed: `esbuild` 0.28.2 (MIT) with its 26 per-platform `@esbuild/*` binary packages (MIT), optional `fsevents` 2.3.3 (MIT); no `get-tsconfig` or `resolve-pkg-maps` in this tsx version |
 | `@types/node` | 24.19.2 (installed 2026-10-15; matches `.nvmrc`) | devDependency | tooling exception (runtime type declarations) | MIT | type check of builder src and tests | `undici-types` 7.24.6 (MIT, installed) |
-| `shapefile` | 0.6.6 (PR2) | dependency | 4 Natural Earth reading | BSD-3-Clause | extraction only (`src/extract/read-shapefile.ts` adapter) | `array-source`, `path-source`, `slice-source`, `stream-source` (BSD-3-Clause, same author), `commander` 2.x (MIT, its own CLI only), `text-encoding` 0.6.4 (deprecated polyfill; licence to verify, expected `(Unlicense OR Apache-2.0)`) |
+| `shapefile` | 0.6.6 (installed 2026-10-15, user-approved) | dependency | 4 Natural Earth reading | BSD-3-Clause (re-checked on npm at install) | extraction only (`src/extract/read-shapefile.ts` adapter) | installed: `array-source` 0.0.4, `path-source` 0.1.3, `slice-source` 0.4.1, `stream-source` 0.3.5, `file-source` 0.6.1 (all BSD-3-Clause, same author), `commander` 2.20.3 (MIT, its own CLI only), `text-encoding` 0.6.4 (deprecated polyfill; licence `Unlicense` = public domain dedication, LICENSE.md checked; the `(Unlicense OR Apache-2.0)` expression belongs to 0.7.0) |
 - `shapefile` ships no TypeScript types and `@types/shapefile` is not approved: an own minimal declaration `src/extract/shapefile.d.ts` (only `open(shp, dbf, { encoding })` and `read()`).
 - Risks recorded: `shapefile` is unmaintained since 2017 and depends on the deprecated `text-encoding`; mitigated by using it only in the offline extraction, passing `ArrayBuffer`s only (never paths or URLs: `path-source` can read files and fetch URLs), the synthetic-fixture test, and the manual reproduction from real files. `tsx` brings `esbuild` native binaries that differ per platform; it only strips types of our code (no data transformation), and the CI rebuild test (FR-130) runs under Vitest, not tsx, so artifact bytes do not depend on it. `pngjs` has low release activity (last 2023); its output is checked by our own pre-decode check and the round trip on every build (FR-122).
 
@@ -280,7 +280,7 @@ runExtract(args): --ne <dir>: reads ne_10m_admin_1_states_provinces.{shp,dbf} + 
                   ne_10m_admin_0_countries.{shp,dbf} + .VERSION.txt as ArrayBuffers; selected countries from
                   data/dev-map/grouping.json; box from data/dev-map/extraction-box.json; writes data/natural-earth/*.json
 read-shapefile.ts: shapefile.open(shpBuffer, dbfBuffer, { encoding: 'utf-8' }); read all -> GeoJSON features
-                   (ring classification by the library); DBF space padding removed (decoding, spec FR-131)
+                   (ring classification by the library); DBF space or NUL padding (trailing) removed (decoding, spec FR-131)
 extract(records, versionTexts, selected, box, decimals = 5):   PURE
   version texts per dataset, trailing line breaks removed: missing or different -> invalid-source-version(files sorted)
   fields matched case-insensitively, written lower case
@@ -329,5 +329,6 @@ Titles start with the ids they verify; exact `toStrictEqual` on error lists. PR1
 - PNG bytes may differ across OS/zlib builds: tolerated by FR-125/FR-130 (decoded pixels compared).
 - pngjs or a future version writing an extra chunk: caught by `checkPngFile` in every build's round trip.
 - `shapefile`/`text-encoding` unmaintained: offline extraction only; fixture test + manual reproduction.
+- `shapefile` also trims leading whitespace and turns empty DBF text into null before our code sees it (`dist/shapefile.node.js`, `value.trim() || null`); our regex only strips trailing NUL and space. No committed name is affected, and FR-121's no-trim rule binds the builder, not the extraction. `text-encoding` 0.6.4 is Unlicense (public domain); the user accepted it on 2026-10-15 and the PR records it.
 - Grouping-table authoring (about 300 admin-1 codes) is error-prone: FR-113 errors and the preview catch it; the user reviews the preview.
 - Windows paths with spaces: quote; `$env:CI='1'; npm test` so snapshots are never written.
