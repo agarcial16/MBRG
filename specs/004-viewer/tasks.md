@@ -26,7 +26,7 @@ Rules for every task:
   - Commit: `feat(web): add camera, address parsing and round navigation`.
   - Done when: tests green; `rg` finds every listed id.
 
-- [ ] **T3. Theme, faction colours, territory line maths, border rules (CPU reference).** FR-136, FR-137, FR-138, FR-139, FR-140, FR-141, FR-142, FR-143
+- [x] **T3. Theme, faction colours, territory line maths, border rules (CPU reference).** FR-136, FR-137, FR-138, FR-139, FR-140, FR-141, FR-142, FR-143
   - Files: `apps/web/src/core/{theme.ts,colors.ts,lines.ts,borders.ts}`, `apps/web/test/{colors.test.ts,lines.test.ts,borders.test.ts,helpers/grids.ts}`.
   - Tests first: plan section 13 colours, lines and borders lists (dev map -> DEU red, ESP ochre, FRA green, ITA purple, PRT orange; step 2; `palette-exhausted`; distinctness; opacity at S0/S1/32 and monotonic; every border class, colour and width at DPR 1 and 2; quadripoint; image edge; absorption flips `faction` to `territory` in the same render; camera-independent classes; owners compared by index, not colour).
   - Code: plan sections 6 and 8 (`renderReference` is the normative rule the shader ports).
