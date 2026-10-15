@@ -83,6 +83,16 @@ describe('traceability', () => {
   });
 
   it('NFR-13 NFR-19 the expected list ends at the last spec ids and excludes retired and pending ids', () => {
+    // Pin the upper bounds: pending ids are filtered out, so they cannot prove them.
+    expect(LAST_FR).toBe(131);
+    expect(LAST_NFR).toBe(23);
+    const everything = new Set([...expected, ...PENDING_003B, ...RETIRED]);
+    const spec = [
+      ...Array.from({ length: 131 }, (_, i) => `FR-${i + 1}`),
+      ...Array.from({ length: 23 }, (_, i) => `NFR-${i + 1}`),
+    ];
+    expect([...everything].sort()).toStrictEqual([...spec].sort());
+    expect(everything.size).toBe(154);
     for (const id of ['FR-110', 'NFR-22', 'FR-104']) expect(expected).toContain(id);
     for (const id of ['FR-132', 'NFR-24', 'FR-6', 'FR-25', 'FR-105', 'NFR-23']) {
       expect(expected).not.toContain(id);
