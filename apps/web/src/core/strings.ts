@@ -13,6 +13,9 @@ export const STRINGS = {
   noWebgl2: 'Este navegador no ofrece WebGL 2, que hace falta para dibujar el mapa.',
   textureTooSmall:
     'El tamaño máximo de textura del navegador ({size}) es menor que el necesario ({required}) para dibujar el mapa.',
+  simError: 'No se puede obtener el estado de la partida: {kind}.',
+  debugTitle: 'Escena de depuración',
+  outsideMap: 'fuera del mapa',
 } as const;
 
 /** Fills {name} placeholders; a placeholder without a value is left as written. */

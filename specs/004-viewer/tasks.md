@@ -40,7 +40,7 @@ Rules for every task:
   - Commit: `feat(web): load, decode and check the map package`.
   - Done when: tests green; the dev map loads in a Node test in under 2 s (logged, not asserted); `rg` finds FR-132..FR-135, NFR-24.
 
-- [ ] **T5. Debug scene model, performance statistics, anti-spoiler and purity scans.** FR-152, FR-155, FR-156, FR-157, FR-158, FR-159, FR-160, FR-161, NFR-25
+- [x] **T5. Debug scene model, performance statistics, anti-spoiler and purity scans.** FR-152, FR-155, FR-156, FR-157, FR-158, FR-159, FR-160, FR-161, NFR-25
   - Files: `apps/web/src/core/{scene.ts,perf.ts}`, `apps/web/test/{scene.test.ts,anti-spoiler.test.ts,purity.test.ts}`.
   - Tests first: plan section 13 scene, anti-spoiler and purity lists. The recorded-calls sim proves FR-160: stepping 0 -> 1 -> 2 requests only 1, then 2, never 3; jump to T requests only T. The panel data has no field for rounds after n. Scans: `src/render` without `@mbrg/sim`/seed/round; no network API outside `load.ts`; NFR-25 forbidden APIs in `src/core`, clock only in `src/ui/clock.ts`; each scan proven by a planted source. Throwing-clock run of `sceneAt`, `assignFactionColors`, `renderReference`.
   - Code: plan section 9.
