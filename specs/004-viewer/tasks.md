@@ -33,7 +33,7 @@ Rules for every task:
   - Commit: `feat(web): add theme, faction colours and border rules`.
   - Done when: tests green; `rg` finds FR-136..FR-143.
 
-- [ ] **T4. Map package loading: PNG decode, checks, entry index, owner table, capabilities.** FR-132, FR-133, FR-134, FR-135, NFR-24 (per-entry update)
+- [x] **T4. Map package loading: PNG decode, checks, entry index, owner table, capabilities.** FR-132, FR-133, FR-134, FR-135, NFR-24 (per-entry update)
   - Files: `apps/web/src/core/{png.ts,package.ts,entries.ts,capabilities.ts}`, `apps/web/src/ui/load.ts`, `apps/web/test/{png.test.ts,package.test.ts,helpers/dev-map.ts}`.
   - Tests first: plan section 13 png and package lists (exact values over all three channels, filters 0-4, every rejected chunk/format, the dev map PNG decodes and passes `checkIdImage`; error order and first kind; capabilities; `ownerTable` holds per-entry data only; `load.ts` fetches exactly the three `maps/dev` `?url` assets).
   - Code: plan sections 2 (P3-P6) and 7.

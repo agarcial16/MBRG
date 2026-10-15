@@ -6,7 +6,7 @@ import { codeOnly, htmlText, htmlTextAttributes, languageViolations, stripCommen
 
 // NFR-28 (language). Literal lists copied from the plan (section 10), not imported from src.
 /** English identifiers shown inside Spanish messages as data (as in 001-003b). */
-const INTERNAL_KINDS = ['palette-exhausted', 'no-webgl2', 'texture-too-small', 'invalid-png'];
+const INTERNAL_KINDS = ['palette-exhausted', 'no-webgl2', 'texture-too-small', 'invalid-png', 'invalid-json', 'read-failed'];
 const ADDRESS_REASONS = ['invalid', 'out-of-range', 'repeated'];
 const KEBAB = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
@@ -31,7 +31,7 @@ describe('NFR-28 UI strings module', () => {
       expect(typeof text, key).toBe('string');
       expect(text.trim().length, key).toBeGreaterThan(0);
       for (const m of text.matchAll(/\{(\w+)\}/g)) {
-        expect(['param', 'text', 'total'], `${key} placeholder ${m[1]}`).toContain(m[1]);
+        expect(['param', 'text', 'total', 'count', 'kind', 'size', 'required'], `${key} placeholder ${m[1]}`).toContain(m[1]);
       }
     }
   });

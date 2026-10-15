@@ -9,6 +9,10 @@ export const STRINGS = {
   cameraInvalid:
     'El parámetro de cámara «{param}» no es válido: «{text}». Debe ser un número decimal sin signo. Se muestra el mapa entero.',
   typedRoundInvalid: 'La ronda «{text}» no es válida. Escribe un número entero de 0 a {total}.',
+  packageErrors: 'El paquete del mapa no es válido: {count} errores. Primer error: {kind}.',
+  noWebgl2: 'Este navegador no ofrece WebGL 2, que hace falta para dibujar el mapa.',
+  textureTooSmall:
+    'El tamaño máximo de textura del navegador ({size}) es menor que el necesario ({required}) para dibujar el mapa.',
 } as const;
 
 /** Fills {name} placeholders; a placeholder without a value is left as written. */
