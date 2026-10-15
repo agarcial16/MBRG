@@ -100,7 +100,7 @@ checkIdImage(map: unknown, width: unknown, height: unknown, pixels: unknown): Re
 ```
 - Inputs are typed `unknown` (as `validateMap`): the checks must classify wrong types, not trust them.
 - Every function is pure and takes no seed, round, clock or RNG (FR-83, NFR-15). Results on success return the input objects themselves (`value` is the same reference, as `validateMap`); nothing is copied, normalized or repaired (FR-104).
-- Decision P1: export all of the above from `@mbrg/shared` `index.ts` (003b and 004 reuse them; FR-106, FR-108 call them contract surface). `factionOrder` and `imageInputError` stay internal (not exported). Discarded: a separate `@mbrg/shared/package` entry point (new package config for no gain).
+- Decision P1: export all of the above from `@mbrg/shared` `index.ts` (003b and 004 reuse them; FR-106, FR-108 call them contract surface). `factionOrder` is also exported (amended by the user's decision during review: the viewer needs the deterministic faction order of FR-102/FR-103 to assign colours); `imageInputError` stays internal (not exported). Discarded: a separate `@mbrg/shared/package` entry point (new package config for no gain).
 - Decision P2: outside their domain, `encodePixel`, `decodePixel` and `contactPairs` return `{ ok: false, errors: [{ kind: 'invalid-image' }] }` (the spec allows `invalid-image` or an equivalent; reuse keeps one kind). Discarded: throwing (the spec says "reports ... returns no result"; every other check here returns `Result`).
 - Decision P3: contact pairs as a sorted array of `[a, b]` with `a < b`, ascending by `a` then `b`. Deterministic and JSON-plain. Discarded: `Set<string>` keys (order and key format leak into callers).
 
