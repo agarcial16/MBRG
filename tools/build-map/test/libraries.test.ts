@@ -10,7 +10,7 @@ function readJson(...parts: string[]): any {
   return JSON.parse(readFileSync(join(repo, ...parts), 'utf8'));
 }
 
-const APPROVED = ['@types/node', '@types/pngjs', 'pngjs', 'tsx'];
+const APPROVED = ['@types/node', '@types/pngjs', 'pngjs', 'shapefile', 'tsx'];
 const DEV_ONLY = ['@types/node', '@types/pngjs', 'tsx'];
 const ALLOWED_LICENCES = ['MIT', 'ISC', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0', 'Unlicense', 'CC0-1.0'];
 const EXACT = /^\d+\.\d+\.\d+$/;
@@ -58,6 +58,7 @@ describe('NFR-20 libraries', () => {
       expect(lock.packages[`tools/build-map/node_modules/${name}`]?.version ?? lock.packages[`node_modules/${name}`]?.version, name).toBe(declared[name]);
     }
     expect(declared['pngjs']).toBe('7.0.0');
+    expect(declared['shapefile']).toBe('0.6.6');
   });
 
   it('NFR-20 the launcher and the type declarations are development dependencies only', () => {
@@ -66,6 +67,41 @@ describe('NFR-20 libraries', () => {
       expect(manifest.dependencies?.[name], name).toBeUndefined();
     }
     expect(manifest.dependencies?.['pngjs']).toBeDefined();
+    expect(manifest.dependencies?.['shapefile']).toBeDefined();
+    expect(manifest.devDependencies?.['shapefile']).toBeUndefined();
+  });
+
+  it('NFR-20 no type declaration package for shapefile is declared or installed (own minimal declaration)', () => {
+    const declared = { ...manifest.dependencies, ...manifest.devDependencies } as Record<string, string>;
+    expect(Object.keys(declared)).not.toContain('@types/shapefile');
+    expect(existsSync(join(repo, 'node_modules', '@types', 'shapefile'))).toBe(false);
+    expect(existsSync(join(repo, 'tools', 'build-map', 'src', 'extract', 'shapefile.d.ts'))).toBe(true);
+  });
+
+  it('NFR-20 every package installed for shapefile, transitive ones included, has a licence in the allowed list', () => {
+    const seen = new Set<string>();
+    const walk = (name: string): void => {
+      if (seen.has(name)) return;
+      seen.add(name);
+      const file = [join(repo, 'tools', 'build-map', 'node_modules', name), join(repo, 'node_modules', name)]
+        .map((d) => join(d, 'package.json'))
+        .find((p) => existsSync(p));
+      expect(file, `${name} is installed`).toBeDefined();
+      const pkg = JSON.parse(readFileSync(file!, 'utf8'));
+      expect(ALLOWED_LICENCES, `${name}: ${String(pkg.license)}`).toContain(pkg.license);
+      for (const dep of Object.keys(pkg.dependencies ?? {})) walk(dep);
+    };
+    walk('shapefile');
+    expect([...seen].sort()).toStrictEqual([
+      'array-source',
+      'commander',
+      'file-source',
+      'path-source',
+      'shapefile',
+      'slice-source',
+      'stream-source',
+      'text-encoding',
+    ]);
   });
 
   it('NFR-20 the type declarations of node match the pinned runtime major', () => {
@@ -125,5 +161,16 @@ describe('NFR-20 libraries', () => {
       .map(([p]) => p);
     expect(importers).toContain('../src/io/png-codec.ts');
     expect(importers.every((p) => p === '../src/io/png-codec.ts')).toBe(true);
+  });
+
+  it('NFR-20 shapefile is imported only from the shapefile adapter, and nothing else in extract imports it', () => {
+    const importers = Object.entries(builderSources)
+      .filter(([, src]) => importedSpecifiers(src).some((s) => s === 'shapefile' || s.startsWith('shapefile/')))
+      .map(([p]) => p);
+    expect(importers).toStrictEqual(['../src/extract/read-shapefile.ts']);
+    expect(importsLibrary("import * as shapefile from 'shapefile';")).toBe(true);
+    // no builder source other than the adapter names a file-capable shapefile source either
+    const others = Object.entries(builderSources).filter(([p]) => p !== '../src/extract/read-shapefile.ts');
+    expect(others.some(([, src]) => /\b(?:path-source|stream-source|file-source)\b/.test(src))).toBe(false);
   });
 });

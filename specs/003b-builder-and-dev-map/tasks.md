@@ -82,7 +82,7 @@ Pending set during PR1: unchanged (28 ids) until T9; **at PR1 merge: exactly FR-
 ## PR2 — dev map (FR-127..FR-131, NFR-16, NFR-17, NFR-21)
 Pending set during PR2: the 8 ids above until T15; **at PR2 merge: no pending set; expected = FR-1..FR-131 + NFR-1..NFR-23 minus FR-6, FR-25 (152 ids)**.
 
-- [ ] **T10. Extraction step on a synthetic Natural Earth fixture.** FR-131 (automated part), NFR-20 (approved list + `shapefile`)
+- [x] **T10. Extraction step on a synthetic Natural Earth fixture.** (licences checked at install: shapefile BSD-3-Clause; array-source, path-source, slice-source, stream-source, file-source BSD-3-Clause; commander MIT; text-encoding 0.6.4 Unlicense = public domain) FR-131 (automated part), NFR-20 (approved list + `shapefile`)
   - Files: `tools/build-map/src/extract/{read-shapefile.ts,shapefile.d.ts,extract.ts}`, `tools/build-map/src/cli/extract.ts`, `tools/build-map/package.json` (`extract` script; `shapefile` 0.6.6 pinned; transitive licences checked, `text-encoding` included: if outside the NFR-20 list, stop and ask), `tools/build-map/test/{extract.test.ts,helpers/ne-fixture.ts,libraries.test.ts,builder-purity.test.ts}`.
   - Tests first: selection, kept properties (lower case), whole features, per-polygon other land (one feature with a near and a far polygon), rounding to 5 decimals, collapsing, DBF padding removed, outer + hole read correctly, metadata record, `invalid-source-version` (missing and different texts, trailing line break ignored, `files` sorted), two runs byte-identical; `shapefile` only given ArrayBuffers and imported only by `read-shapefile.ts`; purity scan covers `src/extract/extract.ts`.
   - Code: plan section 10.

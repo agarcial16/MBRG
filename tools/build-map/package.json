@@ -4,11 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build-map": "tsx src/cli/build.ts"
+    "build-map": "tsx src/cli/build.ts",
+    "extract": "tsx src/cli/extract.ts"
   },
   "dependencies": {
     "@mbrg/shared": "*",
-    "pngjs": "7.0.0"
+    "pngjs": "7.0.0",
+    "shapefile": "0.6.6"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { GROUPING_KIND_ORDER, SEED_KIND_ORDER } from '../src/core/errors';
 import { runBuild } from '../src/cli/build';
 import { buildInMemory } from '../src/core/build';
+import { extract } from '../src/extract/extract';
 import { checkGrouping } from '../src/core/grouping';
 import { parseBuildInputs } from '../src/core/parse-inputs';
 import { checkPngFile } from '../src/core/png-check';
@@ -36,7 +37,9 @@ const SEED_KINDS = ['no-sea-seeds', 'seed-outside-frame', 'seed-not-water', 'dup
 const BUILD_KINDS = ['vanished-entry', 'png-round-trip-mismatch'];
 const WRITE_KINDS = ['write-failed', 'partial-write'];
 const COMMAND_KINDS = ['preview-write-failed', 'usage-error'];
+const EXTRACT_KINDS = ['invalid-source-version'];
 const BUILDER_KINDS = [
+  ...EXTRACT_KINDS,
   ...INPUT_KINDS,
   ...PNG_KINDS,
   ...GROUPING_KINDS,
@@ -60,6 +63,7 @@ const DATA_FIELDS = [
   'replaced',
   'notReplaced',
   'preview',
+  'files',
 ];
 const ALLOWED_KEYS = ['kind', ...DATA_FIELDS];
 /** Labels of the report, in order, and the keys of its indented item lines (FR-124). */
@@ -238,8 +242,16 @@ function commandErrors(): Err[] {
   }
 }
 
+/** FR-131: the extraction's own error, from a dataset with a missing version text. */
+function extractErrors(): Err[] {
+  const result = extract({ admin1: [], admin0: [], versionTexts: {} }, [], { west: 0, south: 0, east: 1, north: 1 });
+  if (result.ok) throw new Error('the extraction should fail');
+  return result.errors as unknown as Err[];
+}
+
 function allErrors(): Err[] {
   return [
+    ...extractErrors(),
     ...inputErrors(),
     ...pngErrors(),
     ...groupingErrors(),
@@ -270,6 +282,7 @@ describe('NFR-18 language of the builder', () => {
 
   it('NFR-18 each group of kinds is produced by its own bad input, and only by it', () => {
     const kinds = (errors: Err[]): string[] => [...new Set(errors.map((e) => e.kind as string))].sort();
+    expect(kinds(extractErrors())).toStrictEqual(EXTRACT_KINDS);
     expect(kinds(inputErrors())).toStrictEqual(INPUT_KINDS);
     expect(kinds(pngErrors())).toStrictEqual(PNG_KINDS);
     expect(kinds(groupingErrors())).toStrictEqual([...GROUPING_KINDS].sort());
