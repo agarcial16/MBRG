@@ -17,7 +17,7 @@ Rules for every task:
   - Commits: `docs: add spec, plan and tasks 003a map package contracts`; `feat(shared): add presentation types and name and color rules`.
   - Done when: name and colour tests green; `index.ts` diff is additive only; `rg` finds FR-87 and FR-88 in titles.
 
-- [ ] **T2. Presentation check, structural phase.** FR-84, FR-85, FR-86, FR-89, FR-91, FR-92, FR-93 (structural, blocking), FR-94 (structural order), FR-95, FR-96, FR-97, FR-98, FR-99
+- [x] **T2. Presentation check, structural phase.** FR-84, FR-85, FR-86, FR-89, FR-91, FR-92, FR-93 (structural, blocking), FR-94 (structural order), FR-95, FR-96, FR-97, FR-98, FR-99
   - Files: `packages/shared/src/presentation.ts`, `packages/shared/test/presentation-structural.test.ts`, `packages/shared/test/helpers/package-fixtures.ts`.
   - Tests first: plan section 10 `presentation-structural` list; each structural kind alone with exact data fields; "`id` if valid" omitted (key absent, not undefined); every structural kind except `invalid-presentation` at once with exact order, including the 7/3 duplicate first-position example; inherited `name`/`color`; invalid map -> exactly `validateMap` errors.
   - Code: plan section 5 up to the blocking decision; relational phase returns nothing yet (valid data -> `ok`).

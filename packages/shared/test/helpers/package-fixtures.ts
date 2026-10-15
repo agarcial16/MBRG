@@ -14,3 +14,30 @@ export function noncharacters(): number[] {
 export function astral(count: number): string {
   return String.fromCodePoint(0x1f600).repeat(count);
 }
+
+/** Two land territories linked to each other, owned by factions 10 and 20. */
+export function twoLandMap(): { territories: Array<Record<string, unknown>> } {
+  return {
+    territories: [
+      { id: 1, owner: 10, neighbors: [2] },
+      { id: 2, owner: 20, neighbors: [1] },
+    ],
+  };
+}
+
+/** A presentation that is valid for `twoLandMap()`. */
+export function twoLandPresentation(): {
+  factions: Array<Record<string, unknown>>;
+  territories: Array<Record<string, unknown>>;
+} {
+  return {
+    factions: [
+      { id: 10, name: 'Aragon' },
+      { id: 20, name: 'Castilla', color: '#00ff7a' },
+    ],
+    territories: [
+      { id: 1, name: 'Huesca' },
+      { id: 2, name: 'Burgos' },
+    ],
+  };
+}
