@@ -59,7 +59,7 @@ Rules for every task:
   - Commit: `test(shared): verify the map package contract`.
   - Done when: tests green; `rg` finds FR-82, FR-83, FR-104 in titles.
 
-- [ ] **T8. Purity and language of the new contracts.** NFR-15, NFR-18
+- [x] **T8. Purity and language of the new contracts.** NFR-15, NFR-18
   - Files: `packages/shared/test/{package-purity.test.ts,package-language.test.ts}` (new). `packages/sim/test/{language.test.ts,purity.test.ts}` stay untouched.
   - Tests first: NFR-15 every new `src` file matches the glob `shared/src/**/*.ts` that the existing 002 scan already uses (so it is scanned without editing `purity.test.ts`); run-time test calls `checkPresentation`, `checkIdImage`, `encodePixel`, `decodePixel`, `contactPairs`, `isValidName`, `isValidColor` on valid and invalid inputs with `Math.random`, `Date.now`, `performance.now`, `crypto` replaced by throwing functions. NFR-18 literal lists of every new kind (FR-92, FR-110) and data field name (`list`, `position`, `positions`, `id`, `location`, `at`, `field`, `name`, `factions`, `color`, `pixelCount`, `firstPixel`, `x`, `y`, `territory`, `a`, `b`), copied from the spec (not imported); bad inputs produce every kind; every key of every produced error is in the list; no `colour`.
   - Commit: `test(shared): purity and language of map package checks`.
