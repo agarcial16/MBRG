@@ -5,3 +5,4 @@ coverage/
 AGENTS.md
 MEMORY.md
 .claude/
+tools/build-map/out/
