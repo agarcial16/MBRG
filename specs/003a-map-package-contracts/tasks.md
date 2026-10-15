@@ -38,7 +38,7 @@ Rules for every task:
   - Commit: `feat(shared): add id image pixel encode and decode`.
   - Done when: codec tests green; `rg` finds FR-106 in titles.
 
-- [ ] **T5. Image input validation and the contact function.** FR-108 (contact function), FR-110 (`invalid-image` condition)
+- [x] **T5. Image input validation and the contact function.** FR-108 (contact function), FR-110 (`invalid-image` condition)
   - Files: `packages/shared/src/{image-input.ts,contact.ts,index.ts}`, `packages/shared/test/contact.test.ts`.
   - Tests first: quadripoint `AB/CD` -> exactly A-B, A-C, B-D, C-D; `A.B` -> none; single 4-adjacent pair; several pieces (union); ids not in any map still paired; plain list and `Uint32Array` give equal results; sorted output with `a < b`; every `invalid-image` input of the spec edge cases (W x H mismatch, 16,777,216, −1, 1.5, −0, NaN, `"1"`, BigInt, sparse hole, W `"2"`, plain object, W or H 0).
   - Code: plan section 7 `imageInputError` and `contactPairs`.

@@ -41,3 +41,15 @@ export function twoLandPresentation(): {
     ],
   };
 }
+
+/** ASCII rows to an id image; `.` is background (0), other characters come from the legend. */
+export function image(
+  rows: string[],
+  legend: Record<string, number>,
+): { width: number; height: number; pixels: number[] } {
+  const pixels: number[] = [];
+  for (const row of rows) {
+    for (const ch of row) pixels.push(ch === '.' ? 0 : (legend[ch] as number));
+  }
+  return { width: rows[0]!.length, height: rows.length, pixels };
+}
