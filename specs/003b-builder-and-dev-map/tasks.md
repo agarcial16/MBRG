@@ -95,7 +95,7 @@ Pending set during PR2: the 8 ids above until T15; **at PR2 merge: no pending se
   - Commit: `feat(build-map): add Natural Earth source subset`.
   - Done when: two extraction runs byte-identical; size recorded in the PR description; note complete (source, version, files, box, trimming, rounding, collapsing, command, Portugal approximation, licence).
 
-- [ ] **T12. Grouping table, sea seeds and parameters; first dev map build and review.** FR-127 (inputs), NFR-16 (real-data measurement)
+- [ ] **T12 (inputs done, awaiting user review of preview). Grouping table, sea seeds and parameters; first dev map build and review.** FR-127 (inputs), NFR-16 (real-data measurement)
   - Files: `tools/build-map/data/dev-map/{grouping.json,sea-seeds.json,params.json}`.
   - Steps: group every admin-1 code into the 70 territories (DEU 16, ESP 16, FRA 13, ITA 20, PRT 5 from whole districts) with Spanish names for multi-province territories; exclude Canarias, Ceuta, Melilla, Azores, Madeira and French overseas regions; 10-20 Spanish-named seeds; params `{ width: 2048, margin: 0.02, minPieceSize: 40 }`; build with `--preview` until no error; measure build and check times on real data.
   - Review: the user reviews `tools/build-map/out/preview.png` and the build report (grouping, Portugal approximation, islands, straits, sea zones) and gives explicit OK.
