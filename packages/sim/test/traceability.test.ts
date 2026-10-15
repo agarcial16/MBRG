@@ -48,13 +48,10 @@ const TRACED_HERE = [...tracedIds({ 'x/own.test.ts': OWN_DECLARATIONS })];
 const LAST_FR = 131;
 const LAST_NFR = 23;
 
-/** NFR-19: 003b dev map ids (PR2), not yet required; removed by the second step of the NFR-19 completion. */
-const PENDING_003B = ['FR-127', 'FR-128', 'FR-129', 'FR-130', 'FR-131', 'NFR-16', 'NFR-17', 'NFR-21'];
-
 const expected = [
   ...Array.from({ length: LAST_FR }, (_, i) => `FR-${i + 1}`),
   ...Array.from({ length: LAST_NFR }, (_, i) => `NFR-${i + 1}`),
-].filter((id) => !RETIRED.includes(id) && !PENDING_003B.includes(id));
+].filter((id) => !RETIRED.includes(id));
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -81,31 +78,39 @@ describe('traceability', () => {
     for (const id of RETIRED) expect(expected).not.toContain(id);
   });
 
-  it('NFR-13 NFR-19 the expected list ends at the last spec ids and excludes retired and pending ids', () => {
-    // Pin the upper bounds: pending ids are filtered out, so they cannot prove them.
+  it('NFR-13 NFR-19 the expected list ends at the last spec ids and excludes retired ids', () => {
     expect(LAST_FR).toBe(131);
     expect(LAST_NFR).toBe(23);
-    const everything = new Set([...expected, ...PENDING_003B, ...RETIRED]);
+    const everything = new Set([...expected, ...RETIRED]);
     const spec = [
       ...Array.from({ length: 131 }, (_, i) => `FR-${i + 1}`),
       ...Array.from({ length: 23 }, (_, i) => `NFR-${i + 1}`),
     ];
     expect([...everything].sort()).toStrictEqual([...spec].sort());
     expect(everything.size).toBe(154);
+    expect(expected.length).toBe(152);
     for (const id of ['FR-110', 'NFR-22', 'FR-104']) expect(expected).toContain(id);
-    for (const id of ['FR-105', 'FR-126', 'NFR-14', 'NFR-23']) expect(expected).toContain(id);
-    for (const id of ['FR-132', 'NFR-24', 'FR-6', 'FR-25', 'FR-127', 'NFR-21']) {
+    for (const id of ['FR-105', 'FR-126', 'NFR-14', 'NFR-23', 'FR-131', 'NFR-21']) {
+      expect(expected).toContain(id);
+    }
+    for (const id of ['FR-132', 'NFR-24', 'FR-6', 'FR-25']) {
       expect(expected).not.toContain(id);
     }
   });
 
-  it('NFR-19 the pending set is exactly the 003b dev map ids', () => {
-    const literal = [
-      'FR-127', 'FR-128', 'FR-129', 'FR-130', 'FR-131',
-      'NFR-16', 'NFR-17', 'NFR-21',
+  it('NFR-19 the expected list excludes only the retired ids', () => {
+    // Independent computation with literal bounds: no pending exemption can hide in `expected`.
+    const all = [
+      ...Array.from({ length: 131 }, (_, i) => `FR-${i + 1}`),
+      ...Array.from({ length: 23 }, (_, i) => `NFR-${i + 1}`),
     ];
-    expect(literal).toHaveLength(8);
-    expect([...PENDING_003B].sort()).toStrictEqual([...literal].sort());
+    expect(RETIRED).toStrictEqual(['FR-6', 'FR-25']);
+    expect(all.filter((id) => !RETIRED.includes(id))).toHaveLength(152);
+    expect(expected).toHaveLength(152);
+    expect(expected).toStrictEqual(all.filter((id) => id !== 'FR-6' && id !== 'FR-25'));
+    for (const id of ['FR-127', 'FR-131', 'NFR-16', 'NFR-17', 'NFR-21']) {
+      expect(expected).toContain(id);
+    }
   });
 
   it('NFR-13 extraction does not mistake ids sharing a retired prefix for retired ids', () => {
