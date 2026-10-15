@@ -108,7 +108,7 @@ Pending set during PR2: the 8 ids above until T15; **at PR2 merge: no pending se
   - Commit: `feat: add dev map of western Europe`.
   - Done when: tests green; `rg` finds FR-127, FR-128, FR-129, NFR-17, NFR-21.
 
-- [ ] **T14. Rebuild test and timing thresholds.** FR-130, NFR-16
+- [x] **T14. Rebuild test and timing thresholds.** FR-130, NFR-16
   - Files: `tools/build-map/test/rebuild.test.ts`; delete `tools/build-map/test/scale-probe.test.ts`.
   - Tests first: one full rebuild through `runBuild` from the committed inputs into a temp dir, explicit timeout 180 s: build (inputs read to three artifacts written) < 60 s (NFR-16), map and presentation bytes equal to `maps/dev`, decoded pixels equal to the committed PNG; validation + presentation + id image checks of the dev map < 1 s. Prove by temporarily editing one byte of `maps/dev/map.json` (fails), then revert.
   - Commit: `test(build-map): rebuild the dev map and check timings`.
