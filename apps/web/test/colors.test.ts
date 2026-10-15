@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MapData, PresentationData, Rgb } from '@mbrg/shared';
-import { assignFactionColors, directCandidates } from '../src/core/colors';
+import { assignFactionColors, directCandidates, paletteMessage } from '../src/core/colors';
 import { BACKGROUND, BORDER_COLORS, PALETTE, SEA, THEME, type BorderClass } from '../src/core/theme';
 import devMapRaw from '../../../maps/dev/map.json?raw';
 import devPresentationRaw from '../../../maps/dev/presentation.json?raw';
@@ -296,6 +296,21 @@ describe('FR-142 palette, sea, background and border colours', () => {
     expect(THEME.sea).toBe(SEA);
     expect(THEME.background).toBe(BACKGROUND);
     expect(THEME.border).toBe(BORDER_COLORS);
+  });
+});
+
+describe('FR-141 the palette-exhausted message names the faction', () => {
+  it('FR-141 the Spanish message names the faction by its presentation name and shows the kind', () => {
+    const faction = DEV_PRESENTATION.factions[1]!;
+    const text = paletteMessage({ kind: 'palette-exhausted', faction: faction.id }, DEV_PRESENTATION);
+    expect(text).toContain(faction.name);
+    expect(text).toContain('palette-exhausted');
+    expect(text).not.toContain('{');
+  });
+
+  it('FR-141 a faction without a presentation entry is named by its id', () => {
+    const text = paletteMessage({ kind: 'palette-exhausted', faction: 987654 }, DEV_PRESENTATION);
+    expect(text).toContain('987654');
   });
 });
 

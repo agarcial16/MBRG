@@ -2,6 +2,7 @@
 // so the colours never depend on seed, round, time or camera.
 import { entryKind, factionOrder, isValidColor } from '@mbrg/shared';
 import type { FactionId, MapData, MapEntry, PresentationData, Result, Rgb } from '@mbrg/shared';
+import { fillTemplate, STRINGS } from './strings';
 import type { Theme } from './theme';
 
 /** Viewer-internal error kind (English identifier, listed in the language test). */
@@ -109,4 +110,10 @@ export function assignFactionColors(
   const ordered = new Map<FactionId, Rgb>();
   for (const f of order) ordered.set(f, colors.get(f)!);
   return { ok: true, value: ordered };
+}
+
+/** The Spanish message of FR-141: the faction that could not be coloured, by name, and the error kind. */
+export function paletteMessage(error: PaletteExhausted, presentation: PresentationData): string {
+  const name = presentation.factions.find((f) => f.id === error.faction)?.name ?? String(error.faction);
+  return fillTemplate(STRINGS.paletteExhausted, { faction: name, kind: error.kind });
 }

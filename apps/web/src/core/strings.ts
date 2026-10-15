@@ -13,6 +13,8 @@ export const STRINGS = {
   noWebgl2: 'Este navegador no ofrece WebGL 2, que hace falta para dibujar el mapa.',
   textureTooSmall:
     'El tamaño máximo de textura del navegador ({size}) es menor que el necesario ({required}) para dibujar el mapa.',
+  paletteExhausted:
+    'No hay colores suficientes para distinguir a la facción «{faction}» de sus vecinas: {kind}.',
   simError: 'No se puede obtener el estado de la partida: {kind}.',
   debugTitle: 'Escena de depuración',
   outsideMap: 'fuera del mapa',

@@ -77,3 +77,26 @@ export const THEME: Theme = {
   width: BORDER_WIDTHS,
   territoryLine: TERRITORY_LINE,
 };
+
+/**
+ * What the rendering part needs of a theme. The backdrop colour (outside the image, other land, lakes)
+ * is called `outside` here: the same fill class name the entry index uses.
+ */
+export interface MapTheme {
+  sea: Rgb;
+  outside: Rgb;
+  border: Theme['border'];
+  width: Theme['width'];
+  territoryLine: TerritoryLineParams;
+}
+
+/** The theme as the rendering part reads it. */
+export function toMapTheme(theme: Theme): MapTheme {
+  return {
+    sea: theme.sea,
+    outside: theme.background,
+    border: theme.border,
+    width: theme.width,
+    territoryLine: theme.territoryLine,
+  };
+}

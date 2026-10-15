@@ -78,9 +78,9 @@ describe('FR-159 the rendering part takes no seed, round or sim', () => {
     expect(renderViolations(scene![1]).length).toBeGreaterThan(0);
   });
 
-  it('FR-159 only src/core/scene.ts mentions the sim package, and only for types', () => {
+  it('FR-159 only src/core/scene.ts (types) and the startup src/ui/main.ts (the real sim handed to the scene) mention the sim package', () => {
     const mentioning = sources.filter(([, src]) => specifiers(src).some((s) => SIM_SPECIFIER.test(s))).map(([path]) => path);
-    expect(mentioning).toStrictEqual(['core/scene.ts']);
+    expect(mentioning).toStrictEqual(['core/scene.ts', 'ui/main.ts']);
     const scene = sources.find(([path]) => path === 'core/scene.ts')![1];
     const runtime = stripComments(scene)
       .split(';')

@@ -47,7 +47,7 @@ Rules for every task:
   - Commit: `feat(web): add debug scene model and anti-spoiler checks`.
   - Done when: tests green; `rg` finds FR-152, FR-155..FR-161, NFR-25.
 
-- [ ] **T6. Three.js rendering part and first drawn scene.** FR-134 (texture flags), FR-136, FR-138, FR-139, FR-140, FR-159, NFR-24 (owner texture only)
+- [ ] **T6. Three.js rendering part and first drawn scene.** (implemented, awaiting screenshot review) FR-134 (texture flags), FR-136, FR-138, FR-139, FR-140, FR-159, NFR-24 (owner texture only)
   - Files: `apps/web/src/render/{shader.ts,map-scene.ts,renderer.ts}`, `apps/web/src/ui/main.ts` (load -> check -> colours -> index -> `sceneAt(seed 1, round 0)` -> draw at fit; error screen for FR-133/FR-135/FR-141/FR-152), `apps/web/test/map-scene.test.ts`.
   - Tests first: plan section 13 map-scene list (Nearest, no mipmaps, no flipY, no premultiply, NoColorSpace, unpack alignment 1; `setOwners` touches only the owner texture; colour management off; exported signatures take no seed/round, as a type-level test).
   - Code: plan sections 2 (P7) and 8: the GLSL is a line-by-line port of `renderReference`.
