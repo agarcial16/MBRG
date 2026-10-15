@@ -20,7 +20,7 @@ Pending set during PR1: unchanged (28 ids) until T9; **at PR1 merge: exactly FR-
   - Commits: `docs: add spec, plan and tasks 003b builder and dev map`; `chore(build-map): add builder workspace and tooling`.
   - Done when: `npm ci` clean; typecheck covers the workspace src and tests and `packages/*` tests still type-check without Node types; the stub command runs; NFR-20 and the scan test green; lockfile diff = workspace link + the four approved packages and their transitive packages; licences recorded in plan section 1.
 
-- [ ] **T2. PNG id image file: pre-decode check and pngjs codec.** FR-105, NFR-23 (round trip, chunk check)
+- [x] **T2. PNG id image file: pre-decode check and pngjs codec.** FR-105, NFR-23 (round trip, chunk check)
   - Files: `tools/build-map/src/core/{types.ts,crc32.ts,png-check.ts}`, `tools/build-map/src/io/png-codec.ts`, `tools/build-map/test/{png.test.ts,helpers/png-bytes.ts}`.
   - Tests first: plan section 13 `png.test.ts` (round trip with 1, 255, 256, 65,535, 65,536, 16,777,215; written chunk list and IHDR fields; each planted chunk, depth, colour type, interlace; every malformed case of FR-105; pngjs never called on a rejected file; filters 1-4 decoded).
   - Code: plan section 4 (`checkPngFile` in core; pngjs only in the adapter).
