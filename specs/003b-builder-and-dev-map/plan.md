@@ -329,5 +329,6 @@ Titles start with the ids they verify; exact `toStrictEqual` on error lists. PR1
 - PNG bytes may differ across OS/zlib builds: tolerated by FR-125/FR-130 (decoded pixels compared).
 - pngjs or a future version writing an extra chunk: caught by `checkPngFile` in every build's round trip.
 - `shapefile`/`text-encoding` unmaintained: offline extraction only; fixture test + manual reproduction.
+- `shapefile` also trims leading whitespace and turns empty DBF text into null before our code sees it (`dist/shapefile.node.js`, `value.trim() || null`); our regex only strips trailing NUL and space. No committed name is affected, and FR-121's no-trim rule binds the builder, not the extraction. `text-encoding` 0.6.4 is Unlicense (public domain); the user accepted it on 2026-10-15 and the PR records it.
 - Grouping-table authoring (about 300 admin-1 codes) is error-prone: FR-113 errors and the preview catch it; the user reviews the preview.
 - Windows paths with spaces: quote; `$env:CI='1'; npm test` so snapshots are never written.
