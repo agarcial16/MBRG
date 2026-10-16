@@ -49,16 +49,21 @@ export interface Timings {
   load?: number;
   /** Request to drawn frame of the last round change, ms. */
   roundChange?: number;
+  /** Time to compute the faction labels and front distances of the last round change, ms (FR-190). */
+  labels?: number;
   frames: FrameStats;
 }
 
 const ms = (value: number | undefined): string =>
   value === undefined ? STRINGS.perfNone : fillTemplate(STRINGS.perfUnit, { ms: value.toFixed(1) });
 
-/** Load time, last round change and frame statistics, in milliseconds (FR-158). */
+/**
+ * Load time, last round change and frame statistics, in milliseconds (FR-158), then, once a round change has
+ * been measured, the labels and front time (FR-190).
+ */
 export function perfLines(t: Timings): string[] {
   const hasFrames = t.frames.count > 0;
-  return [
+  const lines = [
     fillTemplate(STRINGS.perfLoad, { ms: ms(t.load) }),
     fillTemplate(STRINGS.perfRound, { ms: ms(t.roundChange) }),
     fillTemplate(STRINGS.perfFrames, {
@@ -67,4 +72,6 @@ export function perfLines(t: Timings): string[] {
       p95: ms(hasFrames ? t.frames.p95 : undefined),
     }),
   ];
+  if (t.labels !== undefined) lines.push(fillTemplate(STRINGS.perfLabels, { ms: ms(t.labels) }));
+  return lines;
 }

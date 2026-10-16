@@ -38,6 +38,7 @@ export const STRINGS = {
   perfNone: 'sin datos',
   perfLoad: 'Hasta el primer fotograma: {ms}',
   perfRound: 'Último cambio de ronda: {ms}',
+  perfLabels: 'Etiquetas y frente del último cambio: {ms}',
   perfFrames: 'Fotograma (últimos {count}): mediana {median}, p95 {p95}',
   perfUnit: '{ms} ms',
   controlFirst: 'Primera',

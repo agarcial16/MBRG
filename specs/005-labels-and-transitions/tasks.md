@@ -59,7 +59,7 @@ Rules for every task:
   - Commit: `feat(web): draw the colour front and the label layer`.
   - Done when: tests green; the FR-159 render scan passes on the new files; `rg` finds the listed ids.
 
-- [ ] **T8. UI wiring and first visual check.** FR-176, FR-177, FR-178, FR-182, FR-183, FR-184, FR-185, FR-186, FR-190, NFR-33, NFR-37
+- [ ] **T8 (implemented, pending user review). UI wiring and first visual check.** FR-176, FR-177, FR-178, FR-182, FR-183, FR-184, FR-185, FR-186, FR-190, NFR-33, NFR-37
   - Files: `apps/web/src/ui/{frame-loop.ts,text-metrics.ts,motion.ts,main.ts,panel.ts,url.ts}`, `apps/web/src/core/{panel-text.ts,strings.ts}`, `apps/web/test/labels-purity.test.ts`, panel-text test additions in a new `describe` (the 004 `perfLines` cases unchanged).
   - Tests first: plan section 13 `labels-purity.test.ts` (new core files scanned, throwing-clock run, `now` imported only by `ui/main.ts` and `ui/frame-loop.ts`, rAF only in `ui/frame-loop.ts`, no literal into `fillText`/`strokeText`); FR-190 `perfLines` line with and without the figure.
   - Code: piece index, territory boxes and aspects at load; `stepScenes` + `factionBoxes` + `frontField` + playback on each request; first frame drawn synchronously (D14); frames from `frame-loop.ts`; reduced-motion listener; frozen address on load.
