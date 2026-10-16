@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import ownSource from './traceability.test.ts?raw';
 
 const testSources = import.meta.glob(
-  ['../../*/test/**/*.test.ts', '../../../tools/*/test/**/*.test.ts'],
+  ['../../*/test/**/*.test.ts', '../../../tools/*/test/**/*.test.ts', '../../../apps/*/test/**/*.test.ts'],
   {
     query: '?raw',
     import: 'default',
@@ -45,10 +45,9 @@ const OWN_DECLARATIONS = OWN_SOURCE.split(/\r?\n/)
   .join('\n');
 const TRACED_HERE = [...tracedIds({ 'x/own.test.ts': OWN_DECLARATIONS })];
 
-// Id ranges of the specs on this branch. Ids 132..161 / NFR 24..29 belong to spec 004, which is still on
-// its own branch; spec 004 task T8 joins the ranges into FR 1..166 and NFR 1..31.
-const FR_RANGES: readonly (readonly [number, number])[] = [[1, 131], [162, 166]];
-const NFR_RANGES: readonly (readonly [number, number])[] = [[1, 23], [30, 31]];
+// Id ranges of the specs: 001-003c plus the viewer spec 004 (FR-132..FR-161, NFR-24..NFR-29).
+const FR_RANGES: readonly (readonly [number, number])[] = [[1, 166]];
+const NFR_RANGES: readonly (readonly [number, number])[] = [[1, 31]];
 const idsOf = (prefix: string, ranges: readonly (readonly [number, number])[]): string[] =>
   ranges.flatMap(([from, to]) => Array.from({ length: to - from + 1 }, (_, i) => `${prefix}-${from + i}`));
 
@@ -58,6 +57,11 @@ const expected = specIds.filter((id) => !RETIRED.includes(id));
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
     expect(Object.keys(testSources).length).toBeGreaterThanOrEqual(10);
+  });
+
+  it('NFR-19 the scanned sources include the viewer tests', () => {
+    const viewer = Object.keys(testSources).filter((p) => p.includes('/apps/web/test/'));
+    expect(viewer.length).toBeGreaterThanOrEqual(10);
   });
 
   it('NFR-19 the scanned sources include the builder tests', () => {
@@ -81,18 +85,21 @@ describe('traceability', () => {
   });
 
   it('NFR-13 NFR-19 the expected list ends at the last spec ids and excludes retired ids', () => {
-    expect(FR_RANGES).toStrictEqual([[1, 131], [162, 166]]);
-    expect(NFR_RANGES).toStrictEqual([[1, 23], [30, 31]]);
+    expect(FR_RANGES).toStrictEqual([[1, 166]]);
+    expect(NFR_RANGES).toStrictEqual([[1, 31]]);
     const everything = new Set([...expected, ...RETIRED]);
     expect([...everything].sort()).toStrictEqual([...specIds].sort());
-    expect(everything.size).toBe(161);
-    expect(expected.length).toBe(159);
+    expect(everything.size).toBe(197);
+    expect(expected.length).toBe(195);
     expect(expected).toContain('NFR-31');
     for (const id of ['FR-110', 'NFR-22', 'FR-104']) expect(expected).toContain(id);
     for (const id of ['FR-105', 'FR-126', 'NFR-14', 'NFR-23', 'FR-131', 'NFR-21']) {
       expect(expected).toContain(id);
     }
-    for (const id of ['FR-132', 'FR-161', 'NFR-24', 'NFR-29', 'FR-6', 'FR-25']) {
+    for (const id of ['FR-132', 'FR-161', 'NFR-24', 'NFR-29', 'FR-166', 'NFR-31']) {
+      expect(expected).toContain(id);
+    }
+    for (const id of ['FR-167', 'NFR-32', 'FR-6', 'FR-25']) {
       expect(expected).not.toContain(id);
     }
   });
@@ -100,15 +107,12 @@ describe('traceability', () => {
   it('NFR-19 the expected list excludes only the retired ids', () => {
     // Independent computation with literal bounds: no pending exemption can hide in `expected`.
     const all = [
-      ...Array.from({ length: 131 }, (_, i) => `FR-${i + 1}`),
-      ...Array.from({ length: 5 }, (_, i) => `FR-${i + 162}`),
-      ...Array.from({ length: 23 }, (_, i) => `NFR-${i + 1}`),
-      'NFR-30',
-      'NFR-31',
+      ...Array.from({ length: 166 }, (_, i) => `FR-${i + 1}`),
+      ...Array.from({ length: 31 }, (_, i) => `NFR-${i + 1}`),
     ];
     expect(RETIRED).toStrictEqual(['FR-6', 'FR-25']);
-    expect(all.filter((id) => !RETIRED.includes(id))).toHaveLength(159);
-    expect(expected).toHaveLength(159);
+    expect(all.filter((id) => !RETIRED.includes(id))).toHaveLength(195);
+    expect(expected).toHaveLength(195);
     expect(expected).toStrictEqual(all.filter((id) => id !== 'FR-6' && id !== 'FR-25'));
     for (const id of ['FR-127', 'FR-131', 'NFR-16', 'NFR-17', 'NFR-21']) {
       expect(expected).toContain(id);

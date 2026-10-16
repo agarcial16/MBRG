@@ -139,8 +139,18 @@ describe('NFR-20 libraries', () => {
     }
   });
 
+  it('NFR-20 the viewer manifest declares none of the builder libraries', () => {
+    const viewer = readJson('apps', 'web', 'package.json');
+    for (const name of APPROVED) {
+      for (const kind of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
+        expect(viewer[kind]?.[name], `${kind}.${name}`).toBeUndefined();
+      }
+    }
+  });
+
   it('NFR-20 no source of shared, sim or the viewer imports an approved library', () => {
     expect(Object.keys(packageSources).length).toBeGreaterThan(5);
+    expect(Object.keys(packageSources).some((p) => p.includes('/apps/web/src/'))).toBe(true);
     const offenders = Object.entries(packageSources)
       .filter(([, src]) => importsLibrary(src))
       .map(([p]) => p);
