@@ -142,7 +142,7 @@ async function start(): Promise<void> {
 
   const viewOf = (table: Uint8Array, previous?: RoundView): RoundView => {
     const boxes = factionBoxes(pieces, table, factionAspects, LABEL_PARAMS, previous?.boxes);
-    const labels = roundLabels(texts, colorList, table, boxes, territoryLayout);
+    const labels = roundLabels(texts, table, boxes, territoryLayout);
     return { table, boxes, labels, draws: instantLabels(labels) };
   };
   const stepOf = (earlier: RoundView, later: RoundView, data: StepData): StepView => {

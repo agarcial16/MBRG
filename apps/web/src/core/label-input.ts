@@ -1,7 +1,7 @@
 // Label inputs of a round (FR-167, FR-168, FR-174, FR-189). Pure glue between the presentation data, the owner
 // table, the label boxes and the drawing data of `label-frame.ts`: names in, one `RoundLabels` out.
 import { entryKind } from '@mbrg/shared';
-import type { FactionId, MapData, PresentationData, Rgb } from '@mbrg/shared';
+import type { FactionId, MapData, PresentationData } from '@mbrg/shared';
 import type { RoundLabels } from './label-frame';
 import type { FactionBoxes, LabelBox } from './label-layout';
 
@@ -28,12 +28,11 @@ export function labelTexts(map: MapData, presentation: PresentationData, faction
 
 /**
  * The labels of one round: a faction label for every faction the layout holds (its box may be absent) and a
- * territory label for every owned land entry with a box. Fills are the owner colours of `colors` (by
- * faction index) for the owner table `table` (faction index by entry index).
+ * territory label for every owned land entry with a box, for the owner table `table` (faction index by entry
+ * index). Labels carry no colour: the ink is fixed (FR-174).
  */
 export function roundLabels(
   texts: LabelTexts,
-  colors: readonly Rgb[],
   table: ArrayLike<number>,
   boxes: FactionBoxes,
   territoryBoxes: readonly (LabelBox | undefined)[],
@@ -41,18 +40,16 @@ export function roundLabels(
   const factions: RoundLabels['factions'][number][] = [];
   for (const [faction, label] of boxes.labels) {
     const text = texts.factions.get(faction);
-    const fill = colors[faction];
-    if (text === undefined || fill === undefined) continue;
-    factions.push({ faction, text, box: label.box, aspect: label.aspect, fill });
+    if (text === undefined) continue;
+    factions.push({ faction, text, box: label.box, aspect: label.aspect });
   }
   const territories: RoundLabels['territories'][number][] = [];
   for (let entry = 1; entry < table.length; entry++) {
     const text = texts.territories[entry];
     const box = territoryBoxes[entry];
     const owner = table[entry]!;
-    const fill = colors[owner];
-    if (text === undefined || box === undefined || owner <= 0 || fill === undefined) continue;
-    territories.push({ entry, text, box, fill });
+    if (text === undefined || box === undefined || owner <= 0) continue;
+    territories.push({ entry, text, box });
   }
   return { factions, territories };
 }

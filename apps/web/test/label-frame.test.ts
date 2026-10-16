@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Rgb } from '@mbrg/shared';
 import { MAX_SCALE } from '../src/core/camera';
-import { labelInk } from '../src/core/contrast';
-import { drawable, instantLabels, labelAlpha, labelOpacity, labelsAt, screenBox } from '../src/core/label-frame';
+import { LABEL_HALO, LABEL_INK, drawable, instantLabels, labelAlpha, labelOpacity, labelsAt, screenBox } from '../src/core/label-frame';
 import type { FactionLabelInput, LabelDraw, RoundLabels, StepLabels, TerritoryLabelInput } from '../src/core/label-frame';
 import type { LabelBox } from '../src/core/label-layout';
 import { LABEL_PARAMS } from '../src/core/label-params';
@@ -18,10 +16,38 @@ const draw = (role: 'faction' | 'territory', b: LabelBox, factor = 1): LabelDraw
   role,
   box: b,
   factor,
-  ...(() => {
-    const { ink, halo } = labelInk([200, 200, 200]);
-    return { ink, halo };
-  })(),
+  ink: LABEL_INK,
+  halo: LABEL_HALO,
+});
+
+describe('FR-174 the ink is white and the halo black, for every label', () => {
+  it('FR-174 the constants are #FFFFFF text and a #000000 halo', () => {
+    expect(LABEL_INK).toStrictEqual([255, 255, 255]);
+    expect(LABEL_HALO).toStrictEqual([0, 0, 0]);
+  });
+
+  it('FR-174 FR-181 every label of instantLabels and of labelsAt at f = 0, 0.25, 0.49, 0.5, 0.75, 1 has white ink and a black halo', () => {
+    const variants = [{}, { e1: undefined }, { a0: undefined }, { a1: undefined }, { a0: undefined, a1: undefined }];
+    let seen = 0;
+    for (const v of variants) {
+      const input = stepOf(v);
+      const all = [...instantLabels(input.earlier), ...instantLabels(input.later)];
+      for (const f of [0, 0.25, 0.49, 0.5, 0.75, 1]) all.push(...labelsAt(input, f));
+      for (const l of all) {
+        expect(l.ink, l.text).toStrictEqual([255, 255, 255]);
+        expect(l.halo, l.text).toStrictEqual([0, 0, 0]);
+        seen++;
+      }
+    }
+    expect(seen).toBeGreaterThan(50);
+  });
+
+  it('FR-174 the ink does not depend on the role or on the factor', () => {
+    const labels = labelsAt(stepOf({}), 0.3);
+    expect(new Set(labels.map((l) => l.role))).toStrictEqual(new Set(['faction', 'territory']));
+    expect(new Set(labels.map((l) => l.factor)).size).toBeGreaterThan(1);
+    for (const l of labels) expect([l.ink, l.halo]).toStrictEqual([LABEL_INK, LABEL_HALO]);
+  });
 });
 
 describe('FR-172 label opacity by scale', () => {
@@ -115,13 +141,10 @@ describe('FR-175 the screen box is the label box times the scale', () => {
 });
 
 // A step from an earlier to a later state. Factions: 1 = eliminated, 2 = absorber, 3 = bystander.
-const RED: Rgb = [220, 40, 40];
-const NAVY: Rgb = [20, 30, 120];
-const PALE: Rgb = [235, 235, 200];
-const F1 = (b: LabelBox | undefined): FactionLabelInput => ({ faction: 1, text: 'Uno', box: b, aspect: 3, fill: RED });
-const F2 = (b: LabelBox | undefined): FactionLabelInput => ({ faction: 2, text: 'Dos', box: b, aspect: 2.5, fill: NAVY });
-const F3: FactionLabelInput = { faction: 3, text: 'Tres', box: box(500, 500, 30, 4), aspect: 4, fill: PALE };
-const T = (entry: number, fill: Rgb, b: LabelBox | undefined = box(entry * 10, 5, 8, 3)): TerritoryLabelInput => ({ entry, text: `T${String(entry)}`, box: b, fill });
+const F1 = (b: LabelBox | undefined): FactionLabelInput => ({ faction: 1, text: 'Uno', box: b, aspect: 3 });
+const F2 = (b: LabelBox | undefined): FactionLabelInput => ({ faction: 2, text: 'Dos', box: b, aspect: 2.5 });
+const F3: FactionLabelInput = { faction: 3, text: 'Tres', box: box(500, 500, 30, 4), aspect: 4 };
+const T = (entry: number, b: LabelBox | undefined = box(entry * 10, 5, 8, 3)): TerritoryLabelInput => ({ entry, text: `T${String(entry)}`, box: b });
 
 function stepOf(over: {
   e1?: LabelBox | undefined;
@@ -132,8 +155,8 @@ function stepOf(over: {
   const a0 = 'a0' in over ? over.a0 : box(300, 300, 10, 2.5);
   const a1 = 'a1' in over ? over.a1 : box(200, 220, 50, 2.5);
   return {
-    earlier: { factions: [F1(e1), F2(a0), F3], territories: [T(1, RED), T(2, RED), T(3, NAVY), T(4, PALE)] },
-    later: { factions: [F2(a1), F3], territories: [T(1, PALE), T(2, NAVY), T(3, NAVY), T(4, PALE)] },
+    earlier: { factions: [F1(e1), F2(a0), F3], territories: [T(1), T(2), T(3), T(4)] },
+    later: { factions: [F2(a1), F3], territories: [T(1), T(2), T(3), T(4)] },
     eliminated: 1,
     absorber: 2,
     transferred: new Set([1, 2]),
@@ -201,19 +224,14 @@ describe('FR-181 labels during a step', () => {
     for (const f of [0, 0.5, 1]) expect(labelsAt(stepOf({ a0: undefined, a1: undefined }), f).some((l) => l.text === 'Dos')).toBe(false);
   });
 
-  it('FR-181 a transferred territory label uses the ink of the earlier owner below f = 0.5 and of the later owner from 0.5', () => {
+  it('FR-171 FR-181 a transferred territory label is identical at every f: same box, same ink, same factor (no change at f = 0.5)', () => {
     const input = stepOf({});
-    const early = labelInk(RED);
-    const late = labelInk(PALE);
-    expect(early).not.toStrictEqual(late);
-    for (const f of [0, 0.3, 0.4999]) {
-      const l = byText(labelsAt(input, f), 'T1');
-      expect({ ink: l.ink, halo: l.halo }).toStrictEqual(early);
+    const first = byText(labelsAt(input, 0), 'T1');
+    for (const f of [0.1, 0.25, 0.3, 0.49, 0.4999, 0.5, 0.5001, 0.75, 0.9, 1]) {
+      expect(byText(labelsAt(input, f), 'T1'), `f = ${String(f)}`).toStrictEqual(first);
     }
-    for (const f of [0.5, 0.7, 1]) {
-      const l = byText(labelsAt(input, f), 'T1');
-      expect({ ink: l.ink, halo: l.halo }).toStrictEqual(late);
-    }
+    expect(first.ink).toStrictEqual([255, 255, 255]);
+    expect(first.halo).toStrictEqual([0, 0, 0]);
   });
 
   it('FR-181 a transferred territory label keeps its box and the factor 1 at every f', () => {
@@ -265,15 +283,15 @@ describe('FR-181 labels during a step', () => {
 describe('FR-189 instant labels and purity of the frame data', () => {
   const round: RoundLabels = {
     factions: [F3, F2(box(1, 2, 3, 2.5))],
-    territories: [T(5, PALE), { ...T(4, NAVY), box: undefined }],
+    territories: [T(5), { ...T(4), box: undefined }],
   };
 
-  it('FR-189 an instant label has the factor 1, the ink of its owner fill, and labels without a box are left out', () => {
+  it('FR-189 an instant label has the factor 1, the fixed white ink with a black halo, and labels without a box are left out', () => {
     const labels = instantLabels(round);
     expect(labels.map((l) => l.text)).toStrictEqual(['Dos', 'Tres', 'T5']);
     expect(labels.every((l) => l.factor === 1)).toBe(true);
     const tres = byText(labels, 'Tres');
-    expect({ ink: tres.ink, halo: tres.halo }).toStrictEqual(labelInk(PALE));
+    expect({ ink: tres.ink, halo: tres.halo }).toStrictEqual({ ink: [255, 255, 255], halo: [0, 0, 0] });
   });
 
   it('FR-189 the same inputs give the same labels and the inputs are not changed', () => {

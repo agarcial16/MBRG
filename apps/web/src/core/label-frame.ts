@@ -1,11 +1,15 @@
-// Label drawing data (FR-172, FR-174, FR-175, FR-181, FR-189). Pure: boxes, fills, scale and f in, draw
+// Label drawing data (FR-172, FR-174, FR-175, FR-181, FR-189). Pure: boxes, scale and f in, draw
 // data out; no text measuring and no drawing here.
 import type { Rgb } from '@mbrg/shared';
 import type { Camera, Viewport } from './camera';
-import { labelInk } from './contrast';
 import type { LabelBox } from './label-layout';
 import type { LabelParams } from './label-params';
 import { smoothstep } from './lines';
+
+/** Text colour of every label (FR-174): white, #FFFFFF. */
+export const LABEL_INK: Rgb = [255, 255, 255];
+/** Colour of the 1 pixel halo of every label (FR-174): black, #000000. */
+export const LABEL_HALO: Rgb = [0, 0, 0];
 
 export type LabelRole = 'faction' | 'territory';
 
@@ -28,16 +32,12 @@ export interface FactionLabelInput {
   box: LabelBox | undefined;
   /** Text aspect ratio, used to size an interpolated box. */
   aspect: number;
-  /** Fill colour of the faction. */
-  fill: Rgb;
 }
 
 export interface TerritoryLabelInput {
   entry: number;
   text: string;
   box: LabelBox | undefined;
-  /** Fill colour of the territory's owner. */
-  fill: Rgb;
 }
 
 /** The labels of one round. */
@@ -91,13 +91,11 @@ const byFaction = (a: FactionLabelInput, b: FactionLabelInput): number => a.fact
 const byEntry = (a: TerritoryLabelInput, b: TerritoryLabelInput): number => a.entry - b.entry;
 
 function factionDraw(l: FactionLabelInput, box: LabelBox, factor: number): LabelDraw {
-  const { ink, halo } = labelInk(l.fill);
-  return { text: l.text, role: 'faction', box, factor, ink, halo };
+  return { text: l.text, role: 'faction', box, factor, ink: LABEL_INK, halo: LABEL_HALO };
 }
 
 function territoryDraw(l: TerritoryLabelInput, box: LabelBox): LabelDraw {
-  const { ink, halo } = labelInk(l.fill);
-  return { text: l.text, role: 'territory', box, factor: 1, ink, halo };
+  return { text: l.text, role: 'territory', box, factor: 1, ink: LABEL_INK, halo: LABEL_HALO };
 }
 
 /** The labels of one round outside a step: factions by index, then territories by entry; boxless labels left out. */
@@ -146,7 +144,7 @@ export function labelsAt(input: StepLabels, forward: number): LabelDraw[] {
   const tAfter = new Map(input.later.territories.map((l) => [l.entry, l]));
   const entries = [...new Set([...tBefore.keys(), ...tAfter.keys()])].sort((a, b) => a - b);
   for (const entry of entries) {
-    // The earlier owner's ink below f = 0.5, the later owner's from 0.5 on (the box never changes, FR-171).
+    // Neither the box nor the ink changes during a step (FR-171, FR-174); only the text source switches at f = 0.5.
     const l = f < 0.5 ? tBefore.get(entry) : tAfter.get(entry);
     if (l?.box !== undefined) out.push(territoryDraw(l, l.box));
   }

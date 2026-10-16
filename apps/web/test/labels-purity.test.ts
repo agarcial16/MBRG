@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getRounds, getState, ownerOf, totalRounds } from '@mbrg/sim';
-import { contrastRatio, labelInk } from '../src/core/contrast';
 import { frontField } from '../src/core/front';
 import { instantLabels, labelsAt } from '../src/core/label-frame';
 import { fitLabel } from '../src/core/label-layout';
@@ -28,7 +27,6 @@ const NEW_CORE = [
   'core/label-params.ts',
   'core/label-layout.ts',
   'core/label-input.ts',
-  'core/contrast.ts',
   'core/label-frame.ts',
   'core/front.ts',
   'core/transition-shade.ts',
@@ -55,6 +53,12 @@ function textLiterals(src: string): string[] {
 describe('NFR-33 the label and transition core sources are pure', () => {
   it('NFR-33 the scan sees every new core file (not vacuous)', () => {
     for (const path of NEW_CORE) expect(sourceOf(path).length, path).toBeGreaterThan(0);
+  });
+
+  it('FR-174 NFR-33 no source chooses an ink by contrast: no contrast module and no contrast, luminance or labelInk identifier', () => {
+    expect(sources.map(([p]) => p).filter((p) => /contrast/.test(p))).toStrictEqual([]);
+    const hits = sources.filter(([, src]) => /(?:contrastw*|w*[Ll]uminancew*|labelInk)/.test(stripComments(src))).map(([p]) => p);
+    expect(hits).toStrictEqual([]);
   });
 
   it('NFR-33 none of them names the DOM, the clock, a timer, the animation frame, randomness or a media query', () => {
@@ -107,7 +111,7 @@ describe('NFR-37 the label layer draws only the texts it is given', () => {
   });
 });
 
-describe('NFR-33 the layout, front, frame, progress, playback and contrast run with the clock and randomness disabled', () => {
+describe('NFR-33 the layout, front, frame, progress and playback run with the clock and randomness disabled', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -120,11 +124,10 @@ describe('NFR-33 the layout, front, frame, progress, playback and contrast run w
     const box = fitLabel(p, [0], 1.5, { margin: 1, maxHeight: 5 });
     if (box === undefined) throw new Error('no box');
     const field = frontField(p, new Set([2]), [0, 1, 2], 1);
-    const ink = labelInk([200, 30, 30]);
     const labels = labelsAt(
       {
-        earlier: { factions: [{ faction: 1, text: 'A', box, aspect: 1.5, fill: [200, 30, 30] }], territories: [] },
-        later: { factions: [{ faction: 1, text: 'A', box, aspect: 1.5, fill: [200, 30, 30] }], territories: [] },
+        earlier: { factions: [{ faction: 1, text: 'A', box, aspect: 1.5 }], territories: [] },
+        later: { factions: [{ faction: 1, text: 'A', box, aspect: 1.5 }], territories: [] },
         eliminated: 2,
         absorber: 1,
         transferred: new Set([2]),
@@ -159,7 +162,7 @@ describe('NFR-33 the layout, front, frame, progress, playback and contrast run w
       2,
       sim,
     );
-    return { box, field, ink, labels, play, drawn, prog, shade, stepped, fwd: forwardOf(prog.p, 'backward'), c: contrastRatio([0, 0, 0], [255, 255, 255]), i: instantLabels({ factions: [], territories: [] }) };
+    return { box, field, labels, play, drawn, prog, shade, stepped, fwd: forwardOf(prog.p, 'backward'), i: instantLabels({ factions: [], territories: [] }) };
   }
 
   it('NFR-33 the same results come back while Math.random, Date.now and performance.now throw', () => {
