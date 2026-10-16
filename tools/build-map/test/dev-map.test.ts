@@ -1,9 +1,11 @@
+import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkIdImage, checkPresentation, validateMap } from '@mbrg/shared';
 import type { MapData } from '@mbrg/shared';
 import { describe, expect, it } from 'vitest';
+import { formatJson } from '../src/core/json';
 import { frameFor, pixelSide, project, projectionCenter, unproject } from '../src/core/projection';
 import { fromRgb } from '../src/core/png-check';
 import type { BuildInputs, InputName, SourceFeature } from '../src/core/types';
@@ -233,6 +235,44 @@ describe('NFR-21 the provenance note', () => {
   it('NFR-21 the build report prints the same version as the committed metadata record', () => {
     expect(loadInputs().meta.version).toBe(
       (JSON.parse(readFileSync(join(builderData, 'natural-earth', 'source-meta.json'), 'utf8')) as { version: string }).version,
+    );
+  });
+});
+
+describe('FR-166 the committed dev map after spec 003c', () => {
+  it('FR-166 the links differ from the spec 003b map only by Hamburgo - Mar del Norte and Alentejo - Atlantico Iberico', () => {
+    const m = map();
+    const without = (id: number, other: number) => (e: { id: number; neighbors: number[] }) =>
+      e.id === id ? { ...e, neighbors: e.neighbors.filter((n) => n !== other) } : e;
+    const added: [number, number][] = [
+      [7, 71],
+      [66, 76],
+    ];
+    for (const [a, b] of added) {
+      expect(m.territories.find((e) => e.id === a)!.neighbors).toContain(b);
+      expect(m.territories.find((e) => e.id === b)!.neighbors).toContain(a);
+    }
+    let restored = m.territories;
+    for (const [a, b] of added) {
+      restored = restored.map(without(a, b)).map(without(b, a)) as typeof restored;
+    }
+    const bytes = formatJson({ territories: restored });
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(
+      '6247eff2813c18e1bb50422f5c344421d78ff598ad3387e101be7324a86aca28',
+    );
+    expect(bytes.length).toBe(11787);
+  });
+
+  it('FR-166 and FR-164 the enclosed water joined the sea zones: 2,614 fewer background pixels than the 003b image', () => {
+    const { pixels } = decodeImage();
+    let background = 0;
+    for (const v of pixels) if (v === 0) background++;
+    expect(background).toBe(1_053_476 - 2_614);
+  });
+
+  it('FR-166 the presentation data is byte-identical to the 003b one', () => {
+    expect(createHash('sha256').update(read('presentation.json')).digest('hex')).toBe(
+      '0e883d89bb7b823c6408efdc55744a4927e90886e0fc36576639d7609f30548d',
     );
   });
 });

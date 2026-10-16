@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import { checkIdImage, checkPresentation, validateMap } from '@mbrg/shared';
 import { describe, expect, it } from 'vitest';
 import { buildInMemory } from '../src/core/build';
@@ -9,11 +10,11 @@ import { parseBuildInputs } from '../src/core/parse-inputs';
 import { fromRgb, toRgb } from '../src/core/png-check';
 import { labelPieces } from '../src/core/pieces';
 import { WATER } from '../src/core/rasterize';
-import { formatReport } from '../src/core/report';
+import { formatReport, summariseEnclosed } from '../src/core/report';
 import { selfCheck } from '../src/core/self-check';
 import type { BuildInputs, BuildOutcome, PngCodec } from '../src/core/types';
 import { pngCodec } from '../src/io/png-codec';
-import { MINI_IDS, inputTexts, miniInputs } from './helpers/fixtures';
+import { MINI_IDS, baseInputs, inputTexts, miniInputs } from './helpers/fixtures';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, '..', '..', '..');
@@ -149,11 +150,11 @@ describe('FR-120 and FR-122 the mini package is complete and valid', () => {
     expect(built.pixels.includes(WATER)).toBe(false);
   });
 
-  it('FR-122 the pixel counts and every link of the mini image are pinned (lake, other land and excluded are background)', () => {
+  it('FR-122 FR-162 the pixel counts and every link of the mini image are pinned (the lake is sea zone 6; other land and excluded are background)', () => {
     const built = buildOk();
     const counts: Record<number, number> = {};
     for (const v of built.pixels) counts[v] = (counts[v] ?? 0) + 1;
-    expect(counts).toStrictEqual({ 0: 248, 1: 289, 2: 290, 3: 553, 4: 289, 5: 99, 6: 524, 7: 771, 8: 1033 });
+    expect(counts).toStrictEqual({ 0: 223, 1: 289, 2: 290, 3: 553, 4: 289, 5: 99, 6: 549, 7: 771, 8: 1033 });
     expect(built.map).toStrictEqual({
       territories: [
         { id: 1, owner: 1, neighbors: [2, 3, 6] },
@@ -192,7 +193,7 @@ describe('FR-120 and FR-122 the mini package is complete and valid', () => {
 
 describe('FR-122 self-check failures', () => {
   it('FR-122 a map error is reported alone: the other checks add nothing', () => {
-    // An island inside a ring of other land has no link: the map is disconnected.
+    // An island enclosed by other land has no link: the map is disconnected.
     const inputs = mini((i) => {
       i.otherLand.push({
         props: { adm0_a3: 'EEE' },
@@ -207,14 +208,16 @@ describe('FR-122 self-check failures', () => {
                 [9, 3.5],
               ],
             },
+            // The hole is exactly the island: no water is left around it (FR-162 would give any water
+            // to a sea zone, which would link the island), so it touches only other land.
             holes: [
               {
                 coords: [
-                  [9.3, 3.8],
-                  [11.4, 3.8],
-                  [11.4, 6.3],
-                  [9.3, 6.3],
-                  [9.3, 3.8],
+                  [9.5, 4],
+                  [11, 4],
+                  [11, 6],
+                  [9.5, 6],
+                  [9.5, 4],
                 ],
               },
             ],
@@ -336,18 +339,29 @@ describe('FR-123 groundwork: when a failed build still carries a preview', () =>
     expect(preview.pixels.includes(MINI_IDS.land.sur)).toBe(true);
   });
 
-  it('FR-123 a sea zone left without pixels is vanished-entry and keeps the assigned pixels', () => {
-    // A seed in the lake gives a zone of about 30 pixels; with S = 40 it is reassigned to background.
+  it('FR-123 a territory left without pixels is vanished-entry and keeps the assigned pixels', () => {
+    // The island (99 pixels) is a whole entry; with S = 120 reassigning it would leave the entry empty.
     const outcome = build(
+      mini((i) => {
+        i.params.minPieceSize = 120;
+      }),
+    );
+    if (outcome.ok) throw new Error('the build should fail');
+    expect(outcome.errors).toStrictEqual([{ kind: 'vanished-entry', territory: MINI_IDS.land.isla }]);
+    expect(outcome.preview!.pixels.includes(MINI_IDS.land.isla)).toBe(true);
+    expect(outcome.preview!.pixels.includes(WATER)).toBe(false);
+  });
+
+  it('FR-163 a zone seeded in the lake stays below S as a sea piece of its own and the build succeeds', () => {
+    // The lake zone (about 25 pixels) is below S = 40 but touches no other sea zone: it is kept.
+    const built = buildOk(
       mini((i) => {
         i.seeds.push({ name: 'Lago', lon: 4.5, lat: 4.5 });
         i.params.minPieceSize = 40;
       }),
     );
-    if (outcome.ok) throw new Error('the build should fail');
-    expect(outcome.errors).toStrictEqual([{ kind: 'vanished-entry', territory: 9 }]);
-    expect(outcome.preview!.pixels.includes(9)).toBe(true);
-    expect(outcome.preview!.pixels.includes(WATER)).toBe(false);
+    expect(built.pixels.includes(9)).toBe(true);
+    expect(built.map.territories.find((t) => t.id === 9)).toMatchObject({ kind: 'sea' });
   });
 });
 
@@ -411,6 +425,14 @@ describe('FR-124 build report', () => {
       ],
       excluded: ['ZZ-1', 'AA-2'],
       multiPiece: [{ entry: 3, pieces: 2 }],
+      enclosed: {
+        sets: 3,
+        pixels: 12,
+        zones: [
+          { zone: 2, sets: 1, pixels: 4 },
+          { zone: 5, sets: 2, pixels: 8 },
+        ],
+      },
     });
     expect(report).toBe(
       [
@@ -431,6 +453,11 @@ describe('FR-124 build report', () => {
         '  - ZZ-1',
         'multiPieceEntries: 1',
         '  - entry=3 pieces=2',
+        'enclosedWaterSets: 3',
+        'enclosedWaterPixels: 12',
+        'enclosedWaterZones: 2',
+        '  - zone=2 sets=1 pixels=4',
+        '  - zone=5 sets=2 pixels=8',
         '',
       ].join('\n'),
     );
@@ -447,8 +474,43 @@ describe('FR-124 build report', () => {
       reassigned: [],
       excluded: [],
       multiPiece: [],
+      enclosed: { sets: 0, pixels: 0, zones: [] },
     });
     expect(empty).toContain('reassignedPieces: 0\nexcludedProvinces: 0\nmultiPieceEntries: 0\n');
+    expect(empty).toContain('enclosedWaterSets: 0\nenclosedWaterPixels: 0\nenclosedWaterZones: 0\n');
+  });
+
+  it('FR-165 the mini build reports its lake: one set of 25 pixels joined to sea zone 6, and nothing else', () => {
+    const lines = buildOk().report.split('\n');
+    const at = lines.indexOf('enclosedWaterSets: 1');
+    expect(at).toBeGreaterThan(-1);
+    expect(lines.slice(at, at + 5)).toStrictEqual([
+      'enclosedWaterSets: 1',
+      'enclosedWaterPixels: 25',
+      'enclosedWaterZones: 1',
+      `  - zone=${MINI_IDS.sea.norte} sets=1 pixels=25`,
+      '',
+    ]);
+  });
+
+  it('FR-165 the summary adds up sets and pixels per zone and lists zones in ascending id, whatever the order found', () => {
+    const summary = summariseEnclosed([
+      { zone: 9, pixels: 3 },
+      { zone: 4, pixels: 5 },
+      { zone: 9, pixels: 1 },
+      { zone: 4, pixels: 2 },
+      { zone: 6, pixels: 7 },
+    ]);
+    expect(summary).toStrictEqual({
+      sets: 5,
+      pixels: 18,
+      zones: [
+        { zone: 4, sets: 2, pixels: 7 },
+        { zone: 6, sets: 1, pixels: 7 },
+        { zone: 9, sets: 2, pixels: 4 },
+      ],
+    });
+    expect(summariseEnclosed([])).toStrictEqual({ sets: 0, pixels: 0, zones: [] });
   });
 });
 
@@ -547,5 +609,31 @@ describe('FR-125 the runtime version file and the CI workflow agree', () => {
     const all = workflows.map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
     expect(all).toMatch(/node-version-file:\s*\.nvmrc/);
     expect(all).not.toMatch(/^\s*node-version:/m);
+  });
+});
+
+describe('FR-164 and NFR-30 enclosed water in the final package', () => {
+  it('FR-164 the mini lake is sea zone 6 in the final image: the pixels that were background before are now sea', () => {
+    const built = buildOk();
+    const counts: Record<number, number> = {};
+    for (const v of built.pixels) counts[v] = (counts[v] ?? 0) + 1;
+    // 003b had 248 background pixels and 524 pixels of zone 6; the report says 25 pixels joined.
+    expect(counts[0]).toBe(248 - 25);
+    expect(counts[MINI_IDS.sea.norte]).toBe(524 + 25);
+    expect(built.report).toContain('enclosedWaterPixels: 25');
+  });
+
+  it('FR-164 the lake adds no link here: its territory already touched that sea zone', () => {
+    const links = new Map(buildOk().map.territories.map((t) => [t.id, t.neighbors]));
+    expect(links.get(MINI_IDS.land.centro)).toContain(MINI_IDS.sea.norte);
+  });
+
+  it('NFR-30 a build without enclosed water gives the same bytes as the builder before spec 003c', () => {
+    const built = buildOk(baseInputs());
+    expect(built.report).toContain('enclosedWaterSets: 0\nenclosedWaterPixels: 0\nenclosedWaterZones: 0\n');
+    const sha = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
+    expect(sha(built.files.map)).toBe('0d18c4e727c3397e99b046fbf58d9dc6624c3f5993a050a6c52cf07821b10852');
+    expect(sha(built.files.presentation)).toBe('96c6fadd271a067424a9d559dc82b78ce91b5a26e6af41dd9fdb54c70bc23b0d');
+    expect(sha(built.files.image)).toBe('78a52b0614e1f5ae739f09ad1b85e583f7bae39ed401ff7e9d7113d2130bfc63');
   });
 });

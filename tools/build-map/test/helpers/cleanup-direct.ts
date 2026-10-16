@@ -44,10 +44,33 @@ export function cleanupDirect(
       pieces.push({ value, list });
     }
 
-    // The piece with fewest pixels among those below S; ties: first pixel in row-major order.
+    // Contact count with every value: pairs of 4-adjacent pixels, one in the piece, one of that value.
+    const contactOf = (list: number[]): Map<number, number> => {
+      const inPiece = new Set(list);
+      const contact = new Map<number, number>();
+      for (const i of list) {
+        const x = i % width;
+        const y = (i - x) / width;
+        for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]] as const) {
+          const v = at(nx, ny);
+          if (v <= 0 || inPiece.has(ny * width + nx)) continue;
+          contact.set(v, (contact.get(v) ?? 0) + 1);
+        }
+      }
+      return contact;
+    };
+    // FR-163: a sea piece that touches no other sea zone is never taken.
+    const eligible = (piece: { value: number; list: number[] }): boolean => {
+      const self = entries.find((e) => e.id === piece.value)!;
+      if (self.kind !== 'sea') return true;
+      const contact = contactOf(piece.list);
+      return entries.some((e) => e.kind === 'sea' && e.id !== self.id && (contact.get(e.id) ?? 0) >= 1);
+    };
+
+    // The eligible piece with fewest pixels among those below S; ties: first pixel in row-major order.
     let chosen: { value: number; list: number[] } | undefined;
     for (const piece of pieces) {
-      if (piece.list.length >= minPieceSize) continue;
+      if (piece.list.length >= minPieceSize || !eligible(piece)) continue;
       if (
         chosen === undefined ||
         piece.list.length < chosen.list.length ||
@@ -57,19 +80,7 @@ export function cleanupDirect(
       }
     }
     if (chosen === undefined) return { ok: true, value: { pixels, reassigned } };
-
-    // Contact count with every value: pairs of 4-adjacent pixels, one in the piece, one of that value.
-    const inPiece = new Set(chosen.list);
-    const contact = new Map<number, number>();
-    for (const i of chosen.list) {
-      const x = i % width;
-      const y = (i - x) / width;
-      for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]] as const) {
-        const v = at(nx, ny);
-        if (v <= 0 || inPiece.has(ny * width + nx)) continue;
-        contact.set(v, (contact.get(v) ?? 0) + 1);
-      }
-    }
+    const contact = contactOf(chosen.list);
 
     const self = entries.find((e) => e.id === chosen.value)!;
     const best = (accept: (e: PieceEntry) => boolean): number | undefined => {
@@ -83,7 +94,7 @@ export function cleanupDirect(
     };
     let target: number;
     if (self.kind === 'sea') {
-      target = best((e) => e.kind === 'sea') ?? 0;
+      target = best((e) => e.kind === 'sea') ?? 0; // never 0: the piece is eligible only with sea contact
     } else {
       target =
         best((e) => e.kind === 'land' && e.owner === self.owner) ??

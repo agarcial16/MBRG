@@ -10,8 +10,8 @@ import { buildPresentation } from './presentation';
 import { frameFor, project, projectionCenter, toPixel } from './projection';
 import { rasterize, type RasterLayer } from './rasterize';
 import { toPixelPolygons } from './rings';
-import { formatReport } from './report';
-import { assignSeaZones, seedPixels } from './sea';
+import { formatReport, summariseEnclosed } from './report';
+import { assignSeaZonesDetailed, seedPixels } from './sea';
 import { selfCheck } from './self-check';
 import type {
   BuildInputs,
@@ -95,7 +95,7 @@ export function buildInMemory(inputs: BuildInputs, codec: PngCodec): BuildOutcom
   // FR-116: sea zones.
   const seeds = seedPixels(inputs.seeds, center, frame, width, rasterized);
   if (!seeds.ok) return { ok: false, errors: seeds.errors, preview: previewOf(rasterized) };
-  const assigned = assignSeaZones(width, rasterized, seeds.value, plan.sea.map((s) => s.id));
+  const { pixels: assigned, enclosed } = assignSeaZonesDetailed(width, rasterized, seeds.value, plan.sea.map((s) => s.id));
 
   // FR-117: pieces smaller than S.
   const cleaned = cleanupPieces(width, assigned, entries, minPieceSize);
@@ -133,6 +133,7 @@ export function buildInMemory(inputs: BuildInputs, codec: PngCodec): BuildOutcom
       .filter(([, n]) => n > 1)
       .sort((a, b) => a[0] - b[0])
       .map(([entry, n]) => ({ entry, pieces: n })),
+    enclosed: summariseEnclosed(enclosed),
   });
 
   return {

@@ -225,6 +225,9 @@ export function cleanupPieces(
     let targetIndex: number;
     if (self.kind === 'sea') targetIndex = anySea;
     else targetIndex = sameFaction !== -1 ? sameFaction : anyLand !== -1 ? anyLand : anySea;
+    // FR-163: a sea piece that touches no other sea zone stays as it is (it is looked at again if a
+    // reassignment later gives it a sea zone to touch).
+    if (self.kind === 'sea' && targetIndex === -1) continue;
     const target = targetIndex === -1 ? 0 : entries[targetIndex]!.id;
 
     if (pixelCount[own] === size[r]) {
@@ -254,6 +257,18 @@ export function cleanupPieces(
         parent[other] = r;
       });
       if (i === last) break;
+    }
+    // FR-163: sea pieces of another zone that the repainted pixels now touch may have become eligible.
+    if (entries[targetIndex]!.kind === 'sea') {
+      for (let i = head[r]!; ; i = next[i]!) {
+        neighbours(i, (j) => {
+          const v = pixels[j]!;
+          if (v === 0 || v === target || entries[entryIndex.get(v)!]!.kind !== 'sea') return;
+          const other = find(label[j]!);
+          if (size[other]! < minPieceSize) heap.push({ size: size[other]!, first: first[other]!, root: other });
+        });
+        if (i === last) break;
+      }
     }
     if (size[r]! < minPieceSize) heap.push({ size: size[r]!, first: first[r]!, root: r });
   }
