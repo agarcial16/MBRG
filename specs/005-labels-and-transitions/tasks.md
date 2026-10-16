@@ -31,7 +31,7 @@ Rules for every task:
   - Commit: `feat(web): add the label layout`.
   - Done when: tests green; dev map faction and territory layout time logged; `rg` finds the listed ids.
 
-- [ ] **T4. Label drawing data: crossfade, minimum size, ink and halo, screen box, transition rules.** FR-172, FR-174, FR-175, FR-181, FR-189
+- [x] **T4. Label drawing data: crossfade, minimum size, ink and halo, screen box, transition rules.** FR-172, FR-174, FR-175, FR-181, FR-189
   - Files: `apps/web/src/core/{contrast.ts,label-frame.ts}`, `apps/web/test/{contrast.test.ts,label-frame.test.ts}`.
   - Tests first: plan section 13 `contrast.test.ts` and `label-frame.test.ts` lists (opacities at L0/L1, sum 1, below P not drawable, ink has the higher contrast and black on ties, `screenBox` = box x scale, every FR-181 rule at f = 0, 0.3, 0.5, 1, endpoints equal the instant labels, backward = forward mirrored).
   - Code: plan section 6.
