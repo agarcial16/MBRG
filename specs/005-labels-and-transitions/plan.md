@@ -1,7 +1,7 @@
 # Plan 005 — Labels and transitions
 Spec: `specs/005-labels-and-transitions/spec.md` (`Status: approved`). Covers FR-167 to FR-194 and NFR-32 to NFR-37. Delivery: the existing branch `feat/005-labels-and-transitions` (from `rewrite`), one PR into `rewrite`, squash merge with the user's OK and CI green. No GitHub issues (one PR is enough; AGENTS.md).
 
-**Gate.** Passed 2026-10-16: the user approved the spec, this plan and the tasks; the spec reads `Status: approved` (set on the user's instruction).
+**Gate.** Passed 2026-10-16: the user approved the spec, this plan and the tasks; the spec reads `Status: approved` (set on the user's instruction). Amended 2026-10-16 after the T8 review: fixed white ink with a black halo for every label (spec amendment, FR-174; see section 3 "Amendments" and task T4b).
 
 ## 0. Starting point (branch `feat/005-labels-and-transitions`, f41f36c)
 - Viewer of 004 merged (PR #24): `apps/web/src/{core,render,ui}`. One full-screen quad, one fragment shader (`render/shader.ts`, port of `core/borders.ts` `shade`), four data textures (index RG8, kinds R8, owners R8, colours RGBA8). A round change is synchronous: `sceneAt` -> `ownerTable` -> `setOwners` -> `draw` (`ui/main.ts`). rAF is used only in `ui/main.ts` to coalesce camera draws. Clock reads only in `ui/clock.ts` (`now()`).
@@ -11,7 +11,7 @@ Spec: `specs/005-labels-and-transitions/spec.md` (`Status: approved`). Covers FR
   - `anti-spoiler.test.ts` FR-159: no identifier containing `seed` or `round` in `src/render/**` (only `Math.round` exempt; `background`, `around`, `roundRect` are flagged), no `seed` in render text, no import of scene/address/navigation/perf/ui from render.
   - `anti-spoiler.test.ts` FR-155: the words `transition`, `lerp`, `animate`, `animation`, `tween`, `keyframes`, `setTimeout`, `setInterval` (whole words) anywhere in `src/**`, uniforms named `progress`/`uProgress`/`uTime`/`uMix`, and rAF outside `src/ui/` are violations. Amended in T1 (section 10).
   - `strings-language.test.ts` NFR-28: every `kind: '<literal>'` in a viewer source must be in its `INTERNAL_KINDS` list. That test is NOT on the NFR-35 list of editable tests, so **new sources never write `kind:` with a string literal** (the label field is called `role`).
-  - `borders.test.ts` FR-137: `core/borders.ts` must not contain `luminance`/`brightness`; the contrast rule lives in its own module.
+  - `borders.test.ts` FR-137: `core/borders.ts` must not contain `luminance`/`brightness`. Since the 2026-10-16 amendment there is no contrast rule at all (fixed ink, D15), so nothing new may compute a luminance; the 004 test stays untouched.
   - `map-scene.test.ts` FR-159 type test pins `createMapScene(EntryIndex, readonly Rgb[], MapTheme)`, `setOwners(Uint8Array)`, `setView(MapView)`, `keyof MapView`, `attachRenderer(HTMLCanvasElement, MapScene)`: all kept; new capabilities are new members/functions.
   - `scene.test.ts` FR-155 pins the keys of `Scene`: `Scene` is NOT changed; transition data lives outside it.
   - `review-set.test.ts` NFR-27 checks the 004 set: the label/transition scenes go into a new module, so that test is untouched.
@@ -34,9 +34,11 @@ apps/web/
     regions.ts                buildPieceIndex(grid), regionsOf(pieces, owners), mainRegions, mainPieces  FR-167, FR-168, FR-171, FR-189
     label-layout.ts           fitLabel(pieces, pieceSet, aspect, params), territoryBoxes(...),
                               factionBoxes(pieces, owners, aspects, params, previous?)                   FR-169, FR-170, FR-171, FR-189
-    contrast.ts               relativeLuminance, contrastRatio, labelInk(fill) -> { text, halo }        FR-174
-    label-frame.ts            labelOpacity(role, scale, params), labelsAt(input, f), screenBox(box, cam, vp),
-                              drawable(label, scale, params)                                            FR-172, FR-175, FR-181, FR-189
+    label-frame.ts            LABEL_INK (#FFFFFF), LABEL_HALO (#000000), labelOpacity(role, scale, params),
+                              labelsAt(input, f), instantLabels(round), screenBox(box, cam, vp),
+                              drawable(label, scale, params)                                  FR-172, FR-174, FR-175, FR-181, FR-189
+    label-input.ts            labelTexts(map, presentation, factionIndex), roundLabels(texts, table, boxes,
+                              territoryBoxes): names + boxes of one round, no colours (added in T8)     FR-167, FR-168, FR-171, FR-174
     front.ts                  transferredPieces, contactSet, seedSet, frontField(...) -> FrontField     FR-179, FR-189
     transition-shade.ts       TRANSITION_PRIORITY, shadeTransition(...), renderTransitionReference(...)   FR-179, FR-180
     progress.ts               progressAt(elapsedMs, durationMs) -> { p, done }, forwardOf(p, direction)  FR-182
@@ -62,7 +64,7 @@ apps/web/
                               labels each frame, FR-190 timing, frozen address                          FR-176..FR-194
     panel.ts, url.ts (edit)   labels timing line; address keeps `transition` while frozen                FR-190, FR-193
   test/
-    regions.test.ts  label-layout.test.ts  contrast.test.ts  label-frame.test.ts  front.test.ts
+    regions.test.ts  label-layout.test.ts  label-input.test.ts  label-frame.test.ts  front.test.ts
     transition-shade.test.ts  progress.test.ts  playback.test.ts  step.test.ts  address-transition.test.ts
     labels-render.test.ts (render part, Node)  label-review-set.test.ts  labels-purity.test.ts
     labels-perf.test.ts (dev map, logged)  helpers/label-grids.ts
@@ -84,6 +86,10 @@ packages/sim/test/traceability.test.ts (edit)                                   
 - D12. **Grown box beyond the image does not fit.** The spec says positions outside the image never belong to a region or piece; a box whose grown rectangle leaves the image therefore does not fit. Test on a grid whose region touches the image edge.
 - D13. **Seed set without contact by boundary brute force.** The units of a piece that reach the minimum squared distance to the absorber's earlier land are always piece units with a 4-neighbour outside the piece, and the nearest absorber units are absorber units with a 4-neighbour not owned by the absorber (moving one step towards the other unit strictly reduces the distance otherwise). So the minimum is taken over boundary x boundary pairs only, exactly. Tested against the naive all-pairs rule on small grids. Discarded: a full Euclidean distance transform of the image (exact but ~4 M units per step for a rare case).
 - D14. **Round-change time.** The first frame of a change (instant, or the first transition frame at t = 0) is drawn synchronously in the request handler, after the new faction boxes and front are computed; the FR-158 round-change figure is request -> end of that draw, and its label set already uses the new boxes (NFR-32). Discarded: waiting for the next rAF (adds up to one frame of latency to the measurement).
+- D15. **Fixed ink as two constants in `label-frame.ts`; `contrast.ts` is deleted.** `LABEL_INK = [255, 255, 255]` and `LABEL_HALO = [0, 0, 0]` are exported by `label-frame.ts`, which puts them in every `LabelDraw`; the label inputs carry no fill colour and `roundLabels` takes no colour list. Why: a module named after a rule that no longer exists invites the contrast choice back, and fill inputs nobody reads are dead data. `LabelDraw` keeps its `ink` and `halo` fields because FR-188 still gives the rendering part each label's text colour, so `labels-layer.ts` and its tests stay as they are. Discarded: (a) keeping `contrast.ts` with only two constants (a misleading name, and the WCAG helpers would be dead code); (b) hard-coding the colours in `labels-layer.ts` (FR-188 and FR-189 put the text colour in the pure data, and the ink rule would then not be testable in Node).
+
+### Amendments
+- 2026-10-16 (user-approved spec change after the T8 screenshot review): every label (faction and territory) is drawn with white text #FFFFFF and a 1 px black halo #000000, never chosen by contrast (FR-174 rewritten; FR-171 and FR-181 no longer change the ink of transferred territory labels; NFR-33 no longer mentions the contrast choice; done criteria test the "ink rule"). Plan: D15, sections 2, 4, 6, 13 and 15; work in task T4b. Vertical, diagonal and curved labels and labels that go past their land are moved to a later spec; mobile layout comes later. U1-U6 stay confirmed. No id is added or removed (`PENDING_005` unchanged).
 
 ## 4. Interface (TypeScript sketch)
 ```ts
@@ -95,7 +101,9 @@ interface PieceIndex { width; height; pieceOf: Int32Array /* -1 = not land */; e
                        first: Int32Array; box: Int32Array /* 4 per piece */; unitStart: Int32Array; units: Int32Array;
                        nbStart: Int32Array; nb: Int32Array }
 interface Region { owner: number /* faction index */; pieces: number[] /* ascending */; size: number; first: number }
-interface LabelDraw { text: string; role: LabelRole; box: LabelBox; factor: number; ink: Rgb; halo: Rgb }
+interface LabelDraw { text: string; role: LabelRole; box: LabelBox; factor: number; ink: Rgb /* always LABEL_INK */; halo: Rgb /* always LABEL_HALO */ }
+interface FactionLabelInput { faction: number; text: string; box: LabelBox | undefined; aspect: number }   // no fill (D15)
+interface TerritoryLabelInput { entry: number; text: string; box: LabelBox | undefined }                    // no fill (D15)
 interface FrontField { x0: number; y0: number; width: number; height: number; values: Float32Array }
 interface MapFront { before: Uint8Array /* owner table of the earlier round */; field: FrontField; forward: number /* f */ }
 type Direction = 'forward' | 'backward';
@@ -107,9 +115,12 @@ mainPieces(p: PieceIndex): Int32Array                        // entry index -> m
 fitLabel(p: PieceIndex, pieces: readonly number[], aspect: number, params: LabelParams): LabelBox | undefined
 territoryBoxes(p, aspects: readonly number[] /* per entry */, params): (LabelBox | undefined)[]
 factionBoxes(p, owners, aspects: ReadonlyMap<number, number>, params, previous?: FactionBoxes): FactionBoxes
-contrastRatio(a: Rgb, b: Rgb): number;  labelInk(fill: Rgb): { ink: Rgb; halo: Rgb }
+LABEL_INK: Rgb /* [255, 255, 255] */;  LABEL_HALO: Rgb /* [0, 0, 0] */
+labelTexts(map, presentation, factionIndex): LabelTexts
+roundLabels(texts: LabelTexts, table: ArrayLike<number>, boxes: FactionBoxes, territoryBoxes): RoundLabels   // no colour list
 labelOpacity(role: LabelRole, scale: number, params): number
-labelsAt(input: LabelFrameInput, forward: number): LabelDraw[]   // input: texts, roles, boxes and fills at the earlier and later round (or one round)
+instantLabels(round: RoundLabels): LabelDraw[]
+labelsAt(input: StepLabels, forward: number): LabelDraw[]   // input: texts, boxes and aspects at the earlier and later round, eliminated, absorber, transferred
 screenBox(box: LabelBox, cam: Camera, vp: Viewport): { x: number; y: number; w: number; h: number }
 drawable(label: LabelDraw, scale: number, params): boolean      // h * scale >= P and opacity * factor > 0
 frontField(p: PieceIndex, transferred: ReadonlySet<number> /* entries */, before: ArrayLike<number>, absorber: number): FrontField
@@ -148,13 +159,13 @@ fitLabel(S, a):
 ## 6. Label drawing data (FR-172, FR-174, FR-175, FR-181)
 - Opacity: territory `smoothstep(L0, L1, s)`, faction `1 - smoothstep(L0, L1, s)` (`core/lines.ts` `smoothstep` reused), times the factor. Exactly L0: faction 1, territory 0; exactly L1: the reverse. Sum is 1 for every s.
 - Not drawn when `box.h * s < P` (h may be fractional during interpolation), or when opacity x factor is 0.
-- Ink (FR-174): WCAG 2 relative luminance with the sRGB transfer (channel c/255; `c <= 0.04045 ? c/12.92 : ((c+0.055)/1.055)^2.4`); contrast ratio `(L1 + 0.05)/(L2 + 0.05)`; black when `contrast(black, fill) >= contrast(white, fill)` (black on a tie), halo is the other colour. Fill = owner's faction colour (`assignFactionColors`). Halo: `strokeText` with `lineWidth = 2` CSS px and `lineJoin = 'round'` drawn before `fillText`, i.e. 1 screen pixel outside the glyph outline.
+- Ink (FR-174, amended 2026-10-16, D15): every label, faction or territory, at every round, every f and over any fill, has `ink = LABEL_INK` (white #FFFFFF) and `halo = LABEL_HALO` (black #000000). No luminance or contrast is computed; the fill under a label is not an input. Halo: `strokeText` with `lineWidth = 2` CSS px and `lineJoin = 'round'` drawn before `fillText`, i.e. 1 screen pixel outside the glyph outline; the layer sets `globalAlpha` once per label, so text and halo take the same opacity (FR-174 last clause, FR-172). `labels-layer.ts` is unchanged by the amendment.
 - `screenBox(box, cam, vp)`: `x = (x0 - cam.x) * s + vp.width/2`, `y = (y0 - cam.y) * s + vp.height/2`, `w = box.w * s`, `h = box.h * s`; the layer draws the text with font size h and horizontal correction to w (D2). Labels whose screen box misses the drawing area are skipped (same result).
 - `labelsAt(input, f)` (FR-181), with integer boxes at both ends so `lerp` is exact at f = 0 and 1:
   - eliminated faction: earlier box, factor 1 - f (none if no earlier box);
   - absorber: boxes at both rounds -> `{x0, y0, h}` = lerp(earlier, later, f), `w = h * a`, factor 1; only later -> later box, factor f; only earlier -> earlier box, factor 1 - f;
-  - territory labels of transferred territories: ink of the earlier owner for f < 0.5, of the later owner for f >= 0.5;
-  - every other label: as at both rounds (factor 1).
+  - territory labels of transferred territories: same box, factor 1 and the fixed ink at every f, like every other territory label (amended 2026-10-16: the ink no longer switches at f = 0.5);
+  - every other label: as at both rounds (factor 1). The code may still read these labels from the earlier round below f = 0.5 and from the later round from 0.5 on; both give the same box, text and ink, so the output does not depend on f (tested).
   - Outside a transition `labelsAt` is called with one round (factor 1 everywhere).
 - Font (`labelFont`, proposal U1): weight 600, families `"Segoe UI", "Helvetica Neue", Arial, sans-serif` (generic fallback last). No web font file (no new asset, NFR-36).
 
@@ -199,7 +210,7 @@ shadeTransition at (fx, fy), with forward progress f (0 <= f < 1; f >= 1 returns
 | `labelMinPx` P | 9 screen px | 6..14 |
 | `labelFadeStart` L0 / `labelFadeFull` L1 | 1.25 / 2 (in step with the territory lines 1.5 / 2 of 004) | 0.5 <= L0 < L1 <= 8 |
 | `transitionDuration` Dt | 1500 ms | 800..3000 |
-T9 prepares 2-3 candidate sets; the user picks one; a test pins the chosen literals and their ranges; this table records them with the date.
+T9 prepares 2-3 candidate sets; the user picks one; a test pins the chosen literals and their ranges; this table records them with the date. Every candidate is shot with the amended style (white text, black 1 px halo, after T4b); the ink is fixed by the spec and is not a tuned parameter.
 
 ## 10. Earlier tests amended (NFR-35) — the explicit list
 The FR-155 scan in `apps/web/test/anti-spoiler.test.ts` keeps every rule and adds exactly these exceptions (each with a planted-violation test that stays red outside the exception):
@@ -216,7 +227,7 @@ The NFR-25 clock scan of `purity.test.ts` is not edited (D9). The 004 NFR-24 and
 ## 12. Visual verification (NFR-34) and measurement (NFR-32)
 - `core/label-review-set.ts` `LABEL_REVIEW_SET` (new module; 004 set untouched): faction labels at fit for seed 1 rounds 0, 1 and 4 (T); crossfade at one point at scales L0 - 0.25, (L0 + L1)/2, L1 + 1; territory labels in a dense area (smallest-territory area of Alemania) and on a small island (Baleares) at a scale above L1; Italia (two or more regions, Messina strait) at fit; transition 0 -> 1 at `transition=0, 0.25, 0.5, 0.75, 1` (`round=1`); a transfer with an empty contact set at the same five values if a test over seeds 1..1000 finds one (first seed, then first round; the found seed and round are written here in T9) or the scene is dropped.
 - `label-review-set.test.ts` checks every address parses without problems and that each point holds what its label says (Italia has >= 2 regions at round 0 and its label box lies in its main region; the island point is Baleares; the dense area holds >= 5 territory labels drawable at the chosen scale; the empty-contact scene really has a transferred piece with no contact).
-- Screenshots: Chrome on the reference PC, 1920 x 1080 drawing area, DPR recorded; one per address; attached to the PR (not committed); the user accepts each and the parameter values. A backward transition is not screenshotted (tests).
+- Screenshots: Chrome on the reference PC, 1920 x 1080 drawing area, DPR recorded; one per address; attached to the PR (not committed); the user accepts each and the parameter values. A backward transition is not screenshotted (tests). Every screenshot of this set (and the T8 set retaken) uses the amended label style; shots taken with contrast-chosen ink do not count.
 - Parity: frozen frames vs `renderTransitionReference` pixel diff on a zoomed window (scratchpad script, not committed); differences only on float ties, as in 004.
 - NFR-32 procedure (T10): dev map, reference PC, 1920 x 1080: FR-190 figure for steps 0->1, 1->2, 3->4, 4->3 and the jump 0->4; round-change figure for the same; frame stats for 10 s of a transition loop (repeated next/previous) and 10 s of pan and zoom at scale (L0 + L1)/2 with labels drawn. Thresholds: 100 ms, 150 ms, median <= 16.7 ms, p95 <= 33.3 ms. A failing figure stops the task: propose a fix or a spec change.
 
@@ -224,16 +235,17 @@ The NFR-25 clock scan of `purity.test.ts` is not edited (D9). The 004 NFR-24 and
 Titles start with the ids they verify; exact `toStrictEqual`; hand-made grids from `test/helpers/label-grids.ts`; random grids from a fixed-seed generator written in the test (never `Math.random`).
 - `regions.test.ts` FR-167, FR-168, FR-171, FR-189: pieces of an entry split in two; region spans several entries of one owner; same-colour different factions are two regions; two regions of one faction (strait); main region and main piece tie by first unit; regions recomputed after an owner change; dev map: Espana has the Baleares as a second region, Italia >= 2 regions.
 - `label-layout.test.ts` FR-169, FR-170, FR-171, FR-189, NFR-33: `fitLabel` equals a brute-force implementation of the spec definition (every h, every x0, y0, every unit centre) on 200 random grids and on hand grids; maximal height; tie rule (mean centre, then y0, then x0) on symmetric grids; no box -> undefined; grown box over the image edge does not fit; w < 0.5; dev map with injected aspects: every faction box inside its main region with margin M, territory boxes equal at rounds 0..4, same inputs same boxes; `factionBoxes` with `previous` equals a full recomputation for every step and jump of seed 1.
-- `contrast.test.ts` FR-174: luminance of black 0, white 1; ratio 21 for black/white; chosen ink has the higher ratio for the 12 palette colours and for a grid of colours; tie gives black; halo is the other colour.
-- `label-frame.test.ts` FR-172, FR-175, FR-181, FR-189: opacities at L0, L1, below, above, midpoint; sum 1; below-P not drawable; `screenBox` equals box x scale and moves with the camera (FR-175 pure part); FR-181 every rule at f = 0, 0.3, 0.5, 1; `labelsAt(f = 0)` equals the instant labels of the earlier round and `labelsAt(f = 1)` of the later round; backward = forward mirrored.
+- `contrast.test.ts`: deleted with `contrast.ts` in T4b (D15); its FR-174 titles move to `label-frame.test.ts` and `label-input.test.ts`.
+- `label-frame.test.ts` FR-171, FR-172, FR-174, FR-175, FR-181, FR-189: opacities at L0, L1, below, above, midpoint; sum 1; below-P not drawable; `screenBox` equals box x scale and moves with the camera (FR-175 pure part); FR-181 every rule at f = 0, 0.3, 0.5, 1; `labelsAt(f = 0)` equals the instant labels of the earlier round and `labelsAt(f = 1)` of the later round; backward = forward mirrored. **Ink rule (FR-174, done criteria):** every `LabelDraw` of `instantLabels` and of `labelsAt` at f = 0, 0.25, 0.49, 0.5, 0.75, 1 has `ink` [255, 255, 255] and `halo` [0, 0, 0], for faction and territory roles, including the eliminated faction, the absorber and transferred territories; `LABEL_INK`/`LABEL_HALO` pinned as those literals. FR-171/FR-181: a transferred territory label is `toStrictEqual` at every f (box, factor 1, ink, halo). Dev map: for seed 1, every round 0..4 and every step at those f values, every label has white ink and a black halo.
+- `label-input.test.ts` FR-167, FR-168, FR-171, FR-174: names and boxes as before; the inputs have no fill key (key list); the territory labels of a round do not depend on the owner colours (two different colour lists are not even an input: `roundLabels` takes none); through `instantLabels`, labels on white, black and the palette's lightest fill all come out white with a black halo.
 - `front.test.ts` FR-179, FR-189: contact set; seed set without contact equals the naive all-pairs rule (random grids); BFS distances; normalisation per piece; 1-unit piece; several pieces finish together; one piece over several transferred entries; dev map seed 1 round 1 field covers exactly the transferred units.
 - `transition-shade.test.ts` FR-179, FR-180: f = 0 equals `renderReference` of the earlier owners pixel for pixel; f = 1 equals the later; front monotone in f; no line along the front inside one value; absorbed line colour/alpha interpolation at f = 0.5; transferred/transferred territory line colour; third-party `faction` lines unchanged; D8 overlap order at a T-junction; backward frames = forward frames reversed.
 - `progress.test.ts` FR-182: p(0) = 0, p(Dt) = 1, smoothstep midpoint, done at t >= Dt (also t = 10 x Dt); `forwardOf`.
 - `playback.test.ts` FR-176, FR-177, FR-178, FR-182, FR-183, FR-184, FR-185, FR-186, FR-191, FR-194: every control of 004 FR-154 that moves by one animates (next, previous, first from 1, last from T - 1, typed N +- 1); jumps, load, error path and reduced motion are instant; typed equal does nothing; request during a transition completes then handles (the 4 -> 5 then previous example); motion change completes; displayed round equals the target at once; frozen survives camera events and is dropped on a round change.
 - `step.test.ts` FR-187, FR-188: recorded sim calls: step forward from N asks only N + 1; backward asks only N - 1 and keeps the round-N scene only in the step data; frozen asks N - 1 and N; no call above the displayed round after completion; the step data given to the rendering part has no seed, round or record field (key list).
 - `address-transition.test.ts` FR-191, FR-192, FR-193: `0`, `1`, `0.5`, `0.25` valid; `2`, `abc`, `-0.5`, `1e-1`, `.5`, empty, repeated invalid; round 0 (also `?round=0&transition=0.5` and an invalid seed) -> problem; camera unaffected by a transition problem; message names `transition`; format keeps the text while frozen and drops it otherwise; 3-argument `formatAddress` unchanged.
-- `labels-render.test.ts` FR-173, FR-175, FR-179, FR-180, FR-188, NFR-36: `index.html` has `#labels` after `#map` and before `#panel`, with `pointer-events:none`; type-level test of `setFront`, `attachLabelLayer`; `setFront` uploads the earlier owners and the front texture (R32F, Nearest, no mipmaps) and leaves index/kinds/colours alone; `setFront(undefined)` turns the branch off; the shader declares `uProgress` once and its priority constants come from `TRANSITION_PRIORITY`; no new package in `apps/web/package.json` or the lockfile (NFR-36).
-- `labels-purity.test.ts` NFR-33, NFR-37: the new core files are in the NFR-25 scan (non-vacuous list); layout, front, frame, progress, playback, contrast run with `Math.random`/`Date.now`/`performance.now` throwing; only `ui/main.ts` and `ui/frame-loop.ts` import `now`; `fillText`/`strokeText` receive no string literal (only label texts), so map names are the only new text (NFR-37).
+- `labels-render.test.ts` FR-173, FR-174, FR-175, FR-179, FR-180, FR-188, NFR-36 (unchanged by the amendment: the layer draws the `ink`/`halo` it receives, halo stroke before the fill): `index.html` has `#labels` after `#map` and before `#panel`, with `pointer-events:none`; type-level test of `setFront`, `attachLabelLayer`; `setFront` uploads the earlier owners and the front texture (R32F, Nearest, no mipmaps) and leaves index/kinds/colours alone; `setFront(undefined)` turns the branch off; the shader declares `uProgress` once and its priority constants come from `TRANSITION_PRIORITY`; no new package in `apps/web/package.json` or the lockfile (NFR-36).
+- `labels-purity.test.ts` NFR-33, NFR-37: the new core files (`regions`, `label-params`, `label-layout`, `label-input`, `label-frame`, `front`, `transition-shade`, `progress`, `playback`, `step`; `contrast` removed from the list in T4b) are in the NFR-25 scan (non-vacuous list); layout, front, frame, input, progress and playback run with `Math.random`/`Date.now`/`performance.now` throwing; only `ui/main.ts` and `ui/frame-loop.ts` import `now`; `fillText`/`strokeText` receive no string literal (only label texts), so map names are the only new text (NFR-37).
 - `labels-perf.test.ts` NFR-32 (pure part, logged not asserted): dev map piece index time; territory boxes once at load; per-step `factionBoxes` + `frontField` time for each step of seed 1; asserts that a step recomputes only the changed factions (call count).
 - `label-review-set.test.ts` NFR-34 (section 12). Edited 004 tests: `anti-spoiler.test.ts` (section 10), `traceability.test.ts` (section 11), both titled with NFR-35.
 
@@ -250,6 +262,8 @@ Titles start with the ids they verify; exact `toStrictEqual`; hand-made grids fr
 - Layout time on large regions: binary search x bounding box scan (France is roughly 1 M units of bounding box: about 9 scans). Mitigated by D3 and D5; measured in `labels-perf.test.ts` (Node) and T10 (browser). If the 100 ms figure fails, next step is a row-run pre-filter, not an approximation.
 - Very large glyphs: at scale 32 a territory label can be thousands of pixels tall; Canvas 2D cost is checked at scale 32 in T8 screenshots and by the frame stats; off-screen labels are skipped.
 - Fonts differ per machine: the layout is reproducible for a given font; screenshots and the user's acceptance are on the reference PC; tests inject aspects.
+- Fixed white ink (amendment 2026-10-16): on very light fills, small labels (near P = 9 px) are readable only through the 1 px halo. The spec accepts it; the T8 retake and the T9 review set (crossfade and dense-area scenes) are where the user judges it. If it is not good enough, the fix is a spec change (halo width or P), not a return to the contrast choice.
+- T4b changes code already shipped in T4 and T8 (`label-frame.ts`, `label-input.ts`, `ui/main.ts`) and deletes `contrast.ts` and its test: the full suite and `rg` for FR-171, FR-174, FR-181 and NFR-33 must still find each id in a title after the deletion.
 - Float32 vs double in the shader (front compare, interpolated colours, rounding ties): same formulas, `Math.fround` for the front compare; parity checked by pixel diff (a few tie pixels accepted, as in 004).
 - 004 scans: identifiers containing `round` in render code, `kind:` literals and the word `transition` outside the allowed list fail existing tests; read section 0 before writing code.
 - R32F textures: guaranteed sampleable with `NearestFilter` in WebGL2; the upload is the front bounding box only.
