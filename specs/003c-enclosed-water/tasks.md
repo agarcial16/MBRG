@@ -22,7 +22,7 @@ Branch `feat/003c-enclosed-water`. One task at a time: tests first (red), code, 
   - Commit: `feat(build-map): keep isolated sea pieces below the minimum size`.
   - Done when: tests green; `rg` finds FR-163.
 
-- [ ] **T4. Build wiring, report and byte compatibility.** FR-164, FR-165, NFR-30
+- [x] **T4. Build wiring, report and byte compatibility.** FR-164, FR-165, NFR-30
   - Files: `tools/build-map/src/core/{build,report}.ts`, `tools/build-map/test/build.test.ts`.
   - Tests first: plan section 7 `build.test.ts` list (re-pinned mini image, island case, exact report text, byte-identical fixtures from T1).
   - Commit: `feat(build-map): report enclosed water and build with it`.

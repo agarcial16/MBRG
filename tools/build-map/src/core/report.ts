@@ -1,6 +1,7 @@
 import { compareCodeUnits } from './errors';
 import type { Frame, ProjectionCenter } from './projection';
 import type { Reassignment } from './pieces';
+import type { EnclosedSet } from './sea';
 
 /** FR-124: the facts of a successful build the report lists. */
 export interface ReportFacts {
@@ -18,6 +19,8 @@ export interface ReportFacts {
   excluded: readonly string[];
   /** Every map entry with more than one piece, with its piece count. */
   multiPiece: readonly { entry: number; pieces: number }[];
+  /** FR-165: enclosed water joined to sea zones while assigning (before the FR-117 cleanup). */
+  enclosed: { sets: number; pixels: number; zones: readonly { zone: number; sets: number; pixels: number }[] };
 }
 
 /**
@@ -45,6 +48,28 @@ export function formatReport(facts: ReportFacts): string {
     ...excluded.map((code) => `  - ${code}`),
     `multiPieceEntries: ${facts.multiPiece.length}`,
     ...facts.multiPiece.map((m) => `  - entry=${m.entry} pieces=${m.pieces}`),
+    `enclosedWaterSets: ${facts.enclosed.sets}`,
+    `enclosedWaterPixels: ${facts.enclosed.pixels}`,
+    `enclosedWaterZones: ${facts.enclosed.zones.length}`,
+    ...facts.enclosed.zones.map((z) => `  - zone=${z.zone} sets=${z.sets} pixels=${z.pixels}`),
   ];
   return lines.join('\n') + '\n';
+}
+
+/** FR-165: totals of the enclosed water sets and, per zone that received some, its sets and pixels (ascending zone id). */
+export function summariseEnclosed(enclosed: readonly EnclosedSet[]): ReportFacts['enclosed'] {
+  const perZone = new Map<number, { sets: number; pixels: number }>();
+  let pixels = 0;
+  for (const set of enclosed) {
+    pixels += set.pixels;
+    const entry = perZone.get(set.zone) ?? { sets: 0, pixels: 0 };
+    entry.sets++;
+    entry.pixels += set.pixels;
+    perZone.set(set.zone, entry);
+  }
+  return {
+    sets: enclosed.length,
+    pixels,
+    zones: [...perZone].sort((a, b) => a[0] - b[0]).map(([zone, v]) => ({ zone, ...v })),
+  };
 }

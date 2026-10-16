@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import { checkIdImage, checkPresentation, validateMap } from '@mbrg/shared';
 import { describe, expect, it } from 'vitest';
 import { buildInMemory } from '../src/core/build';
@@ -9,11 +10,11 @@ import { parseBuildInputs } from '../src/core/parse-inputs';
 import { fromRgb, toRgb } from '../src/core/png-check';
 import { labelPieces } from '../src/core/pieces';
 import { WATER } from '../src/core/rasterize';
-import { formatReport } from '../src/core/report';
+import { formatReport, summariseEnclosed } from '../src/core/report';
 import { selfCheck } from '../src/core/self-check';
 import type { BuildInputs, BuildOutcome, PngCodec } from '../src/core/types';
 import { pngCodec } from '../src/io/png-codec';
-import { MINI_IDS, inputTexts, miniInputs } from './helpers/fixtures';
+import { MINI_IDS, baseInputs, inputTexts, miniInputs } from './helpers/fixtures';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, '..', '..', '..');
@@ -424,6 +425,14 @@ describe('FR-124 build report', () => {
       ],
       excluded: ['ZZ-1', 'AA-2'],
       multiPiece: [{ entry: 3, pieces: 2 }],
+      enclosed: {
+        sets: 3,
+        pixels: 12,
+        zones: [
+          { zone: 2, sets: 1, pixels: 4 },
+          { zone: 5, sets: 2, pixels: 8 },
+        ],
+      },
     });
     expect(report).toBe(
       [
@@ -444,6 +453,11 @@ describe('FR-124 build report', () => {
         '  - ZZ-1',
         'multiPieceEntries: 1',
         '  - entry=3 pieces=2',
+        'enclosedWaterSets: 3',
+        'enclosedWaterPixels: 12',
+        'enclosedWaterZones: 2',
+        '  - zone=2 sets=1 pixels=4',
+        '  - zone=5 sets=2 pixels=8',
         '',
       ].join('\n'),
     );
@@ -460,8 +474,43 @@ describe('FR-124 build report', () => {
       reassigned: [],
       excluded: [],
       multiPiece: [],
+      enclosed: { sets: 0, pixels: 0, zones: [] },
     });
     expect(empty).toContain('reassignedPieces: 0\nexcludedProvinces: 0\nmultiPieceEntries: 0\n');
+    expect(empty).toContain('enclosedWaterSets: 0\nenclosedWaterPixels: 0\nenclosedWaterZones: 0\n');
+  });
+
+  it('FR-165 the mini build reports its lake: one set of 25 pixels joined to sea zone 6, and nothing else', () => {
+    const lines = buildOk().report.split('\n');
+    const at = lines.indexOf('enclosedWaterSets: 1');
+    expect(at).toBeGreaterThan(-1);
+    expect(lines.slice(at, at + 5)).toStrictEqual([
+      'enclosedWaterSets: 1',
+      'enclosedWaterPixels: 25',
+      'enclosedWaterZones: 1',
+      `  - zone=${MINI_IDS.sea.norte} sets=1 pixels=25`,
+      '',
+    ]);
+  });
+
+  it('FR-165 the summary adds up sets and pixels per zone and lists zones in ascending id, whatever the order found', () => {
+    const summary = summariseEnclosed([
+      { zone: 9, pixels: 3 },
+      { zone: 4, pixels: 5 },
+      { zone: 9, pixels: 1 },
+      { zone: 4, pixels: 2 },
+      { zone: 6, pixels: 7 },
+    ]);
+    expect(summary).toStrictEqual({
+      sets: 5,
+      pixels: 18,
+      zones: [
+        { zone: 4, sets: 2, pixels: 7 },
+        { zone: 6, sets: 1, pixels: 7 },
+        { zone: 9, sets: 2, pixels: 4 },
+      ],
+    });
+    expect(summariseEnclosed([])).toStrictEqual({ sets: 0, pixels: 0, zones: [] });
   });
 });
 
@@ -560,5 +609,31 @@ describe('FR-125 the runtime version file and the CI workflow agree', () => {
     const all = workflows.map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
     expect(all).toMatch(/node-version-file:\s*\.nvmrc/);
     expect(all).not.toMatch(/^\s*node-version:/m);
+  });
+});
+
+describe('FR-164 and NFR-30 enclosed water in the final package', () => {
+  it('FR-164 the mini lake is sea zone 6 in the final image: the pixels that were background before are now sea', () => {
+    const built = buildOk();
+    const counts: Record<number, number> = {};
+    for (const v of built.pixels) counts[v] = (counts[v] ?? 0) + 1;
+    // 003b had 248 background pixels and 524 pixels of zone 6; the report says 25 pixels joined.
+    expect(counts[0]).toBe(248 - 25);
+    expect(counts[MINI_IDS.sea.norte]).toBe(524 + 25);
+    expect(built.report).toContain('enclosedWaterPixels: 25');
+  });
+
+  it('FR-164 the lake adds no link here: its territory already touched that sea zone', () => {
+    const links = new Map(buildOk().map.territories.map((t) => [t.id, t.neighbors]));
+    expect(links.get(MINI_IDS.land.centro)).toContain(MINI_IDS.sea.norte);
+  });
+
+  it('NFR-30 a build without enclosed water gives the same bytes as the builder before spec 003c', () => {
+    const built = buildOk(baseInputs());
+    expect(built.report).toContain('enclosedWaterSets: 0\nenclosedWaterPixels: 0\nenclosedWaterZones: 0\n');
+    const sha = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
+    expect(sha(built.files.map)).toBe('0d18c4e727c3397e99b046fbf58d9dc6624c3f5993a050a6c52cf07821b10852');
+    expect(sha(built.files.presentation)).toBe('96c6fadd271a067424a9d559dc82b78ce91b5a26e6af41dd9fdb54c70bc23b0d');
+    expect(sha(built.files.image)).toBe('78a52b0614e1f5ae739f09ad1b85e583f7bae39ed401ff7e9d7113d2130bfc63');
   });
 });
