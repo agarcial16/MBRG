@@ -38,7 +38,7 @@ Rules for every task:
   - Commit: `feat(web): add label opacity, ink and transition rules`.
   - Done when: tests green; `rg` finds the listed ids.
 
-- [ ] **T5. Front distances and the transition reference drawing.** FR-179, FR-180, FR-189, NFR-33
+- [x] **T5. Front distances and the transition reference drawing.** FR-179, FR-180, FR-189, NFR-33
   - Files: `apps/web/src/core/{front.ts,transition-shade.ts}`, `apps/web/test/{front.test.ts,transition-shade.test.ts}`.
   - Tests first: plan section 13 `front.test.ts` and `transition-shade.test.ts` lists (contact and seed sets, naive comparison for empty contact (D13), per-piece normalisation, 1-unit piece, f = 0 equals the earlier `renderReference` pixel for pixel, f = 1 equals the later, no line along the front, interpolated lines, D8 order, backward = forward reversed). Mutations proved: `<=` instead of `<` on the front, normalisation over all pieces, `absorbed` below `outer`.
   - Code: plan D6, D7, D8, D13 and section 7.
