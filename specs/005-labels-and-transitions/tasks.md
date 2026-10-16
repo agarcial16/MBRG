@@ -79,9 +79,10 @@ Rules for every task:
   - Commits: `docs: amend spec 005 to a fixed white label ink` (spec, plan, tasks); `feat(web): draw every label white with a black halo`.
   - Done when: full suite, typecheck and `CI=1` green; the listed mutations proved; `rg -n "contrast|luminance|labelInk" apps/web/src` finds nothing; then the T8 screenshots are retaken (T8 above) and accepted with this task.
 
-- [ ] **T9. Label parameter tuning and the label review set.** NFR-34 (and the final values of FR-169, FR-172, FR-182 parameters)
+- [ ] **T9 (implemented, pending user review). Label parameter tuning and the label review set.** NFR-34 (and the final values of FR-169, FR-172, FR-182 parameters)
   - Files: `apps/web/src/core/{label-params.ts,label-review-set.ts}`, `apps/web/test/{label-layout.test.ts,label-review-set.test.ts}` (pinned values), `specs/005-labels-and-transitions/plan.md` (sections 9 and 12: chosen values, date, found empty-contact seed and round).
   - Tests first: plan section 12 checks for every review-set address; the search over seeds 1..1000 for a transferred piece with an empty contact set (first hit recorded, or the scene dropped and the test asserts none exists); the chosen parameters pinned and inside the spec ranges.
+  - Status (2026-10-16): `label-review-set.ts` + test done (empty-contact hit: seed 1, round 1, recorded in plan section 12); 92 candidate shots in `%TEMP%/mbrg-t9-shots/` (README, addresses.txt). Parameters NOT chosen yet: the pinned-values test and the final commit wait for the user's choice.
   - Starts after T4b and the T8 acceptance. The ink is fixed (white / black halo) and is not a candidate parameter.
   - Steps: 2-3 candidate parameter sets; screenshots of the whole `LABEL_REVIEW_SET` for each, all with the amended label style; **user chooses one and accepts every screenshot** (including `labelFont`, L0, L1, P, M, Hmax, Dt); check readability of small labels on light fills (plan section 15).
   - Commit: `feat(web): tune labels and add the label review set`.
