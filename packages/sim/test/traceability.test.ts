@@ -53,7 +53,7 @@ const idsOf = (prefix: string, ranges: readonly (readonly [number, number])[]): 
   ranges.flatMap(([from, to]) => Array.from({ length: to - from + 1 }, (_, i) => `${prefix}-${from + i}`));
 
 /** Ids of spec 003c whose tests do not exist yet; removed in the last task of that spec. */
-const PENDING = ['FR-162', 'FR-163', 'FR-164', 'FR-165', 'FR-166', 'NFR-30'];
+const PENDING = ['FR-163', 'FR-165', 'FR-166', 'NFR-30'];
 
 const specIds = [...idsOf('FR', FR_RANGES), ...idsOf('NFR', NFR_RANGES)];
 const expected = specIds.filter((id) => !RETIRED.includes(id) && !PENDING.includes(id));
@@ -89,7 +89,7 @@ describe('traceability', () => {
     const everything = new Set([...expected, ...RETIRED, ...PENDING]);
     expect([...everything].sort()).toStrictEqual([...specIds].sort());
     expect(everything.size).toBe(161);
-    expect(expected.length).toBe(153);
+    expect(expected.length).toBe(155);
     expect(expected).toContain('NFR-31');
     for (const id of ['FR-110', 'NFR-22', 'FR-104']) expect(expected).toContain(id);
     for (const id of ['FR-105', 'FR-126', 'NFR-14', 'NFR-23', 'FR-131', 'NFR-21']) {
@@ -111,7 +111,7 @@ describe('traceability', () => {
     ];
     expect(RETIRED).toStrictEqual(['FR-6', 'FR-25']);
     expect(all.filter((id) => !RETIRED.includes(id))).toHaveLength(159);
-    expect(expected).toHaveLength(153);
+    expect(expected).toHaveLength(155);
     expect(expected).toStrictEqual(all.filter((id) => !['FR-6', 'FR-25', ...PENDING].includes(id)));
     for (const id of ['FR-127', 'FR-131', 'NFR-16', 'NFR-17', 'NFR-21']) {
       expect(expected).toContain(id);
@@ -136,7 +136,7 @@ describe('traceability', () => {
   });
 
   it('NFR-31 the pending set holds exactly the ids of spec 003c whose tests are not written yet', () => {
-    expect(PENDING).toStrictEqual(['FR-162', 'FR-163', 'FR-164', 'FR-165', 'FR-166', 'NFR-30']);
+    expect(PENDING).toStrictEqual(['FR-163', 'FR-165', 'FR-166', 'NFR-30']);
     for (const id of PENDING) expect(expected).not.toContain(id);
     const found = tracedIds(testSources);
     expect(PENDING.filter((id) => found.has(id)), 'a pending id already has a test: remove it from PENDING').toStrictEqual([]);

@@ -149,11 +149,11 @@ describe('FR-120 and FR-122 the mini package is complete and valid', () => {
     expect(built.pixels.includes(WATER)).toBe(false);
   });
 
-  it('FR-122 the pixel counts and every link of the mini image are pinned (lake, other land and excluded are background)', () => {
+  it('FR-122 FR-162 the pixel counts and every link of the mini image are pinned (the lake is sea zone 6; other land and excluded are background)', () => {
     const built = buildOk();
     const counts: Record<number, number> = {};
     for (const v of built.pixels) counts[v] = (counts[v] ?? 0) + 1;
-    expect(counts).toStrictEqual({ 0: 248, 1: 289, 2: 290, 3: 553, 4: 289, 5: 99, 6: 524, 7: 771, 8: 1033 });
+    expect(counts).toStrictEqual({ 0: 223, 1: 289, 2: 290, 3: 553, 4: 289, 5: 99, 6: 549, 7: 771, 8: 1033 });
     expect(built.map).toStrictEqual({
       territories: [
         { id: 1, owner: 1, neighbors: [2, 3, 6] },
@@ -192,7 +192,7 @@ describe('FR-120 and FR-122 the mini package is complete and valid', () => {
 
 describe('FR-122 self-check failures', () => {
   it('FR-122 a map error is reported alone: the other checks add nothing', () => {
-    // An island inside a ring of other land has no link: the map is disconnected.
+    // An island enclosed by other land has no link: the map is disconnected.
     const inputs = mini((i) => {
       i.otherLand.push({
         props: { adm0_a3: 'EEE' },
@@ -207,14 +207,16 @@ describe('FR-122 self-check failures', () => {
                 [9, 3.5],
               ],
             },
+            // The hole is exactly the island: no water is left around it (FR-162 would give any water
+            // to a sea zone, which would link the island), so it touches only other land.
             holes: [
               {
                 coords: [
-                  [9.3, 3.8],
-                  [11.4, 3.8],
-                  [11.4, 6.3],
-                  [9.3, 6.3],
-                  [9.3, 3.8],
+                  [9.5, 4],
+                  [11, 4],
+                  [11, 6],
+                  [9.5, 6],
+                  [9.5, 4],
                 ],
               },
             ],

@@ -10,7 +10,7 @@ Branch `feat/003c-enclosed-water`. One task at a time: tests first (red), code, 
   - Commit: `docs: 003c plan, tasks and traceability ranges`.
   - Done when: tests green; the pending set is pinned.
 
-- [ ] **T2. Enclosed water goes to the nearest zone.** FR-162, FR-164
+- [x] **T2. Enclosed water goes to the nearest zone.** FR-162, FR-164
   - Files: `tools/build-map/src/core/sea.ts`, `tools/build-map/test/sea.test.ts` (the lake test is replaced).
   - Tests first: plan section 7 list for `sea.test.ts` including the brute-force comparison. Mutations proved.
   - Commit: `feat(build-map): assign enclosed water to the nearest sea zone`.

@@ -261,16 +261,10 @@ describe('FR-116 sea zones', () => {
     expect(out[3 * width + 1]).toBe(7);
   });
 
-  it('FR-116 water with no seed reachable (a lake) becomes background', () => {
+  it('FR-116 water with no seed reachable is not reached by the seed search (FR-162 then gives it to a zone)', () => {
     const { width, pixels } = grid(['...1.', '...1.', '1111.', '..1..', '..1..']);
     const out = assignSeaZones(width, pixels, [{ x: 0, y: 0 }], [7]);
-    expect(show(out, width)).toStrictEqual(['7771o', '7771o', '1111o', 'oo1oo', 'oo1oo']);
-  });
-
-  it('FR-116 a water pixel touching a seed region only by a corner is not reachable', () => {
-    const { width, pixels } = grid(['.1...', '1.111', '11111', '11111', '11111']);
-    const out = assignSeaZones(width, pixels, [{ x: 0, y: 0 }], [7]);
-    expect(show(out, width)).toStrictEqual(['71ooo', '1o111', '11111', '11111', '11111']);
+    expect(show(out, width)).toStrictEqual(['77717', '77717', '11117', '77177', '77177']);
   });
 
   it('FR-116 land and background pixels are left as they are and the input is not changed', () => {
@@ -279,6 +273,11 @@ describe('FR-116 sea zones', () => {
     const out = assignSeaZones(width, pixels, [{ x: 3, y: 3 }], [9]);
     expect([...pixels]).toStrictEqual(before);
     expect(show(out, width)).toStrictEqual(['1o99', '9299', '9939', '9999']);
+  });
+
+  it('FR-116 an empty seed list leaves every water pixel as water', () => {
+    const { width, pixels } = grid(['..', '.1']);
+    expect([...assignSeaZones(width, pixels, [], [])]).toStrictEqual([...pixels]);
   });
 
   it('FR-116 the water of one body is split between two seeds by step distance', () => {

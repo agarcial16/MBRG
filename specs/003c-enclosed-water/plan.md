@@ -12,7 +12,7 @@ Covers FR-162 to FR-166, NFR-30, NFR-31. Branch `feat/003c-enclosed-water` (from
 ## 2. Files and responsibilities
 | File | Change | Covers |
 |---|---|---|
-| `src/core/sea.ts` | `assignSeaZones` keeps the BFS, then labels each 4-connected set of still unlabelled water pixels and gives each whole set to the nearest zone (section 3). Returns `{ pixels, enclosed }` where `enclosed` lists, per set, the pixel count and the zone id. | FR-162, FR-164 |
+| `src/core/sea.ts` | `assignSeaZones` keeps its signature and result (it delegates to `assignSeaZonesDetailed`, which returns `{ pixels, enclosed }`); the BFS is kept, then it labels each 4-connected set of still unlabelled water pixels and gives each whole set to the nearest zone (section 3). Returns `{ pixels, enclosed }` where `enclosed` lists, per set, the pixel count and the zone id. | FR-162, FR-164 |
 | `src/core/pieces.ts` | In the loop, a sea piece with no candidate target is kept, not turned into background; sea pieces touched by a repainted pixel of another zone are pushed again (section 4). | FR-163 |
 | `test/helpers/cleanup-direct.ts` | The literal loop skips pieces that FR-163 keeps (selects the smallest eligible piece below S). | FR-163 |
 | `src/core/build.ts`, `src/core/report.ts` | Pass `enclosed` to the report; `ReportFacts.enclosed`; two new report lines (section 5). | FR-165 |
@@ -36,7 +36,7 @@ assignSeaZones(width, pixels, seeds, ids):
        every pixel of the set takes ids[best.zone]
   4. water pixels are never 0 afterwards.
 ```
-- Only boundary pixels matter: the nearest labelled pixel to a connected set is reached from a pixel of the set that borders something that is not in the set; interior pixels are never closer. The test compares with an all-pairs brute force on random fixtures.
+- Every pixel of the set is searched, pruned by the best squared distance found so far (a ring of radius r is searched only while r*r <= best), so interior pixels of a big set cost little. A boundary-only shortcut was rejected: it is not provably exact for non-convex sets. The test compares with an all-pairs brute force on random fixtures.
 - Labels used for distance are those of step 1 only (a set never measures to another set), so the result does not depend on the order of the sets.
 - Ties between zones at equal distance: lowest seed position (= lowest `label`). Ties between pixels of one zone do not matter.
 - The ring search stops when `r*r > best.d2`; the first ring that holds a labelled pixel sets `best`, so the cost is about the area of a disc of radius equal to the distance. A set with no labelled pixel anywhere cannot happen (seeds are water and labelled), so `best.zone` always ends set.
