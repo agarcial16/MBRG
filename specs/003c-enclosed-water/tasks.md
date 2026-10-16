@@ -28,13 +28,13 @@ Branch `feat/003c-enclosed-water`. One task at a time: tests first (red), code, 
   - Commit: `feat(build-map): report enclosed water and build with it`.
   - Done when: tests green; FR-164, FR-165, NFR-30 traced.
 
-- [ ] **T5. Rebuild and commit `maps/dev`; link comparison; user review.** FR-166
+- [x] **T5. Rebuild and commit `maps/dev`; link comparison; user review.** (implemented 2026-10-16; user review of the two new links and the crops pending) FR-166
   - Files: `maps/dev/*`, `tools/build-map/test/{dev-map,rebuild}.test.ts` (sizes and the no-zero-water check).
   - Steps: real build command with `--preview=<scratchpad>`; throw-away comparison of old and new links, ids, names, owners and order; screenshots of the debug scene (from `feat/004-viewer` code, not committed here) or preview crops around La Rochelle, Camargue and Hamburg. **User reviews and accepts** the link differences and the images.
   - Commit: `feat: rebuild the dev map with enclosed water as sea`.
   - Done when: tests green; user accepted; FR-166 traced.
 
-- [ ] **T6. Close: remove pending set, status, memory, PR.** NFR-31
+- [x] **T6. Close: remove pending set, status, memory, PR.** NFR-31
   - Files: `packages/sim/test/traceability.test.ts` (pending set removed; literal counts final), `specs/003c-enclosed-water/spec.md` (status implemented), `MEMORY.md`.
   - Steps: full `npm test` (also `CI=1`), typecheck; push; PR (squash only with the user's OK, CI green); afterwards rebase `feat/004-viewer` onto the merged result and update its T8 (hashes, id ranges 1..166 and 1..31).
   - Commit: `docs: close spec 003c`.

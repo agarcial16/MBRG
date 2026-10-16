@@ -52,11 +52,8 @@ const NFR_RANGES: readonly (readonly [number, number])[] = [[1, 23], [30, 31]];
 const idsOf = (prefix: string, ranges: readonly (readonly [number, number])[]): string[] =>
   ranges.flatMap(([from, to]) => Array.from({ length: to - from + 1 }, (_, i) => `${prefix}-${from + i}`));
 
-/** Ids of spec 003c whose tests do not exist yet; removed in the last task of that spec. */
-const PENDING = ['FR-166'];
-
 const specIds = [...idsOf('FR', FR_RANGES), ...idsOf('NFR', NFR_RANGES)];
-const expected = specIds.filter((id) => !RETIRED.includes(id) && !PENDING.includes(id));
+const expected = specIds.filter((id) => !RETIRED.includes(id));
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -86,10 +83,10 @@ describe('traceability', () => {
   it('NFR-13 NFR-19 the expected list ends at the last spec ids and excludes retired ids', () => {
     expect(FR_RANGES).toStrictEqual([[1, 131], [162, 166]]);
     expect(NFR_RANGES).toStrictEqual([[1, 23], [30, 31]]);
-    const everything = new Set([...expected, ...RETIRED, ...PENDING]);
+    const everything = new Set([...expected, ...RETIRED]);
     expect([...everything].sort()).toStrictEqual([...specIds].sort());
     expect(everything.size).toBe(161);
-    expect(expected.length).toBe(158);
+    expect(expected.length).toBe(159);
     expect(expected).toContain('NFR-31');
     for (const id of ['FR-110', 'NFR-22', 'FR-104']) expect(expected).toContain(id);
     for (const id of ['FR-105', 'FR-126', 'NFR-14', 'NFR-23', 'FR-131', 'NFR-21']) {
@@ -100,8 +97,8 @@ describe('traceability', () => {
     }
   });
 
-  it('NFR-19 the expected list excludes only the retired ids and the pending ids', () => {
-    // Independent computation with literal bounds: no other exemption can hide in `expected`.
+  it('NFR-19 the expected list excludes only the retired ids', () => {
+    // Independent computation with literal bounds: no pending exemption can hide in `expected`.
     const all = [
       ...Array.from({ length: 131 }, (_, i) => `FR-${i + 1}`),
       ...Array.from({ length: 5 }, (_, i) => `FR-${i + 162}`),
@@ -111,8 +108,8 @@ describe('traceability', () => {
     ];
     expect(RETIRED).toStrictEqual(['FR-6', 'FR-25']);
     expect(all.filter((id) => !RETIRED.includes(id))).toHaveLength(159);
-    expect(expected).toHaveLength(158);
-    expect(expected).toStrictEqual(all.filter((id) => !['FR-6', 'FR-25', ...PENDING].includes(id)));
+    expect(expected).toHaveLength(159);
+    expect(expected).toStrictEqual(all.filter((id) => id !== 'FR-6' && id !== 'FR-25'));
     for (const id of ['FR-127', 'FR-131', 'NFR-16', 'NFR-17', 'NFR-21']) {
       expect(expected).toContain(id);
     }
@@ -135,11 +132,10 @@ describe('traceability', () => {
     expect([...TRACED_HERE].sort()).toStrictEqual(['FR-55', 'FR-56', 'NFR-13', 'NFR-19', 'NFR-31']);
   });
 
-  it('NFR-31 the pending set holds exactly the ids of spec 003c whose tests are not written yet', () => {
-    expect(PENDING).toStrictEqual(['FR-166']);
-    for (const id of PENDING) expect(expected).not.toContain(id);
-    const found = tracedIds(testSources);
-    expect(PENDING.filter((id) => found.has(id)), 'a pending id already has a test: remove it from PENDING').toStrictEqual([]);
+  it('NFR-31 the ids of spec 003c are all expected and no pending exemption is left', () => {
+    for (const id of ['FR-162', 'FR-163', 'FR-164', 'FR-165', 'FR-166', 'NFR-30', 'NFR-31']) {
+      expect(expected).toContain(id);
+    }
   });
 
   it('NFR-13 NFR-19 every expected requirement id appears in a test name', () => {

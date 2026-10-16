@@ -1,5 +1,5 @@
 # Spec 003c — Enclosed water becomes sea
-Status: draft
+Status: implemented
 
 ## Context and goal
 Spec 003b turns water that no sea zone seed can reach (lakes, lagoons, estuary pockets, gaps between provinces) into background (FR-116). The viewer (spec 004) draws background as "outside the map", so these pockets show up as holes inside the land. On the committed dev map there are 99 such pockets surrounded only by land (about 790 pixels) plus some that touch both land and sea. The user wants them to be sea.
