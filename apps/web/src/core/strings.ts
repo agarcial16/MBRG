@@ -8,6 +8,8 @@ export const STRINGS = {
   paramRepeated: 'El parámetro «{param}» está repetido: «{text}». Se muestra la ronda 0.',
   cameraInvalid:
     'El parámetro de cámara «{param}» no es válido: «{text}». Debe ser un número decimal sin signo. Se muestra el mapa entero.',
+  transitionInvalid:
+    'El parámetro «{param}» no es válido: «{text}». Debe ser un número decimal de 0 a 1 y la ronda mostrada debe ser al menos la 1. Se ignora.',
   typedRoundInvalid: 'La ronda «{text}» no es válida. Escribe un número entero de 0 a {total}.',
   packageErrors: 'El paquete del mapa no es válido: {count} errores. Primer error: {kind}.',
   noWebgl2: 'Este navegador no ofrece WebGL 2, que hace falta para dibujar el mapa.',

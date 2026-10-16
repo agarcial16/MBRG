@@ -45,8 +45,8 @@ Rules for every task:
   - Commit: `feat(web): add the colour front and its reference drawing`.
   - Done when: tests green; dev map seed 1 round 1 front computed in Node (time logged); `rg` finds the listed ids.
 
-- [ ] **T6. Progress, playback state machine, step data and the `transition` address parameter.** FR-176, FR-177, FR-178, FR-182, FR-183, FR-184, FR-185, FR-186, FR-187, FR-191, FR-192, FR-193, FR-194, NFR-37
-  - Files: `apps/web/src/core/{progress.ts,playback.ts,step.ts,address.ts,strings.ts}`, `apps/web/test/{progress.test.ts,playback.test.ts,step.test.ts,address-transition.test.ts}`.
+- [x] **T6. Progress, playback state machine, step data and the `transition` address parameter.** FR-176, FR-177, FR-178, FR-182, FR-183, FR-184, FR-185, FR-186, FR-187, FR-191, FR-192, FR-193, FR-194, NFR-37
+  - Files: `apps/web/src/core/{progress.ts,playback.ts,step.ts,address.ts,strings.ts}`, `apps/web/test/{progress.test.ts,playback.test.ts,step.test.ts,address-transition.test.ts}`. Also `core/scene.ts`: one type export, `SceneError` (so `step.ts` does not name the sim package, FR-159 scan).
   - Tests first: plan section 13 lists for those four files (every one-step control animates, everything else instant, reduced motion, typed equal does nothing (U4), the 4 -> 5 then previous example, motion change completes, displayed round set at once, recorded sim calls for forward/backward/frozen steps, every address edge case of the spec, message names `transition`, camera untouched, text kept while frozen). New `STRINGS.transitionInvalid` used and tested by the 004 strings test unchanged.
   - Code: plan D10, D11 and section 8.
   - Commit: `feat(web): add round-step playback and the transition parameter`.

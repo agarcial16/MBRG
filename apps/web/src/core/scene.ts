@@ -8,6 +8,9 @@ import type { EntryIndex } from './entries';
 import { fillTemplate, STRINGS } from './strings';
 import type { FillClass } from './theme';
 
+/** The error of the sim as the rest of the viewer core sees it (only this module names the sim package). */
+export type SceneError = MatchError;
+
 /** The label of the panel (FR-156, FR-161). */
 export const DEBUG_TITLE: string = STRINGS.debugTitle;
 
