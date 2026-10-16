@@ -63,7 +63,7 @@ Rules for every task:
   - Commit: `feat(web): widen faction and territory borders to 4 px`.
   - Done when: tests green (also `CI=1`), typecheck green; `rg` finds FR-138, FR-139, FR-140 in the new titles; the regenerated 01-09 screenshots accepted by the user; T6 and T6b ticked; `MEMORY.md` updated (widths, why, the small-territory decision).
 
-- [ ] **T7. DOM shell: camera input, round controls, debug panel, address sync, timings.** (implemented, awaiting screenshot review) FR-145, FR-146, FR-148 (reset), FR-151, FR-153, FR-154, FR-155, FR-156, FR-157, FR-158
+- [x] **T7. DOM shell: camera input, round controls, debug panel, address sync, timings.** (accepted 2026-10-16; user then asked territory lines from zoom 1.5, done in 748ed5d) FR-145, FR-146, FR-148 (reset), FR-151, FR-153, FR-154, FR-155, FR-156, FR-157, FR-158
   - Files: `apps/web/src/ui/{input.ts,panel.ts,url.ts,clock.ts,main.ts}`, `apps/web/src/core/strings.ts` (new keys), tests extended in `navigation.test.ts` (`shortcutApplies`), `strings-language.test.ts` (new keys), `anti-spoiler.test.ts` (`url.ts` uses `replaceState` only; no `pushState`/`reload`).
   - Tests first: the extended scans and pure predicates above; every new UI text added to `STRINGS` with a test that it is used.
   - Code: plan sections 4, 5 and 9 (on-demand drawing; rAF only while dragging or zooming; round change drawn synchronously).
