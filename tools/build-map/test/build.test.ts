@@ -338,18 +338,29 @@ describe('FR-123 groundwork: when a failed build still carries a preview', () =>
     expect(preview.pixels.includes(MINI_IDS.land.sur)).toBe(true);
   });
 
-  it('FR-123 a sea zone left without pixels is vanished-entry and keeps the assigned pixels', () => {
-    // A seed in the lake gives a zone of about 30 pixels; with S = 40 it is reassigned to background.
+  it('FR-123 a territory left without pixels is vanished-entry and keeps the assigned pixels', () => {
+    // The island (99 pixels) is a whole entry; with S = 120 reassigning it would leave the entry empty.
     const outcome = build(
+      mini((i) => {
+        i.params.minPieceSize = 120;
+      }),
+    );
+    if (outcome.ok) throw new Error('the build should fail');
+    expect(outcome.errors).toStrictEqual([{ kind: 'vanished-entry', territory: MINI_IDS.land.isla }]);
+    expect(outcome.preview!.pixels.includes(MINI_IDS.land.isla)).toBe(true);
+    expect(outcome.preview!.pixels.includes(WATER)).toBe(false);
+  });
+
+  it('FR-163 a zone seeded in the lake stays below S as a sea piece of its own and the build succeeds', () => {
+    // The lake zone (about 25 pixels) is below S = 40 but touches no other sea zone: it is kept.
+    const built = buildOk(
       mini((i) => {
         i.seeds.push({ name: 'Lago', lon: 4.5, lat: 4.5 });
         i.params.minPieceSize = 40;
       }),
     );
-    if (outcome.ok) throw new Error('the build should fail');
-    expect(outcome.errors).toStrictEqual([{ kind: 'vanished-entry', territory: 9 }]);
-    expect(outcome.preview!.pixels.includes(9)).toBe(true);
-    expect(outcome.preview!.pixels.includes(WATER)).toBe(false);
+    expect(built.pixels.includes(9)).toBe(true);
+    expect(built.map.territories.find((t) => t.id === 9)).toMatchObject({ kind: 'sea' });
   });
 });
 

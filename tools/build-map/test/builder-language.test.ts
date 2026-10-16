@@ -169,8 +169,7 @@ function buildErrors(): Err[] {
   return [
     ...failed(
       mini((i) => {
-        i.seeds.push({ name: 'Lago', lon: 4.5, lat: 4.5 });
-        i.params.minPieceSize = 40;
+        i.params.minPieceSize = 120; // the island (99 pixels) would vanish
       }),
     ),
     ...failed(miniInputs(), altering),

@@ -125,14 +125,43 @@ describe('cleanupPieces', () => {
     expect(out.log).toEqual([{ entry: 7, pixels: 1, to: 8 }]);
   });
 
-  it('FR-117: a sea piece touching only land and background becomes background', () => {
+  it('FR-163: a sea piece below S that touches no other sea zone is kept, not turned into background', () => {
     const out = okRows(
       ['111111', '111111', '117111', '111111', '777111', '777111'],
       [land(1, 10), sea(7)],
       3,
     );
-    expect(out.rows[2]).toBe('11.111');
-    expect(out.log).toEqual([{ entry: 7, pixels: 1, to: 0 }]);
+    expect(out.rows[2]).toBe('117111');
+    expect(out.log).toEqual([]);
+  });
+
+  it('FR-163: a kept sea piece is not counted by the vanished-entry check and background neighbours do not change it', () => {
+    const out = okRows(['......', '..7...', '......', '111111', '111111', '111111'], [land(1, 10), sea(7)], 3);
+    expect(out.rows[1]).toBe('..7...');
+    expect(out.log).toEqual([]);
+  });
+
+  it('FR-163: a land piece below S is still reassigned as before (only sea pieces are kept)', () => {
+    const out = okRows(['111111', '111111', '112111', '111111', '222111', '222111'], [land(1, 10), land(2, 20)], 3);
+    expect(out.rows[2]).toBe('111111');
+    expect(out.log).toEqual([{ entry: 2, pixels: 1, to: 1 }]);
+  });
+
+  it('FR-163: a kept sea piece becomes eligible when a reassigned piece joins a neighbouring sea zone, and then follows FR-117', () => {
+    // Land 2 (1 pixel) touches only sea 8 (twice) and the speck of sea 7: it goes to 8 (step 3, highest
+    // count). Only then does the speck of 7 touch another sea zone, so it goes to 8 as well.
+    const rows = ['......', '.88...', '.827..', '......', '777...', '...222'];
+    const out = okRows(rows, [sea(8), sea(7), land(2, 20)], 3);
+    expect(out.rows[2]).toBe('.888..');
+    expect(out.log).toEqual([
+      { entry: 2, pixels: 1, to: 8 },
+      { entry: 7, pixels: 1, to: 8 },
+    ]);
+  });
+
+  it('FR-163: a sea speck that touches another sea zone from the start is reassigned (no change to FR-117)', () => {
+    const out = okRows(['888888', '888888', '887111', '888111', '777111', '777111'], [land(1, 10), sea(7), sea(8)], 3);
+    expect(out.log).toEqual([{ entry: 7, pixels: 1, to: 8 }]);
   });
 
   it('FR-117: contact counts pairs of 4-adjacent pixels, so one pixel touching two pixels counts twice', () => {
@@ -216,7 +245,7 @@ describe('cleanupPieces', () => {
   });
 
   it('FR-117: a sea zone left without a pixel fails with vanished-entry naming it', () => {
-    const result = run(['111111', '111111', '117111', '111111', '111111', '111111'], [land(1, 10), sea(7)], 3);
+    const result = run(['111111', '111111', '887111', '111111', '111111', '111111'], [land(1, 10), sea(7), sea(8)], 3);
     expect(result).toEqual({ ok: false, errors: [{ kind: 'vanished-entry', territory: 7 }] });
   });
 });
@@ -301,7 +330,24 @@ describe('cleanupPieces identity with the literal loop', () => {
       const { width, pixels, entries, s } = randomCase(seed);
       const result = cleanupPieces(width, pixels, entries, s);
       if (!result.ok) continue;
-      expect(labelPieces(width, result.value.pixels).pieces.every((p) => p.size >= s)).toBe(true);
+      // Only sea pieces that touch no other sea zone may stay below S (FR-163).
+      const kindOf = new Map(entries.map((e) => [e.id, e.kind]));
+      const final = result.value.pixels;
+      const { label, pieces } = labelPieces(width, final);
+      pieces.forEach((piece, index) => {
+        if (piece.size >= s) return;
+        expect(kindOf.get(piece.value), 'seed ' + seed).toBe('sea');
+        for (let i = 0; i < final.length; i++) {
+          if (label[i] !== index) continue;
+          const x = i % width;
+          for (const j of [x > 0 ? i - 1 : -1, x < width - 1 ? i + 1 : -1, i - width, i + width]) {
+            if (j < 0 || j >= final.length) continue;
+            const v = final[j]!;
+            const touchesOtherSea = v !== 0 && v !== piece.value && kindOf.get(v) === 'sea';
+            expect(touchesOtherSea, 'seed ' + seed).toBe(false);
+          }
+        }
+      });
       for (let i = 0; i < pixels.length; i++) if (pixels[i] === 0) expect(result.value.pixels[i]).toBe(0);
     }
   });

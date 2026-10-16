@@ -16,7 +16,7 @@ Branch `feat/003c-enclosed-water`. One task at a time: tests first (red), code, 
   - Commit: `feat(build-map): assign enclosed water to the nearest sea zone`.
   - Done when: tests green; `rg` finds FR-162 and FR-164 in titles.
 
-- [ ] **T3. Keep isolated sea pieces.** FR-163
+- [x] **T3. Keep isolated sea pieces.** FR-163
   - Files: `tools/build-map/src/core/pieces.ts`, `tools/build-map/test/helpers/cleanup-direct.ts`, `tools/build-map/test/pieces.test.ts`.
   - Tests first: plan section 4 fixtures; incremental equals literal loop on all of them and on random fixtures. Mutations proved (no re-push after a sea target; keep land pieces too).
   - Commit: `feat(build-map): keep isolated sea pieces below the minimum size`.
