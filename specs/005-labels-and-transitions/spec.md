@@ -1,5 +1,5 @@
 # Spec 005 — Labels and transitions
-Status: draft
+Status: approved
 
 ## Context and goal
 Roadmap step 2 is "viewer on a real map". Specs 003a to 003c (map package, builder, dev map) and 004 (static viewer with a debug scene) are merged. This spec finishes step 2 with the two things the old viewer got wrong: **labels** (it needed six patch iterations) and **transitions** (broken).
