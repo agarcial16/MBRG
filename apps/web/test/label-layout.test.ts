@@ -206,6 +206,35 @@ describe('FR-169 the fast search equals the rule written the long way', () => {
   });
 });
 
+describe('FR-169 the faster search keeps the result of the rule on shapes that stress it', () => {
+  it('FR-169 a long thin strip (more than 128 successive nearer boxes in one row) equals the brute-force rule', () => {
+    for (const [width, height] of [[400, 5], [5, 400], [300, 7]] as const) {
+      const p = buildPieceIndex(block(width, height));
+      for (const [aspect8, margin, maxHeight] of [[8, 1, 1], [8, 1, 3], [16, 2, 2]] as const) {
+        expect(fitLabel(p, [0], aspect8 / 8, params(margin, maxHeight)), `${width} x ${height} aspect ${aspect8 / 8} M ${margin}`).toStrictEqual(
+          bruteFit(p, [0], aspect8, margin, maxHeight),
+        );
+      }
+    }
+  });
+
+  it('FR-169 a plus-shaped region (long runs in different rows and columns) equals the brute-force rule', () => {
+    const rows = Array.from({ length: 30 }, (_, y) => Array.from({ length: 30 }, (_, x) => (x >= 12 && x < 18) || (y >= 12 && y < 18) ? 1 : 6));
+    const p = buildPieceIndex(gridFrom(rows, KINDS));
+    for (const [aspect8, margin, maxHeight] of [[8, 1, 120], [24, 1, 120], [4, 2, 120], [8, 1, 3]] as const) {
+      expect(fitLabel(p, [0], aspect8 / 8, params(margin, maxHeight)), `aspect ${aspect8 / 8} M ${margin} Hmax ${maxHeight}`).toStrictEqual(
+        bruteFit(p, [0], aspect8, margin, maxHeight),
+      );
+    }
+  });
+
+  it('FR-169 a region more than 65,535 units tall gets the analytic box (wide-counter path)', () => {
+    // 3 x 70,000, M 1, aspect 0.1: heights up to 14 need 3 columns; the 69,985 positions of y0 are symmetric.
+    const p = buildPieceIndex(block(3, 70000));
+    expect(fitLabel(p, [0], 0.1, params(1, 120))).toStrictEqual({ x0: 1, y0: 34993, h: 14, w: 1.4000000000000001 });
+  });
+});
+
 describe('FR-189 and NFR-33 the layout is a pure, deterministic function', () => {
   it('NFR-33 and FR-189 same inputs give the same boxes, the inputs are untouched and no clock or random source is read', () => {
     const grid = randomGrid(30, 24, 4, 9);

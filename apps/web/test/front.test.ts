@@ -10,7 +10,7 @@ import { sceneAt } from '../src/core/scene';
 import type { SimPort } from '../src/core/scene';
 import { inflateStream } from '../src/ui/load';
 import { DEV_MAP, DEV_PRESENTATION, devPngBytes } from './helpers/dev-map';
-import { gridFrom, randomGrid } from './helpers/label-grids';
+import { gridFrom, randomGrid, rng } from './helpers/label-grids';
 import type { IndexGrid } from '../src/core/borders';
 
 const KINDS = { 1: 'land', 2: 'land', 3: 'land', 4: 'land', 5: 'land', 6: 'sea' } as const;
@@ -298,6 +298,75 @@ describe('FR-179 the seed set search across distant buckets', () => {
     const [first] = transferredPieces(p, new Set([2, 3]));
     expect(contactSet(p, first!, before, 1)).toHaveLength(0);
     expect(seedSet(p, first!, before, 1).length).toBeGreaterThan(0);
+  });
+});
+
+describe('FR-179 equally near absorber units in different buckets', () => {
+  it('FR-179 two seeds at the same distance both stay when the second one lies exactly on the edge of another bucket', () => {
+    // Strip of entry 2 at x = 120, y = 90..110. Absorber units at (112, 90) and (128, 100): the strip units
+    // (120, 90) and (120, 100) are both at squared distance 64; the bucket of (128, 100) starts at x = 128.
+    const grid = gridFrom(
+      Array.from({ length: 200 }, (_, y) =>
+        Array.from({ length: 200 }, (_, x) => {
+          if ((x === 112 && y === 90) || (x === 128 && y === 100)) return 1;
+          if (x === 120 && y >= 90 && y <= 110) return 2;
+          return 6;
+        }),
+      ),
+      KINDS,
+    );
+    const p = buildPieceIndex(grid);
+    const [component] = transferredPieces(p, new Set([2]));
+    expect(Array.from(seedSet(p, component!, [0, 1, 2, 0, 0, 0, 0], 1))).toStrictEqual([90 * 200 + 120, 100 * 200 + 120]);
+  });
+});
+
+describe('FR-179 the seed set on random scenes spread over many buckets', () => {
+  it('FR-179 seedSet equals the contact rule, then the all-pairs minimum, on 40 random scenes of 420 x 300 units', () => {
+    const next = rng(77);
+    const int = (n: number): number => Math.floor(next() * n);
+    let farScenes = 0;
+    for (let scene = 0; scene < 40; scene++) {
+      const rects: { entry: number; x0: number; y0: number; x1: number; y1: number }[] = [];
+      for (let i = 0; i < 4 + int(3); i++) {
+        const x0 = int(400);
+        const y0 = int(280);
+        rects.push({ entry: i === 0 ? 2 : 1, x0, y0, x1: Math.min(419, x0 + int(18)), y1: Math.min(299, y0 + int(18)) });
+      }
+      const grid = gridFrom(
+        Array.from({ length: 300 }, (_, y) =>
+          Array.from({ length: 420 }, (_, x) => {
+            for (const r of rects) if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1) return r.entry;
+            return 6;
+          }),
+        ),
+        KINDS,
+      );
+      const p = buildPieceIndex(grid);
+      const before = [0, 1, 2, 0, 0, 0, 0];
+      const pieces = transferredPieces(p, new Set([2]));
+      if (pieces.length === 0 || !p.entryOf.includes(1)) continue;
+      const absorberUnits: number[] = [];
+      for (let u = 0; u < grid.cells.length; u++) if (grid.cells[u] === 1) absorberUnits.push(u);
+      for (const component of pieces) {
+        const units: number[] = [];
+        for (const piece of component) for (let i = p.unitStart[piece]!; i < p.unitStart[piece + 1]!; i++) units.push(p.units[i]!);
+        const touching = units.filter((u) => {
+          const x = u % 420;
+          return [x > 0 ? u - 1 : -1, x < 419 ? u + 1 : -1, u >= 420 ? u - 420 : -1, u < 420 * 299 ? u + 420 : -1].some((v) => v !== -1 && grid.cells[v] === 1);
+        });
+        let expected = touching;
+        if (expected.length === 0) {
+          const d2 = (a: number, b: number): number => ((a % 420) - (b % 420)) ** 2 + (Math.floor(a / 420) - Math.floor(b / 420)) ** 2;
+          let best = Infinity;
+          for (const u of units) for (const a of absorberUnits) best = Math.min(best, d2(u, a));
+          expected = units.filter((u) => absorberUnits.some((a) => d2(u, a) === best));
+          if (Math.sqrt(best) > 128) farScenes++;
+        }
+        expect(Array.from(seedSet(p, component, before, 1)), `scene ${scene}`).toStrictEqual(expected.sort((a, b) => a - b));
+      }
+    }
+    expect(farScenes).toBeGreaterThan(0);
   });
 });
 

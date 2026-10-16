@@ -92,38 +92,62 @@ function unitsOf(p: PieceIndex, pieces: readonly number[]): Int32Array {
 
 /** Units of the component 4-adjacent to a land unit of the absorber at the earlier state (row-major). */
 export function contactSet(p: PieceIndex, component: readonly number[], before: ArrayLike<number>, absorber: number): Int32Array {
-  const contact: number[] = [];
-  for (const u of unitsOf(p, component)) {
-    for (let k = 0; k < 4; k++) {
-      const v = step(p, u, k);
-      if (v !== -1 && absorberOwns(p, before, absorber, v)) {
-        contact.push(u);
-        break;
-      }
-    }
+  // One byte per piece: does it belong to a land entry owned by the absorber? (typed mask, no per-unit lookups)
+  const theirs = new Uint8Array(p.entryOf.length);
+  for (let piece = 0; piece < theirs.length; piece++) theirs[piece] = before[p.entryOf[piece]!] === absorber ? 1 : 0;
+  const width = p.width;
+  const last = width * (p.height - 1);
+  const units = unitsOf(p, component);
+  const contact = new Int32Array(units.length);
+  let count = 0;
+  for (let i = 0; i < units.length; i++) {
+    const u = units[i]!;
+    const x = u % width;
+    let touches = false;
+    if (x > 0) touches = absorberAt(p, theirs, u - 1);
+    if (!touches && x < width - 1) touches = absorberAt(p, theirs, u + 1);
+    if (!touches && u >= width) touches = absorberAt(p, theirs, u - width);
+    if (!touches && u < last) touches = absorberAt(p, theirs, u + width);
+    if (touches) contact[count++] = u;
   }
-  return Int32Array.from(contact).sort();
+  return contact.slice(0, count).sort();
+}
+
+/** Whether map position v holds a piece of the absorber's land (`theirs` is the per-piece mask). */
+function absorberAt(p: PieceIndex, theirs: Uint8Array, v: number): boolean {
+  const piece = p.pieceOf[v]!;
+  return piece !== -1 && theirs[piece] === 1;
 }
 
 /** Boundary units of the absorber's earlier land: the ones with a 4-neighbour that is not absorber land. */
 function absorberBoundary(p: PieceIndex, before: ArrayLike<number>, absorber: number): number[] {
-  const boundary: number[] = [];
+  const theirs = new Uint8Array(p.entryOf.length);
   let any = false;
-  for (let piece = 0; piece < p.entryOf.length; piece++) {
-    if (before[p.entryOf[piece]!] !== absorber) continue;
-    any = true;
-    for (let i = p.unitStart[piece]!; i < p.unitStart[piece + 1]!; i++) {
-      const u = p.units[i]!;
-      for (let k = 0; k < 4; k++) {
-        const v = step(p, u, k);
-        if (v !== -1 && !absorberOwns(p, before, absorber, v)) {
-          boundary.push(u);
-          break;
-        }
-      }
+  for (let piece = 0; piece < theirs.length; piece++) {
+    if (before[p.entryOf[piece]!] === absorber) {
+      theirs[piece] = 1;
+      any = true;
     }
   }
   if (!any) throw new RangeError(`faction ${absorber} owns no land at the earlier state`);
+  const width = p.width;
+  const last = width * (p.height - 1);
+  const boundary: number[] = [];
+  for (let piece = 0; piece < theirs.length; piece++) {
+    if (theirs[piece] === 0) continue;
+    for (let i = p.unitStart[piece]!; i < p.unitStart[piece + 1]!; i++) {
+      const u = p.units[i]!;
+      const x = u % width;
+      if (
+        (x > 0 && !absorberAt(p, theirs, u - 1)) ||
+        (x < width - 1 && !absorberAt(p, theirs, u + 1)) ||
+        (u >= width && !absorberAt(p, theirs, u - width)) ||
+        (u < last && !absorberAt(p, theirs, u + width))
+      ) {
+        boundary.push(u);
+      }
+    }
+  }
   return boundary;
 }
 
@@ -137,17 +161,18 @@ export function seedSet(
   component: readonly number[],
   before: ArrayLike<number>,
   absorber: number,
-  boundary?: () => number[],
+  boundary?: () => ArrayLike<number>,
 ): Int32Array {
   const contact = contactSet(p, component, before, absorber);
   if (contact.length > 0) return contact;
   const theirs = (boundary ?? (() => absorberBoundary(p, before, absorber)))();
-  const inside = new Set(component);
+  const inside = new Uint8Array(p.entryOf.length);
+  for (const piece of component) inside[piece] = 1;
   const own: number[] = [];
   for (const u of unitsOf(p, component)) {
     for (let k = 0; k < 4; k++) {
       const v = step(p, u, k);
-      if (v !== -1 && !inside.has(p.pieceOf[v]!)) {
+      if (v !== -1 && inside[p.pieceOf[v]!] !== 1) {
         own.push(u);
         break;
       }
@@ -155,23 +180,39 @@ export function seedSet(
   }
 
   // Nearest absorber boundary unit by rings of square buckets; a unit stops looking when no unseen
-  // bucket can be closer than its own minimum or than the best minimum found so far.
+  // bucket can be closer than its own minimum or than the best minimum found so far. Buckets are stored in
+  // typed arrays (counting sort by bucket) and a bucket whose nearest possible point is farther than the
+  // unit's minimum or the best minimum is skipped: neither can change which units are kept.
   const C = BUCKET;
-  const bw = Math.ceil(p.width / C);
+  const width = p.width;
+  const bw = Math.ceil(width / C);
   const bh = Math.ceil(p.height / C);
-  const buckets = new Map<number, number[]>();
-  for (const a of theirs) {
-    const ax = a % p.width;
-    const key = Math.floor((a - ax) / p.width / C) * bw + Math.floor(ax / C);
-    const list = buckets.get(key);
-    if (list === undefined) buckets.set(key, [a]);
-    else list.push(a);
+  const count = theirs.length;
+  const keyOf = new Int32Array(count);
+  const bucketStart = new Int32Array(bw * bh + 1);
+  for (let i = 0; i < count; i++) {
+    const a = theirs[i]!;
+    const ax = a % width;
+    const key = Math.floor((a - ax) / width / C) * bw + Math.floor(ax / C);
+    keyOf[i] = key;
+    bucketStart[key + 1]!++;
+  }
+  for (let k = 0; k < bw * bh; k++) bucketStart[k + 1] = bucketStart[k + 1]! + bucketStart[k]!;
+  const fill = bucketStart.slice(0, bw * bh);
+  const pointX = new Int32Array(count);
+  const pointY = new Int32Array(count);
+  for (let i = 0; i < count; i++) {
+    const a = theirs[i]!;
+    const ax = a % width;
+    const slot = fill[keyOf[i]!]!++;
+    pointX[slot] = ax;
+    pointY[slot] = (a - ax) / width;
   }
   let best = Infinity;
   const near: number[] = [];
   for (const u of own) {
-    const ux = u % p.width;
-    const uy = (u - ux) / p.width;
+    const ux = u % width;
+    const uy = (u - ux) / width;
     const bx = Math.floor(ux / C);
     const by = Math.floor(uy / C);
     let min = Infinity;
@@ -181,14 +222,18 @@ export function seedSet(
       for (let gy = by - r; gy <= by + r; gy++) {
         if (gy < 0 || gy >= bh) continue;
         const edge = gy === by - r || gy === by + r;
+        const ey = Math.max(gy * C - uy, uy - (gy * C + C - 1), 0);
         for (let gx = bx - r; gx <= bx + r; gx += edge || r === 0 ? 1 : 2 * r) {
           if (gx < 0 || gx >= bw) continue;
-          const list = buckets.get(gy * bw + gx);
-          if (list === undefined) continue;
-          for (const a of list) {
-            const ax = a % p.width;
-            const dx = ux - ax;
-            const dy = uy - (a - ax) / p.width;
+          const from = bucketStart[gy * bw + gx]!;
+          const to = bucketStart[gy * bw + gx + 1]!;
+          if (from === to) continue;
+          const ex = Math.max(gx * C - ux, ux - (gx * C + C - 1), 0);
+          const nearest = ex * ex + ey * ey;
+          if (nearest > min || nearest > best) continue;
+          for (let i = from; i < to; i++) {
+            const dx = ux - pointX[i]!;
+            const dy = uy - pointY[i]!;
             const d = dx * dx + dy * dy;
             if (d < min) min = d;
           }
@@ -236,33 +281,63 @@ export function frontField(p: PieceIndex, transferred: ReadonlySet<number>, befo
     return ((u - x) / p.width - y0) * width + (x - x0);
   };
 
-  let boundary: number[] | undefined;
-  const sharedBoundary = (): number[] => (boundary ??= absorberBoundary(p, before, absorber));
+  let boundary: ArrayLike<number> | undefined;
+  const sharedBoundary = (): ArrayLike<number> => (boundary ??= absorberBoundary(p, before, absorber));
 
   components.forEach((component, c) => {
     const units = unitsOf(p, component);
     const queue = new Int32Array(units.length);
+    const slots = new Int32Array(units.length); // slots[i] = position of queue[i] in the field
     let tail = 0;
     for (const u of seedSet(p, component, before, absorber, sharedBoundary)) {
+      slots[tail] = slot(u);
       queue[tail++] = u;
       values[slot(u)] = 0;
     }
     let max = 0;
+    const W = p.width;
     for (let head = 0; head < tail; head++) {
       const u = queue[head]!;
-      const d = values[slot(u)]!;
+      const x = u % W;
+      const s = ((u - x) / W - y0) * width + (x - x0);
+      const d = values[s]!;
       if (d > max) max = d;
-      for (let k = 0; k < 4; k++) {
-        const v = step(p, u, k);
-        if (v === -1) continue;
-        const piece = p.pieceOf[v]!;
-        if (piece !== -1 && componentOf[piece] === c && values[slot(v)] === -1) {
-          values[slot(v)] = d + 1;
-          queue[tail++] = v;
+      // left, right, up, down; a neighbour joins when it is in this component and not reached yet
+      if (x > 0) {
+        const piece = p.pieceOf[u - 1]!;
+        if (piece !== -1 && componentOf[piece] === c && values[s - 1] === -1) {
+          values[s - 1] = d + 1;
+          slots[tail] = s - 1;
+          queue[tail++] = u - 1;
+        }
+      }
+      if (x < W - 1) {
+        const piece = p.pieceOf[u + 1]!;
+        if (piece !== -1 && componentOf[piece] === c && values[s + 1] === -1) {
+          values[s + 1] = d + 1;
+          slots[tail] = s + 1;
+          queue[tail++] = u + 1;
+        }
+      }
+      if (u >= W) {
+        const piece = p.pieceOf[u - W]!;
+        if (piece !== -1 && componentOf[piece] === c && values[s - width] === -1) {
+          values[s - width] = d + 1;
+          slots[tail] = s - width;
+          queue[tail++] = u - W;
+        }
+      }
+      if (u < W * (p.height - 1)) {
+        const piece = p.pieceOf[u + W]!;
+        if (piece !== -1 && componentOf[piece] === c && values[s + width] === -1) {
+          values[s + width] = d + 1;
+          slots[tail] = s + width;
+          queue[tail++] = u + W;
         }
       }
     }
-    for (const u of units) values[slot(u)] = max === 0 ? 0 : values[slot(u)]! / max;
+    // Every unit of the component was reached (its pieces are connected and the seeds lie inside it).
+    for (let i = 0; i < tail; i++) values[slots[i]!] = max === 0 ? 0 : values[slots[i]!]! / max;
   });
   return { x0, y0, width, height, values };
 }

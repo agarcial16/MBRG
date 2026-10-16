@@ -56,7 +56,7 @@ export function fitLabel(p: PieceIndex, pieces: readonly number[], aspect: numbe
   if (pieces.length === 0) return undefined;
   const margin = params.margin;
 
-  // Bounding box of the set and a 2-D prefix sum of its membership.
+  // Bounding box of the set.
   let bx0 = p.width;
   let by0 = p.height;
   let bx1 = -1;
@@ -69,21 +69,30 @@ export function fitLabel(p: PieceIndex, pieces: readonly number[], aspect: numbe
   }
   const bw = bx1 - bx0 + 1;
   const bh = by1 - by0 + 1;
-  const stride = bw + 1;
-  const sum = new Int32Array(stride * (bh + 1));
-  for (const piece of pieces) {
-    for (let k = p.unitStart[piece]!; k < p.unitStart[piece + 1]!; k++) {
-      const u = p.units[k]!;
-      const x = u % p.width;
-      const y = (u - x) / p.width;
-      sum[(y - by0 + 1) * stride + (x - bx0 + 1)] = 1;
-    }
-  }
-  for (let y = 1; y <= bh; y++) {
-    let row = 0;
-    for (let x = 1; x <= bw; x++) {
-      row += sum[y * stride + x]!;
-      sum[y * stride + x] = row + sum[(y - 1) * stride + x]!;
+
+  // down[y * bw + x] = number of consecutive units of the set from (x, y) downwards inside the box (one extra
+  // zero row below). A box of `rows` rows fits at columns c..c+cols-1 when down >= rows in all of them.
+  const inSet = new Uint8Array(p.entryOf.length);
+  for (const piece of pieces) inSet[piece] = 1;
+  const down: Uint16Array | Int32Array = bh <= 0xffff ? new Uint16Array((bh + 1) * bw) : new Int32Array((bh + 1) * bw);
+  // The longest horizontal and vertical runs of the set bound the width and height of any box (exact pruning).
+  let longestX = 0;
+  let longestY = 0;
+  for (let y = bh - 1; y >= 0; y--) {
+    const base = y * bw;
+    const mapRow = (by0 + y) * p.width + bx0;
+    let runX = 0;
+    for (let x = 0; x < bw; x++) {
+      const piece = p.pieceOf[mapRow + x]!;
+      if (piece !== -1 && inSet[piece] === 1) {
+        const v = down[base + bw + x]! + 1;
+        down[base + x] = v;
+        if (v > longestY) longestY = v;
+        runX++;
+        if (runX > longestX) longestX = runX;
+      } else {
+        runX = 0;
+      }
     }
   }
 
@@ -92,25 +101,43 @@ export function fitLabel(p: PieceIndex, pieces: readonly number[], aspect: numbe
     const extra = Math.floor(h * aspect - 0.5); // columns to the right of x0 + M
     const cols = 2 * margin + extra + 1;
     const rows = h + 2 * margin;
+    if (rows > longestY || cols > longestX) return;
     for (let y0 = by0 + margin; y0 + h + margin - 1 <= by1; y0++) {
-      const top = (y0 - margin - by0) * stride;
-      const bottom = (y0 - margin - by0 + rows) * stride;
-      for (let x0 = bx0 + margin; x0 + margin + extra <= bx1; x0++) {
-        const c0 = x0 - margin - bx0;
-        const area = sum[bottom + c0 + cols]! - sum[top + c0 + cols]! - sum[bottom + c0]! + sum[top + c0]!;
-        if (area === cols * rows && visit(x0, y0) === true) return;
+      const base = (y0 - margin - by0) * bw;
+      let run = 0;
+      for (let c = 0; c < bw; c++) {
+        if (down[base + c]! >= rows) {
+          run++;
+          if (run >= cols && visit(bx0 + margin + c - cols + 1, y0) === true) return;
+        } else {
+          run = 0;
+        }
       }
     }
   };
   const anyFit = (h: number): boolean => {
-    let found = false;
-    scan(h, () => (found = true));
-    return found;
+    const extra = Math.floor(h * aspect - 0.5);
+    const cols = 2 * margin + extra + 1;
+    const rows = h + 2 * margin;
+    if (rows > longestY || cols > longestX) return false;
+    for (let y0 = by0 + margin; y0 + h + margin - 1 <= by1; y0++) {
+      const base = (y0 - margin - by0) * bw;
+      let run = 0;
+      for (let c = 0; c < bw; c++) {
+        if (down[base + c]! >= rows) {
+          if (++run >= cols) return true;
+        } else {
+          run = 0;
+        }
+      }
+    }
+    return false;
   };
 
   if (!anyFit(1)) return undefined;
   let lo = 1;
   let hi = Math.min(params.maxHeight, bh - 2 * margin);
+  if (hi > lo && anyFit(hi)) lo = hi; // the cap fits: no search
   while (lo < hi) {
     const mid = Math.ceil((lo + hi) / 2);
     if (anyFit(mid)) lo = mid;
@@ -129,26 +156,44 @@ export function fitLabel(p: PieceIndex, pieces: readonly number[], aspect: numbe
     sy += y0;
   });
   const approx = (x0: number, y0: number): number => (n * x0 - sx) ** 2 + (n * y0 - sy) ** 2;
+  // One pass keeps every box that could still be within the tie tolerance of the nearest one (a superset of
+  // the final candidates: the tolerance only shrinks as the nearest distance improves), in row-major order.
+  const slack = (d: number): number => d * (1 + 1e-9) + 1;
   let dmin = Infinity;
+  let candidates: number[] = [];
   scan(h, (x0, y0) => {
-    dmin = Math.min(dmin, approx(x0, y0));
+    const d = approx(x0, y0);
+    if (d < dmin) {
+      dmin = d;
+      if (candidates.length > 128) {
+        const keep: number[] = [];
+        const bound = slack(dmin);
+        for (let i = 0; i < candidates.length; i += 2) {
+          if (approx(candidates[i]!, candidates[i + 1]!) <= bound) keep.push(candidates[i]!, candidates[i + 1]!);
+        }
+        candidates = keep;
+      }
+    }
+    if (d <= slack(dmin)) candidates.push(x0, y0);
   });
   // Exact comparison (whole numbers) among the boxes that could tie; row-major order gives y0 then x0.
   const bigN = BigInt(n);
   const bigSx = BigInt(sx);
   const bigSy = BigInt(sy);
   const exact = (x0: number, y0: number): bigint => (bigN * BigInt(x0) - bigSx) ** 2n + (bigN * BigInt(y0) - bigSy) ** 2n;
-  const limit = dmin * (1 + 1e-9) + 1;
+  const limit = slack(dmin);
   let best: { x0: number; y0: number } | undefined;
   let bestD = 0n;
-  scan(h, (x0, y0) => {
-    if (approx(x0, y0) > limit) return;
+  for (let i = 0; i < candidates.length; i += 2) {
+    const x0 = candidates[i]!;
+    const y0 = candidates[i + 1]!;
+    if (approx(x0, y0) > limit) continue;
     const d = exact(x0, y0);
     if (best === undefined || d < bestD) {
       best = { x0, y0 };
       bestD = d;
     }
-  });
+  }
   return { x0: best!.x0, y0: best!.y0, h, w: h * aspect };
 }
 
