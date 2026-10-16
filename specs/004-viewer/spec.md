@@ -1,5 +1,5 @@
 # Spec 004 — Viewer
-Status: approved
+Status: implemented
 
 > Amendment 2026-10-15 (user decision after reviewing the T6 screenshots): `faction` borders widened from 2 to 4 screen pixels and `territory` lines widened from 1 to 4 screen pixels, the same width as `faction` borders; a `territory` line now differs from a `faction` border only in colour (darkened owner colour) and opacity (unchanged smoothstep rule). Widths stay constant in screen pixels (Q2); `outer`, `coast`, `sea-zone` and `shore` are unchanged. FR-139 now also states the line placement (centred on the edge, clipped only by the drawing area) and the overlap order, which the thicker lines make visible. Touched: Context item 1, FR-138, FR-139, NFR-27, edge cases (quadripoint, maximum scale, T-junction, line end at a coast, after an absorption, narrow and small territories, image edge), decision Q2. No requirement id added, retired or renumbered (traceability count unchanged).
 

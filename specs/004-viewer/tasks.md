@@ -87,7 +87,7 @@ Rules for every task:
   - Commit: `feat(web): tune territory lines`.
   - Done when: tests green; the user's choice recorded (values + date) in the plan and `MEMORY.md`.
 
-- [ ] **T10. Full visual review, performance measurement, close the PR.** (implemented 2026-10-16: 20 screenshots in the scratchpad `review/` with `review-addresses.txt`; NFR-24 measured; awaiting user acceptance, then status -> implemented and merge) NFR-24, NFR-27, done criteria
+- [x] **T10. Full visual review, performance measurement, close the PR.** (done 2026-10-16: 20 screenshots accepted by the user; NFR-24 measured) NFR-24, NFR-27, done criteria
   - Files: `apps/web/src/core/review-set.ts` (complete NFR-27 set), `apps/web/test/review-set.test.ts`, `specs/004-viewer/spec.md` (status -> `implemented`, last, after review), `MEMORY.md` (local).
   - Tests first: the complete review set: seed 1, rounds 0, 1, 2, 4 at fit; at round 0 and round 1, zoomed views (>= 8) of a faction border, a former border, Baleares, Messina, a coast with a `sea-zone` edge, and a lake; at round 0, `small-territory-fit` (amendment 2026-10-15). Each point is checked against the dev map as plan section 12 says.
   - Steps: screenshots of every review-set address (1920 x 1080 drawing area, Chrome, reference PC). The PR table lists label, address and what to look at. **User accepts every screenshot**, including palette, sea, background and border colours (FR-142). Measure NFR-24 with the plan section 12 procedure and record the figures in the PR; if a threshold fails, stop and propose a fix or a spec change. Run the NFR-29 process check. Push, open the PR, wait for CI green, and squash merge only with the user's OK.
