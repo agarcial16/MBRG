@@ -148,7 +148,7 @@ Why: the old viewer failed on borders (dark pixels read as borders, seams betwee
 - Lines on the edge of the id image (`outer`, `shore`): centred on the image edge, so half of the line lies over the background beyond the image; lines are clipped only by the drawing area (FR-139).
 - A land territory with several pieces (Balearic Islands): every piece in the owner's colour, each piece's coast drawn; no line joins the pieces.
 - A one-pixel piece or one-pixel strait at fit scale (about 0.5 screen pixels per map unit on a 1080-pixel-high area): it may not be visible, and minification without mipmaps can shimmer while panning (FR-134 forbids filtering). Accepted; at scale 1 or more every map unit is visible.
-- Lakes and gaps that 003b turned into background: drawn in the background colour with `outer` borders, not as water (FR-143). Accepted by the user in 003b.
+- Lakes and gaps that 003b turned into background: drawn in the background colour with `outer` borders, not as water (FR-143). Accepted by the user in 003b. **Superseded by spec 003c (2026-10-16): enclosed water is now part of the nearest sea zone in the map package, so it is drawn as sea with `coast` lines; the review set point "lake" of NFR-27 is the lagoon at the Etang de Berre.**
 - Sea touching other land (e.g. North African coast): `shore` border between sea and background.
 - A sea zone touching the image edge: the edge counts as `outside`, so a `shore` line is drawn there; a land territory touching the image edge gets an `outer` line.
 - A preferred colour equal to the sea or background colour: used as given (003a contract); territories stay distinguishable by `coast` and `outer` borders. Two equal preferred colours never reach the viewer (`duplicate-color`, FR-133).
