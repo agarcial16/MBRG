@@ -24,7 +24,7 @@ Rules for every task:
   - Commit: `feat(web): add piece index and label regions`.
   - Done when: tests green; dev map piece index built in Node (time logged); `rg` finds the listed ids.
 
-- [ ] **T3. Label layout: fit, largest height, tie rule, reuse of the round being left.** FR-169, FR-170, FR-171, FR-189, NFR-33
+- [x] **T3. Label layout: fit, largest height, tie rule, reuse of the round being left.** FR-169, FR-170, FR-171, FR-189, NFR-33
   - Files: `apps/web/src/core/{label-params.ts,label-layout.ts}`, `apps/web/test/label-layout.test.ts`.
   - Tests first: plan section 13 `label-layout.test.ts` list, including the brute-force comparison on 200 fixed-seed random grids, the image-edge case (D12), w < 0.5, dev map with injected aspects (boxes inside the main region with margin M; territory boxes equal at rounds 0..4), and `previous` reuse equal to full recomputation for every step and jump of seed 1. Mutations proved: off-by-one on the row limit, tie order swapped, non-monotone search start.
   - Code: plan D4, D5 and section 5; parameter proposals of section 9 in `label-params.ts`.
