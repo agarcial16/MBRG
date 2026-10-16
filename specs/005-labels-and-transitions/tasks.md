@@ -17,7 +17,7 @@ Rules for every task:
   - Commits: `docs: add plan and tasks 005`; `test: trace spec 005 ids and amend the animation scan`.
   - Done when: full suite green; a renamed title of a 004 id is still reported missing (mutation); `rg` finds NFR-35 and NFR-36 in titles.
 
-- [ ] **T2. Piece index, regions, main region and main piece.** FR-167, FR-168, FR-171, FR-189
+- [x] **T2. Piece index, regions, main region and main piece.** FR-167, FR-168, FR-171, FR-189
   - Files: `apps/web/src/core/regions.ts`, `apps/web/test/{regions.test.ts,helpers/label-grids.ts}`.
   - Tests first: plan section 13 `regions.test.ts` list (split pieces, multi-entry regions, same-colour factions apart, strait, tie by first unit, recompute after an owner change, dev map Espana + Baleares and Italia >= 2 regions).
   - Code: plan D3 and section 5 (regions only).
