@@ -88,9 +88,9 @@ Rules for every task:
   - Commit: `feat(web): tune labels and add the label review set`.
   - Done when: tests green; choice recorded in the plan and `MEMORY.md`; screenshots accepted.
 
-- [ ] **T10. Performance measurement, no-regression check, close the pending set, PR.** NFR-32, NFR-35, done criteria
+- [x] **T10. Performance measurement, no-regression check, close the pending set, PR.** (measured 2026-10-16; the first run failed the 100 ms figure and the layout and the front were sped up with identical results, see plan section 12) NFR-32, NFR-35, done criteria
   - Files: `apps/web/test/labels-perf.test.ts`, `packages/sim/test/traceability.test.ts` (pending set removed, 229 expected), `specs/005-labels-and-transitions/spec.md` (status -> `implemented`, last, after review), `MEMORY.md` (local).
   - Tests first: `labels-perf.test.ts` (plan section 13: changed factions only, timings logged); traceability with no pending set (every FR-167..FR-194 and NFR-32..NFR-37 in a title).
   - Steps: NFR-32 procedure of plan section 12 on the reference PC, on the code after T4b (labels drawn with the amended style); figures in the PR; if any threshold fails, stop and propose a fix or a spec change. NFR-35 process check: `git diff --exit-code rewrite -- packages/*/src packages/sim/test/golden maps/dev` clean; `git diff --stat rewrite -- apps/web/test packages tools` shows only the edited tests of plan sections 10 and 11 plus new files. Push, PR, CI green, squash only with the user's OK.
-  - Commits: `test(web): measure labels and transitions`; `docs: mark spec 005 implemented`.
+  - Commits: `perf(web): speed up the label layout and the colour front` (added: NFR-32 failed on the first measurement); `test(web): measure labels and transitions`; `docs: mark spec 005 implemented`.
   - Done when: CI green; NFR-32 figures within thresholds and recorded; all screenshots accepted; `MEMORY.md` updated (state, decisions, lessons; next: roadmap step 3).
