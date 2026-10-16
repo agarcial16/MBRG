@@ -201,16 +201,16 @@ shadeTransition at (fx, fy), with forward progress f (0 <= f < 1; f >= 1 returns
 - Data to the rendering part (FR-188): `setOwners(table)`, `setFront({ before, field, forward } | undefined)`, `setView(view)` and `labels.draw(LabelDraw[], view)`; nothing else. A type-level test pins these signatures; the FR-159 scan keeps seed/round names out of `src/render`.
 - FR-190: `main.ts` measures with `now()` around `factionBoxes` + `frontField` of each change; `perfLines` gains one line (`STRINGS.perfLabels`) when the figure exists (the three 004 lines are unchanged).
 
-## 9. Label parameters (proposed; tuned in T9 from screenshots, within the spec ranges)
-| Parameter | Proposal | Spec range |
+## 9. Label parameters (approved in T9 on 2026-10-16, within the spec ranges)
+| Parameter | Approved value | Spec range |
 |---|---|---|
 | `labelFont` | weight 600, `"Segoe UI", "Helvetica Neue", Arial, sans-serif` | list with a generic fallback |
 | `labelMargin` M | 2 map units | 1..4 (whole number, D12) |
 | `labelMaxHeight` Hmax | 120 map units | 20..200 |
 | `labelMinPx` P | 9 screen px | 6..14 |
-| `labelFadeStart` L0 / `labelFadeFull` L1 | 1.25 / 2 (in step with the territory lines 1.5 / 2 of 004) | 0.5 <= L0 < L1 <= 8 |
+| `labelFadeStart` L0 / `labelFadeFull` L1 | 1.5 / 2 (equal to the territory lines of 004; was proposed as 1.25 / 2) | 0.5 <= L0 < L1 <= 8 |
 | `transitionDuration` Dt | 1500 ms | 800..3000 |
-T9 prepares 2-3 candidate sets; the user picks one; a test pins the chosen literals and their ranges; this table records them with the date. Every candidate is shot with the amended style (white text, black 1 px halo, after T4b); the ink is fixed by the spec and is not a tuned parameter.
+Approved by the user on 2026-10-16 after reviewing the T9 screenshots; pinned by a test in `label-review-set.test.ts`. Every candidate was shot with the amended style (white text, black 1 px halo, after T4b); the ink is fixed by the spec and is not a tuned parameter.
 
 ## 10. Earlier tests amended (NFR-35) — the explicit list
 The FR-155 scan in `apps/web/test/anti-spoiler.test.ts` keeps every rule and adds exactly these exceptions (each with a planted-violation test that stays red outside the exception):

@@ -79,6 +79,20 @@ function inView(box: LabelBox, cam: { x: number; y: number; zoom: number }): boo
   return box.x0 + box.w > cam.x - halfW && box.x0 < cam.x + halfW && box.y0 + box.h > cam.y - halfH && box.y0 < cam.y + halfH;
 }
 
+describe('NFR-34 FR-169 FR-172 FR-182 the label parameters approved by the user in T9 (2026-10-16)', () => {
+  it('NFR-34 the chosen literals are pinned (L0 / L1 follow the territory lines of 004: 1.5 / 2)', () => {
+    expect(P).toStrictEqual({
+      font: { weight: 600, families: ['"Segoe UI"', '"Helvetica Neue"', 'Arial', 'sans-serif'] },
+      margin: 2,
+      maxHeight: 120,
+      minPx: 9,
+      fadeStart: 1.5,
+      fadeFull: 2,
+      durationMs: 1500,
+    });
+  });
+});
+
 describe('FR-169 FR-172 FR-182 the label parameters lie inside the spec ranges', () => {
   it('FR-169 the margin and the largest height are whole numbers inside their ranges', () => {
     expect(Number.isInteger(P.margin) && P.margin >= 1 && P.margin <= 4).toBe(true);

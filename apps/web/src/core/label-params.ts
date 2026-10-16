@@ -1,4 +1,4 @@
-// Label parameters (spec 005 definitions, plan section 9). Starting values, tuned in T9 within the spec ranges.
+// Label parameters (spec 005 definitions, plan section 9). Values approved by the user in T9 (2026-10-16).
 // Pure data: no DOM, no clock.
 
 export interface LabelFont {
@@ -28,7 +28,7 @@ export const LABEL_PARAMS: LabelParams = {
   margin: 2,
   maxHeight: 120,
   minPx: 9,
-  fadeStart: 1.25,
+  fadeStart: 1.5,
   fadeFull: 2,
   durationMs: 1500,
 };
