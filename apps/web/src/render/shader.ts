@@ -2,7 +2,10 @@
 // `core/borders.ts`, which is the normative rule: same names, same order of tests, same tie-break bias.
 // It reads the id image with texelFetch only (no filtering, FR-134) and computes every position
 // relative to the camera, so float32 keeps its precision at the largest scale (plan section 15).
+// While a colour front is on (`uFrontOn`), the same shader is a line-by-line port of `shadeTransition` in
+// `core/transition-shade.ts` (FR-179, FR-180): same names, same order of tests, same comparison in float32.
 import { BORDER_PRIORITY, EDGE_BIAS, WIDTH_LEVELS } from '../core/borders';
+import { TRANSITION_PRIORITY } from '../core/transition-shade';
 
 /** One full-screen quad: positions are already clip-space coordinates. */
 export const VERTEX_SHADER = `in vec3 position;
@@ -13,6 +16,16 @@ void main() {
 
 /** Border class constants numbered in the priority order of the reference (lowest number wins). */
 const CLASS_CONSTANTS = BORDER_PRIORITY.map((name, i) => `const int C_${name.toUpperCase().replace('-', '_')} = ${i};`).join('\n');
+
+const classConstant = (name: string): string => name.toUpperCase().replace('-', '_');
+
+/** Step border classes numbered in the order of TRANSITION_PRIORITY (lowest number wins). */
+const STEP_CONSTANTS = TRANSITION_PRIORITY.map((name, i) => `const int S_${classConstant(name)} = ${i};`).join('\n');
+
+/** Width and colour of a step class are those of its base class; `absorbed` has the width of `faction`. */
+const BASE_OF_STEP = TRANSITION_PRIORITY.map((name) => BORDER_PRIORITY.indexOf(name === 'absorbed' ? 'faction' : name));
+/** The step class of each base class. */
+const STEP_OF_BASE = BORDER_PRIORITY.map((name) => TRANSITION_PRIORITY.indexOf(name));
 
 /** The width levels of the reference, widest first, as GLSL float literals: `4.0, 2.0, 1.0`. */
 const WIDTH_LIST = WIDTH_LEVELS.map((w) => w.toFixed(1)).join(', ');
@@ -38,10 +51,18 @@ uniform vec3 uBorderColors[${BORDER_PRIORITY.length}];
 uniform float uWidths[${BORDER_PRIORITY.length}];
 uniform float uTerritoryOpacity;
 uniform float uTerritoryDarken;
+uniform sampler2D uOwnersBefore; // R8, per entry: faction index of the owner at the earlier state of a step
+uniform sampler2D uFront;   // R32F, normalised front distance of the units of the moving pieces
+uniform vec4 uFrontBox;     // x0, y0, width, height of the front texture, in map units
+uniform int uFrontOn;       // 1 while a front is drawn, 0 for the plain drawing
+uniform float uProgress;    // forward fraction f of the step, in [0, 1)
 
 layout(location = 0) out highp vec4 outColor;
 
 ${CLASS_CONSTANTS}
+${STEP_CONSTANTS}
+const int BASE_OF_STEP[${BASE_OF_STEP.length}] = int[${BASE_OF_STEP.length}](${BASE_OF_STEP.join(', ')});
+const int STEP_OF_BASE[${STEP_OF_BASE.length}] = int[${STEP_OF_BASE.length}](${STEP_OF_BASE.join(', ')});
 const float EDGE_BIAS = ${EDGE_BIAS.toFixed(8)};
 const float WIDTH_LEVELS[${WIDTH_LEVELS.length}] = float[${WIDTH_LEVELS.length}](${WIDTH_LIST});
 
@@ -69,6 +90,35 @@ int borderClassOf(int a, int b) {
   return C_COAST;
 }
 
+// Normalised front distance at a whole map position, or -1 outside the front box.
+float frontAtCell(ivec2 cell) {
+  ivec2 c = cell - ivec2(uFrontBox.xy);
+  if (c.x < 0 || c.y < 0 || c.x >= int(uFrontBox.z) || c.y >= int(uFrontBox.w)) return -1.0;
+  return texelFetch(uFront, c, 0).r;
+}
+
+// Step class of the edge between entries a and b, or -1 when there is none. Land pairs: after the step,
+// owners differing is a faction edge; same owner now but not before is the edge of the absorbed area.
+int stepClassOf(int a, int b) {
+  if (a == b) return -1;
+  if (byteAt(uKinds, a) == 1 && byteAt(uKinds, b) == 1) {
+    if (byteAt(uOwners, a) != byteAt(uOwners, b)) return S_FACTION;
+    return byteAt(uOwnersBefore, a) == byteAt(uOwnersBefore, b) ? S_TERRITORY : S_ABSORBED;
+  }
+  int c = borderClassOf(a, b);
+  return c < 0 ? -1 : STEP_OF_BASE[c];
+}
+
+// Fill colour of a faction on the 0..255 scale.
+vec3 factionRgb(int faction) {
+  return floor(texelFetch(uColors, ivec2(faction, 0), 0).rgb * 255.0 + 0.5);
+}
+
+// Colour of a territory line over the owner colour (0..255 scale): floor(c x darken).
+vec3 territoryRgb(int faction) {
+  return floor(factionRgb(faction) * uTerritoryDarken);
+}
+
 void main() {
   // CSS position of this pixel centre, from the top-left of the drawing area.
   vec2 f = vec2(gl_FragCoord.x, uDevice.y - gl_FragCoord.y) / uDpr;
@@ -80,13 +130,23 @@ void main() {
 
   vec3 fillColor = uOutside;
   if (fillKind == 1) {
-    fillColor = texelFetch(uColors, ivec2(byteAt(uOwners, a), 0), 0).rgb;
+    int owner = byteAt(uOwners, a);
+    if (uFrontOn != 0) {
+      // A moving unit keeps the earlier owner's colour until the front reaches it.
+      int ownerBefore = byteAt(uOwnersBefore, a);
+      if (ownerBefore != owner) {
+        float d = frontAtCell(base + ivec2(floor(q)));
+        if (!(d < uProgress)) owner = ownerBefore;
+      }
+    }
+    fillColor = texelFetch(uColors, ivec2(owner, 0), 0).rgb;
   } else if (fillKind == 2) {
     fillColor = uSea;
   }
 
   const vec2 DIRS[4] = vec2[4](vec2(1.0, 0.0), vec2(-1.0, 0.0), vec2(0.0, 1.0), vec2(0.0, -1.0));
   int found = 0;
+  int foundStep = 0;
   for (int wi = 0; wi < ${WIDTH_LEVELS.length}; wi++) {
     float w = WIDTH_LEVELS[wi];
     for (int di = 0; di < 4; di++) {
@@ -95,6 +155,10 @@ void main() {
       int b = cellAt(base + ivec2(floor(q + dir * o)));
       int c = borderClassOf(a, b);
       if (c >= 0 && uWidths[c] == w) found |= (1 << c);
+      if (uFrontOn != 0) {
+        int sc = stepClassOf(a, b);
+        if (sc >= 0 && uWidths[BASE_OF_STEP[sc]] == w) foundStep |= (1 << sc);
+      }
     }
   }
   int border = -1;
@@ -104,9 +168,33 @@ void main() {
       break;
     }
   }
+  int stepBorder = -1;
+  for (int c = 0; c < ${TRANSITION_PRIORITY.length}; c++) {
+    if ((foundStep & (1 << c)) != 0) {
+      stepBorder = c;
+      break;
+    }
+  }
 
   vec3 color = fillColor;
-  if (border == C_TERRITORY) {
+  if (uFrontOn != 0) {
+    vec3 fill255 = floor(fillColor * 255.0 + 0.5);
+    if (stepBorder == S_ABSORBED) {
+      // From the faction line colour to the territory line over the absorber, fading to the territory opacity.
+      vec3 lineFrom = floor(uBorderColors[C_FACTION] * 255.0 + 0.5);
+      vec3 lineTo = territoryRgb(byteAt(uOwners, a));
+      vec3 line = lineFrom + (lineTo - lineFrom) * uProgress;
+      float alpha = 1.0 + (uTerritoryOpacity - 1.0) * uProgress;
+      color = floor(fill255 * (1.0 - alpha) + line * alpha + 0.5) / 255.0;
+    } else if (stepBorder == S_TERRITORY) {
+      vec3 lineFrom = territoryRgb(byteAt(uOwnersBefore, a));
+      vec3 lineTo = territoryRgb(byteAt(uOwners, a));
+      vec3 line = lineFrom + (lineTo - lineFrom) * uProgress;
+      color = floor(fill255 * (1.0 - uTerritoryOpacity) + line * uTerritoryOpacity + 0.5) / 255.0;
+    } else if (stepBorder >= 0) {
+      color = uBorderColors[BASE_OF_STEP[stepBorder]];
+    }
+  } else if (border == C_TERRITORY) {
     vec3 fill255 = floor(fillColor * 255.0 + 0.5);
     vec3 line = floor(fill255 * uTerritoryDarken);
     color = floor(fill255 * (1.0 - uTerritoryOpacity) + line * uTerritoryOpacity + 0.5) / 255.0;

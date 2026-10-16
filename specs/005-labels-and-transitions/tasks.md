@@ -52,7 +52,7 @@ Rules for every task:
   - Commit: `feat(web): add round-step playback and the transition parameter`.
   - Done when: tests green (the 004 address and strings tests unchanged and green); `rg` finds the listed ids.
 
-- [ ] **T7. Rendering part: front branch of the shader, `setFront`, label layer.** FR-173, FR-175, FR-179, FR-180, FR-188
+- [x] **T7. Rendering part: front branch of the shader, `setFront`, label layer.** FR-173, FR-175, FR-179, FR-180, FR-188
   - Files: `apps/web/src/render/{shader.ts,map-scene.ts,labels-layer.ts}`, `apps/web/index.html`, `apps/web/test/labels-render.test.ts`.
   - Tests first: plan section 13 `labels-render.test.ts` list (label canvas order and `pointer-events:none`; type-level signatures of `setFront` and `attachLabelLayer`; `setFront` uploads only the earlier owners and the front (R32F, Nearest, no mipmaps, no flip); `setFront(undefined)` turns the branch off; `uProgress` declared once; priority constants generated from `TRANSITION_PRIORITY`; the 004 map-scene tests still green unchanged).
   - Code: plan D1, D2, D6 and section 7 (GLSL port of `shadeTransition`, same names).
