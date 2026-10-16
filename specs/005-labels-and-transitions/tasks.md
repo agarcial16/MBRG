@@ -60,8 +60,8 @@ Rules for every task:
   - Commit: `feat(web): draw the colour front and the label layer`.
   - Done when: tests green; the FR-159 render scan passes on the new files; `rg` finds the listed ids.
 
-- [ ] **T8 (implemented, pending user review). UI wiring and first visual check.** FR-176, FR-177, FR-178, FR-182, FR-183, FR-184, FR-185, FR-186, FR-190, NFR-33, NFR-37
-  - Status (2026-10-16): the first screenshots led to the FR-174 amendment. The code stays as committed (1464f4a); after T4b the same screenshot set is **retaken with the white text / black halo style** and the user accepts T8 and T4b together (both ticked then). The old shots do not count.
+- [x] **T8. UI wiring and first visual check.** (screenshots accepted 2026-10-16, retaken after T4b) FR-176, FR-177, FR-178, FR-182, FR-183, FR-184, FR-185, FR-186, FR-190, NFR-33, NFR-37
+  - Status (2026-10-16): the first screenshots led to the FR-174 amendment. The code stays as committed (1464f4a); the screenshot set was retaken with the white text / black halo style and the user accepted T8 and T4b together.
   - Files: `apps/web/src/ui/{frame-loop.ts,text-metrics.ts,motion.ts,main.ts,panel.ts,url.ts}`, `apps/web/src/core/{panel-text.ts,strings.ts}`, `apps/web/test/labels-purity.test.ts`, panel-text test additions in a new `describe` (the 004 `perfLines` cases unchanged).
   - Tests first: plan section 13 `labels-purity.test.ts` (new core files scanned, throwing-clock run, `now` imported only by `ui/main.ts` and `ui/frame-loop.ts`, rAF only in `ui/frame-loop.ts`, no literal into `fillText`/`strokeText`); FR-190 `perfLines` line with and without the figure.
   - Code: piece index, territory boxes and aspects at load; `stepScenes` + `factionBoxes` + `frontField` + playback on each request; first frame drawn synchronously (D14); frames from `frame-loop.ts`; reduced-motion listener; frozen address on load.
@@ -69,7 +69,7 @@ Rules for every task:
   - Commit: `feat(web): wire labels and round-step transitions`.
   - Done when: tests green; screenshots (retaken after T4b) accepted; `rg` finds the listed ids.
 
-- [ ] **T4b. Fixed label ink: white text, black 1 px halo (amendment 2026-10-16).** FR-171, FR-174, FR-181, NFR-33
+- [x] **T4b. Fixed label ink: white text, black 1 px halo (amendment 2026-10-16).** (screenshots accepted 2026-10-16 together with T8; code in 4c98d75 and 519fcf0) FR-171, FR-174, FR-181, NFR-33
   - Follow-up of T4 on the code of T4 and T8 (T4 stays ticked). Plan D15, section 6 "Ink" and the FR-181 bullet, section 13 (`label-frame`, `label-input`, `labels-purity` lists).
   - Files: `apps/web/src/core/{label-frame.ts,label-input.ts}`, `apps/web/src/ui/main.ts` (the `roundLabels` call loses the colour list); delete `apps/web/src/core/contrast.ts` and `apps/web/test/contrast.test.ts`; tests `apps/web/test/{label-frame.test.ts,label-input.test.ts,labels-purity.test.ts}` (and `ui-driver.test.ts` only if it builds label inputs with a fill). Not touched: `render/labels-layer.ts`, `labels-render.test.ts`, `borders.ts` and every 004 test.
   - Tests first (seen red against the current code): ink rule: every `LabelDraw` of `instantLabels` and of `labelsAt` at f = 0, 0.25, 0.49, 0.5, 0.75, 1 (faction and territory roles, eliminated, absorber, transferred territories; fills white, black, pale, palette) has `ink` [255, 255, 255] and `halo` [0, 0, 0]; `LABEL_INK`/`LABEL_HALO` pinned; a transferred territory label is `toStrictEqual` at every f (FR-171, FR-181); dev map seed 1, rounds 0..4 and every step at those f: all labels white with a black halo; label inputs have no `fill` key and `roundLabels` takes no colours; `labels-purity` NEW_CORE without `core/contrast.ts` and the throwing-clock run without the contrast calls (NFR-33).
