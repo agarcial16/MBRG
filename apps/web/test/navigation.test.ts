@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { controlsState, navigate, parseTypedRound, typedRoundMessage } from '../src/core/navigation';
+import { controlsState, keyAction, navigate, parseTypedRound, shortcutApplies, typedRoundMessage } from '../src/core/navigation';
 import { initialCamera } from '../src/core/camera';
 
 const T = 4;
@@ -92,5 +92,26 @@ describe('FR-154 round navigation', () => {
     navigate(1, T, 'next');
     expect(JSON.stringify(cam)).toBe(before);
     expect(typeof navigate(1, T, 'next')).toBe('number');
+  });
+});
+
+describe('FR-154 keyboard shortcuts', () => {
+  it('FR-154 the arrow keys move one round, Home and End jump to the ends, other keys do nothing', () => {
+    expect(keyAction('ArrowLeft')).toBe('previous');
+    expect(keyAction('ArrowRight')).toBe('next');
+    expect(keyAction('Home')).toBe('first');
+    expect(keyAction('End')).toBe('last');
+    for (const key of ['ArrowUp', 'ArrowDown', 'a', ' ', 'Enter', 'Escape', '', 'home', 'PageUp']) {
+      expect(keyAction(key), key).toBeUndefined();
+    }
+  });
+
+  it('FR-154 shortcuts are ignored while the target is a text field, in any letter case', () => {
+    for (const tag of ['INPUT', 'input', 'TEXTAREA', 'textarea', 'SELECT', 'Input']) {
+      expect(shortcutApplies(tag), tag).toBe(false);
+    }
+    for (const tag of ['BODY', 'CANVAS', 'BUTTON', 'DIV', 'body', '', undefined]) {
+      expect(shortcutApplies(tag), String(tag)).toBe(true);
+    }
   });
 });

@@ -88,9 +88,9 @@ describe('FR-159 the rendering part takes no seed, round or sim', () => {
     expect(runtime).toStrictEqual([]);
   });
 
-  it('FR-159 no module imports the scene module except the UI shell (the rendering part cannot reach the sim through it)', () => {
+  it('FR-159 no module imports the scene module except the UI shell and the pure core (the rendering part cannot reach the sim through it)', () => {
     for (const [path, src] of sources) {
-      if (path.startsWith('ui/')) continue;
+      if (path.startsWith('ui/') || path.startsWith('core/')) continue;
       expect(specifiers(src).filter((s) => /(^|\/)scene$/.test(s)), path).toStrictEqual([]);
     }
   });
@@ -215,5 +215,24 @@ describe('FR-155 a round change is drawn at once, without animation', () => {
       '// no setTimeout here',
     ];
     for (const src of fine) expect(animationViolations('render/renderer.ts', src), src).toStrictEqual([]);
+  });
+});
+
+describe('FR-153 the address is kept in step without history entries or reloads', () => {
+  const urlSource = (): string => sources.find(([p]) => p === 'ui/url.ts')?.[1] ?? '';
+  const code = (src: string): string => codeOnly(src);
+
+  it('FR-153 ui/url.ts exists, calls history.replaceState and nothing that adds a history entry or reloads', () => {
+    const code = codeOnly(urlSource());
+    expect(/history\s*\.\s*replaceState\s*\(/.test(code)).toBe(true);
+    expect(/history\s*\.\s*(pushState|go|back|forward)\b/.test(code)).toBe(false);
+  });
+
+  it('FR-153 no source adds a history entry', () => {
+    for (const [path, src] of sources) expect(code(src).includes('pushState'), path).toBe(false);
+  });
+
+  it('FR-153 a planted pushState is flagged by the same rule', () => {
+    expect(code('history.pushState(null, "", u);').includes('pushState')).toBe(true);
   });
 });

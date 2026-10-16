@@ -3,6 +3,21 @@ import { STRINGS, fillTemplate } from './strings';
 
 export type NavAction = 'first' | 'previous' | 'next' | 'last' | { to: number };
 
+/** The round action of a keyboard key (FR-154), or undefined for any other key. */
+export function keyAction(key: string): NavAction | undefined {
+  if (key === 'ArrowLeft') return 'previous';
+  if (key === 'ArrowRight') return 'next';
+  if (key === 'Home') return 'first';
+  if (key === 'End') return 'last';
+  return undefined;
+}
+
+/** False while the key event target is a text field: the field gets the key (FR-154). */
+export function shortcutApplies(targetTag: string | undefined): boolean {
+  const tag = (targetTag ?? '').toUpperCase();
+  return tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT';
+}
+
 /** Digits only: no sign, space, exponent or fraction (same rule as the address). */
 const DIGITS = /^[0-9]+$/;
 
