@@ -168,18 +168,37 @@ describe('FR-161 the seed of the debug scene goes nowhere', () => {
   });
 });
 
-const TIMERS = /\b(setTimeout|setInterval|transition|transitions|animate|animation|animations|tween|tweens|keyframes|lerp|requestIdleCallback)\b/i;
-const TIME_UNIFORM = /\buniform\b[^;]*\b(?:u_?time|time|iTime|uProgress|progress|uMix|mix_?factor)\b/i;
+// Spec 005 (NFR-35) amends this scan with exactly four exceptions (plan section 10); everything else stays banned.
+const BANNED_WORDS = /\b(setTimeout|setInterval|transitions|animate|animation|animations|tween|tweens|keyframes|requestIdleCallback)\b/i;
+const TRANSITION_WORD = /\btransition\b/i;
+const LERP_WORD = /\blerp\b/i;
+const TIME_UNIFORM = /\buniform\b[^;]*\b(?:u_?time|time|iTime|uProgress|u_progress|progress|uMix|mix_?factor)\b/i;
+const PROGRESS_DECLARATION = /\buniform\s+(?:\w+\s+)*?uProgress\s*;/;
 
-/** Animation machinery in one source; `requestAnimationFrame` is allowed only in the UI shell. */
-function animationViolations(path: string, src: string): string[] {
+/** Exception 1: the whole word `transition` (the address parameter and its handling). */
+const TRANSITION_FILES = ['core/address.ts', 'core/playback.ts', 'ui/main.ts', 'ui/url.ts'];
+/** Exception 4: the only user of the animation frame API. */
+const FRAME_LOOP_FILE = 'ui/frame-loop.ts';
+/** Exception 3: the only file that may declare the progress uniform, once. */
+const PROGRESS_FILE = 'render/shader.ts';
+
+/**
+ * Animation machinery in one source. `frameLoopExists` is false until task T8 creates `ui/frame-loop.ts`:
+ * until then `ui/main.ts` keeps the camera frames of 004 and may use the animation frame API (as the
+ * 004 libraries test allowed a stub in the UI until the render part existed).
+ */
+function animationViolations(path: string, src: string, frameLoopExists = true): string[] {
   const found: string[] = [];
   const code = codeOnly(src);
-  const timer = TIMERS.exec(code);
+  const timer = BANNED_WORDS.exec(code);
   if (timer) found.push(`timer or animation ${timer[1]}`);
-  if (!path.startsWith('ui/') && /\b(requestAnimationFrame|cancelAnimationFrame)\b/.test(code)) found.push('animation frame outside ui');
-  // Shader sources are strings: look at them as text.
-  const text = stripComments(src);
+  if (TRANSITION_WORD.test(code) && !TRANSITION_FILES.includes(path)) found.push('transition outside its files');
+  if (LERP_WORD.test(code) && !path.startsWith('core/')) found.push('lerp outside src/core');
+  const frameOk = path === FRAME_LOOP_FILE || (!frameLoopExists && path === 'ui/main.ts');
+  if (!frameOk && /\b(requestAnimationFrame|cancelAnimationFrame)\b/.test(code)) found.push('animation frame outside ui/frame-loop.ts');
+  // Shader sources are strings: look at them as text. Only the first progress declaration of the shader is exempt.
+  let text = stripComments(src);
+  if (path === PROGRESS_FILE) text = text.replace(PROGRESS_DECLARATION, '');
   const uniform = TIME_UNIFORM.exec(text);
   if (uniform) found.push(`time uniform ${uniform[1]}`);
   if (/\bgl_FragColor\b[^;]*\bmix\b[^;]*\b(?:old|prev|previous)/i.test(text)) found.push('frame mixing');
@@ -187,8 +206,10 @@ function animationViolations(path: string, src: string): string[] {
 }
 
 describe('FR-155 a round change is drawn at once, without animation', () => {
-  it('FR-155 no source has timers, transitions, tweens or time uniforms; animation frames only in src/ui', () => {
-    for (const [path, src] of sources) expect(animationViolations(path, src), path).toStrictEqual([]);
+  const frameLoopExists = sources.some(([p]) => p === FRAME_LOOP_FILE);
+
+  it('FR-155 no source has timers, transitions, tweens or time uniforms; animation frames only in the frame loop', () => {
+    for (const [path, src] of sources) expect(animationViolations(path, src, frameLoopExists), path).toStrictEqual([]);
   });
 
   it('FR-155 the scan flags planted animation machinery', () => {
@@ -203,9 +224,61 @@ describe('FR-155 a round change is drawn at once, without animation', () => {
       ['render/shader.ts', "const s = 'uniform float uTime;';"],
       ['render/shader.ts', "const s = 'uniform float u_progress; uniform float progress;';"],
       ['ui/panel.ts', 'el.animate(frames, 200);'],
+      ['core/scene.ts', 'const transitions = [];'],
     ];
     for (const [path, src] of planted) expect(animationViolations(path, src), `${path}: ${src}`).not.toStrictEqual([]);
-    expect(animationViolations('ui/input.ts', 'requestAnimationFrame(loop);')).toStrictEqual([]);
+  });
+
+  it('NFR-35 exception 1: the word transition is accepted only in address, playback, main and url', () => {
+    const src = 'const transition = parse(text);';
+    for (const path of TRANSITION_FILES) expect(animationViolations(path, src), path).toStrictEqual([]);
+    for (const path of ['core/scene.ts', 'core/panel-text.ts', 'core/front.ts', 'render/shader.ts', 'render/map-scene.ts', 'ui/panel.ts', 'ui/frame-loop.ts', 'ui/input.ts']) {
+      expect(animationViolations(path, src), path).not.toStrictEqual([]);
+    }
+    // Only the exact word: longer identifiers were never flagged, the plural stays banned everywhere.
+    expect(animationViolations('core/scene.ts', 'const transitionInvalid = 1;')).toStrictEqual([]);
+    expect(animationViolations('core/address.ts', 'const transitions = [];')).not.toStrictEqual([]);
+  });
+
+  it('NFR-35 exception 2: the word lerp is accepted only under src/core', () => {
+    const src = 'const v = lerp(a, b, t);';
+    for (const path of ['core/lines.ts', 'core/front.ts', 'core/transition-shade.ts']) {
+      expect(animationViolations(path, src), path).toStrictEqual([]);
+    }
+    for (const path of ['render/shader.ts', 'render/map-scene.ts', 'render/labels-layer.ts', 'ui/main.ts', 'ui/frame-loop.ts']) {
+      expect(animationViolations(path, src), path).not.toStrictEqual([]);
+    }
+  });
+
+  it('NFR-35 exception 3: one uniform named uProgress, declared once, only in render/shader.ts', () => {
+    const one = "const frag = 'uniform float uProgress;';";
+    const highp = "const frag = 'uniform highp float uProgress;';";
+    expect(animationViolations('render/shader.ts', one)).toStrictEqual([]);
+    expect(animationViolations('render/shader.ts', highp)).toStrictEqual([]);
+    expect(animationViolations('render/shader.ts', "const frag = 'uniform float uProgress; uniform float uProgress;';")).not.toStrictEqual([]);
+    expect(
+      animationViolations('render/shader.ts', "const a = 'uniform float uProgress;'; const b = 'uniform float uProgress;';"),
+    ).not.toStrictEqual([]);
+    for (const path of ['render/map-scene.ts', 'render/renderer.ts', 'core/borders.ts', 'ui/main.ts']) {
+      expect(animationViolations(path, one), path).not.toStrictEqual([]);
+    }
+    // Every other time-like uniform stays banned, in the shader too.
+    for (const name of ['uTime', 'progress', 'u_progress', 'uMix', 'iTime']) {
+      expect(animationViolations('render/shader.ts', `const s = 'uniform float ${name};';`), name).not.toStrictEqual([]);
+    }
+    expect(animationViolations('render/shader.ts', "const s = 'uniform float uProgress; uniform float uTime;';")).not.toStrictEqual([]);
+  });
+
+  it('NFR-35 exception 4: the animation frame API is accepted only in ui/frame-loop.ts', () => {
+    const src = 'requestAnimationFrame(loop); cancelAnimationFrame(h);';
+    expect(animationViolations(FRAME_LOOP_FILE, src)).toStrictEqual([]);
+    expect(animationViolations(FRAME_LOOP_FILE, src, false)).toStrictEqual([]);
+    for (const path of ['ui/main.ts', 'ui/input.ts', 'ui/panel.ts', 'ui/url.ts', 'core/playback.ts', 'render/renderer.ts']) {
+      expect(animationViolations(path, src), path).not.toStrictEqual([]);
+    }
+    // Until the frame loop exists (task T8), ui/main.ts keeps the 004 camera frames; nothing else does.
+    expect(animationViolations('ui/main.ts', src, false)).toStrictEqual([]);
+    expect(animationViolations('ui/input.ts', src, false)).not.toStrictEqual([]);
   });
 
   it('FR-155 the scan lets drawing code through', () => {
