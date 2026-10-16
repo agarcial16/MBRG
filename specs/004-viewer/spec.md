@@ -71,7 +71,7 @@ Why: the old viewer failed on borders (dark pixels read as borders, seams betwee
 
   Edges between map units of equal value have no border. `outside`–`outside` has no border.
 - **Territory line parameters** (named; final values are tuned from debug-scene screenshots in the plan/tasks phase, within these ranges):
-  - `territoryFadeStart` (S0): the scale at and below which `territory` lines are invisible; 2 ≤ S0 ≤ 8 screen pixels per map unit.
+  - `territoryFadeStart` (S0): the scale at and below which `territory` lines are invisible; 1 ≤ S0 ≤ 8 screen pixels per map unit (range widened from 2 ≤ S0 on 2026-10-16: the user wants lines to appear from about 1.5).
   - `territoryFadeFull` (S1): the scale at and above which `territory` lines reach their maximum opacity; S0 < S1 ≤ 16.
   - `territoryMaxOpacity` (Amax): the maximum opacity of `territory` lines; 0.25 ≤ Amax ≤ 0.35.
   - `territoryDarken` (D): the factor applied to each 8-bit channel of the owner colour to get the `territory` line colour (channel c becomes ⌊c × D⌋); 0.5 ≤ D ≤ 0.8.

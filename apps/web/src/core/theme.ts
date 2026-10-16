@@ -70,7 +70,7 @@ export const BORDER_WIDTHS: Readonly<Record<BorderClass, BorderWidth>> = {
 };
 
 /** Initial territory line values (tuned in T9). */
-export const TERRITORY_LINE: TerritoryLineParams = { fadeStart: 4, fadeFull: 12, maxOpacity: 0.3, darken: 0.65 };
+export const TERRITORY_LINE: TerritoryLineParams = { fadeStart: 1.5, fadeFull: 2, maxOpacity: 0.3, darken: 0.65 };
 
 export const THEME: Theme = {
   palette: PALETTE,

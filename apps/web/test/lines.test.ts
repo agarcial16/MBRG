@@ -72,7 +72,7 @@ describe('FR-138 territory line colour', () => {
 describe('FR-138 territory line parameters are inside the spec ranges', () => {
   it('FR-138 the theme parameters are in the Definitions ranges', () => {
     expect(THEME.territoryLine).toBe(TERRITORY_LINE);
-    expect(P.fadeStart).toBeGreaterThanOrEqual(2);
+    expect(P.fadeStart).toBeGreaterThanOrEqual(1);
     expect(P.fadeStart).toBeLessThanOrEqual(8);
     expect(P.fadeFull).toBeGreaterThan(P.fadeStart);
     expect(P.fadeFull).toBeLessThanOrEqual(16);
@@ -83,6 +83,14 @@ describe('FR-138 territory line parameters are inside the spec ranges', () => {
   });
 
   it('FR-138 the initial values are the ones of plan section 6', () => {
-    expect(P).toStrictEqual({ fadeStart: 4, fadeFull: 12, maxOpacity: 0.3, darken: 0.65 });
+    expect(P).toStrictEqual({ fadeStart: 1.5, fadeFull: 2, maxOpacity: 0.3, darken: 0.65 });
+  });
+
+  it('FR-140 territory lines start to show above 1.5 and are fully shown from 2 (user decision 2026-10-16)', () => {
+    expect(territoryOpacity(1.5, P)).toBe(0);
+    expect(territoryOpacity(1.6, P)).toBeGreaterThan(0);
+    expect(territoryOpacity(1.75, P)).toBeCloseTo(P.maxOpacity / 2, 10);
+    expect(territoryOpacity(2, P)).toBe(P.maxOpacity);
+    expect(territoryOpacity(32, P)).toBe(P.maxOpacity);
   });
 });

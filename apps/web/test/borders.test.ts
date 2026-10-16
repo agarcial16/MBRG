@@ -350,7 +350,7 @@ describe('FR-138 territory lines and absorption', () => {
   const lineColor = [0, 1, 2].map((i) => Math.floor(fill[i]! * THEME.territoryLine.darken)) as Rgb;
 
   it('FR-138 a territory line is invisible at scales at or below the fade start', () => {
-    for (const scale of [0.5, 1, 2, THEME.territoryLine.fadeStart]) {
+    for (const scale of [0.5, 1, THEME.territoryLine.fadeStart]) {
       const img = render(grid, OWNERS, { x: 32, y: 32, scale });
       for (let x = 0; x < img.width; x++) expect(eq(img.at(x, 3), fill), `scale ${scale} x ${x}`).toBe(true);
     }
@@ -471,7 +471,7 @@ describe('FR-138 territory lines and absorption', () => {
 
   it('FR-138 at scales at or below the fade start the absorbed border disappears completely', () => {
     const absorbed = ownersOf({ 1: 1, 2: 1, 3: 1, 6: 3 }, 6);
-    for (const scale of [0.5, 2, THEME.territoryLine.fadeStart]) {
+    for (const scale of [0.5, 1, THEME.territoryLine.fadeStart]) {
       const img = render(grid2(), absorbed, { x: 32, y: 32, scale });
       for (let x = 0; x < img.width; x++) expect(eq(img.at(x, 3), FACTION_COLORS[1]!), `scale ${scale}`).toBe(true);
     }
