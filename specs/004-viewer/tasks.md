@@ -80,7 +80,7 @@ Rules for every task:
   - Commit: `test: trace spec 004 requirements`.
   - Done when: full suite green with every FR-1..FR-161 / NFR-1..NFR-29 id (minus FR-6, FR-25) traced; `git diff --stat rewrite -- packages tools` lists only the two edited test files.
 
-- [ ] **T9. Territory line tuning with the user.** FR-138, FR-139, FR-140 (final values), NFR-27 (territory scenes)
+- [x] **T9. Territory line tuning with the user.** (done 2026-10-16: user asked lines to start at 1.5 and be complete at 1.7 or 2; `fadeStart` 1.5, `fadeFull` 2 chosen; the user confirms with the far/mid/near screenshots in T10) FR-138, FR-139, FR-140 (final values), NFR-27 (territory scenes)
   - Files: `apps/web/src/core/{theme.ts,review-set.ts}`, `apps/web/test/{lines.test.ts,review-set.test.ts}`, `specs/004-viewer/plan.md` (section 6 final values).
   - Tests first: `review-set.test.ts` for the territory-line scenes. Use one area inside one faction that includes a former faction border after round 1. Far zoom <= `fadeStart`, mid strictly between, near = 32. Each address must parse cleanly and point where its label says. Pin the chosen params and assert they are inside the spec ranges.
   - Steps: prepare 2-3 candidate sets within the ranges (plan section 12); for each, far/mid/near screenshots of the same addresses; **user chooses one and accepts**; write it into `theme.ts` and plan section 6.
