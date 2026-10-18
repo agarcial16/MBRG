@@ -156,3 +156,20 @@ describe('FR-158 timing texts', () => {
     expect(filled(text)).toBe(true);
   });
 });
+
+describe('FR-190 the labels and front time of the last round change', () => {
+  it('FR-190 without the figure the three 004 lines stay and no extra line appears', () => {
+    expect(perfLines({ frames: frameStats([]) })).toHaveLength(3);
+    expect(perfLines({ load: 1, roundChange: 2, frames: frameStats([1]) })).toHaveLength(3);
+  });
+
+  it('FR-190 with the figure one more line shows it in milliseconds with one decimal, the 004 lines unchanged', () => {
+    const without = perfLines({ load: 812.34, roundChange: 3.21, frames: frameStats([4, 5]) });
+    const withLabels = perfLines({ load: 812.34, roundChange: 3.21, labels: 47.26, frames: frameStats([4, 5]) });
+    expect(withLabels).toHaveLength(4);
+    expect(withLabels.slice(0, 3)).toStrictEqual(without);
+    expect(withLabels[3]).toContain('47.3');
+    expect(withLabels[3]).toContain(STRINGS.perfLabels.split('{')[0]!);
+    expect(perfLines({ labels: 0, frames: frameStats([]) })).toHaveLength(4);
+  });
+});

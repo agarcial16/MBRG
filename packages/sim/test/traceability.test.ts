@@ -45,9 +45,10 @@ const OWN_DECLARATIONS = OWN_SOURCE.split(/\r?\n/)
   .join('\n');
 const TRACED_HERE = [...tracedIds({ 'x/own.test.ts': OWN_DECLARATIONS })];
 
-// Id ranges of the specs: 001-003c plus the viewer spec 004 (FR-132..FR-161, NFR-24..NFR-29).
-const FR_RANGES: readonly (readonly [number, number])[] = [[1, 166]];
-const NFR_RANGES: readonly (readonly [number, number])[] = [[1, 31]];
+// Id ranges of the specs: 001-003c, the viewer spec 004 (FR-132..FR-161, NFR-24..NFR-29)
+// and spec 005 (FR-167..FR-194, NFR-32..NFR-37).
+const FR_RANGES: readonly (readonly [number, number])[] = [[1, 194]];
+const NFR_RANGES: readonly (readonly [number, number])[] = [[1, 37]];
 const idsOf = (prefix: string, ranges: readonly (readonly [number, number])[]): string[] =>
   ranges.flatMap(([from, to]) => Array.from({ length: to - from + 1 }, (_, i) => `${prefix}-${from + i}`));
 
@@ -85,12 +86,13 @@ describe('traceability', () => {
   });
 
   it('NFR-13 NFR-19 the expected list ends at the last spec ids and excludes retired ids', () => {
-    expect(FR_RANGES).toStrictEqual([[1, 166]]);
-    expect(NFR_RANGES).toStrictEqual([[1, 31]]);
+    expect(FR_RANGES).toStrictEqual([[1, 194]]);
+    expect(NFR_RANGES).toStrictEqual([[1, 37]]);
     const everything = new Set([...expected, ...RETIRED]);
     expect([...everything].sort()).toStrictEqual([...specIds].sort());
-    expect(everything.size).toBe(197);
-    expect(expected.length).toBe(195);
+    expect(everything.size).toBe(231);
+    expect(specIds.length - RETIRED.length).toBe(229);
+    expect(expected.length).toBe(229);
     expect(expected).toContain('NFR-31');
     for (const id of ['FR-110', 'NFR-22', 'FR-104']) expect(expected).toContain(id);
     for (const id of ['FR-105', 'FR-126', 'NFR-14', 'NFR-23', 'FR-131', 'NFR-21']) {
@@ -99,20 +101,36 @@ describe('traceability', () => {
     for (const id of ['FR-132', 'FR-161', 'NFR-24', 'NFR-29', 'FR-166', 'NFR-31']) {
       expect(expected).toContain(id);
     }
-    for (const id of ['FR-167', 'NFR-32', 'FR-6', 'FR-25']) {
+    for (const id of ['FR-167', 'FR-194', 'NFR-32', 'NFR-37']) expect(expected).toContain(id);
+    for (const id of ['FR-195', 'NFR-38']) {
+      expect(specIds).not.toContain(id);
       expect(expected).not.toContain(id);
     }
+    for (const id of ['FR-6', 'FR-25']) expect(expected).not.toContain(id);
+  });
+
+  it('NFR-35 the 34 ids of spec 005 are all expected and none is left out', () => {
+    // Independent computation with literal bounds.
+    const literal = [
+      ...Array.from({ length: 28 }, (_, i) => `FR-${167 + i}`),
+      ...Array.from({ length: 6 }, (_, i) => `NFR-${32 + i}`),
+    ];
+    expect(literal).toHaveLength(34);
+    expect(literal[0]).toBe('FR-167');
+    expect(literal).toContain('FR-194');
+    expect(literal).toContain('NFR-37');
+    for (const id of literal) expect(expected, id).toContain(id);
   });
 
   it('NFR-19 the expected list excludes only the retired ids', () => {
-    // Independent computation with literal bounds: no pending exemption can hide in `expected`.
+    // Independent computation with literal bounds.
     const all = [
-      ...Array.from({ length: 166 }, (_, i) => `FR-${i + 1}`),
-      ...Array.from({ length: 31 }, (_, i) => `NFR-${i + 1}`),
+      ...Array.from({ length: 194 }, (_, i) => `FR-${i + 1}`),
+      ...Array.from({ length: 37 }, (_, i) => `NFR-${i + 1}`),
     ];
     expect(RETIRED).toStrictEqual(['FR-6', 'FR-25']);
-    expect(all.filter((id) => !RETIRED.includes(id))).toHaveLength(195);
-    expect(expected).toHaveLength(195);
+    expect(all.filter((id) => !RETIRED.includes(id))).toHaveLength(229);
+    expect(expected).toHaveLength(229);
     expect(expected).toStrictEqual(all.filter((id) => id !== 'FR-6' && id !== 'FR-25'));
     for (const id of ['FR-127', 'FR-131', 'NFR-16', 'NFR-17', 'NFR-21']) {
       expect(expected).toContain(id);
@@ -132,11 +150,11 @@ describe('traceability', () => {
     expect(RETIRED.filter((id) => used.has(id))).toStrictEqual([]);
   });
 
-  it('NFR-13 NFR-19 NFR-31 this file self-traces exactly the ids it verifies', () => {
-    expect([...TRACED_HERE].sort()).toStrictEqual(['FR-55', 'FR-56', 'NFR-13', 'NFR-19', 'NFR-31']);
+  it('NFR-13 NFR-19 NFR-31 NFR-35 this file self-traces exactly the ids it verifies', () => {
+    expect([...TRACED_HERE].sort()).toStrictEqual(['FR-55', 'FR-56', 'NFR-13', 'NFR-19', 'NFR-31', 'NFR-35']);
   });
 
-  it('NFR-31 the ids of spec 003c are all expected and no pending exemption is left', () => {
+  it('NFR-31 the ids of spec 003c are all expected', () => {
     for (const id of ['FR-162', 'FR-163', 'FR-164', 'FR-165', 'FR-166', 'NFR-30', 'NFR-31']) {
       expect(expected).toContain(id);
     }
