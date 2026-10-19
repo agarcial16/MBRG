@@ -24,7 +24,7 @@ Rules for every task:
   - Commit: `feat(web): add the exact axis angle and frame membership`.
   - Done when: tests green; the 005 box digest unchanged after the prefilter change; mutations proved (tie towards 0 flipped, wrap removed, one (p, q) row swapped, `<=` -> `<` on an edge); `rg` finds FR-196, FR-199, NFR-39.
 
-- [ ] **T3. Shaped candidate and the in-land frame choice.** FR-195, FR-197, FR-198, FR-199, NFR-38
+- [x] **T3. Shaped candidate and the in-land frame choice.** FR-195, FR-197, FR-198, FR-199, NFR-38
   - Files: `apps/web/src/core/label-shape.ts`, `apps/web/test/{label-shape.test.ts,helpers/label-reference.ts}`.
   - Tests first: plan section 13 `label-shape.test.ts` search list: `inLandFrame` equals the brute-force definition on 200 fixed-seed random grids and on the hand grids (vertical strip at +90 bottom to top, diagonal band, cup and cap bands, image edge, Hmax kept horizontal, near-compact kept horizontal); shape order and the exact centre tie; pruned search equals `shapedHeight` + G rule; FR-195 horizontal candidate is the 005 box object.
   - Code: plan D2 and section 6 (EDT filter with EPS, descending scan, bound ceil(G x hH), skip above Hmax).

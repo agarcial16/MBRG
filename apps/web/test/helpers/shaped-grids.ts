@@ -42,6 +42,74 @@ export function randomUnits(seed: number, size: number, count: number): Unit[] {
   return units;
 }
 
+/**
+ * A fixed-seed blob inside a size x size square: one to three thick segments between random points
+ * (diagonal and bent shapes), as whole unit coordinates in row-major order.
+ */
+export function blobUnits(seed: number, size: number): Unit[] {
+  const next = rng(seed);
+  const cells = new Set<number>();
+  const segments = 1 + Math.floor(next() * 3);
+  for (let k = 0; k < segments; k++) {
+    const thick = 1 + Math.floor(next() * 4);
+    const pick = (): number => thick + Math.floor(next() * (size - 2 * thick));
+    const x0 = pick();
+    const y0 = pick();
+    const x1 = pick();
+    const y1 = pick();
+    const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1) * 2;
+    for (let s = 0; s <= steps; s++) {
+      const cx = Math.round(x0 + ((x1 - x0) * s) / steps);
+      const cy = Math.round(y0 + ((y1 - y0) * s) / steps);
+      for (let oy = -thick; oy <= thick; oy++) {
+        for (let ox = -thick; ox <= thick; ox++) {
+          if (ox * ox + oy * oy > thick * thick) continue;
+          cells.add((cy + oy) * size + (cx + ox));
+        }
+      }
+    }
+  }
+  return Array.from(cells)
+    .sort((a, b) => a - b)
+    .map((c) => [c % size, Math.floor(c / size)] as const);
+}
+
+/**
+ * A circular band: the units whose centre is within T / 2 of radius R from the circle centre (100, 20) for
+ * sign > 0 (the band below it, a cup) or (100, 200) for sign < 0 (the band above it, a cap), within A degrees of the
+ * vertical through the centre. Test code: trigonometry is allowed here.
+ */
+export function arcBandUnits(radius: number, thick: number, halfAngle: number, sign: 1 | -1): Unit[] {
+  const units: Unit[] = [];
+  const cx = 100;
+  const cy = sign > 0 ? 20 : 200;
+  for (let y = 0; y < 240; y++) {
+    for (let x = 0; x < 200; x++) {
+      const dx = x + 0.5 - cx;
+      const dy = (y + 0.5 - cy) * sign;
+      if (dy <= 0) continue;
+      if (Math.abs(Math.sqrt(dx * dx + dy * dy) - radius) > thick / 2) continue;
+      if ((Math.atan2(Math.abs(dx), dy) * 180) / Math.PI > halfAngle) continue;
+      units.push([x, y] as const);
+    }
+  }
+  return units;
+}
+
+/** Units of the rectangle [x0, x0 + w) x [y0, y0 + h). */
+export function rectUnits(x0: number, y0: number, w: number, h: number): Unit[] {
+  const units: Unit[] = [];
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) units.push([x, y] as const);
+  return units;
+}
+
+/** Units of a band: for each x in [x0, x1) the `thick` units from y = round(f(x)) downwards. */
+export function bandUnits(x0: number, x1: number, thick: number, f: (x: number) => number): Unit[] {
+  const units: Unit[] = [];
+  for (let x = x0; x < x1; x++) for (let t = 0; t < thick; t++) units.push([x, Math.round(f(x)) + t] as const);
+  return units;
+}
+
 /** The dev map piece index (decoded from the committed PNG). */
 export async function devPieces(): Promise<PieceIndex> {
   const decoded = await decodeIdPng(devPngBytes(), inflateStream);

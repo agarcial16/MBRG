@@ -135,3 +135,138 @@ export function geometricArc(
   if (Math.abs(r - inner) < 1e-9 || Math.abs(r - outer) < 1e-9 || Math.abs(angle - phi) < 1e-9) return undefined;
   return r > inner && r < outer && angle < phi;
 }
+
+// ---------------------------------------------------------------------------------------------------------
+// The shaped in-land search by its definition (spec 006 FR-195, FR-197, FR-198), with no prune at all: every h
+// from Hmax down to 1, every shape in shape order, every centre, every non-set unit centre that can lie in the
+// footprint. The memberships and the arc existence are the pinned formulas of `src` (tested on their own);
+// the search, the order and the tie rule are written here from the spec text.
+// ---------------------------------------------------------------------------------------------------------
+import { arcExists, arcRadius, inArc, inStraight } from '../../src/core/label-shape';
+import type { ArcFrame, ShapedFrame, StraightFrame } from '../../src/core/label-shape';
+import type { LabelBox } from '../../src/core/label-layout';
+import { cs } from '../../src/core/shape-params';
+import type { ShapeParams } from '../../src/core/shape-params';
+
+type RefUnit = readonly [number, number];
+type RefShape = { shape: 'straight'; angle: number } | { shape: 'arc'; angle: number; bend: number };
+
+const wrapped = (angle: number): number => {
+  let a = angle;
+  while (a <= -90) a += 180;
+  while (a > 90) a -= 180;
+  return a;
+};
+
+/** The extent: largest minus smallest projection t = (px * C) - (py * S) of the unit centres. */
+export function refExtent(units: readonly RefUnit[], angle: number): number {
+  const { c, s } = cs(angle);
+  const ts = units.map(([x, y]) => (x + 0.5) * c - (y + 0.5) * s);
+  return ts.length === 0 ? 0 : Math.max(...ts) - Math.min(...ts);
+}
+
+/** The shapes in shape order from the spec definition (arcs at theta* are listed even where none can exist). */
+export function refShapes(theta: number, sp: ShapeParams): RefShape[] {
+  const shapes: RefShape[] = [];
+  for (const a of [theta, wrapped(theta - sp.angleStep), wrapped(theta + sp.angleStep)]) if (a !== 0) shapes.push({ shape: 'straight', angle: a });
+  for (const b of [...sp.arcBends].sort((x, y) => x - y)) {
+    shapes.push({ shape: 'arc', angle: theta, bend: b });
+    shapes.push({ shape: 'arc', angle: theta, bend: -b });
+  }
+  return shapes;
+}
+
+export interface RefShaped {
+  /** hS: the largest h with a fitting straight or arc frame, or undefined. */
+  hS: number | undefined;
+  /** The FR-197 winner (undefined when hS is). */
+  frame: ShapedFrame | undefined;
+  /** Every fitting frame of the winning shape and height, in row-major order of the centre. */
+  fits: ShapedFrame[];
+  /** The fits whose exact distance equals the smallest one (the centre tie). */
+  tied: ShapedFrame[];
+}
+
+/**
+ * The shaped candidate by brute force. `units` are the whole coordinates of the label set. Candidate centres are
+ * the units of the set: a centre that is not in the set lies in its own footprint, so it cannot fit (tested apart).
+ */
+export function refShapedSearch(units: readonly RefUnit[], aspect: number, params: { margin: number; maxHeight: number }, sp: ShapeParams): RefShaped {
+  const none: RefShaped = { hS: undefined, frame: undefined, fits: [], tied: [] };
+  if (units.length === 0) return none;
+  const margin = params.margin;
+  const inSet = new Set(units.map(([x, y]) => `${x},${y}`));
+  const theta = refAxisAngle(units);
+  const extent = refExtent(units, theta);
+  const shapes = refShapes(theta, sp);
+  const sorted = [...units].sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+  // |p - c| <= (h / 2 + M) + (w / 2 + M) for every point of a grown footprint (a path along the middle line, then across)
+  const reach = (h: number): number => Math.ceil(h / 2 + margin + (h * aspect) / 2 + margin) + 1;
+  const offsetCache = new Map<number, Array<readonly [number, number]>>();
+  const offsets = (d: number): Array<readonly [number, number]> => {
+    let list = offsetCache.get(d);
+    if (list === undefined) {
+      list = [];
+      for (let dy = -d; dy <= d; dy++) for (let dx = -d; dx <= d; dx++) list.push([dx, dy] as const);
+      list.sort((a, b) => a[0] * a[0] + a[1] * a[1] - (b[0] * b[0] + b[1] * b[1]));
+      offsetCache.set(d, list);
+    }
+    return list;
+  };
+  for (let h = params.maxHeight; h >= 1; h--) {
+    const w = h * aspect;
+    for (const shape of shapes) {
+      let proto: ShapedFrame;
+      if (shape.shape === 'straight') {
+        proto = { shape: 'straight', cx: 0, cy: 0, angle: shape.angle, h, w };
+      } else {
+        const arc: ArcFrame = { shape: 'arc', cx: 0, cy: 0, angle: shape.angle, h, w, bend: shape.bend, radius: extent > 0 ? arcRadius(extent, shape.bend) : 0 };
+        if (!arcExists(arc, extent, margin)) continue;
+        proto = arc;
+      }
+      const fits: ShapedFrame[] = [];
+      for (const [x, y] of sorted) {
+        const frame: ShapedFrame = { ...proto, cx: x + 0.5, cy: y + 0.5 };
+        let fit = true;
+        for (const [dx, dy] of offsets(reach(h))) {
+          if (inSet.has(`${x + dx},${y + dy}`)) continue;
+          const px = x + dx + 0.5;
+          const py = y + dy + 0.5;
+          const inside = frame.shape === 'straight' ? inStraight(frame as StraightFrame, margin, px, py) : inArc(frame as ArcFrame, margin, px, py);
+          if (inside) {
+            fit = false;
+            break;
+          }
+        }
+        if (fit) fits.push(frame);
+      }
+      if (fits.length === 0) continue;
+      const n = BigInt(fits.length);
+      const sx = fits.reduce((acc, f) => acc + BigInt(f.cx - 0.5), 0n);
+      const sy = fits.reduce((acc, f) => acc + BigInt(f.cy - 0.5), 0n);
+      const dist = (f: ShapedFrame): bigint => {
+        const a = n * BigInt(f.cx - 0.5) - sx;
+        const b = n * BigInt(f.cy - 0.5) - sy;
+        return a * a + b * b;
+      };
+      const best = fits.reduce((m, f) => (dist(f) < m ? dist(f) : m), dist(fits[0]!));
+      const tied = fits.filter((f) => dist(f) === best);
+      const frame = [...tied].sort((a, b) => a.cy - b.cy || a.cx - b.cx)[0]!;
+      return { hS: h, frame, fits, tied };
+    }
+  }
+  return none;
+}
+
+/** FR-198 by its text: the shaped candidate when hS is defined and (hH is undefined or hS >= G * hH). */
+export function refInLand(
+  units: readonly RefUnit[],
+  aspect: number,
+  params: { margin: number; maxHeight: number },
+  sp: ShapeParams,
+  horizontal: LabelBox | undefined,
+): { shape: 'horizontal'; box: LabelBox } | ShapedFrame | undefined {
+  const r = refShapedSearch(units, aspect, params, sp);
+  if (r.hS !== undefined && (horizontal === undefined || r.hS >= sp.shapeGain * horizontal.h)) return r.frame;
+  return horizontal === undefined ? undefined : { shape: 'horizontal', box: horizontal };
+}
