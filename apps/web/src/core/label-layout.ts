@@ -155,7 +155,11 @@ export function fitLabel(p: PieceIndex, pieces: readonly number[], aspect: numbe
     sx += x0;
     sy += y0;
   });
-  const approx = (x0: number, y0: number): number => (n * x0 - sx) ** 2 + (n * y0 - sy) ** 2;
+  const approx = (x0: number, y0: number): number => {
+    const dx = n * x0 - sx;
+    const dy = n * y0 - sy;
+    return dx * dx + dy * dy; // a product, not `** 2` (NFR-39); the exact BigInt tie below decides
+  };
   // One pass keeps every box that could still be within the tie tolerance of the nearest one (a superset of
   // the final candidates: the tolerance only shrinks as the nearest distance improves), in row-major order.
   const slack = (d: number): number => d * (1 + 1e-9) + 1;

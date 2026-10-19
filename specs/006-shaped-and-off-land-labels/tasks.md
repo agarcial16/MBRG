@@ -17,7 +17,7 @@ Rules for every task:
   - Commits: `docs: add plan and tasks 006`; `test: trace spec 006 ids and pin the shape parameters`.
   - Done when: full suite, typecheck and `CI=1` green; a renamed title of a 005 id is still reported missing (mutation); `LABEL_PARAMS` and the 005 review-set test untouched; `rg` finds NFR-41, NFR-42 in titles.
 
-- [ ] **T2. Number reference: exact axis angle, extent, shapes, frame membership; the NFR-39 scan.** FR-196, FR-199, NFR-39, NFR-41
+- [x] **T2. Number reference: exact axis angle, extent, shapes, frame membership; the NFR-39 scan.** FR-196, FR-199, NFR-39, NFR-41
   - Files: `apps/web/src/core/{label-axis.ts,label-shape.ts (membership part),label-digest.ts,label-layout.ts}`, `apps/web/test/{label-axis.test.ts,label-shape.test.ts,shaped-purity.test.ts,helpers/label-reference.ts,helpers/shaped-grids.ts}`.
   - Tests first: plan section 13 `label-axis.test.ts` list and the membership part of `label-shape.test.ts` (`inStraight`, `arcExists`, `inArc`, `cosK`, edge points inside); `shaped-purity.test.ts` number scan with planted violations (`** 2`, `Math.pow`, `Math.hypot`, `Math.sin`, `Math.exp`, `Math.log`) flagged and `** 2n` accepted, red on the current `label-layout.ts` prefilter; a pinned digest of every 005 box (territory boxes + faction boxes of seed 1 rounds 0..4, aspects 3 / 4) taken on the current code before the prefilter change.
   - Code: plan D1 and section 5; `fitLabel` prefilter `d * d` (nothing else in `label-layout.ts`).
