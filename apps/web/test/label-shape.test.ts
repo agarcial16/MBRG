@@ -660,3 +660,40 @@ describe('FR-199 NFR-38 the arc footprint raster agrees with the pinned membersh
     }
   }, 120000);
 });
+
+describe('NFR-38 the per-shape binary search on the weaker test returns the heights of the unpruned definition', () => {
+  it('NFR-38 shapedCandidate equals the brute force on circular bands of many radii, thicknesses, spans and aspects, and on diagonal bands', () => {
+    const params = lp(1, 14);
+    let arcs = 0;
+    let straights = 0;
+    let checked = 0;
+    for (const sign of [1, -1] as const) {
+      for (const radius of [6, 10, 14]) {
+        for (const thick of [3, 6]) {
+          for (const halfAngle of [30, 55, 80]) {
+            for (const aspect of [2, 4.5]) {
+              const units = arcBandUnits(radius, thick, halfAngle, sign);
+              if (units.length === 0) continue;
+              const { p, pieces } = setOfUnits(units, 200, 240);
+              const got = shapedCandidate(p, pieces, aspect, params, sp, 1);
+              expect(got, `sign ${sign} R ${radius} T ${thick} A ${halfAngle} a ${aspect}`).toStrictEqual(refShapedSearch(units, aspect, params, sp).frame);
+              checked++;
+              if (got?.shape === 'arc') arcs++;
+              if (got?.shape === 'straight') straights++;
+            }
+          }
+        }
+      }
+    }
+    for (const slope of [0.4, 1, 2.5]) {
+      const units: Unit[] = [];
+      for (let y = 0; y < 50; y++) for (let x = 0; x < 50; x++) if (Math.abs(y - slope * x - 4) <= 3 + slope) units.push([x, y]);
+      const { p, pieces } = setOfUnits(units, 52, 52);
+      expect(shapedCandidate(p, pieces, 3, params, sp, 1), `slope ${slope}`).toStrictEqual(refShapedSearch(units, 3, params, sp).frame);
+      checked++;
+    }
+    console.log(`label-shape: binary-search sweep ${checked} sets, ${arcs} arc results, ${straights} straight results`);
+    expect(arcs).toBeGreaterThan(5);
+    expect(straights).toBeGreaterThan(3);
+  });
+});

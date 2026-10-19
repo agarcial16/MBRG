@@ -3,6 +3,7 @@
 // Pure. Every formula is the spec "Number reference" in the written order, in IEEE-754 doubles, with only
 // + - * / Math.sqrt Math.abs Math.min Math.max Math.floor Math.ceil Math.PI. Squares are products x * x.
 import { axisAngle, axisExtent, shapesOf } from './label-axis';
+import type { Shape } from './label-axis';
 import type { LabelBox, LayoutParams } from './label-layout';
 import type { PieceIndex } from './regions';
 import { cs } from './shape-params';
@@ -437,15 +438,18 @@ export function shapedCandidate(
     const y = iy - y0;
     return x >= 0 && y >= 0 && x < mw && y < mh && d2[y * mw + x]! > 0;
   };
-  /** True when every unit centre of the footprint, placed at the whole unit (x, y), belongs to the set. */
-  const fits = (fp: Footprint, frame: ShapedFrame, x: number, y: number): boolean => {
+  /**
+   * True when every unit centre of the footprint, placed at the whole unit (x, y), belongs to the set. With `exact`
+   * false the cells near an arc's edges (decided per centre by the pinned formulas) are not required: a weaker test.
+   */
+  const fits = (fp: Footprint, frame: ShapedFrame, x: number, y: number, exact: boolean): boolean => {
     const rows = fp.rows;
     for (let i = 0; i < rows.length; i += 3) {
       const ix = x + rows[i + 1]! - x0;
       const iy = y + rows[i]! - y0;
       if (ix < 0 || iy < 0 || ix >= mw || iy >= mh || right[iy * mw + ix]! < rows[i + 2]!) return false;
     }
-    if (fp.border.length > 0) {
+    if (exact && fp.border.length > 0) {
       const at: ArcFrame = { ...(frame as ArcFrame), cx: x + 0.5, cy: y + 0.5 };
       for (const [dx, dy] of fp.border) {
         if (!inSet(x + dx, y + dy) && inArc(at, margin, x + dx + 0.5, y + dy + 0.5)) return false;
@@ -454,22 +458,64 @@ export function shapedCandidate(
     return true;
   };
 
-  for (let h = params.maxHeight; h >= lo; h--) {
+  /** The frame of a shape at height h with the radius of an inscribed disc, or undefined when the arc does not exist. */
+  const protoAt = (shape: Shape, h: number): { proto: ShapedFrame; rho: number } | undefined => {
     const w = h * aspect;
-    for (const shape of shapes) {
-      let proto: ShapedFrame;
-      let rho: number;
-      if (shape.shape === 'straight') {
-        proto = { shape: 'straight', cx: 0, cy: 0, angle: shape.angle, h, w };
-        rho = Math.min(w, h) / 2 + margin;
-      } else {
-        const radius = arcRadius(extent, shape.bend);
-        const arc: ArcFrame = { shape: 'arc', cx: 0, cy: 0, angle: shape.angle, h, w, bend: shape.bend, radius };
-        if (!arcExists(arc, extent, margin)) continue;
-        proto = arc;
-        const phi = (w + 2 * margin) / (2 * radius);
-        rho = Math.max(0, Math.min(h / 2 + margin, radius * (phi - (phi * phi * phi) / 6)));
-      }
+    if (shape.shape === 'straight') {
+      return { proto: { shape: 'straight', cx: 0, cy: 0, angle: shape.angle, h, w }, rho: Math.min(w, h) / 2 + margin };
+    }
+    const radius = arcRadius(extent, shape.bend);
+    const arc: ArcFrame = { shape: 'arc', cx: 0, cy: 0, angle: shape.angle, h, w, bend: shape.bend, radius };
+    if (!arcExists(arc, extent, margin)) return undefined;
+    const phi = (w + 2 * margin) / (2 * radius);
+    return { proto: arc, rho: Math.max(0, Math.min(h / 2 + margin, radius * (phi - (phi * phi * phi) / 6))) };
+  };
+
+  // Exact search order (NFR-38 prune). For one shape and centre the footprint only grows with h (R does not depend
+  // on h; every limit of the pinned formulas grows with h), so "some centre has a footprint inside the set" cannot
+  // return from false to true as h falls. That is applied to the weaker test (arc edge cells not required, disc
+  // radius suffix-minimum so that it grows with h): a binary search gives for each shape a height ub that no
+  // fitting frame of the shape exceeds; the exact scan below then starts at the largest ub and tries a shape only
+  // at heights up to its ub. Straight shapes have no edge cells, so for them ub is exact.
+  const top = params.maxHeight;
+  const rhoMin: Float64Array[] = shapes.map((shape) => {
+    const out = new Float64Array(top + 2).fill(Infinity);
+    for (let h = top; h >= lo; h--) out[h] = Math.min(out[h + 1]!, protoAt(shape, h)?.rho ?? Infinity);
+    return out;
+  });
+  const maybeFits = (index: number, h: number): boolean => {
+    const at = protoAt(shapes[index]!, h);
+    if (at === undefined) return false;
+    const rho = rhoMin[index]![h]!;
+    let footprint: Footprint | undefined;
+    for (let k = keys.length - 1; k >= 0; k--) {
+      const key = keys[k]!;
+      const cell = key % size;
+      if (!discAllows((key - cell) / size, rho)) break;
+      footprint ??= at.proto.shape === 'straight' ? straightFootprint(at.proto.angle, at.proto.w, h, margin) : arcFootprint(at.proto, margin);
+      if (fits(footprint, at.proto, x0 + (cell % mw), y0 + (cell - (cell % mw)) / mw, false)) return true;
+    }
+    return false;
+  };
+  const upper = shapes.map((_, index) => {
+    if (!maybeFits(index, lo)) return lo - 1;
+    let a = lo;
+    let b = top;
+    while (a < b) {
+      const m = Math.ceil((a + b) / 2);
+      if (maybeFits(index, m)) a = m;
+      else b = m - 1;
+    }
+    return a;
+  });
+  const start = Math.max(...upper);
+
+  for (let h = start; h >= lo; h--) {
+    for (let index = 0; index < shapes.length; index++) {
+      if (upper[index]! < h) continue;
+      const at = protoAt(shapes[index]!, h);
+      if (at === undefined) continue;
+      const { proto, rho } = at;
       let footprint: Footprint | undefined;
       const xs: number[] = [];
       const ys: number[] = [];
@@ -477,10 +523,10 @@ export function shapedCandidate(
         const key = keys[k]!;
         const cell = key % size;
         if (!discAllows((key - cell) / size, rho)) break;
-        footprint ??= proto.shape === 'straight' ? straightFootprint(proto.angle, w, h, margin) : arcFootprint(proto, margin);
+        footprint ??= proto.shape === 'straight' ? straightFootprint(proto.angle, proto.w, h, margin) : arcFootprint(proto, margin);
         const x = x0 + (cell % mw);
         const y = y0 + (cell - (cell % mw)) / mw;
-        if (fits(footprint, proto, x, y)) {
+        if (fits(footprint, proto, x, y, true)) {
           xs.push(x);
           ys.push(y);
         }

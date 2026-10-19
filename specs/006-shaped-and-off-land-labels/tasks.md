@@ -38,7 +38,7 @@ Rules for every task:
   - Commit: `feat(web): add off-land label boxes`.
   - Done when: tests green; mutations proved (gap `<=` -> `<`, obstacle list without earlier boxes, anchor tie by column first); `rg` finds the listed ids.
 
-- [ ] **T5. Role placements: territories once, factions per state with reuse; dev-map checks and the layout digest.** FR-206, FR-209, FR-213, FR-215, FR-216, NFR-39, NFR-41
+- [x] **T5. Role placements: territories once, factions per state with reuse; dev-map checks and the layout digest.** FR-206, FR-209, FR-213, FR-215, FR-216, NFR-39, NFR-41
   - Files: `apps/web/src/core/label-place.ts`, `apps/web/test/{label-place.test.ts,helpers/label-digest-run.ts,shaped-perf.test.ts}`.
   - Tests first: plan section 13 `label-place.test.ts` list (territory layout equal at rounds 0..T; no same-role conflict on the dev map, fallbacks included; FR-216 reuse equals a fresh computation for every step and jump of seed 1, and a step recomputes only changed in-land frames; NFR-41 horizontal in-land labels keep their 005 box at every round; D11 digest pinned); `shaped-perf.test.ts` (logged times, recompute counts).
   - Code: plan D5 and section 7 (`placeTerritories`, `placeFactions`).
