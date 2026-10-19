@@ -395,7 +395,8 @@ describe('FR-195 FR-197 FR-198 NFR-38 the in-land frame equals the brute-force d
     expect(seen.belowBound).toBeGreaterThan(0);
     expect(seen.negative).toBeGreaterThan(0);
     console.log(`label-shape: random grids ${JSON.stringify(seen)}`);
-  });
+    // 1.7 s alone; the default 5 s limit was hit once under load (a mutation run), so give it the other slow tests' limit.
+  }, 120000);
 
   it('FR-195 a horizontal in-land frame holds the very 005 box object', () => {
     const { hBox, got } = searchOf(rectUnits(2, 2, 14, 10), 3, lp(2, 20));

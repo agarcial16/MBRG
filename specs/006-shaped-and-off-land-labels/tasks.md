@@ -52,7 +52,7 @@ Rules for every task:
   - Commit: `feat(web): add shaped label draw data and step rules`.
   - Done when: tests green, every 005 label test green; mutations proved (angle wrapped in case (b), case (b) at f = 1 drawn as straight instead of the endpoint, factor-0 draw listed, unchanged third faction crossfaded); `rg` finds the listed ids.
 
-- [ ] **T7. Label layer: straight and arc text, leader lines.** FR-200, FR-201, FR-202, FR-207, FR-208, FR-212, NFR-42
+- [x] **T7. Label layer: straight and arc text, leader lines.** FR-200, FR-201, FR-202, FR-207, FR-208, FR-212, NFR-42
   - Files: `apps/web/src/core/glyph-layout.ts`, `apps/web/src/render/labels-layer.ts`, `apps/web/test/{glyph-layout.test.ts,labels-shaped-render.test.ts,labels-render.test.ts (type-level test only, plan section 10 item 2)}`.
   - Tests first: plan section 13 `glyph-layout.test.ts` and `labels-shaped-render.test.ts` lists (rotation by -theta, stretch only along the reading direction, +90 bottom to top, arc glyphs unstretched on the middle line, halo before fill, leader lines 3 px black then 1 px white at the label alpha before every text and only for drawable labels, box labels produce exactly the 005 call log); the type-level edit; `glyph-layout.ts` not imported by any [N] file.
   - Code: plan D9 and section 9.

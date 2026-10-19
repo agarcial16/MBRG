@@ -10,7 +10,7 @@ import { assignFactionColors } from '../src/core/colors';
 import { buildEntryIndex, factionColorList } from '../src/core/entries';
 import type { FrontField } from '../src/core/front';
 import { labelAlpha, screenBox } from '../src/core/label-frame';
-import type { LabelDraw } from '../src/core/label-frame';
+import type { AnyLabelDraw, LabelDraw } from '../src/core/label-frame';
 import { LABEL_PARAMS, fontString } from '../src/core/label-params';
 import { THEME, toMapTheme } from '../src/core/theme';
 import { TRANSITION_PRIORITY } from '../src/core/transition-shade';
@@ -516,7 +516,7 @@ describe('FR-175 the label layer draws horizontal text in its exact box at the d
     expectTypeOf(attachLabelLayer).parameters.toEqualTypeOf<[HTMLCanvasElement]>();
     expectTypeOf<ReturnType<typeof attachLabelLayer>>().toHaveProperty('resize');
     expectTypeOf<ReturnType<typeof attachLabelLayer>['resize']>().parameters.toEqualTypeOf<[Viewport, number]>();
-    expectTypeOf<ReturnType<typeof attachLabelLayer>['draw']>().parameters.toEqualTypeOf<[readonly LabelDraw[], MapView]>();
+    expectTypeOf<ReturnType<typeof attachLabelLayer>['draw']>().parameters.toEqualTypeOf<[readonly AnyLabelDraw[], MapView]>();
     expect(true).toBe(true);
   });
 
