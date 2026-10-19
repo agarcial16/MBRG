@@ -28,6 +28,9 @@ const NUMBER_FILES = [
   'core/label-digest.ts',
   'core/label-offland.ts',
   'core/label-place.ts',
+  'core/label-frame.ts',
+  'core/label-input.ts',
+  'core/label-counts.ts',
   'core/label-layout.ts',
   'core/regions.ts',
 ];

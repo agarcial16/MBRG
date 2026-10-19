@@ -45,7 +45,7 @@ Rules for every task:
   - Commit: `feat(web): place shaped and off-land labels per role`.
   - Done when: tests green; Node times logged for territory placement at load and per-step faction placement; mutations proved (reuse of a changed region, off-land reused across a changed obstacle set, territory placement reading owners); `rg` finds the listed ids.
 
-- [ ] **T6. Drawing data and step rules.** FR-208, FR-210, FR-211, FR-212, FR-213, FR-214 (pure counts)
+- [x] **T6. Drawing data and step rules.** FR-208, FR-210, FR-211, FR-212, FR-213, FR-214 (pure counts)
   - Files: `apps/web/src/core/{label-frame.ts,label-input.ts,label-counts.ts,panel-text.ts,strings.ts}`, `apps/web/test/{label-steps.test.ts,label-counts.test.ts,label-frame.test.ts (byText only, plan section 10 item 3)}`.
   - Tests first: plan section 13 `label-steps.test.ts` and `label-counts.test.ts` lists (cases (a), (b), (c) at f = 0, 0.25, 0.5, 0.75, 1; +90 -> -75 without wrap; third faction crossfade vs unchanged; f = 0 / f = 1 equal the instant draws; backward = forward mirrored; `roundLabels` with `placed`; `frameOf` / `screenFrame`; no seed/round/record in draw data; exclusive counts and `labelCountsLine`). The `byText` edit is made first and the whole 005 `label-frame.test.ts` must stay green unchanged otherwise.
   - Code: plan D3, D4, D8 and section 8.

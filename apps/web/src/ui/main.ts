@@ -16,7 +16,7 @@ import { buildEntryIndex, factionColorList, factionIndexOf, ownerTable } from '.
 import { frontField } from '../core/front';
 import type { FrontField } from '../core/front';
 import { instantLabels, labelsAt } from '../core/label-frame';
-import type { LabelDraw, RoundLabels, StepLabels } from '../core/label-frame';
+import type { AnyLabelDraw, LabelDraw, RoundLabels, StepLabels } from '../core/label-frame';
 import { labelTexts, roundLabels } from '../core/label-input';
 import { factionBoxes, territoryBoxes } from '../core/label-layout';
 import type { FactionBoxes } from '../core/label-layout';
@@ -79,6 +79,9 @@ function showError(message: string): void {
   text.textContent = message;
   panelContainer.replaceChildren(text);
 }
+
+// Until the label layer draws shaped labels (T7, T8) the viewer places none, so every draw is a box label.
+const boxDraws = (draws: readonly AnyLabelDraw[]): LabelDraw[] => draws.filter((d): d is LabelDraw => 'box' in d);
 
 async function start(): Promise<void> {
   const loaded = await loadPackage();
@@ -143,7 +146,7 @@ async function start(): Promise<void> {
   const viewOf = (table: Uint8Array, previous?: RoundView): RoundView => {
     const boxes = factionBoxes(pieces, table, factionAspects, LABEL_PARAMS, previous?.boxes);
     const labels = roundLabels(texts, table, boxes, territoryLayout);
-    return { table, boxes, labels, draws: instantLabels(labels) };
+    return { table, boxes, labels, draws: boxDraws(instantLabels(labels)) };
   };
   const stepOf = (earlier: RoundView, later: RoundView, data: StepData): StepView => {
     const transferred = new Set<number>();
@@ -220,7 +223,7 @@ async function start(): Promise<void> {
       if (shownTable !== stepView.later.table) mapScene.setOwners(stepView.later.table);
       shownTable = stepView.later.table;
       mapScene.setFront({ before: stepView.earlier.table, field: stepView.field, forward: shown.forward });
-      drawn = labelsAt(stepView.labels, shown.forward);
+      drawn = boxDraws(labelsAt(stepView.labels, shown.forward));
     } else {
       if (shownTable !== current.table) mapScene.setOwners(current.table);
       shownTable = current.table;
