@@ -69,7 +69,7 @@ Rules for every task:
   - Commit: `feat(web): wire shaped and off-land labels`.
   - Done when: tests green; screenshots accepted (PENDING: user review of the T8 screenshots); counts match `labelCounts` for the shown state; `rg` finds the listed ids.
 
-- [ ] **T9 (partial: all but the user choice and acceptance; offLandHeight pending). Review set with recorded hits; `offLandHeight` tuning.** NFR-40 (and the final value of `offLandHeight`, FR-203)
+- [x] **T9 (user decision and acceptance recorded: territory offLandHeight 3 chosen 2026-10-19; screenshots accepted). Review set with recorded hits; `offLandHeight` tuning.** NFR-40 (and the final value of `offLandHeight`, FR-203)
   - Files: `apps/web/src/core/{shaped-review-set.ts,shape-params.ts}`, `apps/web/test/{shaped-review-set.test.ts,helpers/measured-aspects.ts,label-place.test.ts (re-pinned digest)}`, `specs/006-shaped-and-off-land-labels/plan.md` (section 12 recorded hits, chosen value, date).
   - Steps: measure aspects in Chrome on the reference PC and record them (D10); tests first: hit-finding in the stated order for every scene of plan section 12 (first hit pinned; dropped scenes listed, their `MBRG_SLOW=1` proof logged, D12), each address parses and holds what its label says; 2-3 `offLandHeight` candidates in range; screenshots of the 005 `LABEL_REVIEW_SET` retaken and of the whole `SHAPED_REVIEW_SET` for each candidate; **user chooses the value and accepts every screenshot**; then pin the value, re-pin the hits and the D11 digest.
   - Commit: `feat(web): add the shaped label review set`.

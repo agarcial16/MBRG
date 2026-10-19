@@ -300,8 +300,17 @@ Made after T1 to T8 were committed (last 3b77eeb). No code change here; the foll
 - Windows path with spaces: quote; `$env:CI='1'; npm test` before commits.
 - Done (T9 step 1, 2026-10-19): `shapeGain` 1.25; `label-shape.test.ts` reads `sp.shapeGain` (hand grids kept: all still hold, coverage counters at 1.25: atBound 77, belowBound 55; the gentle-bend test now also asserts hS < G x hH); D11 digest re-pinned `d8d1def09235b51b`; 005 box digest `5f8e31fd50523b09` unchanged; `label-place.test.ts` faction fixture grid enlarged (160 x 90, island y 42..48, B x 12..99) because at G = 1.25 the 48 x 70 block B took a vertical straight frame that blocked every off-land box of the island (found by a scan of image heights and block widths; only 160 x 90 / B to 99 kept both tests meaningful). Dev map at 1.25: territories 21 shaped + 1 off-land + 48 horizontal (+ 18 without frame, label-place tally); round 0 factions: 3 horizontal, 1 arc, 1 straight; Node: territories ~0.7-0.9 s, round 0 factions ~170-190 ms from scratch, worst reuse step 128 ms, first frame placement ~0.9 s.
 
-## 17. T9 recorded hits (2026-10-19; offLandHeight territory 5, G 1.25, aspects measured in Chrome 155, DPR 1, 1920 x 988 drawing area)
-Hits depend on the territory off-land height: re-pinned in `core/shaped-review-set.ts` and `shaped-review-set.test.ts` when the user chooses it (candidates 3 and 4, current 5).
+## 17. T9 recorded hits (2026-10-19; offLandHeight territory 3 chosen by the user, G 1.25, aspects measured in Chrome 155, DPR 1, 1920 x 988 drawing area)
+Decision 2026-10-19: territory `offLandHeight` = 3 (faction stays 18). The off-land mechanism stays for microstates and much smaller provinces; no off-land territory label exists on the dev map. Castilla-La Mancha, Galicia and Francia placement/centring go to spec 007 (faction and territory labels). Hits below are re-pinned for 3; D11 digest now `23c90b67d52cbcfa` (005 box digest unchanged).| scene | hit | frame |
+| steep-straight | Baviera (entry 3) | straight -75, h 73 |
+| diagonal-straight | Bremen (6) | straight diagonal, h 3 (was Renania-Palatinado at 5) |
+| arc-cup | Alta Francia (33) | arc bend +60, h 34 |
+| arc-cap | Baden-Wurtemberg (1) | arc bend -60, h 24 |
+| kept-horizontal | Baja Sajonia (2) | horizontal h 35 (hS < G x hH) |
+| step-arc | seed 12, round 3 -> 4, Portugal | arc -> horizontal h 120 |
+Dropped (no hit): off-land-inland and crossfade-off-land (no off-land territory at 3), off-land-island, off-land-leader, off-land-faction-fit, step-straight, step-off-land (`MBRG_SLOW=1`: seeds 1..1000, 0 hits). Dev map counts at 3 (Chrome, round 0): factions 4 horizontal + 1 arc; territories 39 horizontal, 22 straight, 9 arc, 0 off-land.
+
+(Superseded record for value 5, kept for the choice:)
 | scene | hit | frame |
 | steep-straight | Baviera (entry 3) | straight -75, h 73 |
 | diagonal-straight | Renania-Palatinado (10) | straight -45, h 17 |
