@@ -270,3 +270,98 @@ export function refInLand(
   if (r.hS !== undefined && (horizontal === undefined || r.hS >= sp.shapeGain * horizontal.h)) return r.frame;
   return horizontal === undefined ? undefined : { shape: 'horizontal', box: horizontal };
 }
+
+// ---------------------------------------------------------------------------------------------------------
+// The off-land search by its definition (spec 006 FR-203 to FR-207, FR-215), with no prune and no raster: every
+// whole (x0, y0) of the image, every lattice point of the grown box against every obstacle, every unit for the
+// gap and the anchor. The memberships of the shaped obstacles are the pinned formulas of `src`.
+// ---------------------------------------------------------------------------------------------------------
+export type RefObstacle =
+  | { shape: 'horizontal'; box: { x0: number; y0: number; h: number; w: number } }
+  | { shape: 'off-land'; box: { x0: number; y0: number; h: number; w: number } }
+  | StraightFrame
+  | ArcFrame;
+
+/** Membership of the unit centre (px, py) in the grown footprint of an obstacle. */
+export function refInObstacle(o: RefObstacle, margin: number, px: number, py: number): boolean {
+  if (o.shape === 'straight') return inStraight(o, margin, px, py);
+  if (o.shape === 'arc') return inArc(o, margin, px, py);
+  const b = o.box;
+  return b.x0 - margin <= px && px <= b.x0 + b.w + margin && b.y0 - margin <= py && py <= b.y0 + b.h + margin;
+}
+
+export interface RefOffLand {
+  box: { x0: number; y0: number; h: number; w: number };
+  gap2: number;
+  anchor: number;
+  leader: { x1: number; y1: number; x2: number; y2: number } | undefined;
+}
+
+/** `units` are the whole coordinates of the label set. Returns the best acceptable off-land box, or undefined. */
+export function refOffLand(
+  units: readonly RefUnit[],
+  width: number,
+  height: number,
+  aspect: number,
+  h: number,
+  obstacles: readonly RefObstacle[],
+  margin: number,
+  sp: ShapeParams,
+): RefOffLand | undefined {
+  if (units.length === 0) return undefined;
+  const w = h * aspect;
+  const n = units.length;
+  let sumX = 0;
+  let sumY = 0;
+  for (const [x, y] of units) {
+    sumX += x + 0.5;
+    sumY += y + 0.5;
+  }
+  const mx = sumX / n;
+  const my = sumY / n;
+  const reach2 = sp.offLandReach * sp.offLandReach;
+  const inSet = new Set(units.map(([x, y]) => `${x},${y}`));
+  const rowMajor = [...units].sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+  let best: { key: [number, number, number, number]; value: RefOffLand } | undefined;
+  for (let y0 = 0; y0 <= height; y0++) {
+    for (let x0 = 0; x0 <= width; x0++) {
+      if (!(x0 - margin >= 0 && x0 + w + margin <= width && y0 - margin >= 0 && y0 + h + margin <= height)) continue;
+      let blocked = false;
+      for (let j = Math.max(0, y0 - margin - 1); j <= Math.min(height - 1, y0 + h + margin + 1) && !blocked; j++) {
+        for (let i = Math.max(0, x0 - margin - 1); i <= Math.min(width - 1, x0 + w + margin + 1); i++) {
+          const px = i + 0.5;
+          const py = j + 0.5;
+          if (!(x0 - margin <= px && px <= x0 + w + margin && y0 - margin <= py && py <= y0 + h + margin)) continue;
+          if (inSet.has(`${i},${j}`) || obstacles.some((o) => refInObstacle(o, margin, px, py))) {
+            blocked = true;
+            break;
+          }
+        }
+      }
+      if (blocked) continue;
+      let gap2 = Infinity;
+      let anchor = -1;
+      for (const [x, y] of rowMajor) {
+        const px = x + 0.5;
+        const py = y + 0.5;
+        const ex = Math.max(x0 - px, 0, px - (x0 + w));
+        const ey = Math.max(y0 - py, 0, py - (y0 + h));
+        const g = ex * ex + ey * ey;
+        if (g < gap2) {
+          gap2 = g;
+          anchor = y * width + x;
+        }
+      }
+      if (gap2 > reach2) continue;
+      const dist = (x0 + w / 2 - mx) * (x0 + w / 2 - mx) + (y0 + h / 2 - my) * (y0 + h / 2 - my);
+      const key: [number, number, number, number] = [gap2, dist, y0, x0];
+      const better = best === undefined || key[0] < best.key[0] || (key[0] === best.key[0] && (key[1] < best.key[1] || (key[1] === best.key[1] && (key[2] < best.key[2] || (key[2] === best.key[2] && key[3] < best.key[3])))));
+      if (!better) continue;
+      const px = (anchor % width) + 0.5;
+      const py = (anchor - (anchor % width)) / width + 0.5;
+      const leader = gap2 > sp.leaderGap * sp.leaderGap ? { x1: Math.min(Math.max(px, x0), x0 + w), y1: Math.min(Math.max(py, y0), y0 + h), x2: px, y2: py } : undefined;
+      best = { key, value: { box: { x0, y0, h, w }, gap2, anchor, leader } };
+    }
+  }
+  return best?.value;
+}

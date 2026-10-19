@@ -116,3 +116,22 @@ export async function devPieces(): Promise<PieceIndex> {
   if (!decoded.ok) throw new Error('png');
   return buildPieceIndex(buildEntryIndex(DEV_MAP, decoded.value.width, decoded.value.height, decoded.value.values));
 }
+
+/**
+ * One piece index holding several land entries (entry k + 1 = the k-th set of units, whole coordinates) in an
+ * image of the given size, and the pieces of each entry. Sets must not share a unit.
+ */
+export function multiSets(sets: readonly (readonly Unit[])[], width: number, height: number): { p: PieceIndex; piecesOf: number[][] } {
+  const owner = new Map<number, number>();
+  sets.forEach((units, k) => {
+    for (const [x, y] of units) {
+      if (owner.has(y * width + x)) throw new Error('multiSets: sets share a unit');
+      owner.set(y * width + x, k + 1);
+    }
+  });
+  const kinds: Record<number, 'land'> = {};
+  sets.forEach((_, k) => (kinds[k + 1] = 'land'));
+  const p = buildPieceIndex(gridOf(width, height, (x, y) => owner.get(y * width + x) ?? 0, kinds));
+  const piecesOf = sets.map((_, k) => Array.from({ length: p.entryOf.length }, (_v, i) => i).filter((i) => p.entryOf[i] === k + 1));
+  return { p, piecesOf };
+}

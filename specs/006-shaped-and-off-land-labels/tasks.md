@@ -31,7 +31,7 @@ Rules for every task:
   - Commit: `feat(web): add shaped label frames`.
   - Done when: tests green; dev map shaped search time logged (territories, factions of seed 1 round 0); mutations proved (EPS = 0 on a planted edge grid, bound off by one, shape order swapped, tie y/x swapped); `rg` finds the listed ids.
 
-- [ ] **T4. Off-land search, fallback and leader line geometry.** FR-203, FR-204, FR-205, FR-206, FR-207, FR-215
+- [x] **T4. Off-land search, fallback and leader line geometry.** FR-203, FR-204, FR-205, FR-206, FR-207, FR-215
   - Files: `apps/web/src/core/label-offland.ts`, `apps/web/test/{label-offland.test.ts,helpers/label-reference.ts}`.
   - Tests first: plan section 13 `label-offland.test.ts` list (brute-force equality on hand and random grids; trigger at offLandHeight - 1 and offLandHeight; image edge; own set refused, own other pieces allowed; g2 576 / 577; tie order; placement order and FR-206 fallback; blocking by in-land frames of labels that go off-land; leader iff g2 > 36 and its end points; D7 boundary-only equals all units).
   - Code: plan D6, D7 and section 7 (`offLandBox`, footprint raster, `leaderLine`).

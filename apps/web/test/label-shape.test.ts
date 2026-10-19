@@ -623,3 +623,40 @@ describe('FR-195 FR-197 FR-198 FR-199 NFR-38 the in-land frames of the dev map',
     expect(factionCount).toBeGreaterThan(0);
   }, 120000);
 });
+
+describe('FR-199 NFR-38 the arc footprint raster agrees with the pinned membership at every centre', () => {
+  const centres = [[0, 0], [1, 3], [17, 5], [100, 100], [333, 777], [1500, 2000], [2047, 2047], [999, 1]] as const;
+
+  /** Cells where the raster (runs, plus border cells decided by inArc) differs from inArc at the centre, over a window around it. */
+  function disagreements(frame: ArcFrame, span: number): string[] {
+    const fp = arcFootprint(frame, M);
+    const inRows = new Set<string>();
+    for (let i = 0; i < fp.rows.length; i += 3) for (let k = 0; k < fp.rows[i + 2]!; k++) inRows.add(`${fp.rows[i + 1]! + k},${fp.rows[i]!}`);
+    const inBorder = new Set(fp.border.map(([dx, dy]) => `${dx},${dy}`));
+    const wrong: string[] = [];
+    for (const [x, y] of centres) {
+      const at = { ...frame, cx: x + 0.5, cy: y + 0.5 };
+      for (let dy = -span; dy <= span; dy++) {
+        for (let dx = -span; dx <= span; dx++) {
+          const want = inArc(at, M, x + dx + 0.5, y + dy + 0.5);
+          const key = `${dx},${dy}`;
+          if ((inRows.has(key) || (inBorder.has(key) && want)) !== want) wrong.push(`centre ${x},${y} cell ${key}`);
+        }
+      }
+    }
+    return wrong;
+  }
+
+  it('FR-199 cells within rounding of an arc edge are decided per centre, so the raster never differs from inArc (EDGE_SLACK)', () => {
+    // Found by a scan with EDGE_SLACK = 0: an edge circle of this frame passes within 1e-12 of the
+    // cell (7, 0) of this frame, and the pinned formula decides that cell differently at some centres.
+    const frame = arc(0.5, 0.5, -30, 2, 20, 30, 40 - 39 * 1.3e-14);
+    expect(disagreements(frame, 60)).toStrictEqual([]);
+    // R = 50 + eps puts cells exactly on, or within a rounding step of, the inner and outer edge circles
+    for (const eps of [0, 1e-14, 3e-14, 1e-13, -1e-13, -1e-12]) {
+      for (const angle of [0, 90, 45] as const) {
+        for (const bend of [30, -30] as const) expect(disagreements(arc(0.5, 0.5, angle, 4, 40, bend, 50 + eps), 60), `${eps} ${angle} ${bend}`).toStrictEqual([]);
+      }
+    }
+  }, 120000);
+});

@@ -26,6 +26,7 @@ const NUMBER_FILES = [
   'core/label-axis.ts',
   'core/label-shape.ts',
   'core/label-digest.ts',
+  'core/label-offland.ts',
   'core/label-layout.ts',
   'core/regions.ts',
 ];
