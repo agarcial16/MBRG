@@ -18,7 +18,7 @@ export interface ShapeParams {
 
 export const SHAPE_PARAMS: ShapeParams = {
   angleStep: 15,
-  shapeGain: 1.5,
+  shapeGain: 1.25,
   arcBends: [30, 60],
   offLandHeight: { faction: 18, territory: 5 },
   offLandReach: 24,

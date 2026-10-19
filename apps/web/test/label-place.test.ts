@@ -128,7 +128,7 @@ describe('FR-206 FR-209 FR-213 the territory placement on small grids', () => {
 
 describe('FR-216 FR-215 faction placement on small grids', () => {
   // A (entry 1) is a tiny island; B (entry 2) and C (entry 3) are large neighbours; D (entry 4) is a spare block
-  const grid = gridOf(130, 70, (x, y) => (x >= 4 && x < 10 && y >= 30 && y < 36 ? 1 : x >= 12 && x < 60 ? 2 : x >= 60 ? 3 : 0), KINDS);
+  const grid = gridOf(160, 90, (x, y) => (x >= 4 && x < 10 && y >= 42 && y < 48 ? 1 : x >= 12 && x < 100 ? 2 : x >= 100 ? 3 : 0), KINDS);
   const p = buildPieceIndex(grid);
   const aspects = new Map([[1, 2], [2, 2], [3, 2]]);
   const before = ownersOf({ 1: 1, 2: 2, 3: 3 }, 4);
@@ -396,6 +396,6 @@ describe('FR-206 FR-209 FR-213 FR-215 FR-216 NFR-41 the dev map, seed 1, rounds 
     const second = await devRun();
     expect(layoutDigest(second.territories, second.factions)).toBe(digest);
     console.log(`label-place: D11 layout digest ${digest}`);
-    expect(digest).toBe('c3ecf3e435ce3f29');
+    expect(digest).toBe('d8d1def09235b51b');
   });
 });

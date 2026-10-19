@@ -366,7 +366,7 @@ describe('FR-195 FR-197 FR-198 NFR-38 the in-land frame equals the brute-force d
       // the pruned search equals shapedHeight plus the G rule
       const hS = shapedHeight(p, pieces, aspect, params, sp);
       const viaRule: InLandFrame | undefined =
-        hS !== undefined && (hBox === undefined || hS >= 1.5 * hBox.h)
+        hS !== undefined && (hBox === undefined || hS >= sp.shapeGain * hBox.h)
           ? shapedCandidate(p, pieces, aspect, params, sp, 1)
           : hBox === undefined
             ? undefined
@@ -376,8 +376,8 @@ describe('FR-195 FR-197 FR-198 NFR-38 the in-land frame equals the brute-force d
       else if (got.shape === 'horizontal') seen.horizontal++;
       else seen.shaped++;
       if (hS !== undefined && hBox !== undefined) {
-        if (hS === Math.ceil(1.5 * hBox.h)) seen.atBound++;
-        if (hS === Math.ceil(1.5 * hBox.h) - 1) seen.belowBound++;
+        if (hS === Math.ceil(sp.shapeGain * hBox.h)) seen.atBound++;
+        if (hS === Math.ceil(sp.shapeGain * hBox.h) - 1) seen.belowBound++;
       }
       if (ref.tied.length > 1) {
         seen.tie++;
@@ -417,11 +417,11 @@ describe('FR-195 FR-197 FR-198 NFR-38 the in-land frame equals the brute-force d
     expect(shapedHeight(p, pieces, 3, lp(2, 8), sp)).toBe(8); // the unpruned shaped height may exist and is still not used
   });
 
-  it('FR-198 a near-compact region stays horizontal: the shaped height is below 1.5 times the horizontal one', () => {
+  it('FR-198 a near-compact region stays horizontal: the shaped height is below G times the horizontal one', () => {
     const { p, pieces, hBox, got } = searchOf(rectUnits(2, 2, 14, 10), 3, lp(2, 20));
     const hS = shapedHeight(p, pieces, 3, lp(2, 20), sp);
     expect(hBox).toBeDefined();
-    expect(hS === undefined || hS < 1.5 * hBox!.h).toBe(true);
+    expect(hS === undefined || hS < sp.shapeGain * hBox!.h).toBe(true);
     expect(got?.shape).toBe('horizontal');
   });
 
@@ -473,11 +473,13 @@ describe('FR-195 FR-197 FR-198 NFR-38 the in-land frame equals the brute-force d
     expect((capResult.got as ArcFrame).bend).toBe(-60);
   });
 
-  it('FR-198 a thin straight run with a gentle bend keeps its horizontal box: the G rule needs a 1.5 times taller frame', () => {
+  it('FR-198 a thin straight run with a gentle bend keeps its horizontal box: the G rule needs a G times taller frame', () => {
     const band = searchOf(bandUnits(0, 70, 9, (x) => 4 + ((x - 35) * (x - 35)) / 28), 3, lp(2, 24));
     expect(band.got).toStrictEqual(band.expected);
     expect(band.got?.shape).toBe('horizontal');
-    expect(shapedHeight(band.p, band.pieces, 3, lp(2, 24), sp)).toBeDefined();
+    const hSBand = shapedHeight(band.p, band.pieces, 3, lp(2, 24), sp);
+    expect(hSBand).toBeDefined();
+    expect(hSBand! < sp.shapeGain * band.hBox!.h).toBe(true); // the rule, not a lack of shape, keeps it horizontal
   });
 
   it('FR-198 FR-199 a region on the image edge: the outside belongs to no set, the frame stays inside', () => {
@@ -521,7 +523,7 @@ describe('FR-195 FR-197 FR-198 NFR-38 the in-land frame equals the brute-force d
 
   it('NFR-38 the height prune: heights below ceil(G * hH) are not searched, and the search is skipped when that exceeds Hmax', () => {
     const { p, pieces, hBox } = searchOf(rectUnits(2, 2, 14, 10), 3, lp(2, 20));
-    const bound = Math.ceil(1.5 * hBox!.h);
+    const bound = Math.ceil(sp.shapeGain * hBox!.h);
     const params = lp(2, 20);
     const hS = shapedHeight(p, pieces, 3, params, sp);
     expect(hS).toBeDefined();
@@ -529,8 +531,8 @@ describe('FR-195 FR-197 FR-198 NFR-38 the in-land frame equals the brute-force d
     expect(shapedCandidate(p, pieces, 3, params, sp, hS! + 1)).toBeUndefined();
     expect(shapedCandidate(p, pieces, 3, params, sp, hS!)?.h).toBe(hS);
     expect(bound).toBeGreaterThan(hS!);
-    // the bound ceil(1.5 * hH) of an odd height rounds up
-    expect(Math.ceil(1.5 * 5)).toBe(8);
+    // the bound ceil(G * hH) of an odd height rounds up
+    expect(Math.ceil(sp.shapeGain * 5)).toBe(7);
   });
 
   it('FR-198 an aspect or parameter that is not valid is refused as in 005', () => {
@@ -584,7 +586,7 @@ describe('FR-195 FR-197 FR-198 FR-199 NFR-38 the in-land frames of the dev map',
       }
       tally.shaped++;
       expect(fits(got, pieces), `${label} fits`).toBe(true);
-      expect(hBox === undefined || got.h >= 1.5 * hBox.h, `${label} G rule`).toBe(true);
+      expect(hBox === undefined || got.h >= sp.shapeGain * hBox.h, `${label} G rule`).toBe(true);
       // maximal: no taller shaped frame exists
       expect(shapedCandidate(p, pieces, aspect, params, sp, got.h + 1), `${label} maximal`).toBeUndefined();
     };

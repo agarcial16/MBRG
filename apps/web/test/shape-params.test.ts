@@ -6,7 +6,7 @@ describe('shape parameters', () => {
   it('FR-196 FR-203 FR-207 SHAPE_PARAMS holds the decided values', () => {
     expect(SHAPE_PARAMS).toStrictEqual({
       angleStep: 15,
-      shapeGain: 1.5,
+      shapeGain: 1.25,
       arcBends: [30, 60],
       offLandHeight: { faction: 18, territory: 5 },
       offLandReach: 24,
