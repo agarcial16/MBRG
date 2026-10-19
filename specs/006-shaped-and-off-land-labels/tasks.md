@@ -59,13 +59,13 @@ Rules for every task:
   - Commit: `feat(web): draw rotated and arc labels with leader lines`.
   - Done when: tests green, the 005 render tests green unchanged except the listed type test; the FR-159 render scan passes; `rg` finds the listed ids.
 
-- [ ] **T8. UI wiring, debug counts and first visual check.** FR-209, FR-214, FR-216, NFR-38 (wiring), NFR-42
+- [x] **T8. UI wiring, debug counts and first visual check.** FR-209, FR-214, FR-216, NFR-38 (wiring), NFR-42
   - Files: `apps/web/src/ui/{main.ts,panel.ts}`.
   - Tests first: none new beyond T6 (counts text) unless wiring logic moves into `src/core`; the 004/005 scans (anti-spoiler, strings, purity) stay green.
   - Code: `placeTerritories` once at load; `placeFactions` per state with the round being left as `previous`; `roundLabels(..., placed)`; counts line under the timings; FR-190 figure around 005 boxes + placement + front.
   - Visual check: screenshots of `?seed=1&round=0`, `?seed=1&round=1`, `?seed=1&round=4` at fit; one territory view above L1 on the dense area and one on Baleares; `?seed=1&round=1&transition=0.5` at fit; the debug panel counts visible on each. Manual: next/previous steps, reduced motion. **User reviews and accepts.**
   - Commit: `feat(web): wire shaped and off-land labels`.
-  - Done when: tests green; screenshots accepted; counts match `labelCounts` for the shown state; `rg` finds the listed ids.
+  - Done when: tests green; screenshots accepted (PENDING: user review of the T8 screenshots); counts match `labelCounts` for the shown state; `rg` finds the listed ids.
 
 - [ ] **T9. Review set with recorded hits; `offLandHeight` tuning.** NFR-40 (and the final value of `offLandHeight`, FR-203)
   - Files: `apps/web/src/core/{shaped-review-set.ts,shape-params.ts}`, `apps/web/test/{shaped-review-set.test.ts,helpers/measured-aspects.ts,label-place.test.ts (re-pinned digest)}`, `specs/006-shaped-and-off-land-labels/plan.md` (section 12 recorded hits, chosen value, date).

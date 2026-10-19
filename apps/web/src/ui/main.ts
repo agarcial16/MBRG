@@ -16,11 +16,13 @@ import { buildEntryIndex, factionColorList, factionIndexOf, ownerTable } from '.
 import { frontField } from '../core/front';
 import type { FrontField } from '../core/front';
 import { instantLabels, labelsAt } from '../core/label-frame';
-import type { AnyLabelDraw, LabelDraw, RoundLabels, StepLabels } from '../core/label-frame';
+import type { AnyLabelDraw, RoundLabels, StepLabels } from '../core/label-frame';
 import { labelTexts, roundLabels } from '../core/label-input';
-import { factionBoxes, territoryBoxes } from '../core/label-layout';
-import type { FactionBoxes } from '../core/label-layout';
+import { labelCounts } from '../core/label-counts';
+import type { Counts } from '../core/label-counts';
 import { LABEL_PARAMS } from '../core/label-params';
+import { placeFactions, placeTerritories } from '../core/label-place';
+import type { FactionLayout } from '../core/label-place';
 import { navigate, parseTypedRound, typedRoundMessage } from '../core/navigation';
 import type { NavAction } from '../core/navigation';
 import { checkPackage, packageErrorMessage } from '../core/package';
@@ -33,6 +35,7 @@ import type { Scene } from '../core/scene';
 import { frozenScenes, stepScenes } from '../core/step';
 import type { StepData } from '../core/step';
 import { STRINGS } from '../core/strings';
+import { SHAPE_PARAMS } from '../core/shape-params';
 import { THEME, toMapTheme } from '../core/theme';
 import { attachLabelLayer } from '../render/labels-layer';
 import { createMapScene } from '../render/map-scene';
@@ -57,9 +60,10 @@ const INTERACTION_GAP_MS = 250;
 /** Everything the drawing needs of one round: its owner table, faction label layout and label draw data. */
 interface RoundView {
   table: Uint8Array;
-  boxes: FactionBoxes;
+  layout: FactionLayout;
   labels: RoundLabels;
-  draws: LabelDraw[];
+  draws: AnyLabelDraw[];
+  counts: { faction: Counts; territory: Counts };
 }
 
 /** The two rounds of a step with the front distances and the label inputs of both (FR-179 to FR-181, FR-188). */
@@ -79,9 +83,6 @@ function showError(message: string): void {
   text.textContent = message;
   panelContainer.replaceChildren(text);
 }
-
-// Until the label layer draws shaped labels (T7, T8) the viewer places none, so every draw is a box label.
-const boxDraws = (draws: readonly AnyLabelDraw[]): LabelDraw[] => draws.filter((d): d is LabelDraw => 'box' in d);
 
 async function start(): Promise<void> {
   const loaded = await loadPackage();
@@ -137,16 +138,18 @@ async function start(): Promise<void> {
     const aspect = aspectOf.get(name);
     if (aspect !== undefined) factionAspects.set(faction, aspect);
   }
-  const territoryLayout = territoryBoxes(
+  const territoryLayout = placeTerritories(
     pieces,
     texts.territories.map((t) => (t === undefined ? undefined : aspectOf.get(t))),
     LABEL_PARAMS,
+    SHAPE_PARAMS,
   );
 
   const viewOf = (table: Uint8Array, previous?: RoundView): RoundView => {
-    const boxes = factionBoxes(pieces, table, factionAspects, LABEL_PARAMS, previous?.boxes);
-    const labels = roundLabels(texts, table, boxes, territoryLayout);
-    return { table, boxes, labels, draws: boxDraws(instantLabels(labels)) };
+    const layout = placeFactions(pieces, table, factionAspects, LABEL_PARAMS, SHAPE_PARAMS, previous?.layout);
+    const placement = { factions: layout.placed, territories: territoryLayout.placed };
+    const labels = roundLabels(texts, table, layout.boxes, territoryLayout.boxes, placement);
+    return { table, layout, labels, draws: instantLabels(labels), counts: labelCounts(texts, table, layout, territoryLayout) };
   };
   const stepOf = (earlier: RoundView, later: RoundView, data: StepData): StepView => {
     const transferred = new Set<number>();
@@ -217,13 +220,13 @@ async function start(): Promise<void> {
     const out = frame(playback, nowMs, LABEL_PARAMS.durationMs);
     playback = out.state;
     if (out.finished) stepView = undefined;
-    let drawn: readonly LabelDraw[];
+    let drawn: readonly AnyLabelDraw[];
     const shown = out.drawing;
     if (shown.shape === 'step' && stepView !== undefined) {
       if (shownTable !== stepView.later.table) mapScene.setOwners(stepView.later.table);
       shownTable = stepView.later.table;
       mapScene.setFront({ before: stepView.earlier.table, field: stepView.field, forward: shown.forward });
-      drawn = boxDraws(labelsAt(stepView.labels, shown.forward));
+      drawn = labelsAt(stepView.labels, shown.forward);
     } else {
       if (shownTable !== current.table) mapScene.setOwners(current.table);
       shownTable = current.table;
@@ -302,6 +305,7 @@ async function start(): Promise<void> {
     if (outcome.unfroze) frozenText = undefined;
     paint(started);
     panel.showScene(scene);
+    panel.showCounts(current.counts);
     showMessages();
     syncAddress(scene.seed, scene.round, camera, frozenText);
     roundChangeMs = now() - started;
@@ -338,6 +342,7 @@ async function start(): Promise<void> {
     },
   });
   panel.showScene(scene);
+  panel.showCounts(current.counts);
   showMessages();
   panel.showPointer(undefined);
 
