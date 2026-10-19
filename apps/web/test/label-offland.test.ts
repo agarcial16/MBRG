@@ -267,7 +267,7 @@ describe('FR-205 D7 the gap and the anchor over the boundary units equal those o
 });
 
 describe('FR-203 FR-205 FR-206 FR-215 the placement of the labels of one role', () => {
-  const H = SP.offLandHeight.territory; // 5
+  const H = 5; // the hand fixtures below are built for 5; the tunable SHAPE_PARAMS value (3) is not needed here
 
   /** Two single-unit islands and a roomy image. */
   const islands = (a: Unit, b: Unit) => multiSets([[a], [b]], 80, 80);

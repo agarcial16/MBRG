@@ -71,7 +71,7 @@ describe('NFR-40 FR-203 the shaped review set addresses', () => {
   });
 
   it('NFR-40 the crossfade scenes sit at L0, between L0 and L1 and at L1', () => {
-    for (const prefix of ['crossfade-shaped', 'crossfade-off-land']) {
+    for (const prefix of ['crossfade-shaped']) {
       const zooms = ['below', 'mid', 'above'].map((n) => SHAPED_REVIEW_SET.find((s) => s.label === `${prefix}-${n}`)!.camera!.zoom);
       expect(zooms).toStrictEqual([LABEL_PARAMS.fadeStart, (LABEL_PARAMS.fadeStart + LABEL_PARAMS.fadeFull) / 2, LABEL_PARAMS.fadeFull]);
     }
@@ -103,7 +103,8 @@ describe('NFR-40 FR-203 the recorded territory hits are the first ones in entry 
   });
 
   it('NFR-40 the dropped scenes have no hit over the dev-map territories and the factions of seed 1', () => {
-    expect(DROPPED_SCENES.map((d) => d.label)).toStrictEqual(['off-land-island', 'off-land-leader', 'off-land-faction-fit', 'step-straight', 'step-off-land']);
+    expect(DROPPED_SCENES.map((d) => d.label)).toStrictEqual(['off-land-inland', 'crossfade-off-land', 'off-land-island', 'off-land-leader', 'off-land-faction-fit', 'step-straight', 'step-off-land']);
+    expect(territoryHit(run, 'off-land-inland')).toBeUndefined();
     expect(territoryHit(run, 'off-land-island')).toBeUndefined();
     expect(territoryHit(run, 'off-land-leader')).toBeUndefined();
     expect(factionHit(run, 'off-land')).toBeUndefined();

@@ -396,6 +396,6 @@ describe('FR-206 FR-209 FR-213 FR-215 FR-216 NFR-41 the dev map, seed 1, rounds 
     const second = await devRun();
     expect(layoutDigest(second.territories, second.factions)).toBe(digest);
     console.log(`label-place: D11 layout digest ${digest}`);
-    expect(digest).toBe('d8d1def09235b51b');
+    expect(digest).toBe('23c90b67d52cbcfa');
   });
 });

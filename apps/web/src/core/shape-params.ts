@@ -20,7 +20,7 @@ export const SHAPE_PARAMS: ShapeParams = {
   angleStep: 15,
   shapeGain: 1.25,
   arcBends: [30, 60],
-  offLandHeight: { faction: 18, territory: 5 },
+  offLandHeight: { faction: 18, territory: 3 },
   offLandReach: 24,
   leaderGap: 6,
 };

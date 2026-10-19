@@ -33,11 +33,10 @@ export interface StepHitRecord {
 /** Recorded territory hits (plan section 12 items 1 to 5 and 7), found over territory labels in entry order. */
 export const TERRITORY_HITS = {
   'steep-straight': { entry: 3, name: 'Baviera', shape: 'straight', centre: { x: 1433.5, y: 693.5 }, height: 73 },
-  'diagonal-straight': { entry: 10, name: 'Renania-Palatinado', shape: 'straight', centre: { x: 1202.5, y: 635.5 }, height: 17 },
+  'diagonal-straight': { entry: 6, name: 'Bremen', shape: 'straight', centre: { x: 1269.5, y: 318.5 }, height: 3 },
   'arc-cup': { entry: 33, name: 'Alta Francia', shape: 'arc', centre: { x: 914.5, y: 612.5 }, height: 34 },
   'arc-cap': { entry: 1, name: 'Baden-Wurtemberg', shape: 'arc', centre: { x: 1269.5, y: 718.5 }, height: 24 },
   'kept-horizontal': { entry: 2, name: 'Baja Sajonia', shape: 'horizontal', centre: { x: 1279.82275390625, y: 349.5 }, height: 35 },
-  'off-land-inland': { entry: 6, name: 'Bremen', shape: 'off-land', centre: { x: 1250.74267578125, y: 320.5 }, height: 5 },
 } as const satisfies Record<string, TerritoryHitRecord>;
 
 /** Recorded step hits (plan section 12 item 11), found over seeds 1..1000. */
@@ -47,6 +46,8 @@ export const STEP_HITS = {
 
 /** Scenes of plan section 12 that have no hit on the dev map, with the reason (proofs in the PR, D12). */
 export const DROPPED_SCENES: readonly { label: string; why: string }[] = [
+  { label: 'off-land-inland', why: 'no territory is drawn off-land at offLandHeight 3 (user decision 2026-10-19: off-land is for microstates)' },
+  { label: 'crossfade-off-land', why: 'no off-land territory label to cross-fade at offLandHeight 3' },
   { label: 'off-land-island', why: 'no territory drawn off-land has a main piece without a land neighbour' },
   { label: 'off-land-leader', why: 'no territory off-land box lies more than the leader gap from its land' },
   { label: 'off-land-faction-fit', why: 'no faction label of seed 1 rounds 0..T is drawn off-land' },
@@ -94,13 +95,11 @@ const stepScenes = (prefix: string, hit: StepHitRecord, look: string): LabelRevi
 
 export const SHAPED_REVIEW_SET: readonly LabelReviewScene[] = [
   territoryScene('steep-straight', TERRITORY_HITS['steep-straight'], 'territory label of Baviera, a steep straight frame'),
-  territoryScene('diagonal-straight', TERRITORY_HITS['diagonal-straight'], 'territory label of Renania-Palatinado, a diagonal straight frame'),
+  territoryScene('diagonal-straight', TERRITORY_HITS['diagonal-straight'], 'territory label of Bremen, a diagonal straight frame'),
   territoryScene('arc-cup', TERRITORY_HITS['arc-cup'], 'territory label of Alta Francia, a cup arc (bend > 0)'),
   territoryScene('arc-cap', TERRITORY_HITS['arc-cap'], 'territory label of Baden-Wurtemberg, a cap arc (bend < 0)'),
   territoryScene('kept-horizontal', TERRITORY_HITS['kept-horizontal'], 'territory label of Baja Sajonia, horizontal although a shaped frame fits'),
-  territoryScene('off-land-inland', TERRITORY_HITS['off-land-inland'], 'territory label of Bremen, off-land beside land neighbours'),
   ...crossfadeScenes('crossfade-shaped', TERRITORY_HITS['steep-straight'], 'Baviera crossfade between faction and territory labels'),
-  ...crossfadeScenes('crossfade-off-land', TERRITORY_HITS['off-land-inland'], 'Bremen crossfade, off-land territory label appearing'),
   ...stepScenes('step-arc', STEP_HITS['step-arc'], 'Portugal absorbs a territory: its frame changes from an arc to a horizontal box'),
 ];
 
