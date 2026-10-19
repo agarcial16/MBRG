@@ -1,6 +1,8 @@
 # Tasks 006 — Shaped and off-land labels
 Plan: `specs/006-shaped-and-off-land-labels/plan.md`. Prerequisites: spec approved by the user (2026-10-19); plan and tasks approved by the user; plan section 14 decisions U1-U4 confirmed. Any later change goes to the spec first, then the plan, then these tasks.
 
+Amendment of 2026-10-19 (spec D9, plan section 16): `shapeGain` G is 1.25 instead of 1.5. T1 to T8 were implemented with 1.5; the code and test follow-up of plan section 16 was done as step 1 of T9 (commit `fix(web): lower the shape gain to 1.25`), before the T9 screenshots.
+
 Rules for every task:
 - Delivery: branch `feat/006-label-orientation` (from an up-to-date `rewrite`), one PR into `rewrite`, squash merge only with the user's OK and CI green. No GitHub issues. Never push to `main` or `rewrite`. One commit per task unless stated (English, conventional prefix, one line <= 72 chars).
 - Tests first: write them, see them fail (red) for the right reason, then code. Prove scans and guards by temporary mutation (back the file up first; never `git checkout` a file with uncommitted edits); use the FULL `npm test` for mutation proofs, with a timeout for loops.
@@ -13,7 +15,7 @@ Rules for every task:
 
 - [x] **T1. Commit spec, plan and tasks; traceability with the pending set; shape parameters; no-dependency check.** NFR-41, NFR-42, FR-196, FR-203, FR-207
   - Files: `specs/006-shaped-and-off-land-labels/{spec,plan,tasks}.md` (spec status line -> `approved`, on the user's instruction), `packages/sim/test/traceability.test.ts`, `apps/web/src/core/shape-params.ts`, `apps/web/test/shaped-deps.test.ts`.
-  - Tests first: plan section 10 item 1 (ranges 1..216 / 1..42, pinned `PENDING_006` of 27 ids, counts 258 / 256 / 229 expected, `FR-217` / `NFR-43` not ids, self-trace list with NFR-41); `SHAPE_PARAMS` pinned (15, 1.5, [30, 60], territory 5 / faction 18 inside 3..12 / 10..40, 24, 6, M < Gl <= Dr); `cs(theta)` pinned to the spec table expressions for -75..90; NFR-42 manifest and lockfile equal the 005 set.
+  - Tests first: plan section 10 item 1 (ranges 1..216 / 1..42, pinned `PENDING_006` of 27 ids, counts 258 / 256 / 229 expected, `FR-217` / `NFR-43` not ids, self-trace list with NFR-41); `SHAPE_PARAMS` pinned (15, 1.5 [1.25 since spec D9, plan section 16], [30, 60], territory 5 / faction 18 inside 3..12 / 10..40, 24, 6, M < Gl <= Dr); `cs(theta)` pinned to the spec table expressions for -75..90; NFR-42 manifest and lockfile equal the 005 set.
   - Commits: `docs: add plan and tasks 006`; `test: trace spec 006 ids and pin the shape parameters`.
   - Done when: full suite, typecheck and `CI=1` green; a renamed title of a 005 id is still reported missing (mutation); `LABEL_PARAMS` and the 005 review-set test untouched; `rg` finds NFR-41, NFR-42 in titles.
 

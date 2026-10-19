@@ -82,7 +82,7 @@ No function takes a seed or a round: layout, placement and step functions take o
 ## 4. Interface (TypeScript sketch)
 ```ts
 // shape-params.ts
-interface ShapeParams { angleStep: number /* 15, fixed */; shapeGain: number /* 1.5, fixed */; arcBends: readonly number[] /* [30, 60], fixed */;
+interface ShapeParams { angleStep: number /* 15, fixed */; shapeGain: number /* 1.25, fixed (spec D9; was 1.5) */; arcBends: readonly number[] /* [30, 60], fixed */;
                         offLandHeight: { faction: number /* 18, 10..40 */; territory: number /* 5, 3..12 */ };
                         offLandReach: number /* 24, fixed */; leaderGap: number /* 6, fixed */ }
 SHAPE_PARAMS: ShapeParams;  cs(theta: number): { c: number; s: number }   // only -75..90 in steps of 15, from the spec table
@@ -164,8 +164,8 @@ sign(p + q*sqrt3): q = 0 -> sign p; p = 0 -> sign q; same signs -> that sign;
 ```
 inLandFrame(set, a, hBox):                        // hBox = 005 box (horizontal candidate, FR-195)
   hH = hBox?.h
-  bound = hH undefined ? 1 : ceil(G * hH)         // G * hH exact (1.5 * integer)
-  if bound > Hmax: return hBox (horizontal)        // FR-198 last clause; skip (NFR-38)
+  bound = hH undefined ? 1 : ceil(G * hH)         // G * hH exact (1.25 * integer, 1.25 = 5/4)
+  if bound > Hmax: return hBox (horizontal)        // FR-198 last clause; skip (NFR-38): hH >= 97 at Hmax 120
   shaped = shapedCandidate(set, a, bound)
   return shaped ?? hBox                            // shaped has h >= bound, so it wins FR-198
 shapedCandidate(set, a, bound):
@@ -285,5 +285,17 @@ Titles start with the ids they verify; exact `toStrictEqual`; random grids from 
 - Arc text kerning and halo overlap between glyphs: judged on screenshots (spec risk).
 - Placement order effects and shape flicker across rounds: visible in the review set; accepted by the spec.
 - `offLandHeight` tuning changes the D11 digest and the review hits: T9 re-pins both after the user's choice.
+- G = 1.25 (spec D9) moves the FR-198 bound for every label: more shaped frames win, so the territory placement time at load and the per-step faction time may grow (fewer prunes); re-measured in Node with the G change and in the browser in T10.
+
+## 16. Amendment of 2026-10-19: G = 1.25 (spec D9)
+Made after T1 to T8 were committed (last 3b77eeb). No code change here; the follow-up is an implementer task before the T9 screenshots (the review set must be taken with the final G).
+- `SHAPE_PARAMS.shapeGain` 1.5 -> 1.25 (`core/shape-params.ts`); pinned in `shape-params.test.ts` "FR-196 FR-203 FR-207 SHAPE_PARAMS holds the decided values".
+- Tests of `label-shape.test.ts` that write the gain as the literal 1.5 instead of `sp.shapeGain` (the random-grid G rule `hS >= 1.5 * hBox.h`, the `atBound` / `belowBound` coverage counters, "a near-compact region stays horizontal", "a thin straight run with a gentle bend keeps its horizontal box", the NFR-38 prune test with `ceil(1.5 * hH)` and `ceil(1.5 * 5) = 8`, and the dev-map "G rule" check): rewritten to read `sp.shapeGain` (titles that say "1.5 times" say "G times"); each hand grid re-checked: a grid whose meaning depended on 1.5 (it must stay horizontal, or must exercise the bound) is replaced by one that holds with 1.25, found by a scan, not by guessing (MEMORY lesson of T3). These are 006 tests, not earlier tests: NFR-41 does not restrict them.
+- `helpers/label-reference.ts` already reads `sp.shapeGain`: unchanged.
+- D11 digest `c3ecf3e435ce3f29` (`label-place.test.ts`) re-pinned; the 005 box digest `5f8e31fd50523b09` (`shaped-purity.test.ts`) must NOT change (G does not touch the horizontal candidate).
+- Every other 006 test must pass unchanged; one that fails is investigated (a test that silently depended on 1.5), not re-pinned blindly.
+- Dev-map label counts recorded in MEMORY (territories 58 / 6 / 4 / 2; factions round 0: 4 horizontal + 1 arc) and the Node timings of T3 / T5 are re-taken and recorded.
+- Section 12 hits are still empty (filled in T9), so no recorded hit is invalidated; scene 5 `kept-horizontal` uses hS < G x hH with the new G.
 - 004/005 scans (section 0): `round` in render identifiers, the word `transition`, non-ASCII comments, new placeholders.
 - Windows path with spaces: quote; `$env:CI='1'; npm test` before commits.
+- Done (T9 step 1, 2026-10-19): `shapeGain` 1.25; `label-shape.test.ts` reads `sp.shapeGain` (hand grids kept: all still hold, coverage counters at 1.25: atBound 77, belowBound 55; the gentle-bend test now also asserts hS < G x hH); D11 digest re-pinned `d8d1def09235b51b`; 005 box digest `5f8e31fd50523b09` unchanged; `label-place.test.ts` faction fixture grid enlarged (160 x 90, island y 42..48, B x 12..99) because at G = 1.25 the 48 x 70 block B took a vertical straight frame that blocked every off-land box of the island (found by a scan of image heights and block widths; only 160 x 90 / B to 99 kept both tests meaningful). Dev map at 1.25: territories 21 shaped + 1 off-land + 48 horizontal (+ 18 without frame, label-place tally); round 0 factions: 3 horizontal, 1 arc, 1 straight; Node: territories ~0.7-0.9 s, round 0 factions ~170-190 ms from scratch, worst reuse step 128 ms, first frame placement ~0.9 s.
