@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_SCALE } from '../src/core/camera';
 import { LABEL_HALO, LABEL_INK, drawable, instantLabels, labelAlpha, labelOpacity, labelsAt, screenBox } from '../src/core/label-frame';
-import type { FactionLabelInput, LabelDraw, RoundLabels, StepLabels, TerritoryLabelInput } from '../src/core/label-frame';
+import type { AnyLabelDraw, FactionLabelInput, LabelDraw, RoundLabels, StepLabels, TerritoryLabelInput } from '../src/core/label-frame';
 import type { LabelBox } from '../src/core/label-layout';
 import { LABEL_PARAMS } from '../src/core/label-params';
 import { smoothstep } from '../src/core/lines';
@@ -163,9 +163,10 @@ function stepOf(over: {
   };
 }
 
-const byText = (labels: readonly LabelDraw[], text: string): LabelDraw => {
+const byText = (labels: readonly AnyLabelDraw[], text: string): LabelDraw => {
   const found = labels.find((l) => l.text === text);
   if (found === undefined) throw new Error(`no label ${text}`);
+  if (!('box' in found)) throw new Error(`label ${text} is a shaped draw`);
   return found;
 };
 

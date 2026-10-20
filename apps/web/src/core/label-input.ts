@@ -4,6 +4,16 @@ import { entryKind } from '@mbrg/shared';
 import type { FactionId, MapData, PresentationData } from '@mbrg/shared';
 import type { RoundLabels } from './label-frame';
 import type { FactionBoxes, LabelBox } from './label-layout';
+import type { LeaderLine, OffLand, Placed } from './label-offland';
+
+/**
+ * The labels whose drawn frame is not their horizontal in-land candidate (plan D3): a shaped frame or an off-land
+ * box, by faction index and by entry index (`placeFactions` and `placeTerritories` give them).
+ */
+export interface Placement {
+  factions: ReadonlyMap<number, Placed>;
+  territories: readonly (Placed | undefined)[];
+}
 
 /** The texts to draw: names from the presentation data, nothing else (NFR-37). */
 export interface LabelTexts {
@@ -36,20 +46,37 @@ export function roundLabels(
   table: ArrayLike<number>,
   boxes: FactionBoxes,
   territoryBoxes: readonly (LabelBox | undefined)[],
+  placed?: Placement,
 ): RoundLabels {
   const factions: RoundLabels['factions'][number][] = [];
   for (const [faction, label] of boxes.labels) {
     const text = texts.factions.get(faction);
     if (text === undefined) continue;
-    factions.push({ faction, text, box: label.box, aspect: label.aspect });
+    const one = placed?.factions.get(faction);
+    if (one === undefined) factions.push({ faction, text, box: label.box, aspect: label.aspect });
+    else if (one.shape === 'off-land') factions.push({ faction, text, box: one.box, aspect: label.aspect, ...offLandFields(one) });
+    else factions.push({ faction, text, box: undefined, aspect: label.aspect, frame: one });
   }
   const territories: RoundLabels['territories'][number][] = [];
   for (let entry = 1; entry < table.length; entry++) {
     const text = texts.territories[entry];
-    const box = territoryBoxes[entry];
     const owner = table[entry]!;
-    if (text === undefined || box === undefined || owner <= 0) continue;
-    territories.push({ entry, text, box });
+    if (text === undefined || owner <= 0) continue;
+    const one = placed?.territories[entry];
+    if (one === undefined) {
+      const box = territoryBoxes[entry];
+      if (box !== undefined) territories.push({ entry, text, box });
+    } else if (one.shape === 'off-land') {
+      territories.push({ entry, text, box: one.box, ...offLandFields(one) });
+    } else {
+      territories.push({ entry, text, box: undefined, frame: one });
+    }
   }
   return { factions, territories };
 }
+
+/** The off-land marker and, only when the box has one, its leader line (optional fields are never undefined). */
+const offLandFields = (one: OffLand): { offLand: true; leader?: LeaderLine } => ({
+  offLand: true,
+  ...(one.leader !== undefined ? { leader: one.leader } : {}),
+});

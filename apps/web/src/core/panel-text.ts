@@ -1,6 +1,7 @@
 // Texts of the debug panel (FR-156, FR-157, FR-158). Pure: every text is built from the UI strings and a
 // scene, so a panel can only show what the scene at round N holds (nothing about later rounds).
 import type { PresentationData } from '@mbrg/shared';
+import type { Counts } from './label-counts';
 import type { FrameStats } from './perf';
 import { roundSummary } from './scene';
 import type { LegendRow, PointerInfo, Scene } from './scene';
@@ -43,6 +44,22 @@ export function pointerLines(info: PointerInfo | undefined): string[] {
   if (info.owner !== undefined) lines.push(fillTemplate(STRINGS.pointerOwner, { owner: info.owner }));
   return lines;
 }
+
+const countsText = (c: Counts): string =>
+  [
+    fillTemplate(STRINGS.labelCountHorizontal, { count: c.horizontal }),
+    fillTemplate(STRINGS.labelCountStraight, { count: c.straight }),
+    fillTemplate(STRINGS.labelCountArc, { count: c.arc }),
+    fillTemplate(STRINGS.labelCountOffLand, { count: c.offLand }),
+    fillTemplate(STRINGS.labelCountNone, { count: c.none }),
+  ].join(', ');
+
+/** The label counts of the displayed state, faction labels then territory labels, on one line (FR-214). */
+export const labelCountsLine = (c: { faction: Counts; territory: Counts }): string =>
+  [
+    fillTemplate(STRINGS.labelCountsFaction, { value: countsText(c.faction) }),
+    fillTemplate(STRINGS.labelCountsTerritory, { value: countsText(c.territory) }),
+  ].join(' | ');
 
 export interface Timings {
   /** Page start to the first drawn frame, ms. */

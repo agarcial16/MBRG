@@ -1,9 +1,10 @@
 // The debug panel DOM (FR-154, FR-156, FR-157, FR-158). Thin: every text comes from core/panel-text and
 // the UI strings; this file only builds elements and writes them.
 import type { PresentationData, Rgb } from '@mbrg/shared';
+import type { Counts } from '../core/label-counts';
 import { controlsState } from '../core/navigation';
 import type { NavAction } from '../core/navigation';
-import { legendLine, livingLine, perfLines, pointerLines, recordLine, roundStatus, seedLine } from '../core/panel-text';
+import { labelCountsLine, legendLine, livingLine, perfLines, pointerLines, recordLine, roundStatus, seedLine } from '../core/panel-text';
 import type { Timings } from '../core/panel-text';
 import type { PointerInfo, Scene } from '../core/scene';
 import { STRINGS } from '../core/strings';
@@ -18,6 +19,8 @@ export interface Panel {
   showScene(scene: Scene): void;
   showPointer(info: PointerInfo | undefined): void;
   showTimings(timings: Timings): void;
+  /** The label counts of the displayed state (FR-214). */
+  showCounts(counts: { faction: Counts; territory: Counts }): void;
   /** Replaces the messages (address problems, a rejected typed round, errors). */
   showMessages(messages: readonly string[]): void;
 }
@@ -92,6 +95,7 @@ export function createPanel(
   const legend = block(container, 'ul', 'margin:0 0 8px;padding:0;list-style:none');
   const pointer = block(container, 'div', 'margin-bottom:8px');
   const perf = block(container, 'div', 'font-variant-numeric:tabular-nums');
+  const counts = block(container, 'div', 'margin-top:4px;font-variant-numeric:tabular-nums');
 
   const writeLines = (el: HTMLElement, lines: readonly string[]): void => {
     el.replaceChildren(
@@ -131,6 +135,9 @@ export function createPanel(
     },
     showTimings(timings: Timings): void {
       writeLines(perf, perfLines(timings));
+    },
+    showCounts(c: { faction: Counts; territory: Counts }): void {
+      writeLines(counts, [labelCountsLine(c)]);
     },
     showMessages(list: readonly string[]): void {
       writeLines(messages, list);
