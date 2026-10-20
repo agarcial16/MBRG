@@ -75,7 +75,7 @@ Rules for every task:
   - Commit: `feat(web): add the shaped label review set`.
   - Done when: tests green; hits and value recorded in the plan and `MEMORY.md`; screenshots accepted.
 
-- [ ] **T10. Performance, browser determinism, no-regression check, close the pending set, PR.** NFR-38, NFR-39, NFR-41, done criteria
+- [x] **T10. Performance, browser determinism, no-regression check, close the pending set, PR.** NFR-38, NFR-39, NFR-41, done criteria
   - Files: `packages/sim/test/traceability.test.ts` (pending set removed, 256 expected, plan section 10 item 1), `specs/006-shaped-and-off-land-labels/spec.md` (status -> `implemented`, last, after review), `MEMORY.md` (local).
   - Tests first: traceability with no pending set (every FR-195..FR-216 and NFR-38..NFR-42 in a title).
   - Steps: NFR-38 procedure of plan section 12 on the reference PC; D11 digest in Chrome (and Edge, Firefox when available) equal to the Node pin; live aspects equal the recorded ones; figures in the PR; if a threshold fails, stop and propose an exact fix or a spec change. Process check: `git diff --exit-code rewrite -- packages/*/src packages/sim/test/golden maps/dev` clean; `git diff --stat rewrite -- apps/web/test packages tools` shows only the edits of plan section 10 plus new files. Push, PR, CI green, squash only with the user's OK.

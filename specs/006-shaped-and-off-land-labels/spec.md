@@ -1,5 +1,5 @@
 # Spec 006 — Shaped and off-land labels
-Status: approved
+Status: implemented
 
 ## Context and goal
 Spec 005 (merged, PR #25) draws one name per faction and one per land territory, each as the **horizontal** box of largest height that fits the label's main region or main piece, with white text and a black 1 px halo, crossfaded by zoom and animated by the round-step transitions. Two kinds of places are labelled badly by that rule:
