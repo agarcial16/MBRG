@@ -62,20 +62,20 @@ Rules for every task:
   - Commit: `feat(web): wire centred labels`.
   - Done when: tests green; the counts shown match `labelCounts` for the shown state; first screenshots shown to the user.
 
-- [ ] **T8. "After" screenshots and figures; user acceptance.** NFR-45, NFR-46 (PENDING user review of the screenshots: after shots, pairs and figures done; not ticked until the user accepts every pair)
+- [x] **T8. "After" screenshots and figures; user acceptance.** NFR-45, NFR-46 (superseded by T8b for acceptance; user acceptance of the T8b screenshots recorded 2026-10-21)
   - Files: `apps/web/test/centred-figures.test.ts` (after columns), `specs/007-faction-label-refinement/plan.md` (section 15 after columns).
   - Steps: after screenshots of every plan section 12 scene at the same addresses; before / after pairs side by side (`francia-r4` beside reference B, U2; Italia rounds 0-3; Galicia; Castilla-La Mancha; the step frames); figures recorded and checked (every offset <= k rho; Francia round 4 straight within rho of C). **User reviews and accepts every pair, Galicia and Castilla-La Mancha explicitly.** A rejection is a spec change (spec first), not a code tweak.
   - Commit: `test(web): record centred label figures`.
   - Done when: tests green; figures recorded; screenshots accepted by the user. Superseded for acceptance by T8b (spec D19, 2026-10-21): the user rejected the loss of curvature; the T8 after shots are retaken in T8b.
 
-- [ ] **T8b. Arc gain and territory tangent limit (spec D19, plan section 16).** FR-221, FR-222, NFR-44, NFR-45, NFR-46 (code, tests, figures and screenshots done in T8b; PENDING user review of the screenshots: not ticked)
+- [x] **T8b. Arc gain and territory tangent limit (spec D19, plan section 16).** FR-221, FR-222, NFR-44, NFR-45, NFR-46 (user acceptance of the screenshots recorded 2026-10-21)
   - Files: `apps/web/src/core/{centre-params.ts,label-centred.ts,centred-review-set.ts}`, `apps/web/test/{label-centre.test.ts (parameters pin),label-centred-arc.test.ts,label-centred-place.test.ts (007 digest),centred-steps.test.ts,centred-review-set.test.ts,centred-figures.test.ts,helpers/centred-reference.ts}`, `specs/007-faction-label-refinement/plan.md` (section 15 re-pinned figures, changed-label list, hits; date).
   - Tests first: `CENTRE_PARAMS` pin extended (`arcGain` 1/1, `arcTangentLimit` faction 45 / territory 75); an arc of equal height wins (both roles) and a lower one loses; FR-221 order arc > horizontal > straight at equal height; a territory arc with tangents between 45 and 75 deg exists, the same faction arc does not; no straight frame steeper than 45 deg in either role; the reference reads Ga and the role limits; red on the current code.
   - Code: plan section 16 (exact ceil(Ga x hC), per-role tangent limit). `SHAPE_PARAMS` and every 006 function untouched.
   - Re-pin: 007 digest, figures digest and after columns (arc counts per role, 006 arcs back, largest territory tangent), changed-label list, review hits (Italia 2 -> 3 now a crossfade, new arc step scene, arc close-ups, `espana-r2`). Unchanged and asserted: 005 box digest, 006 D11 digest, `shapedCandidate` random-grid digest. Compare with the probe (41 territory arcs, 7 of 9 006 arcs back, tangents up to about 73 deg, faction arcs Espana r2 and Italia r3, no arc for Portugal); a difference is investigated before re-pinning. Stop if Francia at round 4 is no longer straight within rho.
   - Screenshots: every plan section 12 scene retaken with the D19 build, plus the new arc scenes (their before shots from the 006 placement); before / after pairs rebuilt. **User reviews and accepts every pair.**
   - Commit: `feat(web): arc gain 1 and 75 deg territory arcs (spec 007 D19)`.
-  - Done when: tests green, also with `CI=1`; Node times logged (territories at load, factions per step incl. 3 -> 4); mutations proved (gain back to 1.25, territory limit 45, faction limit 75, equal-height tie to the centred candidate); screenshots accepted by the user (PENDING); `rg` finds the listed ids.
+  - Done when: tests green, also with `CI=1`; Node times logged (territories at load, factions per step incl. 3 -> 4); mutations proved (gain back to 1.25, territory limit 45, faction limit 75, equal-height tie to the centred candidate); screenshots accepted by the user (user acceptance recorded 2026-10-21); `rg` finds the listed ids.
 
 - [ ] **T9. Performance, browser determinism, close the pending set, PR.** NFR-43, NFR-44, done criteria
   - Files: `packages/sim/test/traceability.test.ts` (pending set removed, 274 expected, plan section 10 item 1), `specs/007-faction-label-refinement/spec.md` (status -> `implemented`, last, after review), `MEMORY.md` (local).
