@@ -46,7 +46,7 @@ Rules for every task:
   - Commit: `chore(server): add the server workspace and sqlite checks`.
   - Done when: tests green on Windows; `npm ci` succeeds from the lockfile; exact Node version and figures recorded in plan section 13 (`engines` and `.nvmrc` untouched, U3); if a check fails, stop and report to the user (plan section 8); `rg` finds NFR-53.
 
-- [ ] **T6. Runner and experimental-warning filter.** NFR-53
+- [x] **T6. Runner and experimental-warning filter.** NFR-53
   - Files: `apps/server/src/{warnings.ts,main.ts}`, `apps/server/package.json` (`start` and `check` scripts with the U2 runner), `apps/server/test/platform-runner.test.ts`, plan section 13.
   - Tests first (plan sections 7 and 8, child processes with `process.execPath`, 20 s timeout): `main.ts --check` imports `@mbrg/sim`, `@mbrg/shared`, `node:sqlite`, opens `:memory:`, exits 0; without the filter stderr's SQLite `ExperimentalWarning` presence is recorded (assert the recorded value); with the filter stderr has no SQLite warning and still has a planted `TestWarning`; `warnings.ts` unit test: only a warning whose name is `ExperimentalWarning` and whose message mentions SQLite is dropped.
   - Code: `installWarningFilter()` installed before the dynamic `import('node:sqlite')`; `main.ts` does nothing else in M1 (prints a one-line "check ok" in check mode).
