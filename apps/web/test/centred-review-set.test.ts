@@ -2,9 +2,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { totalRounds } from '@mbrg/sim';
 import { parseAddress } from '../src/core/address';
 import {
+  ARC_CLOSE_UPS,
+  CENTRED_ARC_STEP_HIT,
   CENTRED_DROPPED_SCENES,
   CENTRED_REVIEW_SET,
   CENTRED_STEP_HIT,
+  ESPANA_R2_CENTRE,
   FRANCIA_R4_CENTRE,
   ITALIA_CENTRES,
   NAMED_CLOSE_UPS,
@@ -18,7 +21,7 @@ import { LABEL_PARAMS } from '../src/core/label-params';
 import { LABEL_REVIEW_SET, labelReviewAddress } from '../src/core/label-review-set';
 import { mainRegions, regionsOf } from '../src/core/regions';
 import { SHAPED_REVIEW_SET, hitScale } from '../src/core/shaped-review-set';
-import { centredMeasuredRun, centredStepHit, centreOf, changedShape, heightOf, massCentre, steepTerritories, territoryFrames } from './helpers/centred-hits';
+import { centredArcStepHit, centredMeasuredRun, centredStepHit, centreOf, changedShape, heightOf, massCentre, steepTerritories, territoryFrames } from './helpers/centred-hits';
 import type { CentredDevRun } from './helpers/centred-digest-run';
 import { DEV_MAP } from './helpers/dev-map';
 import { loadIndex } from './helpers/shaped-hits';
@@ -42,7 +45,7 @@ describe('NFR-45 the centred review set addresses', () => {
     for (const label of labels) expect(label, label).toMatch(/^[a-z]+(-[a-z0-9]+)*$/);
     const old = new Set([...LABEL_REVIEW_SET, ...SHAPED_REVIEW_SET].map((s) => s.label));
     for (const label of labels) expect(old.has(label), label).toBe(false);
-    expect(labels.length).toBe(5 + 1 + 4 + 5 + 6 + 12 + 6);
+    expect(labels.length).toBe(5 + 1 + 4 + 1 + 5 + 5 + 6 + 12 + 3 + 36);
   });
 
   it('NFR-45 every address parses with no problem and reads back the same scene and frozen progress', async () => {
@@ -81,6 +84,41 @@ describe('NFR-45 the centred review set addresses', () => {
       expect(s.camera!.x).toBe((CENTRED_STEP_HIT.before.x + CENTRED_STEP_HIT.after.x) / 2);
       expect(s.camera!.y).toBe((CENTRED_STEP_HIT.before.y + CENTRED_STEP_HIT.after.y) / 2);
     }
+  });
+});
+
+describe('NFR-45 D19 the arc step scenes freeze the five forward progress values on the first step with an arc at an end', () => {
+  it('NFR-45 D19 step-curve-0 .. -1: seed 1 round 1 to 2, camera on the midpoint of the two frame centres', () => {
+    const scenes = CENTRED_REVIEW_SET.filter((s) => s.label.startsWith('step-curve'));
+    expect(scenes.map((s) => s.frozen)).toStrictEqual(['0', '0.25', '0.5', '0.75', '1']);
+    for (const s of scenes) {
+      expect([s.seed, s.round]).toStrictEqual([CENTRED_ARC_STEP_HIT.seed, CENTRED_ARC_STEP_HIT.round + 1]);
+      expect(s.camera!.x).toBe((CENTRED_ARC_STEP_HIT.before.x + CENTRED_ARC_STEP_HIT.after.x) / 2);
+      expect(s.camera!.y).toBe((CENTRED_ARC_STEP_HIT.before.y + CENTRED_ARC_STEP_HIT.after.y) / 2);
+    }
+  });
+
+  it('NFR-45 D19 the ordered search finds Espana 2 (round 1 to 2) first: horizontal before, an arc after', async () => {
+    const { index, p } = await loadIndex();
+    const { hit, seeds } = centredArcStepHit(index, p, 1);
+    expect(seeds).toBe(1);
+    expect(hit).toBeDefined();
+    expect([hit!.seed, hit!.round, plain(hit!.name)]).toStrictEqual([CENTRED_ARC_STEP_HIT.seed, CENTRED_ARC_STEP_HIT.round, CENTRED_ARC_STEP_HIT.faction]);
+    expect([hit!.before.shape, hit!.after.shape]).toStrictEqual(['horizontal', 'arc']);
+    expect(centreOf(hit!.before)).toStrictEqual(CENTRED_ARC_STEP_HIT.before);
+    expect(centreOf(hit!.after)).toStrictEqual(CENTRED_ARC_STEP_HIT.after);
+  }, 120000);
+
+  it('NFR-45 D19 the espana-r2 scene is on the centre of mass of the main region of Espana at round 2 and is an arc', () => {
+    const espana = [...run.texts.factions].find(([, name]) => plain(name) === 'Espana')![0];
+    const region = mainRegions(regionsOf(run.p, run.tables[2]!)).get(espana)!;
+    const s = centreSums(run.p, region.pieces);
+    const round1 = (v: number): number => Math.round(v * 10) / 10;
+    expect({ x: round1(Number(s.sx) / Number(s.n) + 0.5), y: round1(Number(s.sy) / Number(s.n) + 0.5) }).toStrictEqual(ESPANA_R2_CENTRE);
+    expect(run.centredFactions[2]!.inLand.get(espana)?.shape).toBe('arc');
+    const scene = CENTRED_REVIEW_SET.find((x) => x.label === 'espana-r2')!;
+    expect([scene.seed, scene.round]).toStrictEqual([1, 2]);
+    expect(scene.camera).toStrictEqual({ x: ESPANA_R2_CENTRE.x, y: ESPANA_R2_CENTRE.y, zoom: LABEL_PARAMS.fadeStart - 0.25 });
   });
 });
 
@@ -129,20 +167,41 @@ describe('NFR-45 the territory close-up lists equal what the 006 and 007 layouts
     }
   });
 
-  it('NFR-45 the shape-change close-ups are among the 25 horizontal-to-straight and 9 arc-to-straight territories', () => {
+  it('NFR-45 D19 the shape-change close-ups are among the 10 horizontal-to-straight territories (the arc-to-straight ones are in the arc list)', () => {
     const hs = changedShape(run, 'horizontal', 'straight');
-    const as = changedShape(run, 'arc', 'straight');
-    expect([hs.length, as.length]).toStrictEqual([25, 9]);
+    expect(hs).toHaveLength(10);
     for (const r of SHAPE_CHANGE_CLOSE_UPS) {
-      expect((r.from === 'horizontal' ? hs : as).includes(r.entry), r.name).toBe(true);
+      expect(hs.includes(r.entry), r.name).toBe(true);
       check(r);
     }
-    expect(SHAPE_CHANGE_CLOSE_UPS.filter((r) => r.from === 'horizontal')).toHaveLength(3);
-    expect(SHAPE_CHANGE_CLOSE_UPS.filter((r) => r.from === 'arc')).toHaveLength(3);
+    expect(SHAPE_CHANGE_CLOSE_UPS).toHaveLength(3);
+    expect(changedShape(run, 'arc', 'straight')).toHaveLength(2);
+  });
+
+  it('NFR-45 D19 the arc close-ups are every territory that is an arc in 006 or in the D19 layout, apart from the ones in the named and steep lists', () => {
+    const arcs: number[] = [];
+    for (let entry = 1; entry < run.p.entries; entry++) {
+      if (run.territories.eligible[entry] !== 1) continue;
+      const { before, after } = territoryFrames(run, entry);
+      if (before?.shape === 'arc' || after?.shape === 'arc') arcs.push(entry);
+    }
+    expect(arcs).toHaveLength(43);
+    const listed = new Set([...NAMED_CLOSE_UPS, ...STEEP_CLOSE_UPS].map((r) => r.entry));
+    expect(ARC_CLOSE_UPS.map((r) => r.entry)).toStrictEqual(arcs.filter((e) => !listed.has(e)));
+    expect(ARC_CLOSE_UPS).toHaveLength(36);
+    for (const r of ARC_CLOSE_UPS) {
+      check(r);
+      const { before, after } = territoryFrames(run, r.entry);
+      expect([r.from, r.to]).toStrictEqual([before!.shape, after!.shape]);
+    }
+    // the 006 arcs: 9 territories, 7 of them are arcs again
+    const old = arcs.filter((e) => territoryFrames(run, e).before?.shape === 'arc');
+    expect(old).toHaveLength(9);
+    expect(old.filter((e) => territoryFrames(run, e).after?.shape === 'arc')).toHaveLength(7);
   });
 
   it('NFR-45 each close-up scene is centred on its territory, above L1 and large enough for the minimum text size', () => {
-    for (const r of [...NAMED_CLOSE_UPS, ...STEEP_CLOSE_UPS, ...SHAPE_CHANGE_CLOSE_UPS]) {
+    for (const r of [...NAMED_CLOSE_UPS, ...STEEP_CLOSE_UPS, ...SHAPE_CHANGE_CLOSE_UPS, ...ARC_CLOSE_UPS]) {
       const scene = CENTRED_REVIEW_SET.find((s) => s.label.endsWith(`-${slug(r.name)}`) && s.camera?.x === r.centre.x);
       expect(scene, r.name).toBeDefined();
       expect(scene!.camera, r.name).toStrictEqual({ x: r.centre.x, y: r.centre.y, zoom: hitScale(r.height) });

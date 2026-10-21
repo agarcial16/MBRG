@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { CENTRE_PARAMS } from '../src/core/centre-params';
+import type { CentreParams } from '../src/core/centre-params';
 import { centreSums, endStep, factionHeightCap, inDiscUnit, regionBox } from '../src/core/label-centre';
 import { axisAngle, axisExtent, shapesOf } from '../src/core/label-axis';
 import { arcCandidate, arcMinHeight, centredCache, centredCandidate, centredInLand, chooseInLand } from '../src/core/label-centred';
 import { arcExists, arcSearch, arcWithinLimit, inArc, shapedCandidate } from '../src/core/label-shape';
 import type { ArcFrame, InLandFrame } from '../src/core/label-shape';
+import type { LabelRole } from '../src/core/label-frame';
 import { LABEL_PARAMS } from '../src/core/label-params';
 import { SHAPE_PARAMS } from '../src/core/shape-params';
 import type { ShapeParams } from '../src/core/shape-params';
@@ -43,9 +45,9 @@ const random = randomRegions(200);
 const small = smallArcRegions();
 const bands = arcRegions();
 
-function arcAt(r: TestRegion, k: number, minHeight: number, top: number | undefined, distance = false): ArcFrame | undefined {
+function arcAt(r: TestRegion, k: number, minHeight: number, top: number | undefined, distance = false, role: LabelRole = 'faction'): ArcFrame | undefined {
   const cache = centredCache(r.p, r.pieces, r.aspect, M, distance);
-  return arcCandidate(r.p, r.pieces, r.aspect, M, SP, CENTRE_PARAMS, k, cache, minHeight, top);
+  return arcCandidate(r.p, r.pieces, r.aspect, M, SP, CENTRE_PARAMS, k, cache, minHeight, top, role);
 }
 
 describe('FR-221 the tangent limit (pinned formula)', () => {
@@ -68,21 +70,53 @@ describe('FR-221 the tangent limit (pinned formula)', () => {
     expect(arcWithinLimit(frame(60, 60, 1.1), 1, 90)).toBe(false); // 60 + 33 > 90
   });
 
-  it('FR-221 an arc candidate never has a tangent beyond 45 degrees, for either role (same rule)', () => {
+  it('FR-221 D19 an arc candidate never has a tangent beyond the limit of its role (45 factions, 75 territories)', () => {
     let seen = 0;
-    for (const r of [...small, ...bands.slice(0, 6), ...random.slice(0, 60)]) {
-      const cache = centredCache(r.p, r.pieces, r.aspect, M);
-      for (const k of [1, 3]) {
-        const a = arcCandidate(r.p, r.pieces, r.aspect, M, SP, CENTRE_PARAMS, k, cache, 1, undefined);
-        if (a === undefined) continue;
-        seen++;
-        const extent = axisExtent(r.p, r.pieces, axisAngle(r.p, r.pieces));
-        expect(arcExists(a, extent, M), r.name).toBe(true);
-        expect(arcWithinLimit(a, extent, CENTRE_PARAMS.angleLimit), r.name).toBe(true);
-        expect(Math.abs(a.angle)).toBeLessThanOrEqual(45);
+    for (const role of ROLES) {
+      const limit = CENTRE_PARAMS.arcTangentLimit[role];
+      for (const r of [...small, ...bands.slice(0, 6), ...random.slice(0, 60)]) {
+        const cache = centredCache(r.p, r.pieces, r.aspect, M);
+        for (const k of [1, 3]) {
+          const a = arcCandidate(r.p, r.pieces, r.aspect, M, SP, CENTRE_PARAMS, k, cache, 1, undefined, role);
+          if (a === undefined) continue;
+          seen++;
+          const extent = axisExtent(r.p, r.pieces, axisAngle(r.p, r.pieces));
+          expect(arcExists(a, extent, M), r.name).toBe(true);
+          expect(arcWithinLimit(a, extent, limit), `${r.name} ${role}`).toBe(true);
+          expect(Math.abs(a.angle)).toBeLessThanOrEqual(limit);
+        }
       }
     }
-    expect(seen).toBeGreaterThan(10);
+    expect(seen).toBeGreaterThan(20);
+  }, 240000);
+
+  it('FR-221 D19 a territory arc with tangents between 45 and 75 degrees exists; the faction arc of the same region does not have them', () => {
+    let steep = 0;
+    for (const r of [...thinBands, ...small, ...bands, ...hand, ...random.slice(0, 100)]) {
+      const extent = axisExtent(r.p, r.pieces, axisAngle(r.p, r.pieces));
+      for (const k of [1, 2]) {
+        const t = arcAt(r, k, 1, undefined, false, 'territory');
+        const f = arcAt(r, k, 1, undefined, false, 'faction');
+        if (f !== undefined) expect(arcWithinLimit(f, extent, 45), `${r.name} faction`).toBe(true);
+        if (t === undefined || arcWithinLimit(t, extent, 45)) continue;
+        steep++;
+        expect(arcWithinLimit(t, extent, 75), `${r.name} territory`).toBe(true);
+        expect(f === undefined || f.h <= t.h, `${r.name} faction is not taller`).toBe(true);
+        expect(refArc(r.units, r.p, r.pieces, r.aspect, M, CENTRE_PARAMS, SP, k, undefined, 75), r.name).toStrictEqual(t);
+      }
+    }
+    expect(steep).toBeGreaterThan(0);
+  }, 240000);
+
+  it('FR-221 D19 the territory arc candidate equals the reference with the 75 degree limit', () => {
+    let cases = 0;
+    for (const r of [...small, ...thinBands, ...hand, ...random.slice(0, 60)]) {
+      for (const k of [1, 2]) {
+        expect(arcAt(r, k, 1, undefined, false, 'territory'), `${r.name} k ${String(k)}`).toStrictEqual(refArc(r.units, r.p, r.pieces, r.aspect, M, CENTRE_PARAMS, SP, k, undefined, 75));
+        cases++;
+      }
+    }
+    expect(cases).toBeGreaterThan(80);
   }, 240000);
 });
 
@@ -186,7 +220,7 @@ describe('FR-221 the arc candidate equals the reference definitions', () => {
     const big = region('thick circular band', units, 1);
     const cache = centredCache(big.p, big.pieces, big.aspect, M);
     const s = centreSums(big.p, big.pieces);
-    const a = arcCandidate(big.p, big.pieces, big.aspect, M, SP, CENTRE_PARAMS, 4, cache, 1, undefined);
+    const a = arcCandidate(big.p, big.pieces, big.aspect, M, SP, CENTRE_PARAMS, 4, cache, 1, undefined, 'faction');
     expect(a).toBeDefined();
     expect(a!.h).toBeGreaterThan(LABEL_PARAMS.maxHeight);
     expect(inDiscUnit(s, CENTRE_PARAMS, 4, a!.cx - 0.5, a!.cy - 0.5)).toBe(true);
@@ -202,24 +236,53 @@ describe('FR-221 the arc candidate equals the reference definitions', () => {
 });
 
 describe('FR-221 the G rule: the arc is used iff its height is at least G times the centred height', () => {
-  it('FR-221 arcMinHeight(hC) = ceil(1.25 hC) and the minimum is 1 without a centred candidate', () => {
-    expect(arcMinHeight(undefined, SP)).toBe(1);
-    for (let h = 1; h <= 300; h++) expect(arcMinHeight(h, SP), String(h)).toBe(Math.ceil((5 * h) / 4));
+  it('FR-221 D19 arcMinHeight(hC) = ceil(Ga x hC) with the exact rational Ga (1 today) and the minimum is 1 without a centred candidate', () => {
+    expect(arcMinHeight(undefined, CENTRE_PARAMS)).toBe(1);
+    for (let h = 1; h <= 300; h++) expect(arcMinHeight(h, CENTRE_PARAMS), String(h)).toBe(h);
+    // the formula is the ceiling of a rational: checked on non-trivial gains too
+    const gain = (num: number, den: number): CentreParams => ({ ...CENTRE_PARAMS, arcGain: { num, den } });
+    for (let h = 1; h <= 300; h++) {
+      expect(arcMinHeight(h, gain(5, 4)), `5/4 ${String(h)}`).toBe(Math.ceil((5 * h) / 4));
+      expect(arcMinHeight(h, gain(7, 3)), `7/3 ${String(h)}`).toBe(Math.ceil((7 * h) / 3));
+    }
   });
 
-  it('FR-221 an arc of height ceil(1.25 hC) - 1 loses and one of height ceil(1.25 hC) wins, for every hC', () => {
+  it('FR-221 D19 an arc of the same height as the centred candidate wins and a lower one loses, for every hC', () => {
     // the choice function of the widening loop, on synthetic frames
     const arcOf = (h: number): ArcFrame => ({ shape: 'arc', cx: 0, cy: 0, angle: 0, h, w: h, bend: 30, radius: 100 });
     for (let hC = 1; hC <= 200; hC++) {
-      const need = Math.ceil((5 * hC) / 4);
-      expect(chooseInLand(arcOf(need - 1), { shape: 'horizontal', box: { x0: 0, y0: 0, h: hC, w: hC } }, SP)?.shape, `hC ${String(hC)} h ${String(need - 1)}`).toBe('horizontal');
-      expect(chooseInLand(arcOf(need), { shape: 'horizontal', box: { x0: 0, y0: 0, h: hC, w: hC } }, SP)?.shape, `hC ${String(hC)} h ${String(need)}`).toBe('arc');
+      const horizontal: InLandFrame = { shape: 'horizontal', box: { x0: 0, y0: 0, h: hC, w: hC } };
+      expect(chooseInLand(arcOf(hC - 1), horizontal, CENTRE_PARAMS)?.shape, `hC ${String(hC)} lower`).toBe('horizontal');
+      expect(chooseInLand(arcOf(hC), horizontal, CENTRE_PARAMS)?.shape, `hC ${String(hC)} equal`).toBe('arc');
+      expect(chooseInLand(arcOf(hC + 1), horizontal, CENTRE_PARAMS)?.shape, `hC ${String(hC)} taller`).toBe('arc');
     }
     // no centred candidate: any arc wins; no arc: the centred candidate
-    expect(chooseInLand(arcOf(1), undefined, SP)?.shape).toBe('arc');
-    expect(chooseInLand(undefined, { shape: 'horizontal', box: { x0: 0, y0: 0, h: 5, w: 5 } }, SP)?.shape).toBe('horizontal');
-    expect(chooseInLand(undefined, undefined, SP)).toBeUndefined();
+    expect(chooseInLand(arcOf(1), undefined, CENTRE_PARAMS)?.shape).toBe('arc');
+    expect(chooseInLand(undefined, { shape: 'horizontal', box: { x0: 0, y0: 0, h: 5, w: 5 } }, CENTRE_PARAMS)?.shape).toBe('horizontal');
+    expect(chooseInLand(undefined, undefined, CENTRE_PARAMS)).toBeUndefined();
   });
+
+  it('FR-221 D19 order at equal height: arc, then horizontal, then straight (a straight frame is beaten by an equal arc)', () => {
+    const arc: ArcFrame = { shape: 'arc', cx: 0, cy: 0, angle: 0, h: 10, w: 40, bend: 30, radius: 100 };
+    const straight: InLandFrame = { shape: 'straight', cx: 0, cy: 0, angle: 30, h: 10, w: 40 };
+    const horizontal: InLandFrame = { shape: 'horizontal', box: { x0: 0, y0: 0, h: 10, w: 40 } };
+    expect(chooseInLand(arc, straight, CENTRE_PARAMS)).toBe(arc);
+    expect(chooseInLand(arc, horizontal, CENTRE_PARAMS)).toBe(arc);
+    expect(chooseInLand({ ...arc, h: 9 }, straight, CENTRE_PARAMS)).toBe(straight);
+  });
+
+  it('FR-221 D19 no straight frame is steeper than 45 degrees, in either role', () => {
+    let straights = 0;
+    for (const r of lite) {
+      for (const role of ROLES) {
+        const got = centredInLand(r.p, r.pieces, r.aspect, role, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS);
+        if (got.frame?.shape !== 'straight') continue;
+        straights++;
+        expect(Math.abs(got.frame.angle), `${r.name} ${role}`).toBeLessThanOrEqual(45);
+      }
+    }
+    expect(straights).toBeGreaterThan(3);
+  }, 600000);
 
   it('FR-221 on real grids the choice follows the gain: G just below and just above the arc to centred ratio', () => {
     let seen = 0;
@@ -228,15 +291,17 @@ describe('FR-221 the G rule: the arc is used iff its height is at least G times 
         const cache = centredCache(r.p, r.pieces, r.aspect, M);
         const c = centredCandidate(r.p, r.pieces, r.aspect, M, CENTRE_PARAMS, k, cache, undefined);
         const hC = c === undefined ? 0 : c.shape === 'horizontal' ? c.box.h : c.h;
-        const a = arcCandidate(r.p, r.pieces, r.aspect, M, SP, CENTRE_PARAMS, k, cache, 1, undefined);
+        const a = arcCandidate(r.p, r.pieces, r.aspect, M, SP, CENTRE_PARAMS, k, cache, 1, undefined, 'territory');
         if (c === undefined || a === undefined) continue;
         seen++;
-        const arcWins: ShapeParams = { ...SP, shapeGain: (a.h - 0.5) / hC, offLandHeight: { faction: 1, territory: 1 } };
-        const arcLoses: ShapeParams = { ...SP, shapeGain: (a.h + 0.5) / hC, offLandHeight: { faction: 1, territory: 1 } };
+        const gainOf = (num: number): CentreParams => ({ ...CENTRE_PARAMS, arcGain: { num, den: hC } });
+        const lowOffLand: ShapeParams = { ...SP, offLandHeight: { faction: 1, territory: 1 } };
+        const arcWins = gainOf(a.h);
+        const arcLoses = gainOf(a.h + 1);
         // with offLandHeight 1 the loop stops at the first step that has a frame; step k is the first only for k = 1
         if (k !== 1) continue;
-        const win = centredInLand(r.p, r.pieces, r.aspect, 'territory', LABEL_PARAMS, arcWins, CENTRE_PARAMS);
-        const lose = centredInLand(r.p, r.pieces, r.aspect, 'territory', LABEL_PARAMS, arcLoses, CENTRE_PARAMS);
+        const win = centredInLand(r.p, r.pieces, r.aspect, 'territory', LABEL_PARAMS, lowOffLand, arcWins);
+        const lose = centredInLand(r.p, r.pieces, r.aspect, 'territory', LABEL_PARAMS, lowOffLand, arcLoses);
         expect(win.frame?.shape, `${r.name} wins`).toBe('arc');
         expect(win.frame).toStrictEqual(a);
         expect(lose.frame, `${r.name} loses`).toStrictEqual(c);
@@ -369,8 +434,11 @@ describe('FR-230 the faction size cap bounds all three shapes', () => {
     const cap = refFactionCap(n, 1, CENTRE_PARAMS);
     expect(cap).toBe(57); // 10 x 57 x 57 = 32,490 <= 33,000 < 10 x 58 x 58
     const faction = centredInLand(block.p, block.pieces, 1, 'faction', LABEL_PARAMS, SP, CENTRE_PARAMS);
-    expect(faction.frame?.shape).toBe('horizontal');
+    // D19: an arc of the capped height ties with the horizontal frame and wins the tie (FR-221)
+    expect(faction.frame?.shape).toBe('arc');
     expect(heightOf(faction.frame)).toBe(cap);
+    const cache = centredCache(block.p, block.pieces, 1, M);
+    expect(heightOf(centredCandidate(block.p, block.pieces, 1, M, CENTRE_PARAMS, faction.k, cache, cap))).toBe(cap);
     const territory = centredInLand(block.p, block.pieces, 1, 'territory', LABEL_PARAMS, SP, CENTRE_PARAMS);
     expect(heightOf(territory.frame)).toBeGreaterThan(cap);
     expect(factionHeightCap(n, 1, CENTRE_PARAMS.factionAreaShare)).toBe(cap);
@@ -453,4 +521,48 @@ describe('FR-221 the 006 shape search is bit-identical after the arcSearch extra
     }
     expect(arcs).toBeGreaterThan(0);
   }, 240000);
+});
+
+describe('NFR-43 the arc search without the distance map (nearest centre first) equals the pruned search', () => {
+  it('NFR-43 FR-221 both roles, steps 1 to 3: the unpruned nearest-first candidate equals the candidate of the exact distance map', () => {
+    let compared = 0;
+    let defined = 0;
+    for (const r of [...small, ...hand, ...thinBands, ...bands.slice(0, 4), ...random.slice(0, 80)]) {
+      for (const role of ROLES) {
+        for (const k of [1, 2, 3]) {
+          const fast = arcAt(r, k, 1, undefined, false, role);
+          const pruned = arcAt(r, k, 1, undefined, true, role);
+          expect(fast, `${r.name} ${role} k ${String(k)}`).toStrictEqual(pruned);
+          compared++;
+          if (fast !== undefined) defined++;
+        }
+      }
+    }
+    expect(compared).toBeGreaterThan(600);
+    expect(defined).toBeGreaterThan(60);
+  }, 600000);
+
+  it('NFR-43 FR-221 a height cap and a minimum height give the same arc on both paths', () => {
+    let seen = 0;
+    for (const r of [...small, ...thinBands, ...bands.slice(0, 4)]) {
+      for (const top of [3, 8, undefined]) {
+        const base = arcAt(r, 2, 1, top, true, 'territory');
+        for (const minHeight of [1, base === undefined ? 1 : base.h, base === undefined ? 1 : base.h + 1]) {
+          expect(arcAt(r, 2, minHeight, top, false, 'territory'), `${r.name} top ${String(top)} min ${String(minHeight)}`).toStrictEqual(arcAt(r, 2, minHeight, top, true, 'territory'));
+          seen++;
+        }
+      }
+    }
+    expect(seen).toBeGreaterThan(30);
+  }, 600000);
+
+  it('NFR-43 arcSearch refuses the nearest-first mode without cells or with the distance prune', () => {
+    const r = small[0]!;
+    const theta = axisAngle(r.p, r.pieces);
+    const extent = axisExtent(r.p, r.pieces, theta);
+    const arcs = shapesOf(theta, extent, SP).filter((s) => s.shape === 'arc');
+    const options = { extent, top: 10, minHeight: 1, nearest: () => 0 };
+    expect(() => arcSearch(r.p, r.pieces, r.aspect, M, arcs, options)).toThrow(RangeError);
+    expect(() => arcSearch(r.p, r.pieces, r.aspect, M, arcs, { ...options, cells: [0] })).toThrow(RangeError);
+  });
 });

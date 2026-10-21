@@ -74,6 +74,23 @@ export interface CentredStepHit {
  * recomputes) is drawn horizontal in the earlier round and straight in the later one (spec NFR-45).
  */
 export function centredStepHit(index: EntryIndex, p: PieceIndex, maxSeed: number): { hit: CentredStepHit | undefined; seeds: number } {
+  return stepHitWhere(index, p, maxSeed, (before, after) => before?.shape === 'horizontal' && after?.shape === 'straight');
+}
+
+/**
+ * The first (seed ascending, then round) forward step whose absorber is drawn as an in-land arc at the earlier round or
+ * at the later one (spec D19: such a step is a crossfade, 006 FR-210 c).
+ */
+export function centredArcStepHit(index: EntryIndex, p: PieceIndex, maxSeed: number): { hit: CentredStepHit | undefined; seeds: number } {
+  return stepHitWhere(index, p, maxSeed, (before, after) => before?.shape === 'arc' || after?.shape === 'arc');
+}
+
+function stepHitWhere(
+  index: EntryIndex,
+  p: PieceIndex,
+  maxSeed: number,
+  match: (before: Drawn | undefined, after: Drawn | undefined) => boolean,
+): { hit: CentredStepHit | undefined; seeds: number } {
   const a = aspectsOf(index);
   let seeds = 0;
   for (let seed = 1; seed <= maxSeed; seed++) {
@@ -85,7 +102,7 @@ export function centredStepHit(index: EntryIndex, p: PieceIndex, maxSeed: number
       for (const faction of next.recomputed) {
         const before = drawnOf(previous.placed.get(faction), previous.inLand.get(faction));
         const after = drawnOf(next.placed.get(faction), next.inLand.get(faction));
-        if (before?.shape === 'horizontal' && after?.shape === 'straight') {
+        if (before !== undefined && after !== undefined && match(before, after)) {
           return { hit: { seed, round, faction, name: a.texts.factions.get(faction)!, before, after }, seeds };
         }
       }

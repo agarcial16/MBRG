@@ -91,21 +91,25 @@ describe('FR-226 the 006 step rules on the 007 layouts of seed 1', () => {
     expect(labelsAt(s, 1).filter((d) => d.text === 'Francia').map((d) => 'frame' in d)).toStrictEqual([true]);
   });
 
-  it('FR-226 Italia 2 -> 3 (the absorber, straight to horizontal): one interpolated straight draw at f = 0.25, 0.5, 0.75 and one draw at the ends', () => {
+  it('FR-226 D19 Italia 2 -> 3 (the absorber, straight to an arc): a crossfade, two draws with factors 1 - f and f, one draw at the ends', () => {
     const s = stepOf(2);
     const italia = [...run.texts.factions].find(([, n]) => n === 'Italia')![0];
     const before = drawnOf(run.centredFactions[2]!.placed.get(italia), run.centredFactions[2]!.inLand.get(italia))!;
     const after = drawnOf(run.centredFactions[3]!.placed.get(italia), run.centredFactions[3]!.inLand.get(italia))!;
-    expect([before.shape, after.shape]).toStrictEqual(['straight', 'horizontal']);
+    // spec D19: the arc ties with the horizontal frame at round 3 (h133) and wins; an arc end is never interpolated (006 FR-210 c)
+    expect([before.shape, after.shape]).toStrictEqual(['straight', 'arc']);
     const draws = (f: number): AnyLabelDraw[] => labelsAt(s, f).filter((d) => d.text === 'Italia');
-    // Italia absorbs: straight to horizontal interpolates through one straight frame (006 FR-210 b), not a crossfade
     expect(s.absorber).toBe(italia);
     for (const f of [0.25, 0.5, 0.75]) {
-      expect(draws(f)).toHaveLength(1);
-      expect(shaped(draws(f)[0]!).factor).toBe(1);
+      const d = draws(f);
+      expect(d, `f ${String(f)}`).toHaveLength(2);
+      expect(d.map((x) => shaped(x).factor)).toStrictEqual([1 - f, f]);
+      expect(d.map((x) => shaped(x).frame.shape)).toStrictEqual(['straight', 'arc']);
     }
     expect(draws(0)).toHaveLength(1);
     expect(draws(1)).toHaveLength(1);
+    expect(shaped(draws(0)[0]!).frame.shape).toBe('straight');
+    expect(shaped(draws(1)[0]!).frame.shape).toBe('arc');
     // Italia at rounds 0 to 2 is one unchanged region: its label is the same draw before and after step 0 -> 1
     for (const f of FS) expect(labelsAt(stepOf(0), f).filter((d) => d.text === 'Italia')).toHaveLength(1);
   });
@@ -136,7 +140,7 @@ describe('FR-227 straight frames are drawn at their natural proportions', () => 
         if (f !== undefined && f.shape === 'straight') frames.push({ frame: f, aspect: run.factionAspects.get(faction)! });
       }
     }
-    expect(frames.length).toBeGreaterThan(60);
+    expect(frames.length).toBe(28); // 22 territories + 6 faction labels after D19 (arcs took the rest)
     for (const { frame, aspect } of frames) {
       expect(Math.abs(frame.w - frame.h * aspect), 'w = h x aspect').toBeLessThan(1e-9 * frame.w);
       // the text drawn at the frame height has length h x aspect: the stretch is w / measured = 1

@@ -38,6 +38,9 @@ const sameRatio = (a: { num: number; den: number }, b: { num: number; den: numbe
 const sameCentreParams = (a: CentreParams, b: CentreParams): boolean =>
   sameRatio(a.centreFraction, b.centreFraction) &&
   a.angleLimit === b.angleLimit &&
+  sameRatio(a.arcGain, b.arcGain) &&
+  a.arcTangentLimit.faction === b.arcTangentLimit.faction &&
+  a.arcTangentLimit.territory === b.arcTangentLimit.territory &&
   a.straightAngles.length === b.straightAngles.length &&
   a.straightAngles.every((v, i) => v === b.straightAngles[i]) &&
   sameRatio(a.factionAreaShare, b.factionAreaShare);

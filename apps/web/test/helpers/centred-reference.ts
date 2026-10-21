@@ -317,7 +317,7 @@ export function refArc(
   sp: ShapeParams,
   k: number,
   top: number | undefined,
-  limit: number = cp.angleLimit,
+  limit: number = cp.arcTangentLimit.faction,
 ): ArcFrame | undefined {
   if (units.length === 0) return undefined;
   const f = factsOf(units, cp);
@@ -435,8 +435,8 @@ export function refInLand(
   const steps: RefStep[] = [];
   for (let k = 1; k <= kEnd; k++) {
     const centred = cap === 0 ? undefined : centredAt(units, aspect, margin, cp, k, cap);
-    const arc = cap === 0 ? undefined : refArc(units, p, pieces, aspect, margin, cp, sp, k, cap);
-    const useArc = arc !== undefined && (centred === undefined || arc.h >= sp.shapeGain * heightOf(centred));
+    const arc = cap === 0 ? undefined : refArc(units, p, pieces, aspect, margin, cp, sp, k, cap, cp.arcTangentLimit[role]);
+    const useArc = arc !== undefined && (centred === undefined || arc.h * cp.arcGain.den >= cp.arcGain.num * heightOf(centred));
     const chosen: InLandFrame | undefined = useArc ? arc : centred;
     steps.push({ k, centred, arc, chosen });
     if (chosen !== undefined && heightOf(chosen) >= sp.offLandHeight[role]) return { frame: chosen, k, kEnd, steps };

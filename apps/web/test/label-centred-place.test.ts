@@ -25,7 +25,7 @@ const SP = SHAPE_PARAMS;
 const CP = CENTRE_PARAMS;
 
 /** The pinned 007 digest of the dev-map placement (territories once, factions of seed 1 rounds 0..4), taken in T5. */
-const PINNED_007_DIGEST = '767ff73c98c1fa4d';
+const PINNED_007_DIGEST = '0b3472aa148ea55e'; // re-pinned in T8b (spec D19); the T5 value was 767ff73c98c1fa4d
 const PINNED_006_DIGEST = '23c90b67d52cbcfa';
 
 type Drawn = InLandFrame | Placed | undefined;
@@ -191,6 +191,10 @@ describe('FR-217 FR-223 FR-224 FR-225 FR-229 NFR-44 the 007 placement of the dev
     const other = { ...CP, angleLimit: 44 };
     const step = placeCentredFactions(run.p, run.tables[1]!, run.factionAspects, P, SP, other, from);
     expect(step.recomputed).toStrictEqual([...from.boxes.labels.keys()]);
+    // D19 parameters: the arc gain and each role's tangent limit take part in the reuse check
+    for (const d19 of [{ ...CP, arcGain: { num: 5, den: 4 } }, { ...CP, arcTangentLimit: { ...CP.arcTangentLimit, faction: 46 } }, { ...CP, arcTangentLimit: { ...CP.arcTangentLimit, territory: 74 } }]) {
+      expect(placeCentredFactions(run.p, run.tables[1]!, run.factionAspects, P, SP, d19, from).recomputed).toStrictEqual([...from.boxes.labels.keys()]);
+    }
     const sp2 = { ...SP, leaderGap: SP.leaderGap + 1 };
     expect(placeCentredFactions(run.p, run.tables[1]!, run.factionAspects, P, sp2, CP, from).recomputed).toStrictEqual([...from.boxes.labels.keys()]);
     expect(placeCentredFactions(run.p, run.tables[1]!, run.factionAspects, P, SP, CP, from).recomputed).toStrictEqual([]);
@@ -251,7 +255,7 @@ describe('FR-217 FR-223 FR-224 FR-225 FR-229 NFR-44 the 007 placement of the dev
     expect(await devCentredDigest()).toBe(digest);
     console.log(`label-centred-place: 007 layout digest ${digest}`);
     expect(digest).toBe(PINNED_007_DIGEST);
-  });
+  }, 60000); // the second placement of the dev map takes about 5 s on a loaded machine
 
   it('NFR-44 the 006 D11 digest of the retained placement is unchanged', () => {
     expect(layoutDigest(run.territories, run.factions)).toBe(PINNED_006_DIGEST);
@@ -274,17 +278,21 @@ describe('FR-217 FR-223 FR-224 FR-225 FR-229 NFR-44 the 007 placement of the dev
     console.log(`label-centred-place: ${String(changed.length)} of ${String(total)} labels changed versus 006\n  ${lines.join('\n  ')}`);
     console.log(`label-centred-place: changed labels\n  ${changed.map((c) => `${c.role}${c.round >= 0 ? ` r${String(c.round)}` : ''} ${c.name}: ${c.before} -> ${c.after} [${c.kind}]`).join('\n  ')}`);
     expect(total).toBe(70 + [...run.factions].reduce((s, f) => s + f.boxes.labels.size, 0));
-    expect(changed.length).toBe(82);
+    expect(changed.length).toBe(83);
     expect(Object.fromEntries(counts)).toStrictEqual({
-      'territory: arc -> straight': 8,
-      'territory: horizontal, moved or resized': 10,
-      'territory: straight, angle changed': 9,
-      'territory: horizontal -> straight': 36,
-      'territory: straight, same angle (moved or resized)': 3,
+      'territory: arc -> straight': 3,
+      'territory: horizontal, moved or resized': 5,
+      'territory: straight -> arc': 4,
+      'territory: horizontal -> arc': 25,
+      'territory: horizontal -> straight': 18,
+      'territory: straight, angle changed': 6,
+      'territory: straight, same angle (moved or resized)': 2,
+      'territory: arc, moved or resized': 4,
       'territory: straight -> horizontal': 1,
-      'faction: horizontal, moved or resized': 9,
+      'faction: horizontal, moved or resized': 7,
       'faction: arc -> straight': 3,
       'faction: straight, angle changed': 2,
+      'faction: horizontal -> arc': 2,
       'faction: horizontal -> straight': 1,
     });
   });
@@ -332,17 +340,21 @@ describe('NFR-44 the changed-label list versus 006 with the aspects measured in 
     console.log(`label-centred-place: measured changed labels\n  ${rows.join('\n  ')}`);
     expect(total).toBe(70 + run.factions.reduce((s, f) => s + f.boxes.labels.size, 0));
     expect(changed.length).toBe(82);
-    expect(shapes).toStrictEqual({ horizontal: 15, straight: 55, arc: 0, offLand: 0, none: 0 });
+    expect(shapes).toStrictEqual({ horizontal: 7, straight: 22, arc: 41, offLand: 0, none: 0 });
     expect(Object.fromEntries(counts)).toStrictEqual({
-      'territory: arc -> straight': 9,
-      'territory: horizontal -> straight': 25,
-      'territory: straight, angle changed': 16,
-      'territory: horizontal, moved or resized': 12,
+      'territory: arc, moved or resized': 5,
+      'territory: horizontal -> straight': 10,
+      'territory: straight -> arc': 11,
+      'territory: horizontal -> arc': 23,
+      'territory: horizontal, moved or resized': 5,
+      'territory: straight, angle changed': 9,
       'territory: straight -> horizontal': 1,
-      'territory: straight, same angle (moved or resized)': 4,
-      'faction: horizontal, moved or resized': 9,
+      'territory: arc -> straight': 2,
+      'territory: straight, same angle (moved or resized)': 1,
+      'faction: horizontal, moved or resized': 7,
       'faction: horizontal -> straight': 4,
       'faction: arc -> straight': 2,
+      'faction: horizontal -> arc': 2,
     });
   }, 240000);
 });

@@ -33,6 +33,8 @@ describe('centre parameters (spec 007)', () => {
     expect(CENTRE_PARAMS).toStrictEqual({
       centreFraction: { num: 7, den: 50 },
       angleLimit: 45,
+      arcGain: { num: 1, den: 1 },
+      arcTangentLimit: { faction: 45, territory: 75 },
       straightAngles: [15, -15, 30, -30, 45, -45],
       factionAreaShare: { num: 1, den: 10 },
     });
@@ -61,8 +63,12 @@ describe('centre parameters (spec 007)', () => {
     expect(a.filter((_, i) => i % 2 === 0).every((t) => t > 0)).toBe(true);
   });
 
-  it('FR-221 the arc tangent limit is 45 degrees', () => {
+  it('FR-221 FR-222 D19 the straight limit is 45 degrees, the arc gain is exactly 1 and the arc tangent limit is 45 (factions) / 75 (territories)', () => {
     expect(CENTRE_PARAMS.angleLimit).toBe(45);
+    expect(CENTRE_PARAMS.arcGain).toStrictEqual({ num: 1, den: 1 });
+    expect(CENTRE_PARAMS.arcTangentLimit).toStrictEqual({ faction: 45, territory: 75 });
+    expect(CENTRE_PARAMS.arcTangentLimit.territory).toBeGreaterThan(CENTRE_PARAMS.angleLimit);
+    expect(SHAPE_PARAMS.shapeGain).toBe(1.25); // the 006 gain is not the 007 gain
   });
 
   it('FR-230 a faction label may cover at most one tenth of the region area', () => {

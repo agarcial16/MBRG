@@ -1,7 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { axisAngle, axisExtent } from '../src/core/label-axis';
+import { CENTRE_PARAMS } from '../src/core/centre-params';
 import { centreSums } from '../src/core/label-centre';
 import { digestNumbers } from '../src/core/label-digest';
+import { mainPieces } from '../src/core/regions';
 import { withCentred } from './helpers/centred-digest-run';
+import type { CentredDevRun } from './helpers/centred-digest-run';
 import { afterFigures, beforeFigures, figureRow, formatAfterRow, formatRow } from './helpers/centred-figures';
 import type { AfterRow, FigureRow } from './helpers/centred-figures';
 import { devRun } from './helpers/label-digest-run';
@@ -119,20 +123,22 @@ const linesDigest = (lines: readonly string[]): string => {
 };
 
 // T8: the "after" columns, the 007 placement of the same run (same labels, same aspects, same helper).
-const AFTER_DIGEST = 'ba6fd9cbf0eda6da';
+// Re-pinned in T8b (spec D19: arc gain 1, territory arcs up to 75 degrees); T8 value was ba6fd9cbf0eda6da.
+const AFTER_DIGEST = 'c0a00656027bb9bc';
 const AFTER_ROWS: Readonly<Record<string, string>> = {
   'T Galicia': 'T Galicia | n19980 C(204.3,1208.3) rho19.8 | straight -45 h44 @(198.5,1214.5) | off (-5.8,6.2) d8.5 f0.060 | gaps - | in-land | k1 d/(k rho) 0.428',
   'T Castilla-La Mancha': 'T Castilla-La Mancha | n53635 C(504.8,1537.7) rho32.4 | straight 45 h33 @(501.5,1524.5) | off (-3.3,-13.2) d13.6 f0.059 | gaps - | in-land | k1 d/(k rho) 0.419',
-  'T Baviera': 'T Baviera | n47174 C(1448.5,689.0) rho30.4 | straight -45 h66 @(1453.5,678.5) | off (5.0,-10.5) d11.7 f0.054 | gaps - | in-land | k1 d/(k rho) 0.383',
-  'T Bremen': 'T Bremen | n215 C(1269.2,318.5) rho2.1 | straight -15 h3 @(1269.5,318.5) | off (0.3,0.0) d0.3 f0.021 | gaps - | in-land | k1 d/(k rho) 0.150',
-  'T Hamburgo': 'T Hamburgo | n517 C(1334.3,275.3) rho3.2 | straight -30 h4 @(1335.5,277.5) | off (1.2,2.2) d2.5 f0.109 | gaps - | in-land | k1 d/(k rho) 0.777',
-  'T Trentino-Alto Adigio': 'T Trentino-Alto Adigio | n9115 C(1459.9,916.6) rho13.4 | straight 45 h14 @(1465.5,920.5) | off (5.6,3.9) d6.8 f0.072 | gaps - | in-land | k1 d/(k rho) 0.511',
-  'T Friuli-Venecia Julia': 'T Friuli-Venecia Julia | n4935 C(1573.5,931.6) rho9.8 | straight -30 h9 @(1571.5,934.5) | off (-2.0,2.9) d3.5 f0.050 | gaps - | in-land | k1 d/(k rho) 0.357',
+  'T Baviera': 'T Baviera | n47174 C(1448.5,689.0) rho30.4 | arc -60 h71 @(1439.5,688.5) | off (-9.0,-0.5) d9.0 f0.041 | gaps - | in-land | k1 d/(k rho) 0.296',
+  'T Bremen': 'T Bremen | n215 C(1269.2,318.5) rho2.1 | arc -30 h3 @(1269.5,318.5) | off (0.3,0.0) d0.3 f0.021 | gaps - | in-land | k1 d/(k rho) 0.150',
+  'T Hamburgo': 'T Hamburgo | n517 C(1334.3,275.3) rho3.2 | arc -15 h4 @(1334.5,277.5) | off (0.2,2.2) d2.2 f0.096 | gaps - | in-land | k1 d/(k rho) 0.687',
+  'T Trentino-Alto Adigio': 'T Trentino-Alto Adigio | n9115 C(1459.9,916.6) rho13.4 | arc 45 h14 @(1459.5,914.5) | off (-0.4,-2.1) d2.2 f0.023 | gaps - | in-land | k1 d/(k rho) 0.161',
+  'T Friuli-Venecia Julia': 'T Friuli-Venecia Julia | n4935 C(1573.5,931.6) rho9.8 | arc -45 h9 @(1576.5,930.5) | off (3.0,-1.1) d3.2 f0.045 | gaps - | in-land | k1 d/(k rho) 0.322',
   'T Liguria': 'T Liguria | n3717 C(1306.4,1126.6) rho8.5 | straight 30 h7 @(1297.5,1112.5) | off (-8.9,-14.1) d16.6 f0.273 | gaps - | in-land | k2 d/(k rho) 0.974',
   'F r0 Italia': 'F r0 Italia | n169251 C(1550.1,1180.8) rho57.6 | straight -15 h87 @(1542.5,1208.5) | off (-7.6,27.7) d28.8 f0.070 | gaps - | in-land | k1 d/(k rho) 0.500',
   'F r1 Italia': 'F r1 Italia | n169251 C(1550.1,1180.8) rho57.6 | straight -15 h87 @(1542.5,1208.5) | off (-7.6,27.7) d28.8 f0.070 | gaps - | in-land | k1 d/(k rho) 0.500',
   'F r2 Italia': 'F r2 Italia | n169251 C(1550.1,1180.8) rho57.6 | straight -15 h87 @(1542.5,1208.5) | off (-7.6,27.7) d28.8 f0.070 | gaps - | in-land | k1 d/(k rho) 0.500',
-  'F r3 Italia': 'F r3 Italia | n393071 C(424.5,1466.4) rho87.8 | horizontal 0 h133 @(424.6,1466.5) | off (0.1,0.1) d0.1 f0.000 | gaps L229.0 R299.8 | in-land | k1 d/(k rho) 0.001',
+  'F r3 Italia': 'F r3 Italia | n393071 C(424.5,1466.4) rho87.8 | arc 15 h133 @(424.5,1466.5) | off (0.0,0.1) d0.1 f0.000 | gaps - | in-land | k1 d/(k rho) 0.001',
+  'F r2 España': 'F r2 España | n393071 C(424.5,1466.4) rho87.8 | arc 15 h111 @(424.5,1466.5) | off (0.0,0.1) d0.1 f0.000 | gaps - | in-land | k1 d/(k rho) 0.001',
   'F r4 Francia': 'F r4 Francia | n1165291 C(932.4,1056.7) rho151.1 | straight -30 h189 @(956.5,982.5) | off (24.1,-74.2) d78.0 f0.072 | gaps - | in-land | k1 d/(k rho) 0.516',
 };
 
@@ -140,11 +146,13 @@ describe('NFR-46 the after figures (007 placement, measured aspects)', () => {
   let before: FigureRow[];
   let after: AfterRow[];
   let lines: string[];
+  let run: CentredDevRun;
 
   beforeAll(async () => {
-    const run = await measuredRun();
-    before = beforeFigures(run);
-    after = afterFigures(withCentred(run));
+    const measured = await measuredRun();
+    run = withCentred(measured);
+    before = beforeFigures(measured);
+    after = afterFigures(run);
     lines = after.map(formatAfterRow);
     console.log(`centred-figures: after table, ${after.length} rows, digest ${linesDigest(lines)}\n${lines.join('\n')}`);
   }, 120000);
@@ -219,13 +227,43 @@ describe('NFR-46 the after figures (007 placement, measured aspects)', () => {
       expect(r.dist, `round ${String(round)}`).toBeLessThanOrEqual(r.rho);
     }
     expect(row('faction', 0, 'Italia').frame).toMatchObject({ shape: 'straight', angle: -15 });
-    expect(row('faction', 3, 'Italia').frame).toMatchObject({ shape: 'horizontal' });
+    // D19: at round 3 the arc ties with the horizontal frame (h133) and wins the tie
+    expect(row('faction', 3, 'Italia').frame).toMatchObject({ shape: 'arc', h: 133 });
+    expect(row('faction', 3, 'Italia').dist).toBeLessThan(1);
   });
 
-  it('NFR-46 the shape counts of the after table: territories 15 horizontal / 55 straight / 0 arc, faction labels 9 horizontal / 6 straight', () => {
+  it('NFR-46 D19 Portugal has no arc (straight 30 h39 at rounds 0 and 1, the known limit); España at round 2 is an arc h111', () => {
+    for (const round of [0, 1]) expect(row('faction', round, 'Portugal').frame).toMatchObject({ shape: 'straight', angle: 30, h: 39 });
+    expect(row('faction', 2, 'España').frame).toMatchObject({ shape: 'arc', h: 111 });
+  });
+
+  it('NFR-46 D19 arc counts per role, the 006 arcs that return, and the largest territory arc tangent', () => {
+    const arcs = (rows: readonly FigureRow[], role: 'territory' | 'faction'): string[] => rows.filter((r) => r.role === role && r.frame?.shape === 'arc').map((r) => (role === 'faction' ? `r${String(r.round)} ${r.name}` : r.name));
+    expect(arcs(after, 'territory')).toHaveLength(41);
+    expect(arcs(after, 'faction')).toStrictEqual(['r2 España', 'r3 Italia']);
+    const before006 = arcs(before, 'territory');
+    expect(before006).toHaveLength(9);
+    const back = before006.filter((n) => arcs(after, 'territory').includes(n));
+    expect(back).toHaveLength(7);
+    expect(before006.filter((n) => !back.includes(n)).sort()).toStrictEqual(['Comunidad Valenciana', 'Nueva Aquitania']);
+    // largest absolute tangent of a territory arc (end tangents theta +- alpha, alpha = w |bend| / (2 L)), in degrees
+    const main = mainPieces(run.p);
+    let largest = 0;
+    for (let e = 1; e < run.p.entries; e++) {
+      const f = run.centredTerritories.inLand[e];
+      if (f?.shape !== 'arc') continue;
+      const alpha = (f.w * Math.abs(f.bend)) / (2 * axisExtent(run.p, [main[e]!], axisAngle(run.p, [main[e]!])));
+      largest = Math.max(largest, Math.abs(f.angle) + alpha);
+      expect(Math.abs(f.angle) + alpha, `entry ${String(e)}`).toBeLessThanOrEqual(CENTRE_PARAMS.arcTangentLimit.territory);
+    }
+    console.log(`centred-figures: largest territory arc tangent ${String(largest)}`);
+    expect(largest).toBeGreaterThan(CENTRE_PARAMS.angleLimit);
+  });
+
+  it('NFR-46 the shape counts of the after table: territories 7 horizontal / 22 straight / 41 arc, faction labels 7 horizontal / 6 straight / 2 arc', () => {
     const count = (role: 'territory' | 'faction', shape: string): number => after.filter((r) => r.role === role && r.frame?.shape === shape).length;
-    expect([count('territory', 'horizontal'), count('territory', 'straight'), count('territory', 'arc')]).toStrictEqual([15, 55, 0]);
-    expect([count('faction', 'horizontal'), count('faction', 'straight'), count('faction', 'arc')]).toStrictEqual([9, 6, 0]);
+    expect([count('territory', 'horizontal'), count('territory', 'straight'), count('territory', 'arc')]).toStrictEqual([7, 22, 41]);
+    expect([count('faction', 'horizontal'), count('faction', 'straight'), count('faction', 'arc')]).toStrictEqual([7, 6, 2]);
   });
 
   it('NFR-46 the review labels of plan section 12 have the pinned after rows', () => {
