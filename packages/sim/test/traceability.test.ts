@@ -63,7 +63,7 @@ const expected = specIds.filter((id) => !RETIRED.includes(id));
 const PENDING_008: readonly string[] = [
   'FR-231', 'FR-232', 'FR-233', 'FR-234', 'FR-235', 'FR-236', 'FR-237', 'FR-238', 'FR-239', 'FR-240',
   'FR-241', 'FR-242', 'FR-243', 'FR-244', 'FR-245', 'FR-246', 'FR-247', 'FR-248', 'FR-249', 'FR-250',
-  'FR-251', 'FR-252', 'FR-253', 'FR-254', 'FR-255', 'FR-256', 'FR-257', 'FR-258', 'FR-259', 'FR-260',
+  'FR-251', 'FR-253', 'FR-254', 'FR-255', 'FR-256', 'FR-257', 'FR-258', 'FR-259', 'FR-260',
   'FR-261', 'FR-262', 'FR-263', 'FR-264', 'FR-265', 'FR-266', 'FR-267', 'FR-268', 'FR-269', 'FR-270',
   'FR-271', 'FR-272', 'FR-273', 'FR-274', 'FR-275', 'FR-276', 'FR-277', 'FR-278', 'FR-279', 'FR-280',
   'FR-281', 'FR-282', 'FR-283', 'FR-284', 'FR-285', 'FR-286', 'FR-287', 'FR-288', 'FR-289', 'FR-290',
@@ -74,8 +74,8 @@ const PENDING_008: readonly string[] = [
   'NFR-57',
 ];
 
-/** Ids of spec 008 already removed from PENDING_008 by the tasks that traced them (T2: FR-313; T3: NFR-51, NFR-55; T4: FR-312, NFR-48; T5: NFR-53). */
-const DONE_008: readonly string[] = ['FR-313', 'NFR-51', 'NFR-55', 'FR-312', 'NFR-48', 'NFR-53'];
+/** Ids of spec 008 already removed from PENDING_008 by the tasks that traced them (T2: FR-313; T3: NFR-51, NFR-55; T4: FR-312, NFR-48; T5: NFR-53; T7: FR-252). */
+const DONE_008: readonly string[] = ['FR-313', 'NFR-51', 'NFR-55', 'FR-312', 'NFR-48', 'NFR-53', 'FR-252'];
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {

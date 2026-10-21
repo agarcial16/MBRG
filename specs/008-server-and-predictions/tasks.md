@@ -53,7 +53,7 @@ Rules for every task:
   - Commit: `feat(server): add the entry point and the sqlite warning filter`.
   - Done when: tests green; plan section 13 records the runner and warning result; mutation: a filter that drops every warning fails the planted-warning test; `rg` finds NFR-53.
 
-- [ ] **T7. Secret, commitment and per-round seed derivation.** FR-252
+- [x] **T7. Secret, commitment and per-round seed derivation.** FR-252
   - Files: `apps/server/src/secret.ts`, `apps/server/test/secret.test.ts`, plan section 13 (test vectors).
   - Tests first (plan section 5): RFC 4231 test case 2 through the HMAC helper; the message bytes for k = 1 and k = 70 are exactly `mbrg/round-seed/v1/1` and `mbrg/round-seed/v1/70`; pinned `s_k` for secret 0x00..0x1f at k = 1, 2, 3, 4, 70, 2^31 − 1, each equal through `createHmac` and through Web Crypto `subtle.sign`; k = 0, −1, 1.5, 2^31 and text rejected; a secret of 31 or 33 bytes rejected; commitment = SHA-256 hex of the raw bytes, 64 lowercase characters; `newSecret(random)` takes exactly 32 bytes from the injected source and never calls the platform source when one is injected; `secret.ts` reads no clock and no `Math.random` (source scan).
   - Commit: `feat(server): derive round seeds from the match secret`.
