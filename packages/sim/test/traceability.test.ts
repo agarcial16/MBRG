@@ -53,11 +53,8 @@ const NFR_RANGES: readonly (readonly [number, number])[] = [[1, 46]];
 const idsOf = (prefix: string, ranges: readonly (readonly [number, number])[]): string[] =>
   ranges.flatMap(([from, to]) => Array.from({ length: to - from + 1 }, (_, i) => `${prefix}-${from + i}`));
 
-// Ids of spec 007 not yet expected to be traced: removed in the last task of that spec.
-const PENDING_007: readonly string[] = [...idsOf('FR', [[217, 230]]), ...idsOf('NFR', [[43, 46]])];
-
 const specIds = [...idsOf('FR', FR_RANGES), ...idsOf('NFR', NFR_RANGES)];
-const expected = specIds.filter((id) => !RETIRED.includes(id) && !PENDING_007.includes(id));
+const expected = specIds.filter((id) => !RETIRED.includes(id));
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -92,11 +89,11 @@ describe('traceability', () => {
   it('NFR-13 NFR-19 the expected list ends at the last spec ids and excludes retired ids', () => {
     expect(FR_RANGES).toStrictEqual([[1, 230]]);
     expect(NFR_RANGES).toStrictEqual([[1, 46]]);
-    const everything = new Set([...expected, ...RETIRED, ...PENDING_007]);
+    const everything = new Set([...expected, ...RETIRED]);
     expect([...everything].sort()).toStrictEqual([...specIds].sort());
     expect(everything.size).toBe(276);
     expect(specIds.length - RETIRED.length).toBe(274);
-    expect(expected.length).toBe(256);
+    expect(expected.length).toBe(274);
     expect(expected).toContain('NFR-31');
     for (const id of ['FR-110', 'NFR-22', 'FR-104']) expect(expected).toContain(id);
     for (const id of ['FR-105', 'FR-126', 'NFR-14', 'NFR-23', 'FR-131', 'NFR-21']) {
@@ -135,9 +132,8 @@ describe('traceability', () => {
     ];
     expect(RETIRED).toStrictEqual(['FR-6', 'FR-25']);
     expect(all.filter((id) => !RETIRED.includes(id))).toHaveLength(274);
-    const withoutPending = all.filter((id) => id !== 'FR-6' && id !== 'FR-25' && !PENDING_007.includes(id));
-    expect(expected).toHaveLength(256);
-    expect(expected).toStrictEqual(withoutPending);
+    expect(expected).toHaveLength(274);
+    expect(expected).toStrictEqual(all.filter((id) => id !== 'FR-6' && id !== 'FR-25'));
     for (const id of ['FR-127', 'FR-131', 'NFR-16', 'NFR-17', 'NFR-21']) {
       expect(expected).toContain(id);
     }
@@ -169,7 +165,7 @@ describe('traceability', () => {
     ]);
   });
 
-  it('NFR-44 the 18 ids of spec 007 are pinned while pending', () => {
+  it('NFR-44 the 18 ids of spec 007 are all expected', () => {
     // Independent computation with literal bounds.
     const literal = [
       ...Array.from({ length: 14 }, (_, i) => `FR-${217 + i}`),
@@ -179,10 +175,9 @@ describe('traceability', () => {
     expect(literal[0]).toBe('FR-217');
     expect(literal).toContain('FR-230');
     expect(literal).toContain('NFR-46');
-    expect([...PENDING_007]).toStrictEqual(literal);
     for (const id of literal) {
       expect(specIds, id).toContain(id);
-      expect(expected, id).not.toContain(id);
+      expect(expected, id).toContain(id);
     }
   });
 
