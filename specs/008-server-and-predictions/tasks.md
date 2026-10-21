@@ -27,7 +27,7 @@ Rules for every task:
   - Commit: `feat(sim): add state and faction input checks`.
   - Done when: tests green; the existing export lists unchanged (nothing exported yet); mutations proved (order check removed, own-property check removed, `round <= T` to `< T`); `rg` finds FR-313.
 
-- [ ] **T3. The three sim exports and the export-list edits.** FR-313, NFR-51, NFR-55
+- [x] **T3. The three sim exports and the export-list edits.** FR-313, NFR-51, NFR-55
   - Files: `packages/sim/src/{exports.ts,index.ts}`, `packages/sim/test/exports.test.ts`, edits to `packages/sim/test/candidates.test.ts` (lines 86 to 88), `packages/sim/test/match.test.ts` (line 146), `packages/shared/test/no-regression.test.ts` (lines 30 to 33).
   - Tests first: `playRoundWithSeed` errors together in the order map errors, `invalid-state`, `invalid-seed`; `round-out-of-range { round: state.round + 1, total: T }` at round T and with fewer than 2 living factions; `isolated-faction` on the lonely map of `language.test.ts`; equal to the internal `playRound` on 200 (state, seed) pairs; input not mutated (deep-frozen input). `absorptionCandidatesOf`: equals the internal `factions` for every living faction of every golden map state; `[]` for a map faction with no territory (no throw); `invalid-faction` for a non-map id; `how` absent. `livingFactions`: equals the internal function; `invalid-state` on a bad state. Export lists: exactly the 8 names (U4: the five existing plus `playRoundWithSeed`, `absorptionCandidatesOf`, `livingFactions`) in all three files, and `absorptionCandidates` still not exported. NFR-51: the sim purity scan covers `exports.ts` (planted `Date.now` in a copy is caught).
   - Code: plan section 6.

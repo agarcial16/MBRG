@@ -143,7 +143,16 @@ describe('results', () => {
 
 describe('public exports', () => {
   it('plan 6 export list is exact', () => {
-    expect(Object.keys(api).sort()).toEqual(['MODE', 'getRounds', 'getState', 'ownerOf', 'totalRounds']);
+    expect(Object.keys(api).sort()).toEqual([
+      'MODE',
+      'absorptionCandidatesOf',
+      'getRounds',
+      'getState',
+      'livingFactions',
+      'ownerOf',
+      'playRoundWithSeed',
+      'totalRounds',
+    ]);
   });
 });
 

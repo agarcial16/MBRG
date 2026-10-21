@@ -27,9 +27,18 @@ const ADDED_BY_003A = [
 ];
 
 describe('no regression', () => {
-  it('NFR-22 the sim package exports exactly its pre-003a public surface', () => {
+  it('NFR-22 the sim package exports exactly its pre-003a public surface plus the three of spec 008', () => {
     expect(Object.keys(sim).sort()).toStrictEqual(
-      ['MODE', 'getRounds', 'getState', 'ownerOf', 'totalRounds'].sort(),
+      [
+        'MODE',
+        'getRounds',
+        'getState',
+        'ownerOf',
+        'totalRounds',
+        'playRoundWithSeed',
+        'absorptionCandidatesOf',
+        'livingFactions',
+      ].sort(),
     );
   });
 
