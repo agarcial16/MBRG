@@ -14,7 +14,7 @@ Rules for every task:
 
 ## M1 — Secret and sim exports (`feat/008-m1-secret-and-sim-exports`)
 
-- [ ] **T1. Branch, commit spec / plan / tasks; traceability with the 008 pending set.** NFR-55
+- [x] **T1. Branch, commit spec / plan / tasks; traceability with the 008 pending set.** NFR-55
   - Files: `specs/008-server-and-predictions/{spec,plan,tasks}.md` (as approved), `packages/sim/test/traceability.test.ts`.
   - Tests first (plan section 11): ranges `[[1, 315]]` / `[[1, 57]]`; counts 372 ids, 370 expected; `FR-316` and `NFR-58` are not ids; a literal `PENDING_008` of the 96 ids FR-231..FR-315, NFR-47..NFR-57 computed independently with literal bounds; "every expected id appears in a test name" checks `expected` minus `PENDING_008`; "no pending id is already traced"; a test titled with NFR-55 joins the self-trace list.
   - Commits: `docs: add spec, plan and tasks 008`; `test: trace spec 008 ids with a pending set`.
