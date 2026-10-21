@@ -11,7 +11,7 @@ Rules for every task:
 - Visual tasks (T6, T8) are not done without screenshots of the debug scene from fixed `seed`/`round`/`x`/`y`/`zoom` (and `transition`) addresses, reviewed by the user (NFR-45).
 - After each task: tick it, update `MEMORY.md` locally (state, decisions with why, mistakes to avoid; <= ~50 lines), and stop.
 
-- [ ] **T1. Branch, commit spec / plan / tasks; traceability with the pending set; centre parameters.** NFR-44, FR-219, FR-221, FR-230
+- [x] **T1. Branch, commit spec / plan / tasks; traceability with the pending set; centre parameters.** NFR-44, FR-219, FR-221, FR-230
   - Files: `specs/007-faction-label-refinement/{spec,plan,tasks}.md` (as approved), `packages/sim/test/traceability.test.ts`, `apps/web/src/core/centre-params.ts`, `apps/web/test/label-centre.test.ts` (parameters part).
   - Tests first: plan section 10 item 1 (ranges 1..230 / 1..46, pinned `PENDING_007` of 18 ids, counts 276 / 274 / 256 expected, `FR-231` / `NFR-47` not ids, self-trace list with NFR-44); `CENTRE_PARAMS` pinned (7 / 50, 45, [15, -15, 30, -30, 45, -45], 1 / 10); `LABEL_PARAMS` and `SHAPE_PARAMS` still equal their 005 / 006 pins.
   - Commits: `docs: add spec, plan and tasks 007`; `test: trace spec 007 ids and pin the centre parameters`.
