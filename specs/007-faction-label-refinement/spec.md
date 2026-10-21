@@ -1,0 +1,169 @@
+# Spec 007 — Label refinement (faction and territory labels)
+Status: approved (by the user on 2026-10-21)
+
+## Context and goal
+Specs 005 and 006 (both merged; 006 in PR #26) place one label per faction on its main region, recomputed from every displayed state (005 FR-171, 006 FR-209, FR-216), and one label per territory on its main piece, computed once from the territory map (006 FR-209). The user reviewed the 006 screenshots (2026-10-19) and reported:
+- Faction labels should **adapt when a faction's region changes**: Francia should turn diagonal after absorbing Germany when its new region runs diagonally, and when only Francia remains its name should sit **more centred**. After 006 "Francia sigue en la misma posicion" (Francia is still in the same place).
+- Territory labels show the same problem: **Galicia** "deja mucho hueco a la izquierda" (leaves a large empty area to the left of the name), and **Castilla-La Mancha** "esta igual" (looks the same as before 006: horizontal, h 29, in every 006 review candidate).
+
+Decision (user, 2026-10-19): this spec covers **both faction and territory labels**. Territory frames therefore change by design.
+
+Decision (user, 2026-10-20, D10): after comparing renders on the dev map, the user chose **option B**: the label of a large faction is a rotated straight frame with its text at its natural proportions (not stretched), centred on the core of the territory, covering only part of it, so that the unlabelled land around it looks roughly uniform. The rule must **not depend on which faction owns the land**: whoever wins (Francia, Italia, España...) the same final territory shape gives a frame in the same kind of position. The rule is therefore **origin-free**: the tallest frame whose centre lies within a small radius of the region's centre of mass. Amended by the user on 2026-10-21 (D16 to D18): the height cap is lifted for horizontal frames too, territory labels obey the same 45° reading limit, and arc frames obey the same centre disc (and, for factions, the 45° tangent limit).
+
+The spec was approved by the user on 2026-10-21 together with the planner proposals P14 to P21, exactly as proposed ("Me parece correcto"); they are recorded under "Decisions" and stated as final in the requirements.
+
+### Measured evidence (user, 2026-10-20; dev map, full-resolution map units, 2048 × 2048)
+Scene: seed 1, round 4; faction Francia owns Iberia, France, Germany and north Italy (one main region). All distances and fractions below are measured against the centre of mass and area of this **whole main region**, not of France alone.
+- Centre of mass of the main region: (932, 1056); area 1,165,291 units (square root about 1079).
+- Current 006 label: horizontal, h 120 (capped at Hmax), box centred at (343, 1214) in northern Spain, about 610 units from the centre of mass.
+- Tallest fitting frames of aspect 4 with their centre near the centre of mass, by angle: h about 140 to 160 at +30° to +60°; for example at +40°: h 160, centred at (972, 916), about 146 units (0.135 × √area) from the centre of mass.
+- Reference B (the render the user chose, made on France alone): +40°, h 155, centred at (905, 941), about 118 units (0.109 × √area) from the whole-region centre of mass above.
+- Faction 4 is **Italia**: its label is an arc frame at rounds 0 to 2 and horizontal at round 3 (seed 1). It is a review case for the arc and step rules, not a special case.
+
+### Why the 006 rule gives these results
+The 006 in-land rule is, for both roles: (1) the horizontal candidate is the fitting box of the **largest height** hH up to Hmax = 120 (005 FR-169); (2) a shaped frame (straight or arc) wins only if its height hS ≥ G × hH, G = 1.25 (006 FR-198, D9); (3) among the fitting frames of the winning height and shape, the one nearest to the **mean of the centres of all fitting frames of that height** wins (005 FR-169, 006 FR-197). Consequences:
+1. **Height decides first; centring is only a tie rule.** The label goes wherever the land is thickest for a box of that aspect, however much land lies elsewhere (likely cause of Galicia's gap).
+2. **The mean of the fitting centres can lie far from the region.** At a capped height on a large region many positions fit; their mean is the centre of the "thick" area, not of the region (Francia at round 4: northern Spain, about 610 units from the centre of mass).
+3. **The height cap blocks every shape change on large regions.** Shaped frames are capped at Hmax too, so a region with hH ≥ 97 (ceil(1.25 × 97) > 120) always keeps the horizontal box; Francia only slides as it grows.
+4. **Long names on irregular regions rarely pass the G rule** (Castilla-La Mancha, aspect about 8.5, h 29: a shaped frame would need h ≥ 37).
+
+Why: the faction label is the main thing a spectator reads at fit scale, and territory labels are what they read when zoomed in; a name squeezed to one side of its land, or ignoring the shape of a grown faction, looks wrong at exactly the moments the game is about (absorptions, the winner).
+
+## Depends on
+- Specs 001 to 006 (006 with D9, G = 1.25, territory `offLandHeight` as decided in 006), unchanged except for the items listed under "Earlier items touched by this spec".
+- In particular unchanged: the 005 fit definition (a frame fits when every unit centre within margin M of it belongs to the set), margin M, text aspects, label ink and halo (005 FR-174), zoom crossfade (005 FR-172), the 006 straight-fit and arc formulas ("Number reference"), the 006 `angleStep` (15°) and `arcBends` ({30°, 60°}), the off-land trigger, search and leader lines (006 FR-203 to FR-208, FR-215, applied to the in-land result of this spec), step rules (006 FR-210, FR-211), anti-spoiler rules (005 FR-187, FR-188), determinism (006 NFR-39).
+
+## Compatibility, "ask first" items and numbering
+- Map format, presentation data, id image, `MatchState`, `RoundRecord`, sim and shared packages: unchanged. Labels stay computed in the viewer.
+- No new dependency.
+- Lifting Hmax (an approved 005 parameter) for horizontal and straight frames: decided by the user (D10, D16); arcs are uncapped too (P17); faction frames are bounded by the size cap of FR-230 (P16).
+- Numbering (final): FR-217 to FR-230 and NFR-43 to NFR-46; no earlier id is retired or reused. Decisions continue the 006 numbering (D10 onwards); approved planner proposals keep the 006 planner numbering (P14 onwards). "D11" below is this spec's decision, not the 006 plan's "D11 layout digest".
+
+### Earlier items touched by this spec
+| Item | Change | By |
+|---|---|---|
+| 005 FR-169 (horizontal box of largest height up to Hmax, mean-of-fitting-centres tie) | Searched only among centres in the centre disc, with no Hmax cap; ties by FR-220. It becomes one of the competitors of the centred candidate. | FR-218 to FR-220 |
+| 005 Hmax = 120 | Lifted for horizontal and straight frames (D16) and for arcs (P17); faction frames bounded by the size cap (P16). | FR-219, FR-221, FR-230 |
+| 006 FR-195 (the horizontal candidate is the 005 FR-169 box, kept unless FR-198 chooses a shaped frame) | Replaced: there is no separate horizontal candidate; horizontal and straight frames compete in FR-220. | FR-219, FR-220 |
+| 006 Definitions "Shaped height hS" and "Shapes of a label set" | hS is no longer used. Straight shapes are no longer θ* and its two neighbours but the fixed angle set ±15°, ±30°, ±45° for both roles; arc shapes stay at θ* with `arcBends`, restricted by the disc and the tangent limit. | FR-219, FR-221 |
+| 006 Definitions "Arc frame" (every tangent an allowed reading direction, (−90°, +90°]) | For faction labels every tangent within [−45°, +45°] (D18) and for territory labels (P18). | FR-221 |
+| 006 Definitions "Reading direction" and D3 (+90° reads bottom to top) | Still valid, but no frame of this spec reaches ±90° (limit 45°, D13, D17). | FR-219 |
+| 006 FR-196, FR-197 (shapes and tie rule of the shaped candidate) | Straight: replaced by FR-219, FR-220. Arc: tie rule replaced by FR-221 (P14). | FR-219 to FR-221 |
+| 006 FR-198 G rule ("a horizontal candidate of height Hmax is therefore always kept") | G kept only between the arc candidate and the centred candidate (D12); no longer between horizontal and straight; the Hmax clause no longer holds. | FR-221 |
+| 006 edge case "hH ≥ 97 always kept horizontal; shaped search skipped" | No longer true: large regions may turn straight. | FR-219, FR-220 |
+| 006 NFR-38 and P8 (height prune h ≥ ceil(G × hH); skip the shaped search when ceil(G × hH) > Hmax) | Replaced by the exact prunes of NFR-43. | NFR-43 |
+| 006 Risk "shape flicker across rounds; the G rule limits it" | G no longer limits horizontal ↔ straight changes, so faction labels may switch more often between rounds; accepted (no hysteresis), checked on the screenshots. | Edge cases |
+| 006 NFR-40 scene "steep straight label (+90°, else ±75°)" | No hit can exist any more (limit 45°): dropped from the review set. | NFR-45 |
+| 006 NFR-41 (every horizontal in-land label keeps its 005 box) | No longer true: frames of both roles move by design. | NFR-44 |
+| 005 box digest (`5f8e31fd50523b09`) and 006 layout digest (`23c90b67d52cbcfa`) | Re-pinned once, in the change that introduces the new rule, with the list of labels whose frame changed. | NFR-44 |
+| 006 NFR-40 review set | Extended with the 007 scenes (P20). | NFR-45 |
+
+## Users
+- **Spectator**: reads the name of a grown faction along its shape in the middle of its land, and territory names in the middle of their territories.
+- **Reviewer (the user)**: accepts the look from screenshots of fixed scenes (seed + round + camera).
+- **Developer**: needs the rule stated with inputs and tie order, as in 005 and 006.
+
+## User stories
+- US-18. As a spectator, I want a faction's name to follow the shape of its region after it absorbs a neighbour, so that a grown diagonal country reads like one.
+- US-19. As a spectator, I want a faction's name (in particular the last remaining faction's) on the core of its land, covering only part of it, whoever owns it, so that the same map shape always looks the same and the end of the match looks deliberate.
+- US-20. As a spectator, I want a territory's name centred in its territory (no large empty area on one side, as with Galicia), so that the map reads cleanly when zoomed in.
+- US-21. As a developer, I want the new rule to keep the 005/006 determinism and a fixed tie order, so that the same input always gives the same label.
+
+## Definitions
+- Terms of specs 001 to 006 keep their meaning (label set, unit centre, screen angle, reading direction, wrapped angle, horizontal / straight / arc frame, bend β, fits, footprint, set centre, θ*, axis extent L, G, in-land frame, drawn frame, `offLandHeight`, "Number reference").
+- **Region** of a label: its label set (a faction's main region, or a territory's main piece), with n units at whole coordinates (x, y).
+- **Centre of mass** C = (mx, my) of a region: the 006 set centre, mx = Σx / n + 0.5, my = Σy / n + 0.5.
+- **Centre fraction** q: a new fixed label parameter, the same for both roles: the exact rational **7/50** (0.14) (P21).
+- **Centre radius** ρ of a region: ρ = q × √n, so ρ² = 49n / 2500 at q = 7/50; ρ is never computed as a double or rounded. For Francia at round 4, ρ ≈ 151 units. Named ρ because R is the arc radius of 006.
+- **Centre disc** of step k (k = 1, 2, 3, ..., FR-222): the points p with (p − C)² ≤ k² × ρ². A frame is **in the disc** when its centre is. Decided exactly with arbitrary-precision integers (at q = 7/50):
+  - straight and arc frames, centred at the unit centre (cx + 0.5, cy + 0.5) with whole cx, cy: in the disc iff 2500 × ((n·cx − Σx)² + (n·cy − Σy)²) ≤ 49 × k² × n³;
+  - horizontal frames (x0, y0, h whole), centre (x0 + w/2, y0 + h/2): let w be the double value of h × a computed as in 005 (the same w as the drawn box), written exactly as w = W / 2^E with whole W ≥ 0 and the smallest whole E ≥ 0 (every finite double is such a fraction); with X = 2^(E+1) × (n·x0 − Σx) + n·W − 2^E × n and Y = 2^E × (2 × (n·y0 − Σy) + n·h − n), the frame is in the disc iff 2500 × (X² + Y²) ≤ 49 × k² × n³ × 2^(2E+2).
+- **Squared centre distance** of a frame: (centre − C)², an exact rational (the left-hand sides above divided by their scale factors); frames are compared on it by exact cross-multiplication.
+- **Reading angle limit**: 45° for both roles (D13, D17).
+- **Straight angle set** (both roles): ±15°, ±30°, ±45° (the non-zero multiples of `angleStep` = 15° with |θ| ≤ 45°). +40° (reference B) is not a multiple of 15°, so a frame of that kind comes out at one of the set angles; which one is measured, not stated (NFR-46).
+- **Centred candidate** of a label at step k: the frame chosen by FR-220 among the horizontal and straight frames that fit and are in the disc of step k.
+- **Arc candidate** of a label at step k: the frame chosen by FR-221 among the arc frames that fit and are in the disc of step k.
+- **End step** kEnd of a region: the smallest k ≥ 1 for which the disc of step k contains the four corners of the rectangle [xmin, xmax + 1] × [ymin, ymax + 1] (the union of the region's unit squares), decided exactly like the disc test. At kEnd the disc contains the whole region.
+- **Centre offset** of a label: the vector from C to the centre of its drawn in-land frame, in map units, also as a fraction of √n.
+- **Side gaps** of a horizontal label: along the rows the frame covers, the distance from the frame's left edge to the leftmost unit of the set in those rows (left gap) and from its right edge to the rightmost unit (right gap).
+
+## Functional requirements
+- FR-217: THE SYSTEM SHALL apply the rules of this spec to the in-land frames of both faction and territory labels, with one rule and the same parameter values for both roles except where a requirement names a role; the off-land trigger, box and leader-line rules of 006 (FR-203 to FR-208, FR-215) SHALL stay as they are and apply to the in-land frame given by this spec.
+- FR-218: THE SYSTEM SHALL compute for each label its centre of mass C and its centre radius ρ exactly (Definitions) and SHALL consider as in-land frames only frames (horizontal, straight or arc) that fit the region and lie in the centre disc of the current step k (FR-222).
+- FR-219: THE SYSTEM SHALL consider horizontal frames and straight frames at every angle of the straight angle set (±15°, ±30°, ±45°), for both roles, at every whole height from 1 upwards with no upper cap (D16): a frame's height is bounded only by FR-218 (it must fit) and, for faction labels, by the size cap of FR-230 (P16).
+- FR-220: THE SYSTEM SHALL choose the centred candidate among the frames of FR-219 that satisfy FR-218 by this order, each step deciding only among the frames left equal by the steps before it (P14): (1) the largest height h; (2) horizontal before straight; (3) the smaller |θ|; (4) θ > 0 before θ < 0; (5) the smallest squared centre distance (exact); (6) the smallest centre y; (7) the smallest centre x (both exact).
+- FR-221: THE SYSTEM SHALL compute the arc candidate from the 006 arc shapes (tangent θ* at the midpoint, bends ±30° and ±60°, 006 "Arc frame" formulas), restricted to frames that satisfy FR-218, whose every tangent of the middle line lies within [−45°, +45°] for faction labels (D18; with α of 006 "Number reference": θ − α ≥ −45 and θ + α ≤ 45) and the same limit for territory labels (P18), at every whole height from 1 upwards with no Hmax cap (P17; bounded by fit, by arc existence R − h/2 − M > 0 and, for faction labels, by FR-230), ties by the 006 shape order, then FR-220 steps 5 to 7 (P14); and SHALL use the arc candidate as the in-land frame IF it exists AND (no centred candidate exists OR its height is at least G × the centred candidate's height, G = 1.25, D12), otherwise the centred candidate.
+- FR-222: THE SYSTEM SHALL start at step k = 1 and, WHILE the in-land frame chosen by FR-221 at step k does not exist or has a height below `offLandHeight` of the label's role AND k < kEnd, SHALL repeat FR-219 to FR-221 at step k + 1; the in-land frame is the one chosen at the last step tried (none if none fits even at kEnd), and 006 FR-203 to FR-206 then decide whether the label goes off-land. An arc candidate, however small, SHALL NOT stop the widening while the chosen frame is below `offLandHeight` (D15, P15).
+- FR-223: THE SYSTEM SHALL compute every faction label's **in-land frame** from its label set, its text aspect and the label parameters only: two factions with the same label set and the same text aspect SHALL get the same in-land frame, whichever faction it is, whatever its origin, starting territories or history; the in-land frame for a state SHALL NOT depend on the states displayed before it, and a reused earlier result (006 FR-216) SHALL equal a full recomputation. (The drawn frame may still differ when the label goes off-land, because off-land boxes depend on the other labels of the state, 006 FR-215.)
+- FR-224: THE SYSTEM SHALL compute territory labels from the territory map alone, once per loaded map (006 FR-209); owners and rounds SHALL play no part in them.
+- FR-225: THE SYSTEM SHALL apply one rule to every label of a role, with no per-name, per-territory or per-map exceptions (Francia, Italia, Galicia and Castilla-La Mancha are review cases, not special cases).
+- FR-226: WHILE a round step is playing, THE SYSTEM SHALL draw the absorber's label with the 006 step rules applied to the frames given by this spec at the earlier and the later round: horizontal ↔ straight and straight ↔ straight interpolated by centre, height and angle (006 FR-210 (b)), any pair with an arc frame or an off-land box crossfaded (006 FR-210 (c)), other factions by 006 FR-211; the drawing at f = 0 and f = 1 SHALL equal the instant drawings.
+- FR-227: THE SYSTEM SHALL draw straight frames with their text at its natural proportions along the frame (006 FR-202: the only stretch is along the reading direction, to match the frame length w = h × a, which equals the measured text length at that height).
+- FR-228: THE SYSTEM SHALL decide the centre of mass, ρ, the disc test, kEnd and every tie of FR-220 and FR-221 exactly with whole numbers (no double comparison in these decisions); fit and existence tests of frames SHALL use the 006 "Number reference" formulas unchanged except the tangent limit of FR-221.
+- FR-229: THE SYSTEM SHALL keep the 006 FR-214 debug counts (horizontal, straight, arc, off-land, none) for the new rule.
+- FR-230: THE SYSTEM SHALL bound the size of every in-land frame (horizontal, straight or arc) of a faction label so that it covers only part of its region (P16): 10 × h × w ≤ n (frame area at most a tenth of the region's area), decided exactly with w as in the disc test.
+
+## Non-functional requirements
+- NFR-43 (Performance): on the dev map and the reference machine and browser of 006 NFR-38, the first frame is drawn within 2 s (territory labels count towards it only) (D14); faction labels and the front (FR-190 figure) within 100 ms for a round step (one round forward or back, with 006 FR-216 reuse) and within 150 ms for a jump computed from scratch (P19; 006 measured 23 to 187 ms from scratch); every round change drawn within 150 ms of the request and the 006 frame-time budgets unchanged. Only exact prunes are allowed: the pruned result SHALL equal the unpruned definition, checked by the brute-force tests. The cost is bounded because:
+  - the disc limits the centres to about π × (ρ + 1)² per angle (about 72,700 for Francia at round 4, ρ ≈ 151) instead of every unit of the region (1,165,291); ρ² = 0.0196 × n, so the disc holds about 6 % of a compact region's units, for territories too; each label tries 7 horizontal and straight angles and at most 4 arc shapes per step;
+  - for a fixed shape and centre, a smaller height gives a footprint inside the larger one (006 "Risks", monotonicity), so the largest fitting height per centre and angle can be searched without testing every height;
+  - distance bound (horizontal and straight frames only): let d be the distance from the frame centre c to the nearest unit centre that is not in the set (positions outside the id image count as not in the set). The grown footprint contains the disc of radius (h × min(1, a)) / 2 + M around c (for a ≥ 1 this is h/2 + M), so a fitting frame satisfies h × min(1, a) < 2 × (d − M); frames that violate it may be skipped, and candidates may be visited in descending order of this bound, stopping when it is below the best height found. The bound SHALL be decided exactly (d² and a as exact rationals) and SHALL never skip a frame that the "Number reference" fit test accepts: the plan either proves this for the pinned formulas or applies the bound with a stated safety margin. No distance prune for arc frames unless the plan proves one exact;
+  - the 006 FR-216 reuse of unchanged label sets, and territory labels computed once per load (006 measured 0.56 s for territories within a 1.66 to 1.77 s first frame; re-measured first in the plan).
+  If the budget still fails, the fix is a spec change (smaller q, fewer angles), not an approximation.
+- NFR-44 (Controlled regression): frames of both roles change by design. Unchanged: the rules listed under "Depends on", the purity and determinism of the layout (006 NFR-39), and the meaning of every 001 to 006 test except an explicit list in the plan of the tests whose assertion is one of the items of "Earlier items touched by this spec" (tie rule, Hmax cap, G rule between horizontal and straight, straight shapes at θ*, arc tangent range, a pinned box or digest). The 005 box digest and the 006 layout digest are re-pinned once, in the same change that introduces the new rule, together with the recorded list of labels whose frame changed (role, name, old frame, new frame); afterwards each digest is equal in Node and in the reference browser.
+- NFR-45 (Visual verification) (scene list P20): screenshots of fixed scenes, reviewed and accepted by the user: seed 1 at every round at fit scale, including round 4 beside reference B; the round T scene at fit scale; Italia at rounds 0 to 3; the step into the round where the absorber's frame changes from horizontal to straight (seed 1 if it has one, else the first hit over seeds 1 to 1000) at forward progress 0, 0.25, 0.5, 0.75 and 1; territory close-ups of Galicia, Castilla-La Mancha, the 006 review territories (Bremen, Hamburgo, Trentino-Alto Adigio, Friuli-Venecia Julia) and every territory whose 006 frame was steeper than 45°, before and after.
+- NFR-46 (Measured placement): before implementing (to check q on the "before" figures; another value is a spec change) and again after, the plan records on the dev map, for every territory label and every faction label at every round of seed 1: C, n, ρ, the step k used, the old (006) and new frame (shape, angle, height, centre), the centre offset, the side gaps of horizontal frames, the arc candidate's height, and the labels that go off-land or change between in-land and off-land compared with 006. Galicia's and Castilla-La Mancha's side gaps (or, for a straight or arc frame, centre offset) are recorded before and after and accepted by the user with their NFR-45 close-ups. After this spec: every centre offset is at most k × ρ for the step used, and the round 4 Francia frame is a straight frame with its centre within ρ of (932, 1056); its angle and height are recorded, not prescribed.
+
+## Edge cases
+- A compact large region: with no G rule between horizontal and straight and no cap, the tallest of horizontal and ±15° to ±45° wins; at equal height horizontal wins (FR-220 step 2).
+- The last faction owning all the land (round T): without a bound its frame could cover most of its land, against "covering only part of it" (D10); FR-230 bounds its area to a tenth of the region (P16).
+- The disc can lower a label's height compared with 006 (the thickest land lies outside the disc); FR-222 widens while the result is below `offLandHeight`; labels at or above `offLandHeight` but smaller than in 006 are accepted and listed (NFR-46).
+- A centre of mass outside the land (crescent, ring around a sea): no frame in the disc may fit; FR-222 widens, at most up to kEnd.
+- A very small region: ρ < 1 unit when n ≤ 51; the disc may hold no unit centre and FR-222 widens it.
+- A tiny arc (for example h 2) in the first disc while a larger horizontal frame fits further out: widening continues (FR-222).
+- Two frames equal in every step up to FR-220 step 5: smallest centre y, then x (exact).
+- The same final territory owned by different factions (Francia, Italia, España): the same in-land frame if the aspects are equal; with different aspects the frames differ but each centre lies within k × ρ of the same C (FR-223). The drawn frame may differ only when the label goes off-land (006 FR-215).
+- A 006 territory label steeper than 45° (±60°, ±75°, +90°): no longer allowed (D17); it becomes a frame at most 45°, an arc within the limit, or off-land; listed in NFR-46.
+- A region whose axis θ* is steeper than 45°: its faction arc shapes cannot meet the tangent limit and do not exist (D18).
+- A label switching between horizontal and straight between two rounds: interpolated (006 FR-210 (b)); with an arc or off-land frame: crossfade (006 FR-210 (c)); Italia (arc at rounds 0 to 2, horizontal at round 3) crossfades at the step 2 → 3.
+- Flicker of a faction label over several rounds: may be more frequent than in 006 (no G between horizontal and straight); accepted (no hysteresis, it would break FR-223).
+- The last faction on a map whose single region is small: still goes off-land by 006 FR-203 if its in-land height at kEnd is below `offLandHeight`.
+
+## Out of scope
+- The 006 `offLandHeight` values.
+- Letter-spacing, names on two lines, free curves, angle steps finer than 15° (006 out of scope; D13).
+- Hysteresis or memory between rounds (it would break FR-223).
+- Per-label hand placement or overrides in the map package.
+- Any change to the map package, sim, shared, step colour front, or label ink.
+
+## Done criteria
+- Every new FR / NFR id appears in a test title (traceability). Ids checked by screenshots or measurements are traced by tests of their pure part: FR-227 by the glyph transform test (only a stretch along the reading direction); NFR-43 by a test that the pruned search equals the unpruned one (timings recorded in the pull request, not in CI); NFR-45 by the test that finds the scene hits; NFR-46 by the test that computes the recorded figures.
+- The new rule equals a brute-force implementation of the definitions (disc tests for both frame kinds, angle set, uncapped heights, tie order, arc tangent limit, G rule, widening and kEnd, the FR-230 size cap) on hand-made and fixed-seed random grids, including a large diagonal region, a compact large region, a two-lobe region, a region whose centre of mass lies outside its land, a region of at most 51 units, a text aspect below 1, and a long-aspect label on an irregular region.
+- Origin-free check (FR-223): on seed 1, the same label set given to every faction (equal aspects injected) yields the same in-land frame; faction labels computed with reuse equal a computation from the state alone for every step and jump; territory labels do not change with owners (FR-224).
+- NFR-46 figures recorded before and after, including Galicia's and Castilla-La Mancha's side gaps or centre offset; NFR-43 figures recorded in the pull request; NFR-45 screenshots accepted by the user.
+- `npm test` and `npm run typecheck` green, also with `CI=1`; `MEMORY.md` updated.
+
+## Decisions
+Decided by the user.
+- D10 (2026-10-20). **Option B, origin-free centring**: the in-land frame is the tallest frame whose centre lies within a small radius of the centre of mass of the main region, with text at natural proportions, exact integer arithmetic (no floats in decisions), fixed and deterministic tie-breaks (the order itself is P14), Hmax lifted for shaped frames, arcs as in 006 (amended by D18), steps as 006 FR-210 / FR-211. Why: the label sits on the core of the land and covers only part of it; it depends only on the territory shape, never on who owns it. Discarded: the 006 rule (Francia at round 4 in northern Spain, about 610 units from the centre); the other renders compared by the user. Earlier draft questions it closes: centre point = centre of mass; height traded for centring only through the disc; the last faction uses the general rule; both roles use the same rule; Castilla-La Mancha follows the general rule.
+- D11 (2026-10-20). ρ is **a fixed fraction q of the square root of the region's area**, the same for both roles, from the measured evidence (0.11 to 0.14 against the whole-region centre of mass and area of Francia at round 4). Discarded: a fixed number of map units. The value 7/50 is P21.
+- D12 (2026-10-20; amended by D16). Horizontal and straight frames **compete by height alone**; arcs win only by the 006 G rule against them. Discarded: arcs in the same score; G between horizontal and straight.
+- D13 (2026-10-20). **Reading angle limit 45° with the existing 15° step** (+40° is not reachable). Discarded: 50° or a finer step.
+- D14 (2026-10-20). **Budgets kept**: first frame within 2 s, round change under 100 ms. A distinct figure for from-scratch jumps is P19.
+- D15 (2026-10-20). **When nothing fits within ρ, widen** to 2ρ, 3ρ, ... (FR-222). Discarded: going off-land directly; the 006 rule as fallback. The exact stop condition and end step are P15.
+- D16 (2026-10-21). **Hmax lifted for both straight and horizontal frames** (one rule for all boxes). Why: the same rule for every box; a large compact region is not stuck at 120.
+- D17 (2026-10-21). **Territory labels also limited to 45°** like faction labels. Discarded: the planner's earlier minimal-change option (territories up to ±75° and +90°).
+- D18 (2026-10-21). **Arcs follow the same rules**: centre within the disc (k × ρ under FR-222) and, for faction labels, every tangent within 45°.
+
+Planner proposals approved by the user on 2026-10-21, exactly as proposed, together with the whole spec ("Me parece correcto"):
+- P14. Tie order: FR-220 steps 2 to 7 (horizontal before straight, smaller |θ|, θ > 0 first, nearest centre, smallest y, smallest x); arcs: 006 shape order, then nearest centre, y, x. Why: prefers the most readable frame, then the most central. Alternative: nearest centre before shape preference.
+- P15. Widening: steps k = 2, 3, ... until the chosen frame (arcs included) reaches `offLandHeight`, so the label stays in-land when it can; a tiny arc does not stop it; end at kEnd (the disc covers the region's unit squares), where the result equals the unrestricted tallest frame. Alternative: stop at the first step where any frame fits (fewer steps, more off-land labels).
+- P16. Size cap so that a large faction label covers only part of its land, faction labels only: frame area at most n / 10 (FR-230; Francia's +40° h 160 frame at round 4 uses about 0.088 n). Alternatives: h at most a fraction of √n; a fixed faction cap such as 200 (top of the 005 range); no cap (the round T label may fill the land). Territories stay uncapped (their labels are bounded by fit).
+- P17. Arc heights uncapped like horizontal and straight frames (one rule for all frames; still bounded by fit and R − h/2 − M > 0). Alternative: arcs keep Hmax = 120.
+- P18. The 45° tangent limit also for territory arcs, consistent with D17. Alternative: territory arcs keep the 006 range (−90°, +90°].
+- P19. Budgets: 100 ms per round step (with 006 FR-216 reuse), 150 ms for a jump computed from scratch (006 measured up to 187 ms from scratch). Alternative: 100 ms for every round change (D14 as written).
+- P20. Review scene list of NFR-45 (adds the territories that were steeper than 45° in 006; drops the 006 steep scene).
+- P21. q = 7/50 (0.14), exact: top of the evidence range, includes both the +40° h 160 frame (0.135) and reference B (0.109). Alternative: 3/25 (0.12), which would exclude the h 160 frame.
+
+## Open questions
+- None.

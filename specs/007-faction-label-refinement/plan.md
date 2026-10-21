@@ -1,0 +1,239 @@
+# Plan 007 — Label refinement (faction and territory labels)
+Spec: `specs/007-faction-label-refinement/spec.md` (approved by the user on 2026-10-21 with P14 to P21). Covers FR-217 to FR-230 and NFR-43 to NFR-46 (18 ids). Delivery: branch `feat/007-faction-label-refinement` cut from an up-to-date `rewrite` (6aaa9f2 or later); the spec, plan and tasks are untracked now and are committed there in T1. One PR into `rewrite`, squash merge with the user's OK and CI green. No GitHub issues (one PR is enough; AGENTS.md).
+
+**Gate.** This plan and `tasks.md` need the user's approval, and the decisions of section 14 (U1 to U5) their confirmation, before T1 starts.
+
+## 0. Starting point and guards (read before coding)
+- `rewrite` at 6aaa9f2 (spec 006 merged, PR #26). Dev map 2048 x 2048, 70 land + 17 sea entries, 5 factions; seed 1 gives T = 4, so **round 4 is round T** (Francia alone over Iberia, France, Germany and north Italy: n = 1,165,291, C = (932, 1056)).
+- 006 label code (unchanged by this spec unless stated): `core/label-axis.ts` (`setSums`, `axisAngle`, `axisExtent`, `wrapAngle`, `shapesOf`), `core/label-shape.ts` (`inStraight`, `arcRadius`, `arcExists`, `cosK`, `inArc`, `DISC_EPS`, `discAllows`, `squaredDistanceMap`, footprints, `shapedCandidate`, `shapedHeight`, `inLandFrame`), `core/label-offland.ts` (`offLandBox`, `placeRole`, `Placed`), `core/label-place.ts` (`placeTerritories`, `placeFactions`, `TerritoryLayout`, `FactionLayout`), `core/label-input.ts` (`roundLabels(..., placed)`), `core/label-frame.ts` (draw data, `instantLabels`, `labelsAt` with the FR-210 / FR-211 rules), `core/label-counts.ts`, `core/label-digest.ts`, `core/shape-params.ts` (`SHAPE_PARAMS`, `cs`), `core/glyph-layout.ts`, `render/labels-layer.ts`, `ui/main.ts` (wiring, lines 141-152).
+- Traceability (`packages/sim/test/traceability.test.ts`): ranges `FR [[1, 216]]`, `NFR [[1, 42]]`; 258 ids, 256 expected; asserts `FR-217`, `NFR-43` are NOT ids yet; self-trace list ends with `NFR-41`.
+- Guards of 004 to 006 that new code must respect (none of these tests is edited):
+  - `anti-spoiler.test.ts`: no identifier containing `seed` or `round` in `src/render/**`; the whole word `transition` is forbidden in core files (say "step"); rAF only in `ui/frame-loop.ts`.
+  - `strings-language.test.ts`: every viewer source except `core/strings.ts` is ASCII-only, comments included (write "deg", "rho", "theta"); no new placeholder name; no `kind: '<literal>'` (discriminants are named `shape`). This spec adds **no** UI string.
+  - `label-review-set.test.ts` pins `LABEL_PARAMS`; `shape-params.test.ts` pins `SHAPE_PARAMS`: **new parameters go in a new module** (`core/centre-params.ts`); neither pinned object is touched (Hmax stays 120 in `LABEL_PARAMS`: the 005 boxes still use it; the 007 rule simply does not read it).
+  - `label-input.test.ts` and many 005 tests use `toStrictEqual`: optional fields are omitted, never set to `undefined`.
+  - `labels-purity.test.ts` and `shaped-purity.test.ts` have fixed file lists: new core files get their own purity and number scan (`centred-purity.test.ts`); those two tests are not edited.
+  - `shaped-review-set.test.ts` pins the 006 hits computed with the 006 functions: they stay valid because those functions are kept (U1).
+- MEMORY lessons that apply: full `npm test` for mutation proofs; back a file up before reverting; perf tests run alone; non-round constants in fixtures; Windows path with spaces quoted; Write/Edit tools for sources.
+
+## 1. "Ask first" items
+| Item | Proposal | Status |
+|---|---|---|
+| New dependency | **None.** Exact arithmetic with the language's `BigInt`; drawing unchanged. | No change |
+| Map format, presentation data, id image, `MatchState`, `RoundRecord`, sim/shared exports | **Unchanged** (spec "Compatibility"). | No change |
+| Approved 005 parameter Hmax | Not read by the 007 rule (spec D16, P17); `LABEL_PARAMS.maxHeight` stays 120 for the retained 005 boxes. | Allowed by spec |
+| Edits to earlier tests | Only the traceability test (section 10). | Allowed by spec (NFR-44) |
+| Files outside `apps/web`, `packages/sim/test/traceability.test.ts`, `specs/007-*` | None. | No change |
+
+## 2. Files and responsibilities
+```
+apps/web/src/core/              PURE (NFR-39 number scan where marked [N])
+  centre-params.ts      [N] CENTRE_PARAMS: centreFraction 7/50 (num, den as whole numbers), angleLimit 45,
+                            straightAngles [15, -15, 30, -30, 45, -45], factionAreaShare 1/10       FR-219, FR-221, FR-230
+  label-centre.ts       [N] centreSums (n, Sx, Sy as BigInt), isqrt (BigInt), dyadic(w) -> (W, E),
+                            unit-centre disc test and per-row x interval, box disc test and per-row x0
+                            interval, endStep (kEnd), exact centre-distance and centre-coordinate keys,
+                            factionHeightCap (FR-230)                                               FR-218, FR-222, FR-228, FR-230
+  label-centred.ts      [N] centredCandidate (horizontal + straight, uncapped, FR-220 order), arcCandidate
+                            (disc, tangent limit, uncapped, P14 order), centredInLand (FR-221 choice and
+                            FR-222 widening), boxFits (005 fit columns / rows on run lengths)       FR-218..FR-222, FR-228, FR-230, NFR-43
+  label-shape.ts (edit) [N] the arc search body of shapedCandidate extracted into an exported arcSearch
+                            with options (centre filter, top height, minimum height, tangent limit,
+                            winner rule); shapedCandidate calls it with the 006 options (bit-identical,
+                            guarded by the unchanged 006 D11 digest, U5); arcWithinLimit(f, extent, limit) FR-221
+  label-centred-place.ts [N] placeCentredTerritories (once), placeCentredFactions (per state, in-land reuse);
+                            they return the 006 layout types, whose `boxes` hold the 007 horizontal frames
+                            (section 7), so roundLabels, labelCounts, labelsAt and the layer are unchanged FR-217, FR-223..FR-225, FR-229
+  label-digest.ts (edit)[N] centredLayoutDigest (new export; layoutDigest unchanged)               NFR-44
+  centred-review-set.ts     CENTRED_REVIEW_SET, recorded hits and figures (section 12)              NFR-45
+apps/web/src/ui/
+  main.ts (edit)            placeCentredTerritories once at load, placeCentredFactions per state with the
+                            round being left as `previous`; FR-190 figure around the 007 placement   FR-217, FR-223, FR-229, NFR-43
+apps/web/test/
+  label-centre.test.ts  label-centred.test.ts  label-centred-arc.test.ts  label-centred-place.test.ts
+  centred-steps.test.ts  centred-purity.test.ts  centred-review-set.test.ts  centred-perf.test.ts
+  centred-figures.test.ts
+  helpers/centred-reference.ts (brute-force definitions from the spec text, independent of src)
+  helpers/centred-grids.ts (hand grids, seeded generator)  helpers/centred-figures.ts (NFR-46 table)
+  helpers/centred-digest-run.ts (dev-map 007 digest, shared by the Node test and the browser console)
+packages/sim/test/traceability.test.ts (edit)                                                       NFR-44
+```
+No function takes a seed or a round: layout and placement take the piece index, owners, pieces, aspects and parameters (006 FR-213). Seeds and rounds appear only in tests, the review set and the existing `step.ts` / `playback.ts` / `address.ts`.
+
+## 3. Decisions (each with the discarded alternative)
+- PD1. **Keep the 005 / 006 functions; add the 007 rule beside them** (U1). `fitLabel`, `territoryBoxes`, `factionBoxes`, `inLandFrame`, `placeTerritories`, `placeFactions` stay byte-for-byte; the viewer switches to the 007 placement. They serve as the "before" reference of NFR-46 and of the changed-label list, and every 005 / 006 test keeps its meaning without edits. The 005 box digest (`5f8e31fd50523b09`) and the 006 D11 digest (`23c90b67d52cbcfa`) stay pinned on those functions; the drawn layout gets a new 007 digest, pinned once in T5 with the changed-label list (NFR-44). Discarded: changing `placeTerritories` / `placeFactions` in place (every 006 placement test, the NFR-41 test and the D11 digest would be edited, and the "before" figures would need a copy of the old code anyway).
+- PD2. **The 007 horizontal frame travels in the layout's `boxes`.** `placeCentred*` return a `TerritoryLayout` whose `boxes[entry]` is the 007 horizontal in-land box (undefined when the in-land frame is straight, arc or none) and a `FactionLayout` whose `boxes.labels` hold the same pieces and aspect with `box` replaced in the same way; the 005 result is kept in a new field `base` (used only for reuse). `placed` keeps the 006 meaning (shaped frames, off-land boxes, FR-206 fallbacks) because `placeRole` is reused unchanged. So `roundLabels`, `labelCounts`, `instantLabels`, `labelsAt`, `frameOf` and the layer need no change, and a label with no 007 frame never falls back to its 005 box. Discarded: a new horizontal variant of `Placed` (edits to `roundLabels`, `labelCounts`, `layoutDigest` and their 006 tests).
+- PD3. **Exact disc tests by per-row intervals.** For a row (unit row cy, or box row y0) the set of whole cx (or x0) inside the disc of step k is an interval computed once with `isqrt` on BigInt (section 5); every candidate in the interval is in the disc with no per-candidate BigInt work. A unit test compares the intervals with the direct inequality of the spec for every row of random regions and every k up to kEnd. Discarded: the BigInt inequality per candidate (about 72,700 BigInt tests per angle and height for Francia).
+- PD4. **Straight heights by binary search, horizontal heights by a relaxed bound and a descending scan.** For a straight angle, with the centre set fixed (the set units in the disc), the pinned fit limits ((h x a) / 2 + M and h / 2 + M) are monotone in h, so "some centre fits" is monotone and a binary search gives the exact largest height (the 006 code already relies on it: "for straight shapes ub is exact"). A horizontal box centre moves with h (x0, y0 whole), so monotonicity does not hold; instead a monotone necessary condition R(h) (section 6) gives an upper bound by binary search, and an exact scan descends from it to the best straight height (a horizontal frame lower than that cannot win; equal height wins by FR-220 step 2). Discarded: a descending scan from the EDT bound for every shape (hundreds of levels on Francia); a binary search on the horizontal predicate itself (not monotone, could miss the answer).
+- PD5. **Distance prune with an exact safety margin.** With d2 the exact squared distance (whole number, the 006 `squaredDistanceMap`) from a unit centre to the nearest unit centre outside the set, m = min(1, a) as an exact dyadic and eps = 1/1024: a straight frame of height h at that unit centre is skipped iff (h m + 2M - 2 eps) > 0 and 4 d2 < (h m + 2M - 2 eps)^2; a horizontal box whose centre lies in unit u is skipped iff (h m + 2M - 2 - 2 eps) > 0 and 4 d2(u) < (h m + 2M - 2 - 2 eps)^2 (the centre is within 1 of u's centre). All in BigInt after scaling by 1024 x 2^E. eps is far above the rounding of the pinned formulas for coordinates below 2^12 (as 006 `DISC_EPS`), so a skipped frame is always rejected by the pinned fit test; the brute-force tests prove equality. Arc frames keep the 006 inscribed-disc filter (`discAllows`, proved in 006 D2); no new arc prune. Discarded: the bound without margin (a frame on the edge could be accepted by the pinned formulas and skipped by the prune); double comparisons (spec FR-228, NFR-43 ask for exact decisions).
+- PD6. **One arc search for 006 and 007** (U5). The body of `shapedCandidate` restricted to arc shapes becomes `arcSearch(p, pieces, aspect, margin, shapes, options)`; the 006 call passes all shapes in shape order, centres = all set units, top = Hmax, the 006 mean-of-centres winner; the 007 call passes the arc shapes that meet the tangent limit, centres = set units in the disc, top = the smallest of the arc existence bound floor(2 (R - M)) and the faction cap, minimum height ceil(G x hC), winner = nearest to C, then y, then x (P14). The 006 D11 digest and every 006 test must stay unchanged. Discarded: a copy of the arc search in `label-centred.ts` (two copies of the subtlest code of 006 to keep in step).
+- PD7. **Widening as a loop over k with cached per-label data.** The sums, the distance map, the run lengths and θ* / L are computed once per label; each step k only recomputes the disc intervals and the searches. The loop stops at the first k whose in-land frame reaches `offLandHeight` of the role, or at kEnd (P15). Discarded: recomputing everything per k (the distance map dominates the cost of small labels).
+- PD8. **Faction cap as a height limit.** Every frame has w = h x a, so 10 h w <= n is a largest height hCap per label (found exactly by a short descending check from floor of an integer square root bound); it is the top of every search of a faction label. Territory labels have no cap. Discarded: checking the cap per frame (same result, more work).
+- PD9. **Reuse of faction in-land frames as 006 D5.** A faction whose main region has the same pieces (005 `base` label identical), the same aspect and equal parameters (`LayoutParams`, `ShapeParams`, `CENTRE_PARAMS`) keeps its 007 in-land frame; off-land boxes are searched again for every state. Discarded: reuse keyed on the obstacle set (no gain on the dev map).
+- PD10. **Review-set hits and figures with the recorded browser aspects** (006 `helpers/measured-aspects.ts`); the digest and layout tests keep the injected aspects 4 (factions) and 3 (territories) of 005 / 006. Discarded: injected constants for the hits (a hit in Node might not exist on screen).
+
+## 4. Interface (TypeScript sketch)
+```ts
+// centre-params.ts
+interface CentreParams { centreFraction: { num: number; den: number } /* 7 / 50 */; angleLimit: number /* 45 */;
+                         straightAngles: readonly number[] /* [15, -15, 30, -30, 45, -45], FR-220 order */;
+                         factionAreaShare: { num: number; den: number } /* 1 / 10 */ }
+CENTRE_PARAMS: CentreParams
+// label-centre.ts
+interface CentreSums { n: bigint; sx: bigint; sy: bigint }
+centreSums(p: PieceIndex, pieces: readonly number[]): CentreSums
+isqrt(v: bigint): bigint                                        // floor of the square root, v >= 0
+dyadic(w: number): { W: bigint; E: number }                    // w = W / 2^E exactly, smallest E
+unitRowInterval(s: CentreSums, cp: CentreParams, k: number, cy: number): [number, number] | undefined
+boxRowInterval(s, cp, k, y0: number, h: number, w: number): [number, number] | undefined
+inDiscUnit(s, cp, k, cx, cy): boolean;  inDiscBox(s, cp, k, x0, y0, h, w): boolean   // the spec inequalities (tests)
+endStep(s, cp, bbox: { xmin; xmax; ymin; ymax }): number      // kEnd
+type CentreKey = { num: bigint; den: bigint }                  // squared distance to C, exact
+unitDistance(s, cx, cy): CentreKey;  boxDistance(s, x0, y0, h, w): CentreKey;  compareKeys(a, b): number
+factionHeightCap(n: bigint, aspect: number, share): number     // largest h with den * h * w <= num * n
+// label-centred.ts
+type CentredFrame = { shape: 'horizontal'; box: LabelBox } | StraightFrame      // the 006 types
+centredCandidate(p, pieces, aspect, margin, cp, k, cache, top: number | undefined): CentredFrame | undefined
+arcCandidate(p, pieces, aspect, margin, sp, cp, k, cache, minHeight, top): ArcFrame | undefined
+centredInLand(p, pieces, aspect, role: LabelRole, params: LayoutParams, sp: ShapeParams, cp: CentreParams):
+  { frame: InLandFrame | undefined; k: number }                // FR-221 choice after the FR-222 widening
+// label-shape.ts (edit)
+arcSearch(p, pieces, aspect, margin, shapes: readonly Shape[], o: ArcSearchOptions): ArcFrame | undefined
+arcWithinLimit(f: ArcFrame, extent: number, limit: number): boolean   // theta - alpha >= -limit, theta + alpha <= limit
+// label-centred-place.ts
+interface CentredTerritoryLayout extends TerritoryLayout { steps: readonly (number | undefined)[] }
+interface CentredFactionLayout extends FactionLayout { base: FactionBoxes; steps: ReadonlyMap<number, number>; centreParams: CentreParams }
+placeCentredTerritories(p, aspects, params, sp, cp): CentredTerritoryLayout
+placeCentredFactions(p, owners, aspects, params, sp, cp, previous?: CentredFactionLayout): CentredFactionLayout
+// label-digest.ts (edit)
+centredLayoutDigest(t: CentredTerritoryLayout, f: readonly CentredFactionLayout[]): string
+```
+
+## 5. Exact arithmetic (FR-218, FR-222, FR-228, FR-230)
+```
+centreSums: n, Sx = sum x, Sy = sum y over whole unit coordinates (BigInt; Sx can exceed 2^53 on factions)
+q = num / den = 7 / 50;  rho^2 = q^2 n;  disc of step k: dist^2 <= k^2 q^2 n
+unit centre (cx + 0.5, cy + 0.5):  den^2 ((n cx - Sx)^2 + (n cy - Sy)^2) <= num^2 k^2 n^3
+  row cy: Y = n cy - Sy; R = num^2 k^2 n^3 - den^2 Y^2; none if R < 0;
+  |n cx - Sx| <= isqrt(R / den^2) = T  ->  cx in [ceil((Sx - T) / n), floor((Sx + T) / n)]  (BigInt floor division)
+box (x0, y0, h, w = W / 2^E):
+  X = 2^(E+1) (n x0 - Sx) + n W - 2^E n;  Y = 2^E (2 (n y0 - Sy) + n h - n)
+  in disc iff den^2 (X^2 + Y^2) <= num^2 k^2 n^3 2^(2E+2)       // spec Definitions, with 2500 = den^2, 49 = num^2
+  row y0: T = isqrt((num^2 k^2 n^3 2^(2E+2) - den^2 Y^2) / den^2); x0 range from |X| <= T, X linear in x0 (step 2^(E+1) n)
+isqrt: Newton on BigInt from a power-of-two start, then fix-up so that r^2 <= v < (r + 1)^2 (tested on 10^5 values and edges)
+  using floor(R / den^2) is exact for the interval: |X| <= sqrt(R) / den  <=>  |X| <= isqrt(floor(R / den^2)) for whole X
+dyadic(w): E = 0; while w is not a whole number: w = w * 2, E = E + 1 (exact doubling); W = BigInt(w)
+endStep: corners (X, Y) of [xmin, xmax + 1] x [ymin, ymax + 1]: D = max over corners of (2 n X - 2 Sx - n)^2 + (2 n Y - 2 Sy - n)^2;
+  kEnd = smallest k >= 1 with den^2 D <= 4 num^2 k^2 n^3  (k from isqrt, then fix-up by one)
+keys: unit centre: (n cx - Sx)^2 + (n cy - Sy)^2 over n^2; box: (X^2 + Y^2) over (2^(E+1) n)^2; compare by cross products
+centre y / x of a box: (2 y0 + h) / 2 and (2^(E+1) x0 + W) / 2^(E+1): compared exactly as rationals
+factionHeightCap: largest h >= 0 with den * h * W(h) <= num * n * 2^E(h)  (W, E of the double h * a); start at
+  isqrt(num * n / (den * a_low)) + 2 with a_low a lower dyadic bound of a, descend while the test fails
+```
+- Every function here uses only BigInt arithmetic and whole-number Number values; the number scan of `centred-purity.test.ts` checks it (section 13).
+
+## 6. Search (FR-219 to FR-222, NFR-43)
+```
+centredInLand(set, a, role):
+  cache = { sums, bbox, d2 map (006 squaredDistanceMap), right-run lengths, theta*, L }      // once (PD7)
+  top = role = faction ? hCap : undefined                                                     // FR-230 (PD8)
+  for k = 1 .. kEnd:
+    c = centredCandidate(set, a, k, top)
+    arc = arcCandidate(set, a, k, minHeight = c ? ceil(G x c.h) : 1, top)                      // G x h exact (5/4)
+    frame = arc ?? c                                                                          // FR-221: arc only if it reaches ceil(G hC)
+    if frame and height(frame) >= offLandHeight(role): return { frame, k }                    // FR-222 stop (P15)
+    last = { frame, k }
+  return last                                                                                 // at kEnd (none if nothing fits)
+
+centredCandidate(set, a, k, top):
+  U = set units in the disc of step k (row intervals, PD3), sorted by d2 descending
+  for theta in straightAngles:                                                                // P14 order of step 3, 4
+    h_theta = largest h <= top with some u in U: straight(u, theta, h) fits
+              (binary search on h, PD4; candidates filtered by the PD5 bound; early stop on the first fit)
+  hS = max h_theta (undefined if none)
+  ub = binary search of R(h) = "some unit u within distance (k rho_up + 1) of C has
+       d2(u) allowing h - 2 by PD5, and its row run of set units through u has length >= floor(h a + 2M) - 1"
+       // monotone in h, necessary for a horizontal box of height h with centre in the disc (rho_up = isqrt bound >= rho)
+  hH = first h from min(ub, top) down to max(hS, 1) with a box (x0, y0 whole, row interval PD3) that fits (boxFits)
+  hC = max(hH, hS); winners = fitting frames at hC: horizontal ones if hH = hC, else the straight ones of the
+       first theta in order with h_theta = hC; winner = smallest key (exact), then centre y, then centre x
+boxFits(x0, y0, h, w): rows y0 - M .. y0 + h + M - 1 each have a run of set units from column x0 - M
+  of length >= 2M + 1 + floor(w - 0.5)                                                       // the 005 FR-169 fit, as in fitLabel
+arcCandidate: arcSearch with the arc shapes of shapesOf(theta*, L) that meet arcWithinLimit(45) at their
+  existence (P18: both roles), centres = U, top = min(floor(2 (R - M)), top), minHeight, winner P14
+```
+- Exactness: `helpers/centred-reference.ts` enumerates every height from 1 to a bound derived from the grid size, every angle, every centre (unit centres and whole x0, y0) on a padded window and every unit centre, applies the spec inequalities directly (BigInt, no intervals), the 006 pinned fit formulas and the FR-220 / P14 order; `centredInLand` must equal it on every test grid.
+- The size of the work for Francia at round 4 is about 72,700 disc centres per angle; the binary search tests about log2(hCap = 170) = 8 heights per angle; the PD5 filter removes most centres at large h. Measured in Node in T3 / T4 and in the browser in T9.
+
+## 7. Placement, data and steps (FR-217, FR-223 to FR-227, FR-229)
+- `placeCentredTerritories`: for every eligible entry (main piece and valid aspect, as 006) `centredInLand(role territory)`; then `placeRole(..., offLandHeight.territory)` unchanged (006 off-land rules, FR-217); `boxes[entry]` = the 007 horizontal box or undefined (PD2); owner-independent (FR-224).
+- `placeCentredFactions`: `base = factionBoxes(p, owners, aspects, params, previous?.base)` (only for the pieces and aspects of each main region, and for reuse); in-land frames reused by PD9, else `centredInLand(role faction)`; `placeRole(..., offLandHeight.faction)`; `boxes` = `base` with each `box` replaced (PD2); `recomputed` lists the factions whose in-land frame was computed.
+- Origin-free (FR-223): `centredInLand` reads only the pieces, the aspect and the parameters; the test gives the same pieces to every faction index and to territory-style inputs and checks equal in-land frames.
+- Steps (FR-226): `labelsAt` is unchanged: a horizontal 007 frame is a box label, a straight one a `ShapedDraw`, so the 006 cases (a) box / box, (b) box / straight and straight / straight, (c) crossfades apply as they are; frames taller than 120 are ordinary input. Tests in `centred-steps.test.ts` run the 006 step rules on 007 layouts of seed 1.
+- Natural proportions (FR-227): `straightMatrix` and the layer are unchanged; a test checks that for 007 straight frames (h up to hCap, angles to 45 deg) the only stretch is along the reading direction and equals w / measured length.
+- Counts (FR-229): `labelCounts` on the 007 layouts unchanged (PD2); the panel line is the 006 one.
+
+## 8. Drawing side
+No change to `label-frame.ts`, `glyph-layout.ts`, `render/labels-layer.ts`, `ui/panel.ts`, `strings.ts`. `ui/main.ts` changes only the two placement calls, the `previous` type and the FR-190 timer span.
+
+## 9. Number reference implementation
+- The 006 formulas are used unchanged for fit, existence and membership (`inStraight`, `inArc`, `arcExists`, `cosK`, straight footprints, `boxFits` = the 005 rule).
+- New pinned formula: `arcWithinLimit`: alpha = ((h x a) x |bend|) / (2 x L) (degrees, the 006 expression), allowed iff (theta - alpha) >= -limit and (theta + alpha) <= limit, theta the frame's angle; evaluated in that order.
+- Every decision of section 5 is BigInt; no double comparison decides a disc, a key, kEnd or the cap.
+
+## 10. Earlier tests (NFR-44) — the explicit list
+**Edited** (nothing else may change; if any other earlier test fails or stops compiling, stop: it is a plan or spec change):
+1. `packages/sim/test/traceability.test.ts`, T1 and T9:
+   - Constants: `FR_RANGES` `[[1, 216]]` -> `[[1, 230]]`; `NFR_RANGES` `[[1, 42]]` -> `[[1, 46]]`; new pinned `PENDING_007` (FR-217..FR-230, NFR-43..NFR-46, 18 ids) excluded from `expected` until T9; header comment names spec 007.
+   - "NFR-13 NFR-19 the expected list ends at the last spec ids and excludes retired ids": old `[[1, 216]]`, `[[1, 42]]`, size 258, 256, 256, `FR-216` / `NFR-42` ids, `FR-217` / `NFR-43` not; new (T1) `[[1, 230]]`, `[[1, 46]]`, everything = expected + retired + pending, size 276, `specIds.length - RETIRED.length` 274, `expected.length` 256, `FR-230` / `NFR-46` ids, `FR-231` / `NFR-47` not; (T9) pending removed, `expected.length` 274.
+   - "NFR-19 the expected list excludes only the retired ids": old literal 216 / 42, 256; new literal 230 / 46, 274 without the retired ids; `expected` equals that list minus `PENDING_007` (256) in T1, equals it (274) in T9.
+   - "NFR-13 NFR-19 NFR-31 NFR-35 this file self-traces exactly the ids it verifies": old list ending `'NFR-41'`; new the same plus `'NFR-44'` (new test "NFR-44 the 18 ids of spec 007 are pinned while pending" in T1, renamed "NFR-44 the 18 ids of spec 007 are all expected" in T9).
+
+**Kept unchanged, and why their meaning holds** (PD1): every 005 test of `fitLabel` / `territoryBoxes` / `factionBoxes`; every 006 test of `inLandFrame`, `shapedCandidate`, `placeTerritories`, `placeFactions` (including "NFR-41 every label drawn as an in-land horizontal frame has exactly its 005 box" and the D11 digest test), of `roundLabels`, `labelsAt`, `labelCounts`, `glyph-layout`, the layer and the review sets: they test functions this spec does not change (the `arcSearch` extraction of PD6 is required to leave `shapedCandidate` bit-identical). No 001 to 004 test is touched.
+
+## 11. Traceability
+- T1: section 10 item 1 with `PENDING_007`; expected stays 256. A renamed 006 title must still be reported missing (mutation).
+- T9: `PENDING_007` removed; expected 274; every id in a test title. Ids checked by screenshots or measurements are traced by their pure parts (spec "Done criteria"): FR-227 by `centred-steps.test.ts` (stretch only along the reading direction for 007 straight frames); NFR-43 by `label-centred.test.ts` / `label-centred-arc.test.ts` (pruned search equals the reference) and `centred-perf.test.ts` (timings logged, not asserted); NFR-45 by `centred-review-set.test.ts` (hit finding, addresses); NFR-46 by `centred-figures.test.ts` (the figures are computed by the test helper and the recorded table is compared with them).
+
+## 12. Visual verification (NFR-45), figures (NFR-46) and performance (NFR-43)
+- `core/centred-review-set.ts` `CENTRED_REVIEW_SET` (new module; the 005 and 006 sets untouched), debug-scene addresses (seed, round, x, y, zoom, optional `transition`), each taken **before** (viewer still on the 006 placement, before T7) and **after** (T8) at the same address:
+  1. `fit-r0` .. `fit-r4`: seed 1, rounds 0 to 4, fit scale (round 4 = round T).
+  2. `francia-r4`: seed 1 round 4, camera on C = (932, 1056) at fit scale; shown beside reference B (U2).
+  3. `italia-r0` .. `italia-r3`: seed 1, camera on the centre of mass of Italia's main region at the round, scale L0 - 0.25.
+  4. `step-straight-0` .. `-1`: the first (seed 1 first, then seeds 2..1000, then round) whose absorber's drawn frames are horizontal at one round and straight at the other with the 007 rule; `transition` 0, 0.25, 0.5, 0.75, 1; camera on the midpoint of the two frame centres at L0 - 0.25. No hit: dropped, proved with `MBRG_SLOW=1` (U3).
+  5. Territory close-ups: Galicia, Castilla-La Mancha, Bremen, Hamburgo, Trentino-Alto Adigio, Friuli-Venecia Julia, and every territory whose 006 frame is steeper than 45 deg (found by a test over the 006 territory layout in entry order; for example Baviera at -75); camera on the territory's centre of mass, scale max(L1 + 1, P / h + 0.5) with h the smaller of the 006 and 007 heights, so before and after share the camera.
+- Screenshots: Chrome on the reference PC, 1920 x 1080 drawing area, DPR recorded; attached to the PR, not committed (stored in the session scratchpad meanwhile). The user accepts every after shot, Galicia and Castilla-La Mancha explicitly with their figures.
+- **Recorded figures** (section 15; NFR-46): produced by `helpers/centred-figures.ts` with the recorded aspects (PD10): per territory label and per faction label at rounds 0..4 of seed 1: name, n, C, rho, step k, 006 frame (shape, angle, h, centre), 007 frame, centre offset (units and fraction of sqrt n), side gaps of horizontal frames, arc candidate height, in-land / off-land status in 006 and 007. "Before" columns in T2 (006 frames, C, n, rho, offsets of the 006 frames); "after" columns in T8. Check after T3 (U4): Francia at round 4 has a straight centred candidate at step 1; if not, stop (spec change on q).
+- NFR-43 procedure (T9, as 006 plan section 12): dev map, reference PC, 1920 x 1080; FR-190 figure for the steps 0->1, 1->2, 2->3, 3->4, 4->3 (each <= 100 ms, with reuse) and for the jumps 0->4 and 4->0 and the faction layout of a fresh load at `?seed=1&round=4` (each <= 150 ms, P19); every round change drawn within 150 ms of the request; frame stats for 10 s of a step loop and 10 s of pan and zoom at (L0 + L1) / 2 (median <= 16.7 ms, p95 <= 33.3 ms); first frame <= 2 s with the territory placement at load. Node timings logged first in T3 to T5 (`centred-perf.test.ts`, run alone). A failing figure stops the task: an exact speed-up, or a spec change (smaller q, fewer angles), never an approximation.
+- Browser determinism (T9): the 007 digest from `helpers/centred-digest-run.ts` in Chrome equals the Node pin (Edge and Firefox when available); recorded in the PR.
+
+## 13. Test strategy (Vitest, Node, no DOM), by file
+Titles start with the ids they verify; exact `toStrictEqual`; random grids from a fixed-seed generator in `helpers/centred-grids.ts` (never `Math.random`); references in `helpers/centred-reference.ts` written from the spec text.
+- `label-centre.test.ts` FR-218, FR-222, FR-228, FR-230: `centreSums` against direct sums (also above 2^53, dev-map Francia); `isqrt` on 10^5 values and at squares +-1; `dyadic` round trip for heights x measured aspects; row intervals equal the direct spec inequality for every row of 200 random regions and k = 1..kEnd (unit centres and boxes, aspects above and below 1); `endStep`: disc at kEnd contains every corner and at kEnd - 1 does not; keys and centre comparisons against rational arithmetic; `factionHeightCap` equals a linear scan; n <= 51 gives rho < 1 (disc may be empty).
+- `label-centred.test.ts` FR-219, FR-220, FR-222, NFR-43: `centredCandidate` equals the reference on 200 random grids and hand grids (large diagonal band, compact block, two lobes, crescent with C outside the land, region of 40 units, aspect 0.6, aspect 8.5 on an irregular region, region on the image edge); heights above 120 reached; tie order steps 2 to 7 on symmetric grids (horizontal vs straight at equal h, +theta vs -theta, equal distances); PD5 prune equals no prune; mutations: eps = 0 on a planted edge grid, `<=` -> `<` in a disc test, R(h) without the -1 slack, tie steps swapped, angle list order swapped.
+- `label-centred-arc.test.ts` FR-221, FR-222, FR-230: `arcCandidate` equals the reference (disc, tangent limit 45 both roles, uncapped top, P14 winner); G rule at ceil(1.25 hC) - 1 / ceil(1.25 hC); widening: stops at the first k reaching `offLandHeight`, a tiny arc does not stop it, ends at kEnd with the unrestricted tallest frame; faction cap on all three shapes; `shapedCandidate` (006) bit-identical after the PD6 extraction (a digest of its results on 200 random grids taken before the extraction, plus the unchanged D11 digest).
+- `label-centred-place.test.ts` FR-217, FR-223, FR-224, FR-225, FR-229, NFR-44: territory layout independent of owners (rounds 0..4); origin-free: the same pieces given to each faction index give equal in-land frames, and a faction layout equals the territory rule on the same set and aspect (same role parameters); no same-role conflict on the dev map (territories once, factions every round of seed 1); reuse equals a computation from the state alone for every step and jump of seed 1; `boxes` hold only 007 horizontal boxes (a label with no 007 frame has no box); `labelCounts` on 007 layouts; 007 digest pinned and the changed-label list (role, name, 006 frame, 007 frame) written to the test log and recorded in section 15; 005 box digest and 006 D11 digest unchanged.
+- `centred-steps.test.ts` FR-226, FR-227: the 006 step rules on 007 layouts of seed 1 at f = 0, 0.25, 0.5, 0.75, 1 (horizontal <-> straight interpolation, arc crossfade, Italia 2 -> 3 crossfade), f = 0 / f = 1 equal the instant drawings; `straightMatrix` stretch only along the reading direction for frames up to hCap at +-45 deg.
+- `centred-purity.test.ts` NFR-44, FR-228: the [N] files of section 2 pass the 006 number scan (only `sqrt`, `abs`, `min`, `max`, `floor`, `ceil`, `PI` from `Math`; no `**` with a Number exponent; BigInt `** <digits>n` allowed); no DOM, clock or randomness; results equal while `Math.random`, `Date.now`, `performance.now` throw; planted violations flagged.
+- `centred-review-set.test.ts` NFR-45: hits found in the stated order and pinned; addresses parse and hold what their label says; steep-territory list equals the 006 layout scan.
+- `centred-figures.test.ts` NFR-46: the recorded table of section 15 equals the helper output (before columns from T2, after columns from T8); every 007 centre offset <= k rho of its step; Francia round 4 straight with centre within rho of C.
+- `centred-perf.test.ts` NFR-43 (logged, not asserted): territory placement at load, faction placement per step and from scratch on seed 1, widening steps used, recomputed counts.
+
+## 14. Decisions the user must confirm (with this plan)
+- U1. Keep the 005 / 006 functions as the "before" reference; the viewer switches to the 007 placement. Consequence for NFR-44: the 005 box digest and the 006 D11 digest stay pinned unchanged (they pin functions this spec does not change), and the "re-pin once" of the spec is a **new** pinned 007 layout digest with the changed-label list, taken in T5. Alternative: change the 006 placement in place and edit the 006 placement tests and the D11 pin.
+- U2. Reference B: the user provides the image of the render chosen on 2026-10-20 (it is not in the repository); if it is not available, `francia-r4` is compared with the recorded B figures (+40 deg, h 155, centre (905, 941)).
+- U3. The "no hit in seeds 1..1000" proof of a dropped step scene runs only with `MBRG_SLOW=1`, its log in the PR (as 006 D12).
+- U4. Checkpoint after T3: if Francia at round 4 has no straight centred candidate within rho at step 1, implementation stops for a spec change on q (rather than tuning q in code).
+- U5. The arc search of `shapedCandidate` is extracted into a shared `arcSearch` used by 006 and 007 (guarded by the unchanged D11 digest and a random-grid digest). Alternative: a separate copy for 007.
+
+## 15. Recorded figures and hits
+Filled in T2 (before), T5 (changed-label list, 007 digest), T6 (hits) and T8 (after). Empty until then.
+| label | role | n | C | rho | 006 frame | k | 007 frame | offset | side gaps | arc h |
+
+## 16. Risks
+- Cost of uncapped searches on large regions: bounded by the disc, the faction cap (hCap about 170 for Francia at round 4), binary search per straight angle and the PD5 prune; measured in Node in T3 / T4 before the browser. If the budget fails: exact speed-ups first (per-angle EDT maxima, row-run bounds), then a spec change.
+- Horizontal relaxed bound R(h) too loose on irregular regions (long descending scans): logged in `centred-perf.test.ts`; an exact tighter bound may be added with its proof and reference test.
+- PD6 extraction could change 006 arcs: guarded by the unchanged D11 digest and the random-grid digest of `shapedCandidate`.
+- Territory labels that lose their 006 steep frames (D17) or shrink inside the disc: listed in section 15 and shown in the close-ups.
+- More frequent faction shape changes between rounds (no G between horizontal and straight): visible in the fit-scale and step scenes; accepted by the spec.
+- Windows path with spaces: quote; `$env:CI='1'; npm test` before commits.
