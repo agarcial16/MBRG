@@ -10,7 +10,7 @@ const all = import.meta.glob('../src/**/*.ts', { query: '?raw', import: 'default
 const sourceOf = (path: string): string => Object.entries(all).find(([p]) => p === `../src/${path}`)?.[1] ?? '';
 
 /** The files of plan 007 section 2 marked [N] (and the parameter module) that exist so far. */
-const CENTRED_FILES = ['core/centre-params.ts', 'core/label-centre.ts', 'core/label-centred.ts', 'core/label-shape.ts'];
+const CENTRED_FILES = ['core/centre-params.ts', 'core/label-centre.ts', 'core/label-centred.ts', 'core/label-centred-place.ts', 'core/label-digest.ts', 'core/label-shape.ts'];
 
 const ALLOWED_MATH = new Set(['sqrt', 'abs', 'min', 'max', 'floor', 'ceil', 'PI']);
 

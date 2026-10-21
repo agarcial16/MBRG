@@ -38,7 +38,7 @@ Rules for every task:
   - Commit: `feat(web): add centred arcs, widening and the faction size cap`.
   - Done when: tests green; the `shapedCandidate` random-grid digest and the 006 D11 digest unchanged; mutations proved (tangent limit 90, widening stopping on any frame, cap off by one, G bound off by one); `rg` finds the listed ids.
 
-- [ ] **T5. Role placements, origin-free checks, 007 digest and changed-label list.** FR-217, FR-223, FR-224, FR-225, FR-229, NFR-44
+- [x] **T5. Role placements, origin-free checks, 007 digest and changed-label list.** FR-217, FR-223, FR-224, FR-225, FR-229, NFR-44
   - Files: `apps/web/src/core/{label-centred-place.ts,label-digest.ts}`, `apps/web/test/{label-centred-place.test.ts,helpers/centred-digest-run.ts,centred-perf.test.ts}`, `specs/007-faction-label-refinement/plan.md` (section 15 changed-label list and digest).
   - Tests first: plan section 13 `label-centred-place.test.ts` list (owner independence, origin-free equality, no same-role conflict, reuse equals a fresh computation for every step and jump of seed 1, `boxes` hold only 007 horizontal boxes, counts, 007 digest pinned, 005 and 006 digests unchanged).
   - Code: plan PD2, PD9 and section 7.

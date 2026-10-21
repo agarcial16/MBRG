@@ -3,6 +3,8 @@ import { CENTRE_PARAMS } from '../src/core/centre-params';
 import { centreSums, factionHeightCap } from '../src/core/label-centre';
 import { centredCache, centredCandidate, centredInLand } from '../src/core/label-centred';
 import type { CentredFrame } from '../src/core/label-centred';
+import { placeCentredFactions, placeCentredTerritories } from '../src/core/label-centred-place';
+import type { CentredFactionLayout } from '../src/core/label-centred-place';
 import { LABEL_PARAMS } from '../src/core/label-params';
 import type { InLandFrame } from '../src/core/label-shape';
 import { mainPieces } from '../src/core/regions';
@@ -163,5 +165,39 @@ describe('NFR-43 FR-221 FR-222 FR-230 Node timings of the in-land search with ar
       console.log(`centred-perf: round ${String(round)} in-land search from scratch ${ms(roundMs)} ms\n  ${parts.join('\n  ')}`);
     }
     expect(total).toBeGreaterThan(0);
+  }, 240000);
+});
+
+// T5: the role placements (territories at load, factions per step with reuse and from scratch).
+describe('NFR-43 Node timings of the role placements (logged, not asserted)', () => {
+  it('NFR-43 territories at load, factions per step (reuse) and from scratch, steps used', async () => {
+    const run = await measuredRun();
+    const t0 = now();
+    const territories = placeCentredTerritories(run.p, run.territoryAspects, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS);
+    const territoryMs = now() - t0;
+    const scratch: CentredFactionLayout[] = [];
+    const scratchMs: number[] = [];
+    for (const table of run.tables) {
+      const t1 = now();
+      scratch.push(placeCentredFactions(run.p, table, run.factionAspects, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS));
+      scratchMs.push(now() - t1);
+    }
+    const stepMs: string[] = [];
+    for (let round = 0; round < run.rounds; round++) {
+      for (const [from, to] of [[round, round + 1], [round + 1, round]] as const) {
+        const t2 = now();
+        const step = placeCentredFactions(run.p, run.tables[to]!, run.factionAspects, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS, scratch[from]);
+        stepMs.push(`${String(from)}->${String(to)} ${ms(now() - t2)} ms (recomputed ${String(step.recomputed.length)})`);
+      }
+    }
+    const t3 = now();
+    placeCentredFactions(run.p, run.tables[run.rounds]!, run.factionAspects, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS, scratch[0]);
+    const jumpMs = now() - t3;
+    const widened = territories.steps.filter((s) => s !== undefined && s > 1).length;
+    console.log(
+      `centred-perf: role placements (measured aspects): territories at load ${ms(territoryMs)} ms (${String(widened)} widened); ` +
+        `factions from scratch per round ${scratchMs.map(ms).join(', ')} ms; steps with reuse ${stepMs.join('; ')}; jump 0->${String(run.rounds)} ${ms(jumpMs)} ms`,
+    );
+    expect(territories.eligible.reduce((s, v) => s + v, 0)).toBe(70);
   }, 240000);
 });
