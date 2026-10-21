@@ -24,7 +24,7 @@ Rules for every task:
   - Commit: `feat(web): add exact centre of mass and centre disc tests`.
   - Done when: tests green; before figures recorded in plan section 15 (Galicia and Castilla-La Mancha side gaps included); mutations proved (`<=` -> `<` in the disc test, interval end off by one, kEnd one less); `rg` finds the listed ids.
 
-- [ ] **T3. Centred candidate: horizontal and straight, uncapped, FR-220 order, exact prunes.** FR-219, FR-220, FR-228, NFR-43
+- [x] **T3. Centred candidate: horizontal and straight, uncapped, FR-220 order, exact prunes.** FR-219, FR-220, FR-228, NFR-43
   - Files: `apps/web/src/core/label-centred.ts` (centred part), `apps/web/test/{label-centred.test.ts,helpers/centred-reference.ts,centred-perf.test.ts}`.
   - Tests first: plan section 13 `label-centred.test.ts` list (reference equality on 200 random and the hand grids, heights above 120, aspect below 1, tie steps 2 to 7, prune equals no prune).
   - Code: plan PD3, PD4, PD5 and section 6 (`centredCandidate`, `boxFits`, relaxed bound R(h)).
