@@ -68,7 +68,7 @@ Rules for every task:
   - Commit: `test(web): record centred label figures`.
   - Done when: tests green; figures recorded; screenshots accepted by the user. Superseded for acceptance by T8b (spec D19, 2026-10-21): the user rejected the loss of curvature; the T8 after shots are retaken in T8b.
 
-- [ ] **T8b. Arc gain and territory tangent limit (spec D19, plan section 16).** FR-221, FR-222, NFR-44, NFR-45, NFR-46 (user acceptance PENDING again)
+- [ ] **T8b. Arc gain and territory tangent limit (spec D19, plan section 16).** FR-221, FR-222, NFR-44, NFR-45, NFR-46 (code, tests, figures and screenshots done in T8b; PENDING user review of the screenshots: not ticked)
   - Files: `apps/web/src/core/{centre-params.ts,label-centred.ts,centred-review-set.ts}`, `apps/web/test/{label-centre.test.ts (parameters pin),label-centred-arc.test.ts,label-centred-place.test.ts (007 digest),centred-steps.test.ts,centred-review-set.test.ts,centred-figures.test.ts,helpers/centred-reference.ts}`, `specs/007-faction-label-refinement/plan.md` (section 15 re-pinned figures, changed-label list, hits; date).
   - Tests first: `CENTRE_PARAMS` pin extended (`arcGain` 1/1, `arcTangentLimit` faction 45 / territory 75); an arc of equal height wins (both roles) and a lower one loses; FR-221 order arc > horizontal > straight at equal height; a territory arc with tangents between 45 and 75 deg exists, the same faction arc does not; no straight frame steeper than 45 deg in either role; the reference reads Ga and the role limits; red on the current code.
   - Code: plan section 16 (exact ceil(Ga x hC), per-role tangent limit). `SHAPE_PARAMS` and every 006 function untouched.
