@@ -40,7 +40,7 @@ Rules for every task:
   - Commit: `test(sim): chained round step equals getState and getRounds`.
   - Done when: tests green (runtime logged; above 5 s gets a timeout and the dev-map loop runs 1000 seeds only in that test); mutation: a seed off by one in the chain fails; `rg` finds FR-312, NFR-48.
 
-- [ ] **T5. `apps/server` skeleton and the `node:sqlite` check.** NFR-53
+- [x] **T5. `apps/server` skeleton and the `node:sqlite` check.** NFR-53
   - Files: `apps/server/{package.json,tsconfig.json,tsconfig.test.json}`, root `package.json` (workspace entry, `typecheck` script), `package-lock.json` (workspace link only), `apps/server/test/platform-sqlite.test.ts`, `apps/server/test/manifest.test.ts`, `specs/008-server-and-predictions/plan.md` (section 13: Node version, stability label).
   - Tests first (plan section 8): `import('node:sqlite')` without a flag; memory and temporary-file databases; commit and rollback; exclusive lock makes a second connection fail; every database closed in `finally`. NFR-53 manifest: `apps/server` depends only on `@mbrg/*` (runtime) and exactly the U2 development dependencies at their pinned versions; `packages/sim` and `packages/shared` keep no third-party dependency; `package-lock.json` gains no new package (only the workspace link).
   - Commit: `chore(server): add the server workspace and sqlite checks`.

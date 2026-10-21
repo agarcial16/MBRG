@@ -70,12 +70,12 @@ const PENDING_008: readonly string[] = [
   'FR-291', 'FR-292', 'FR-293', 'FR-294', 'FR-295', 'FR-296', 'FR-297', 'FR-298', 'FR-299', 'FR-300',
   'FR-301', 'FR-302', 'FR-303', 'FR-304', 'FR-305', 'FR-306', 'FR-307', 'FR-308', 'FR-309', 'FR-310',
   'FR-311', 'FR-314', 'FR-315',
-  'NFR-47', 'NFR-49', 'NFR-50', 'NFR-52', 'NFR-53', 'NFR-54', 'NFR-56',
+  'NFR-47', 'NFR-49', 'NFR-50', 'NFR-52', 'NFR-54', 'NFR-56',
   'NFR-57',
 ];
 
-/** Ids of spec 008 already removed from PENDING_008 by the tasks that traced them (T2: FR-313; T3: NFR-51, NFR-55; T4: FR-312, NFR-48). */
-const DONE_008: readonly string[] = ['FR-313', 'NFR-51', 'NFR-55', 'FR-312', 'NFR-48'];
+/** Ids of spec 008 already removed from PENDING_008 by the tasks that traced them (T2: FR-313; T3: NFR-51, NFR-55; T4: FR-312, NFR-48; T5: NFR-53). */
+const DONE_008: readonly string[] = ['FR-313', 'NFR-51', 'NFR-55', 'FR-312', 'NFR-48', 'NFR-53'];
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {

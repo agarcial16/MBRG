@@ -158,6 +158,8 @@ T6 proves the chosen runner: a child process starts `apps/server/src/main.ts --c
 ## 13. Recorded figures and checks
 (Filled during M1: Node version, `node:sqlite` stability label, experimental warning yes/no, runner check, test vectors, dev-map golden digests, absorber uniformity worst deviation. Later milestones add their figures.)
 
+- **T5 (`node:sqlite`)**: Node `v24.0.0` (win32). `import('node:sqlite')` works with no flag. Stability label: 1.1 Active development (from the Node 24 documentation, not checked online here); a plain import prints `ExperimentalWarning: SQLite is an experimental feature and might change at any time` (warning present: yes). In-memory and file databases, commit, rollback and the `PRAGMA locking_mode = EXCLUSIVE` lock (second connection fails with locked/busy) all pass on Windows. `engines` (>=24) and `.nvmrc` (24) untouched (U3). Lockfile gained only the `apps/server` workspace entry and its link (`tsx` 4.23.15, `@types/node` 24.19.2 were already locked).
+
 ## 14. Risks
 - **`node:sqlite` API movement** (experimental or release-candidate status): wrap it behind the storage interface (M2b) so a change touches one file; T5/T6 pin the behaviour on the installed version.
 - **Windows file locking and temporary files**: tests use unique temporary paths and close every database in `finally`; the lock test runs on Windows and in CI (Linux).

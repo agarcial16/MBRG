@@ -49,7 +49,8 @@ describe('NFR-36 no dependency is added for labels and transitions', () => {
     expect(entry.devDependencies).toStrictEqual(DEV);
     expect(entry.peerDependencies).toBeUndefined();
     expect(entry.optionalDependencies).toBeUndefined();
-    expect(Object.keys(lock.packages)).toHaveLength(LOCK_ENTRIES);
+    // Spec 008 adds the server workspace and its link only (NFR-53).
+    expect(Object.keys(lock.packages).filter((k) => k !== 'apps/server' && k !== 'node_modules/@mbrg/server')).toHaveLength(LOCK_ENTRIES);
   });
 });
 
