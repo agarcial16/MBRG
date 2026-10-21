@@ -34,7 +34,7 @@ Rules for every task:
   - Commit: `feat(sim): export round step with seed, candidates, living factions`.
   - Done when: tests green; `git diff rewrite -- packages/sim/src` shows only `inputs.ts`, `types.ts`, `exports.ts`, `index.ts`; mutations proved (skip the round-T check, call the internal candidates for a dead faction, return `how`); `rg` finds FR-313, NFR-51, NFR-55.
 
-- [ ] **T4. Chained round step equals `getState` / `getRounds`.** FR-312, NFR-48
+- [x] **T4. Chained round step equals `getState` / `getRounds`.** FR-312, NFR-48
   - Files: `packages/sim/test/exports-chain.test.ts`.
   - Tests first: for every golden fixture map and the dev map (`maps/dev/map.json`), seeds 0 to 999, chaining `playRoundWithSeed` with that constant seed from `getState(map, 0, 0)` gives `getState(map, seed, r)` and the records of `getRounds(map, seed, T)` at every round 0..T (`toStrictEqual`); the round-0 state does not depend on the seed (seeds 0, 1, 2^32 − 1); NFR-48 (sim part): `packages/sim/test/golden` files unchanged (byte compare with their git blobs is a process check; the test asserts their records still equal `getRounds`).
   - Commit: `test(sim): chained round step equals getState and getRounds`.
