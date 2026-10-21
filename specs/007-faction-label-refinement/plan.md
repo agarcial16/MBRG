@@ -227,8 +227,26 @@ Titles start with the ids they verify; exact `toStrictEqual`; random grids from 
 - U5. The arc search of `shapedCandidate` is extracted into a shared `arcSearch` used by 006 and 007 (guarded by the unchanged D11 digest and a random-grid digest). Alternative: a separate copy for 007.
 
 ## 15. Recorded figures and hits
-Filled in T2 (before), T5 (changed-label list, 007 digest), T6 (hits) and T8 (after). Empty until then.
-| label | role | n | C | rho | 006 frame | k | 007 frame | offset | side gaps | arc h |
+Filled in T2 (before), T5 (changed-label list, 007 digest), T6 (hits) and T8 (after).
+
+**Before (T2).** The retained 006 placement (`placeTerritories`, `placeFactions`) with the aspects measured in Chrome (PD10), seed 1, rounds 0..4. The full table (70 territory labels + 15 faction labels = 85 rows, from `helpers/centred-figures.ts`) is printed by `centred-figures.test.ts` and pinned there by the digest `0ce16eeca4e27140` of its lines; the review rows below are pinned one by one. Offset = centre of the 006 in-land frame minus C (units, and fraction of sqrt n); side gaps (L, R) only for horizontal frames. All 85 labels are in-land in 006 (0 off-land). C is (Sx / n + 0.5, Sy / n + 0.5); rho = 0.14 sqrt n.
+| label | role | n | C | rho | 006 frame (shape, angle, h, centre) | offset | side gaps | after: 007 frame / k / arc h |
+|---|---|---|---|---|---|---|---|---|
+| Galicia | territory | 19,980 | (204.3, 1208.3) | 19.8 | straight +90, h 50, (224.5, 1207.5) | (20.2, -0.8) d 20.2 = 0.143 sqrt n | - | T8 |
+| Castilla-La Mancha | territory | 53,635 | (504.8, 1537.7) | 32.4 | horizontal, h 29, (497.7, 1586.5) | (-7.1, 48.8) d 49.3 = 0.213 sqrt n | L 20.0, R 10.6 | T8 |
+| Baviera | territory | 47,174 | (1448.5, 689.0) | 30.4 | straight -75, h 73, (1433.5, 693.5) | (-15.0, 4.5) d 15.6 = 0.072 | - | T8 |
+| Bremen | territory | 215 | (1269.2, 318.5) | 2.1 | straight -30, h 3, (1269.5, 318.5) | d 0.3 | - | T8 |
+| Hamburgo | territory | 517 | (1334.3, 275.3) | 3.2 | straight -30, h 4, (1335.5, 277.5) | d 2.5 = 0.109 | - | T8 |
+| Trentino-Alto Adigio | territory | 9,115 | (1459.9, 916.6) | 13.4 | straight +45, h 14, (1465.5, 921.5) | d 7.4 = 0.078 | - | T8 |
+| Friuli-Venecia Julia | territory | 4,935 | (1573.5, 931.6) | 9.8 | straight -45, h 9, (1576.5, 935.5) | d 4.9 = 0.069 | - | T8 |
+| Italia r0, r1, r2 | faction | 169,251 | (1550.1, 1180.8) | 57.6 | horizontal, h 120, (1364.2, 1047.0) | (-186.0, -133.8) d 229.1 = 0.557 | L 62.0, R 66.7 | T8 |
+| Italia r3 | faction | 393,071 | (424.5, 1466.4) | 87.8 | horizontal, h 120, (416.2, 1467.0) | d 8.4 = 0.013 | L 234.0, R 302.7 | T8 |
+| Francia r4 | faction | 1,165,291 | (932.4, 1056.7) | 151.1 | horizontal, h 120, (628.9, 1267.0) | (-303.5, 210.3) d 369.2 = 0.342 | L 310.0, R 1004.2 | T8 |
+Notes on the before figures:
+- The 006 steep territory frames (steeper than 45 deg) are the ones the 007 limit removes (for example Galicia +90, Baviera -75); the complete list is the T6 scan over this layout.
+- **Discrepancy with the spec evidence (reported, not a change to q).** The spec quotes the 006 Francia label at round 4 as horizontal h 120 centred at (343, 1214), 610 units from C. The retained 006 code gives, for every aspect tried (2 to 6, the measured 3.23 and the injected 4), h 120 at (523..811, 1148..1277) (injected aspect 4: (583, 1274), 411 units from C; measured 3.23: (628.9, 1267.0), 369 units from C), or (1107, 742) at aspect 6. All are horizontal h 120 and far beyond rho = 151 (2.4 to 2.7 rho), so the conclusion of the spec ("the 006 rule leaves Francia far from the centre") holds; the quoted position is not reproducible. C, n and rho of the evidence are reproduced exactly (n 1,165,291; C (932.4, 1056.7); rho 151.1).
+- **q check (NFR-46).** The two evidence frames lie within rho at q = 7/50 of the exact C: the +40 deg h 160 frame at (972, 916) is 146.2 units away (0.135 sqrt n) and reference B at (905, 941) is 118.9 away (0.109 sqrt n); with q = 3/25 (rho 129.5) the h 160 frame would be excluded. q = 7/50 stands.
+- With the measured aspects, Italia (faction 4) is horizontal h 120 in rounds 0 to 2 (the arc of the spec evidence appears with the injected aspect 4); Portugal at round 0 and 1 is an arc (+75 deg, h 76) and is the only 006 arc among the faction labels.
 
 ## 16. Risks
 - Cost of uncapped searches on large regions: bounded by the disc, the faction cap (hCap about 170 for Francia at round 4), binary search per straight angle and the PD5 prune; measured in Node in T3 / T4 before the browser. If the budget fails: exact speed-ups first (per-angle EDT maxima, row-run bounds), then a spec change.

@@ -17,7 +17,7 @@ Rules for every task:
   - Commits: `docs: add spec, plan and tasks 007`; `test: trace spec 007 ids and pin the centre parameters`.
   - Done when: full suite, typecheck and `CI=1` green; a renamed title of a 006 id is still reported missing (mutation); `rg` finds NFR-44, FR-219, FR-221, FR-230 in titles.
 
-- [ ] **T2. Exact centre arithmetic, purity scan, "before" figures.** FR-218, FR-222, FR-228, FR-230, NFR-46
+- [x] **T2. Exact centre arithmetic, purity scan, "before" figures.** FR-218, FR-222, FR-228, FR-230, NFR-46
   - Files: `apps/web/src/core/label-centre.ts`, `apps/web/test/{label-centre.test.ts,centred-purity.test.ts,centred-figures.test.ts,helpers/centred-figures.ts,helpers/centred-grids.ts}`, `specs/007-faction-label-refinement/plan.md` (section 15 before columns).
   - Tests first: plan section 13 `label-centre.test.ts` list (sums above 2^53, `isqrt`, `dyadic`, row intervals equal the spec inequality for unit centres and boxes, `endStep`, exact keys, `factionHeightCap`, n <= 51); `centred-purity.test.ts` number scan with planted violations; `centred-figures.test.ts` "before" columns (006 frames from the retained 006 functions, n, C, rho, offsets, side gaps) with the recorded aspects.
   - Code: plan sections 5 and 9 (BigInt only in decisions).
