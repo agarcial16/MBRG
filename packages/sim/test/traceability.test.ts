@@ -69,10 +69,13 @@ const PENDING_008: readonly string[] = [
   'FR-281', 'FR-282', 'FR-283', 'FR-284', 'FR-285', 'FR-286', 'FR-287', 'FR-288', 'FR-289', 'FR-290',
   'FR-291', 'FR-292', 'FR-293', 'FR-294', 'FR-295', 'FR-296', 'FR-297', 'FR-298', 'FR-299', 'FR-300',
   'FR-301', 'FR-302', 'FR-303', 'FR-304', 'FR-305', 'FR-306', 'FR-307', 'FR-308', 'FR-309', 'FR-310',
-  'FR-311', 'FR-312', 'FR-313', 'FR-314', 'FR-315',
+  'FR-311', 'FR-312', 'FR-314', 'FR-315',
   'NFR-47', 'NFR-48', 'NFR-49', 'NFR-50', 'NFR-51', 'NFR-52', 'NFR-53', 'NFR-54', 'NFR-55', 'NFR-56',
   'NFR-57',
 ];
+
+/** Ids of spec 008 already removed from PENDING_008 by the tasks that traced them (T2: FR-313). */
+const DONE_008: readonly string[] = ['FR-313'];
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -198,9 +201,9 @@ describe('traceability', () => {
     expect(literal[0]).toBe('FR-231');
     expect(literal).toContain('FR-315');
     expect(literal).toContain('NFR-57');
-    expect(PENDING_008).toHaveLength(96);
-    expect(new Set(PENDING_008).size).toBe(96);
-    expect([...PENDING_008].sort()).toStrictEqual([...literal].sort());
+    expect(PENDING_008).toHaveLength(96 - DONE_008.length);
+    expect(new Set([...PENDING_008, ...DONE_008]).size).toBe(96);
+    expect([...PENDING_008, ...DONE_008].sort()).toStrictEqual([...literal].sort());
     for (const id of PENDING_008) expect(expected, id).toContain(id);
   });
 

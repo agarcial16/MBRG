@@ -20,7 +20,7 @@ Rules for every task:
   - Commits: `docs: add spec, plan and tasks 008`; `test: trace spec 008 ids with a pending set`.
   - Done when: suite, typecheck and `CI=1` green; mutation: tracing a pending id in a dummy title makes "no pending id is already traced" fail; removing a 007 id from a title is still reported missing; `rg` finds NFR-55 in a title.
 
-- [ ] **T2. State and faction input checks and the two new error kinds (internal).** FR-313
+- [x] **T2. State and faction input checks and the two new error kinds (internal).** FR-313
   - Files: `packages/sim/src/{inputs.ts,types.ts}`, `packages/sim/test/inputs-state.test.ts`.
   - Tests first: `checkState` accepts `getState(map, s, r).value` for every round of the golden maps and `-0` as round; rejects: missing or extra own key, inherited keys (own-property rule), mode other than `classic`, round negative, fractional, text, NaN, above T; owners in another order, a missing or extra territory, a sea zone listed, a pair of length 1 or 3, an unknown faction; `checkFaction` accepts every map faction, rejects 0, 1.5, `'1'`, an id not in the map; the kinds `invalid-state` and `invalid-faction` are English kebab-case identifiers; `language.test.ts` stays unchanged and green.
   - Code: plan section 6 (`checkState`, `checkFaction`; `SimError` gains the two kinds).

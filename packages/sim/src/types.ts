@@ -21,6 +21,8 @@ export interface RoundRecord {
 export type SimError =
   | { kind: 'invalid-seed' }
   | { kind: 'invalid-round' }
+  | { kind: 'invalid-state' }
+  | { kind: 'invalid-faction' }
   | { kind: 'round-out-of-range'; round: number; total: number }
   | { kind: 'isolated-faction'; faction: FactionId; round: number };
 
