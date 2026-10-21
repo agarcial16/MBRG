@@ -31,7 +31,7 @@ Rules for every task:
   - Commit: `feat(web): add the centred label candidate`.
   - Done when: tests green; Node time logged for territories and for Francia at round 4; **U4 checkpoint**: Francia at round 4 has a straight centred candidate at step 1 (else stop for a spec change); mutations proved (eps = 0, R(h) slack removed, tie steps swapped, angle order swapped); `rg` finds the listed ids.
 
-- [ ] **T4. Arc candidate, FR-221 choice, widening and the faction cap.** FR-221, FR-222, FR-230, NFR-43
+- [x] **T4. Arc candidate, FR-221 choice, widening and the faction cap.** FR-221, FR-222, FR-230, NFR-43
   - Files: `apps/web/src/core/{label-shape.ts (arcSearch extraction, arcWithinLimit),label-centred.ts}`, `apps/web/test/{label-centred-arc.test.ts,helpers/centred-reference.ts}`.
   - Tests first: a digest of `shapedCandidate` results on 200 random grids taken on the current code **before** the extraction; plan section 13 `label-centred-arc.test.ts` list (disc, tangent limit 45 both roles, uncapped top, P14 winner, G at ceil(1.25 hC) - 1 / ceil(1.25 hC), widening stop and kEnd, tiny arc does not stop it, faction cap on every shape).
   - Code: plan PD6, PD7, PD8 and section 6 (`arcCandidate`, `centredInLand`).

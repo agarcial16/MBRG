@@ -395,35 +395,64 @@ export function arcFootprint(frame: ArcFrame, margin: number): Footprint {
 }
 
 /**
- * The shaped candidate (FR-197): the frame of the largest height h >= max(1, minHeight) for which some shape of the
- * set has a fitting frame; the first shape in shape order at that height; the centre by the FR-197 rule.
- * Undefined when there is none. `minHeight` = ceil(G * hH) is the exact prune of NFR-38.
+ * Spec 007 FR-221 (pinned formula, plan 007 section 9): the tangents of the middle line of an arc frame lie within
+ * [-limit, +limit] degrees. With "alpha = ((h * a) * |bend|) / (2 * L)" (the 006 expression, degrees, `f.w` is
+ * h * a) and theta the frame's angle: "theta - alpha >= -limit" and "theta + alpha <= limit", evaluated in that order.
  */
-export function shapedCandidate(
+export function arcWithinLimit(f: ArcFrame, extent: number, limit: number): boolean {
+  const alpha = (f.w * Math.abs(f.bend)) / (2 * extent);
+  return f.angle - alpha >= -limit && f.angle + alpha <= limit;
+}
+
+/**
+ * What the shape search is asked for. The 006 call (`shapedCandidate`) gives only `extent`, `top` and `minHeight`;
+ * spec 007 adds a tangent limit, a filter on the centres and its own winner rule (plan 007 PD6, U5).
+ */
+export interface ArcSearchOptions {
+  /** The axis extent L of the set (the arc radius R = L / |bend| comes from it). */
+  extent: number;
+  /** The largest height searched. */
+  top: number;
+  /** Heights below max(1, minHeight) are not searched. */
+  minHeight: number;
+  /** Arc frames must satisfy `arcWithinLimit` with this limit (degrees); omitted: no limit (006). */
+  limit?: number;
+  /** Only unit centres (x, y) for which it returns true are tried as frame centres; omitted: every unit of the set. */
+  centre?: (x: number, y: number) => boolean;
+  /** The index of the winning centre among the fitting ones (whole x and y lists); omitted: the 006 FR-197 rule. */
+  winner?: (xs: readonly number[], ys: readonly number[]) => number;
+  /** The exact squared distance map of the set when the caller already has it (it is built here otherwise). */
+  map?: DistanceMap;
+}
+
+/**
+ * The shape search shared by specs 006 and 007: the frame of the largest height h >= max(1, minHeight) (and <= top)
+ * for which some shape of `shapes` has a fitting frame; the first shape in shape order at that height; the centre by
+ * `winner`. Undefined when there is none. `minHeight` = ceil(G * hH) is the exact prune of NFR-38.
+ */
+export function arcSearch(
   p: PieceIndex,
   pieces: readonly number[],
   aspect: number,
-  params: LayoutParams,
-  sp: ShapeParams,
-  minHeight: number,
+  margin: number,
+  shapes: readonly Shape[],
+  o: ArcSearchOptions,
 ): ShapedFrame | undefined {
-  checkInputs(aspect, params);
-  const margin = params.margin;
-  const lo = Math.max(1, minHeight);
-  if (pieces.length === 0 || lo > params.maxHeight) return undefined;
-  const theta = axisAngle(p, pieces);
-  const extent = axisExtent(p, pieces, theta);
-  const shapes = shapesOf(theta, extent, sp);
+  const extent = o.extent;
+  const lo = Math.max(1, o.minHeight);
+  if (pieces.length === 0 || lo > o.top) return undefined;
   if (shapes.length === 0) return undefined;
 
-  const map = squaredDistanceMap(p, pieces);
+  const map = o.map ?? squaredDistanceMap(p, pieces);
   const { x0, y0, w: mw, h: mh, d2 } = map;
   const size = mw * mh;
+  const centre = o.centre;
+  const keep = (i: number): boolean => d2[i]! > 0 && (centre === undefined || centre(x0 + (i % mw), y0 + (i - (i % mw)) / mw));
   let count = 0;
-  for (let i = 0; i < size; i++) if (d2[i]! > 0) count++;
+  for (let i = 0; i < size; i++) if (keep(i)) count++;
   const keys = new Float64Array(count); // d2 * size + cell: ascending order is ascending distance
   count = 0;
-  for (let i = 0; i < size; i++) if (d2[i]! > 0) keys[count++] = d2[i]! * size + i;
+  for (let i = 0; i < size; i++) if (keep(i)) keys[count++] = d2[i]! * size + i;
   keys.sort();
   // right[cell] = number of consecutive set cells from the cell to the right (0 for a cell outside the set).
   const right = new Int32Array(size);
@@ -467,6 +496,7 @@ export function shapedCandidate(
     const radius = arcRadius(extent, shape.bend);
     const arc: ArcFrame = { shape: 'arc', cx: 0, cy: 0, angle: shape.angle, h, w, bend: shape.bend, radius };
     if (!arcExists(arc, extent, margin)) return undefined;
+    if (o.limit !== undefined && !arcWithinLimit(arc, extent, o.limit)) return undefined;
     const phi = (w + 2 * margin) / (2 * radius);
     return { proto: arc, rho: Math.max(0, Math.min(h / 2 + margin, radius * (phi - (phi * phi * phi) / 6))) };
   };
@@ -477,7 +507,7 @@ export function shapedCandidate(
   // radius suffix-minimum so that it grows with h): a binary search gives for each shape a height ub that no
   // fitting frame of the shape exceeds; the exact scan below then starts at the largest ub and tries a shape only
   // at heights up to its ub. Straight shapes have no edge cells, so for them ub is exact.
-  const top = params.maxHeight;
+  const top = o.top;
   const rhoMin: Float64Array[] = shapes.map((shape) => {
     const out = new Float64Array(top + 2).fill(Infinity);
     for (let h = top; h >= lo; h--) out[h] = Math.min(out[h + 1]!, protoAt(shape, h)?.rho ?? Infinity);
@@ -532,11 +562,33 @@ export function shapedCandidate(
         }
       }
       if (xs.length === 0) continue;
-      const win = centreWinner(xs, ys);
+      const win = (o.winner ?? centreWinner)(xs, ys);
       return { ...proto, cx: xs[win]! + 0.5, cy: ys[win]! + 0.5 };
     }
   }
   return undefined;
+}
+
+/**
+ * The shaped candidate (FR-197): the frame of the largest height h >= max(1, minHeight) for which some shape of the
+ * set has a fitting frame; the first shape in shape order at that height; the centre by the FR-197 rule.
+ * Undefined when there is none. `minHeight` = ceil(G * hH) is the exact prune of NFR-38.
+ */
+export function shapedCandidate(
+  p: PieceIndex,
+  pieces: readonly number[],
+  aspect: number,
+  params: LayoutParams,
+  sp: ShapeParams,
+  minHeight: number,
+): ShapedFrame | undefined {
+  checkInputs(aspect, params);
+  const lo = Math.max(1, minHeight);
+  if (pieces.length === 0 || lo > params.maxHeight) return undefined;
+  const theta = axisAngle(p, pieces);
+  const extent = axisExtent(p, pieces, theta);
+  const shapes = shapesOf(theta, extent, sp);
+  return arcSearch(p, pieces, aspect, params.margin, shapes, { extent, top: params.maxHeight, minHeight: lo });
 }
 
 /** hS: the largest height of a shaped frame of the set, with no FR-198 prune (tests and the review set), or undefined. */

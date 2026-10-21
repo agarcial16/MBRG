@@ -4,12 +4,16 @@
 // (`label-centre.ts`); fit tests are the 005 box rule and the 006 straight footprints, unchanged. The doubles used
 // here only choose which cells and rows to look at (supersets with a margin of two units): the pinned tests decide.
 import type { CentreParams } from './centre-params';
-import { boxDistance, boxRowInterval, centreSums, compareKeys, dyadic, regionBox, unitDistance, unitRowInterval } from './label-centre';
+import { axisAngle, axisExtent, shapesOf } from './label-axis';
+import type { Shape } from './label-axis';
+import { boxDistance, boxRowInterval, centreSums, compareKeys, dyadic, endStep, factionHeightCap, regionBox, unitDistance, unitRowInterval } from './label-centre';
 import type { CentreKey, CentreSums, RegionBox } from './label-centre';
-import type { LabelBox } from './label-layout';
-import { squaredDistanceMap, straightFootprint } from './label-shape';
-import type { DistanceMap, Footprint, StraightFrame } from './label-shape';
+import type { LabelRole } from './label-frame';
+import type { LabelBox, LayoutParams } from './label-layout';
+import { arcRadius, arcSearch, squaredDistanceMap, straightFootprint } from './label-shape';
+import type { ArcFrame, DistanceMap, Footprint, InLandFrame, StraightFrame } from './label-shape';
 import type { PieceIndex } from './regions';
+import type { ShapeParams } from './shape-params';
 
 /** The centred candidate: a horizontal 005 box or a straight frame. */
 export type CentredFrame = { shape: 'horizontal'; box: LabelBox } | StraightFrame;
@@ -24,6 +28,17 @@ export interface CentredOptions {
 /** Cells of the set in the exact disc of one step, or in a superset disc, in descending squared distance to the non-set. */
 interface Cells {
   cells: Int32Array;
+  /** One byte per window cell, 1 for the cells of the list; built when the arc search first needs it. */
+  mask?: Uint8Array;
+}
+
+/** The arc shapes of a label set (tangent theta* at the midpoint) and the axis extent L, computed once per label. */
+export interface ArcAxis {
+  extent: number;
+  /** The arc shapes in the 006 shape order (empty when no arc can meet the tangent limit or L = 0). */
+  arcs: readonly Shape[];
+  /** The largest height an arc frame of these shapes can have (R - h / 2 - M > 0 with some slack): a superset bound. */
+  heightBound: number;
 }
 
 /** Per-label data computed once and shared by every step k (plan PD7). */
@@ -48,6 +63,10 @@ export interface CentredCache {
   discs: Map<number, Cells>;
   wides: Map<number, Cells>;
   discParams: CentreParams | undefined;
+  /** The arc shapes and extent, built when the first arc search runs (plan PD7). */
+  axis: ArcAxis | undefined;
+  /** The exact distance map used by the arc search when `distance` is false; built when first needed. */
+  arcMap: DistanceMap | undefined;
 }
 
 /** Slack of the distance prune, scaled: 2 eps = 1/512 (eps = 1/1024 map unit, far above the rounding of the pinned formulas). */
@@ -134,6 +153,8 @@ export function centredCache(p: PieceIndex, pieces: readonly number[], aspect: n
     discs: new Map(),
     wides: new Map(),
     discParams: undefined,
+    axis: undefined,
+    arcMap: undefined,
   };
 }
 
@@ -502,4 +523,151 @@ export function centredCandidate(
     return { shape: 'straight', cx: xs[win]! + 0.5, cy: ys[win]! + 0.5, angle: angleS, h: hS, w };
   }
   return undefined;
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Arcs, the FR-221 choice, the FR-222 widening and the faction cap (spec 007 FR-221, FR-222, FR-230; plan PD6 to PD8).
+// ---------------------------------------------------------------------------------------------------------
+
+/** The height of an in-land frame (a horizontal frame is a box). */
+export function frameHeight(f: InLandFrame): number {
+  return f.shape === 'horizontal' ? f.box.h : f.h;
+}
+
+/** The smallest arc height the FR-221 choice can use: ceil(G x hC) (G = 1.25), or 1 when there is no centred candidate. */
+export function arcMinHeight(centredHeight: number | undefined, sp: ShapeParams): number {
+  return centredHeight === undefined ? 1 : Math.ceil(sp.shapeGain * centredHeight);
+}
+
+/**
+ * The FR-221 choice: the arc candidate IF it exists AND (no centred candidate exists OR its height is at least
+ * G x the centred candidate's height), otherwise the centred candidate (possibly none).
+ */
+export function chooseInLand(arc: ArcFrame | undefined, centred: CentredFrame | undefined, sp: ShapeParams): InLandFrame | undefined {
+  if (arc !== undefined && (centred === undefined || arc.h >= arcMinHeight(frameHeight(centred), sp))) return arc;
+  return centred;
+}
+
+/** The arc shapes of the label set and the axis extent, cached in the label cache. */
+function axisOf(p: PieceIndex, pieces: readonly number[], sp: ShapeParams, cp: CentreParams, margin: number, c: CentredCache): ArcAxis {
+  if (c.axis !== undefined) return c.axis;
+  const theta = axisAngle(p, pieces);
+  const extent = axisExtent(p, pieces, theta);
+  // |theta| above the limit: theta + alpha > limit (or theta - alpha < -limit) for every alpha > 0, so no arc can exist.
+  const arcs = Math.abs(theta) > cp.angleLimit ? [] : shapesOf(theta, extent, sp).filter((s) => s.shape === 'arc');
+  let heightBound = 0;
+  for (const s of arcs) {
+    if (s.shape === 'arc') heightBound = Math.max(heightBound, Math.floor(2 * (arcRadius(extent, s.bend) - margin)) + 1);
+  }
+  c.axis = { extent, arcs, heightBound };
+  return c.axis;
+}
+
+/** One byte per window cell of the cells of a list (a list of window cell indices). */
+function maskOf(c: CentredCache, cells: Cells): Uint8Array {
+  if (cells.mask !== undefined) return cells.mask;
+  const mask = new Uint8Array(c.map.w * c.map.h);
+  for (let i = 0; i < cells.cells.length; i++) mask[cells.cells[i]!] = 1;
+  cells.mask = mask;
+  return mask;
+}
+
+/**
+ * The arc candidate of a label at step k (FR-221): among the arc shapes of the 006 list whose every tangent is within
+ * `cp.angleLimit` (both roles, P18) and that fit with the centre in the disc of step k, at heights from
+ * max(1, minHeight) up to `top` (undefined: only fit and arc existence bound it), the frame of the largest height; the
+ * first shape in shape order; then the smallest exact squared centre distance, the smallest y and the smallest x (P14).
+ * The search is the 006 `arcSearch`; undefined when there is none.
+ */
+export function arcCandidate(
+  p: PieceIndex,
+  pieces: readonly number[],
+  aspect: number,
+  margin: number,
+  sp: ShapeParams,
+  cp: CentreParams,
+  k: number,
+  c: CentredCache,
+  minHeight: number,
+  top: number | undefined,
+): ArcFrame | undefined {
+  checkInputs(aspect, margin);
+  if (pieces.length === 0 || p.width === 0) return undefined;
+  const axis = axisOf(p, pieces, sp, cp, margin, c);
+  if (axis.arcs.length === 0) return undefined;
+  const { box, sums } = c;
+  const bound = box.xmax - box.xmin + 1 + (box.ymax - box.ymin + 1);
+  const topH = Math.min(top ?? bound, bound, axis.heightBound);
+  const lo = Math.max(1, minHeight);
+  if (lo > topH) return undefined;
+  const disc = discOf(c, cp, k);
+  if (disc.cells.length === 0) return undefined;
+  const mask = maskOf(c, disc);
+  const { x0: wx, y0: wy, w: mw, h: mh } = c.map;
+  const centre = (x: number, y: number): boolean => {
+    const ix = x - wx;
+    const iy = y - wy;
+    return ix >= 0 && iy >= 0 && ix < mw && iy < mh && mask[iy * mw + ix]! === 1;
+  };
+  const winner = (xs: readonly number[], ys: readonly number[]): number =>
+    nearestFrame(
+      xs.length,
+      (i) => {
+        const dx = xs[i]! - c.mx;
+        const dy = ys[i]! - c.my;
+        return dx * dx + dy * dy;
+      },
+      (i) => unitDistance(sums, xs[i]!, ys[i]!),
+      (i) => ys[i]!,
+      (i) => xs[i]!,
+    );
+  let map = c.distance ? c.map : c.arcMap;
+  if (map === undefined) {
+    map = squaredDistanceMap(p, pieces);
+    c.arcMap = map;
+  }
+  const frame = arcSearch(p, pieces, aspect, margin, axis.arcs, { extent: axis.extent, top: topH, minHeight: lo, limit: cp.angleLimit, centre, winner, map });
+  return frame?.shape === 'arc' ? frame : undefined;
+}
+
+/** The in-land frame of a label after the FR-222 widening, the step it was chosen at, and the end step of its region. */
+export interface InLandResult {
+  frame: InLandFrame | undefined;
+  /** The last step tried (1 when the first disc already gives a frame of `offLandHeight`). */
+  k: number;
+  kEnd: number;
+}
+
+/**
+ * The in-land frame of a label set (FR-218 to FR-222, FR-230), from its pieces, text aspect and the parameters only
+ * (FR-223): at step k = 1, 2, ... the centred candidate and the arc candidate (minimum height ceil(G x hC)), the FR-221
+ * choice; the loop stops at the first step whose frame reaches `offLandHeight` of the role or at kEnd, and the frame of
+ * the last step tried is kept (none if none fits even at kEnd). A faction label has the FR-230 cap on every shape.
+ */
+export function centredInLand(
+  p: PieceIndex,
+  pieces: readonly number[],
+  aspect: number,
+  role: LabelRole,
+  params: LayoutParams,
+  sp: ShapeParams,
+  cp: CentreParams,
+): InLandResult {
+  checkInputs(aspect, params.margin);
+  if (pieces.length === 0 || p.width === 0) return { frame: undefined, k: 0, kEnd: 0 };
+  const margin = params.margin;
+  const cache = centredCache(p, pieces, aspect, margin);
+  const top = role === 'faction' ? factionHeightCap(cache.sums.n, aspect, cp.factionAreaShare) : undefined;
+  const kEnd = endStep(cache.sums, cp, cache.box);
+  const stopAt = sp.offLandHeight[role];
+  let frame: InLandFrame | undefined;
+  let k = 1;
+  for (;;) {
+    const centred = centredCandidate(p, pieces, aspect, margin, cp, k, cache, top);
+    const arc = arcCandidate(p, pieces, aspect, margin, sp, cp, k, cache, arcMinHeight(centred === undefined ? undefined : frameHeight(centred), sp), top);
+    frame = chooseInLand(arc, centred, sp);
+    if ((frame !== undefined && frameHeight(frame) >= stopAt) || k >= kEnd) break;
+    k++;
+  }
+  return { frame, k, kEnd };
 }

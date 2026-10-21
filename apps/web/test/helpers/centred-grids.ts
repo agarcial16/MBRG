@@ -4,7 +4,7 @@
  */
 import type { PieceIndex } from '../../src/core/regions';
 import { rng } from './label-grids';
-import { bandUnits, blobUnits, lineUnits, rectUnits, setOfUnits } from './shaped-grids';
+import { arcBandUnits, bandUnits, blobUnits, lineUnits, rectUnits, setOfUnits } from './shaped-grids';
 import type { Unit } from './shaped-grids';
 
 /** A region under test: its units (whole coordinates), the piece index, its pieces and a text aspect. */
@@ -57,6 +57,35 @@ export function handRegions(): TestRegion[] {
     regionOf('image edge', rectUnits(0, 0, 30, 6), 0.6),
     regionOf('long line', lineUnits(1, 40, 1, 1, 40), 8.53271484375),
   ];
+}
+
+/** Circular bands (cups and caps, alternating) for the given radii, thicknesses and half spans (degrees): the regions where arcs win. */
+function circularBands(radii: readonly number[], thicks: readonly number[], spans: readonly number[]): TestRegion[] {
+  const out: TestRegion[] = [];
+  let id = 0;
+  for (const radius of radii) {
+    for (const thick of thicks) {
+      for (const halfAngle of spans) {
+        const sign = id % 2 === 0 ? 1 : -1;
+        const units = arcBandUnits(radius, thick, halfAngle, sign);
+        if (units.length === 0) continue;
+        const { p, pieces } = setOfUnits(units);
+        out.push({ name: `arc band ${String(id)}`, units, p, pieces, aspect: TEST_ASPECTS[id % TEST_ASPECTS.length]! });
+        id++;
+      }
+    }
+  }
+  return out;
+}
+
+/** Twelve circular bands up to 5,000 units (the digest corpus of the `arcSearch` extraction guard). */
+export function arcRegions(): TestRegion[] {
+  return circularBands([60, 100, 160], [8, 16], [25, 40, 60]).slice(0, 18);
+}
+
+/** Eight small circular bands (a few hundred units): cheap enough for the brute-force reference at every step. */
+export function smallArcRegions(): TestRegion[] {
+  return circularBands([45, 70], [8, 14], [30, 50]);
 }
 
 /** `count` fixed-seed random regions (blobs of one to three thick segments), with aspects from TEST_ASPECTS. */
