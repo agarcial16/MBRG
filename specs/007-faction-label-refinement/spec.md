@@ -129,7 +129,7 @@ Why: the faction label is the main thing a spectator reads at fit scale, and ter
 - A region whose axis θ* is steeper than 45°: its faction arc shapes cannot meet the tangent limit and do not exist (D18). A territory arc may lean up to 75° at its ends (D19; the probe measured tangents up to about 73°) while every straight territory frame stays within 45°.
 - An arc and a horizontal or straight frame of the same height at the same step: the arc wins (Ga = 1, FR-221); an arc of greater height also wins; a lower arc loses. Ties inside each group follow FR-220 / P14 as stated in FR-221.
 - A faction with no fitting arc at any setting (Portugal, faction 5, on the dev map: the arc search returns none): keeps its horizontal or straight frame. Known limit, out of scope here; a later spec may revisit the arc shapes (for example other bends or a tangent not tied to θ*).
-- A label switching between horizontal and straight between two rounds: interpolated (006 FR-210 (b)); with an arc or off-land frame: crossfade (006 FR-210 (c)); Italia (arc at rounds 0 to 2, horizontal at round 3) crossfades at the step 2 → 3.
+- A label switching between horizontal and straight between two rounds: interpolated (006 FR-210 (b)); with an arc or off-land frame: crossfade (006 FR-210 (c)); Italia (straight -15 degrees at rounds 0 to 2, an arc at round 3, measured aspects, after D19) crossfades at the step 2 → 3.
 - Flicker of a faction label over several rounds: may be more frequent than in 006 (no G between horizontal and straight); accepted (no hysteresis, it would break FR-223).
 - The last faction on a map whose single region is small: still goes off-land by 006 FR-203 if its in-land height at kEnd is below `offLandHeight`.
 
