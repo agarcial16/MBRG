@@ -52,7 +52,7 @@ Rules for every task:
   - Commit: `feat(web): add the centred label review set`.
   - Done when: tests green; hits recorded; before screenshots stored (scratchpad) with their addresses; `rg` finds the listed ids.
 
-- [ ] **T7. UI wiring and first visual check.** FR-217, FR-223, FR-229, NFR-43 (wiring)
+- [x] **T7. UI wiring and first visual check.** FR-217, FR-223, FR-229, NFR-43 (wiring)
   - Files: `apps/web/src/ui/main.ts`.
   - Tests first: none new (wiring only); the 004 to 006 scans (anti-spoiler, strings, purity) stay green.
   - Code: `placeCentredTerritories` once at load; `placeCentredFactions` per state with the round being left as `previous`; FR-190 figure around the 007 placement and the front.
