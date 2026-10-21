@@ -9,6 +9,7 @@ import type { InLandFrame } from '../../src/core/label-shape';
 import type { Placed } from '../../src/core/label-place';
 import { mainPieces } from '../../src/core/regions';
 import type { PieceIndex } from '../../src/core/regions';
+import type { CentredDevRun } from './centred-digest-run';
 import type { MeasuredRun } from './shaped-hits';
 
 /** q = 7/50 as a double, for display only. */
@@ -125,6 +126,44 @@ export function beforeFigures(run: MeasuredRun): FigureRow[] {
     }
   }
   return rows;
+}
+
+/** An "after" row: the figure of a 007 frame plus the widening step k it was chosen at (disc radius k rho). */
+export interface AfterRow extends FigureRow {
+  k: number;
+}
+
+/**
+ * The "after" table (T8): the same labels as `beforeFigures` with the 007 placement of the same run (measured aspects).
+ * The label sets (main pieces) are the ones of the 006 layouts: both placements use the same main regions.
+ */
+export function afterFigures(run: CentredDevRun): AfterRow[] {
+  const rows: AfterRow[] = [];
+  const main = mainPieces(run.p);
+  for (let entry = 1; entry < run.p.entries; entry++) {
+    if (run.territories.eligible[entry] !== 1) continue;
+    const t = run.centredTerritories;
+    rows.push({
+      ...figureRow(run.p, 'territory', -1, run.texts.territories[entry]!, [main[entry]!], t.inLand[entry], t.placed[entry]),
+      k: t.steps[entry] ?? 0,
+    });
+  }
+  for (let round = 0; round <= run.rounds; round++) {
+    const before = run.factions[round]!;
+    const after = run.centredFactions[round]!;
+    for (const [faction, label] of before.boxes.labels) {
+      rows.push({
+        ...figureRow(run.p, 'faction', round, run.texts.factions.get(faction)!, label.pieces, after.inLand.get(faction), after.placed.get(faction)),
+        k: after.steps.get(faction) ?? 0,
+      });
+    }
+  }
+  return rows;
+}
+
+/** An "after" row as a fixed-format line: the before format plus k and the offset in units of k rho. */
+export function formatAfterRow(r: AfterRow): string {
+  return `${formatRow(r)} | k${String(r.k)} d/(k rho) ${(r.k > 0 ? r.dist / (r.k * r.rho) : 0).toFixed(3)}`;
 }
 
 const f1 = (v: number): string => v.toFixed(1);

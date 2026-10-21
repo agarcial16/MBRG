@@ -1,8 +1,9 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { centreSums } from '../src/core/label-centre';
 import { digestNumbers } from '../src/core/label-digest';
-import { beforeFigures, figureRow, formatRow } from './helpers/centred-figures';
-import type { FigureRow } from './helpers/centred-figures';
+import { withCentred } from './helpers/centred-digest-run';
+import { afterFigures, beforeFigures, figureRow, formatAfterRow, formatRow } from './helpers/centred-figures';
+import type { AfterRow, FigureRow } from './helpers/centred-figures';
 import { devRun } from './helpers/label-digest-run';
 import { measuredRun } from './helpers/shaped-hits';
 import type { MeasuredRun } from './helpers/shaped-hits';
@@ -104,11 +105,135 @@ describe('NFR-46 the before figures (006 placement, measured aspects)', () => {
   });
 
   it('NFR-46 the whole before table is pinned by a digest of its lines', () => {
-    const codes: number[] = [];
-    for (const line of lines) {
-      for (let i = 0; i < line.length; i++) codes.push(line.charCodeAt(i));
-      codes.push(10);
+    expect(linesDigest(lines)).toBe(BEFORE_DIGEST);
+  });
+});
+
+const linesDigest = (lines: readonly string[]): string => {
+  const codes: number[] = [];
+  for (const line of lines) {
+    for (let i = 0; i < line.length; i++) codes.push(line.charCodeAt(i));
+    codes.push(10);
+  }
+  return digestNumbers(codes);
+};
+
+// T8: the "after" columns, the 007 placement of the same run (same labels, same aspects, same helper).
+const AFTER_DIGEST = 'ba6fd9cbf0eda6da';
+const AFTER_ROWS: Readonly<Record<string, string>> = {
+  'T Galicia': 'T Galicia | n19980 C(204.3,1208.3) rho19.8 | straight -45 h44 @(198.5,1214.5) | off (-5.8,6.2) d8.5 f0.060 | gaps - | in-land | k1 d/(k rho) 0.428',
+  'T Castilla-La Mancha': 'T Castilla-La Mancha | n53635 C(504.8,1537.7) rho32.4 | straight 45 h33 @(501.5,1524.5) | off (-3.3,-13.2) d13.6 f0.059 | gaps - | in-land | k1 d/(k rho) 0.419',
+  'T Baviera': 'T Baviera | n47174 C(1448.5,689.0) rho30.4 | straight -45 h66 @(1453.5,678.5) | off (5.0,-10.5) d11.7 f0.054 | gaps - | in-land | k1 d/(k rho) 0.383',
+  'T Bremen': 'T Bremen | n215 C(1269.2,318.5) rho2.1 | straight -15 h3 @(1269.5,318.5) | off (0.3,0.0) d0.3 f0.021 | gaps - | in-land | k1 d/(k rho) 0.150',
+  'T Hamburgo': 'T Hamburgo | n517 C(1334.3,275.3) rho3.2 | straight -30 h4 @(1335.5,277.5) | off (1.2,2.2) d2.5 f0.109 | gaps - | in-land | k1 d/(k rho) 0.777',
+  'T Trentino-Alto Adigio': 'T Trentino-Alto Adigio | n9115 C(1459.9,916.6) rho13.4 | straight 45 h14 @(1465.5,920.5) | off (5.6,3.9) d6.8 f0.072 | gaps - | in-land | k1 d/(k rho) 0.511',
+  'T Friuli-Venecia Julia': 'T Friuli-Venecia Julia | n4935 C(1573.5,931.6) rho9.8 | straight -30 h9 @(1571.5,934.5) | off (-2.0,2.9) d3.5 f0.050 | gaps - | in-land | k1 d/(k rho) 0.357',
+  'T Liguria': 'T Liguria | n3717 C(1306.4,1126.6) rho8.5 | straight 30 h7 @(1297.5,1112.5) | off (-8.9,-14.1) d16.6 f0.273 | gaps - | in-land | k2 d/(k rho) 0.974',
+  'F r0 Italia': 'F r0 Italia | n169251 C(1550.1,1180.8) rho57.6 | straight -15 h87 @(1542.5,1208.5) | off (-7.6,27.7) d28.8 f0.070 | gaps - | in-land | k1 d/(k rho) 0.500',
+  'F r1 Italia': 'F r1 Italia | n169251 C(1550.1,1180.8) rho57.6 | straight -15 h87 @(1542.5,1208.5) | off (-7.6,27.7) d28.8 f0.070 | gaps - | in-land | k1 d/(k rho) 0.500',
+  'F r2 Italia': 'F r2 Italia | n169251 C(1550.1,1180.8) rho57.6 | straight -15 h87 @(1542.5,1208.5) | off (-7.6,27.7) d28.8 f0.070 | gaps - | in-land | k1 d/(k rho) 0.500',
+  'F r3 Italia': 'F r3 Italia | n393071 C(424.5,1466.4) rho87.8 | horizontal 0 h133 @(424.6,1466.5) | off (0.1,0.1) d0.1 f0.000 | gaps L229.0 R299.8 | in-land | k1 d/(k rho) 0.001',
+  'F r4 Francia': 'F r4 Francia | n1165291 C(932.4,1056.7) rho151.1 | straight -30 h189 @(956.5,982.5) | off (24.1,-74.2) d78.0 f0.072 | gaps - | in-land | k1 d/(k rho) 0.516',
+};
+
+describe('NFR-46 the after figures (007 placement, measured aspects)', () => {
+  let before: FigureRow[];
+  let after: AfterRow[];
+  let lines: string[];
+
+  beforeAll(async () => {
+    const run = await measuredRun();
+    before = beforeFigures(run);
+    after = afterFigures(withCentred(run));
+    lines = after.map(formatAfterRow);
+    console.log(`centred-figures: after table, ${after.length} rows, digest ${linesDigest(lines)}\n${lines.join('\n')}`);
+  }, 120000);
+
+  const find = (prefix: string): string => {
+    const found = lines.filter((l) => l.startsWith(prefix));
+    if (found.length !== 1) throw new Error(`${prefix}: ${found.length} rows`);
+    return found[0]!;
+  };
+  const row = (role: 'territory' | 'faction', round: number, name: string): AfterRow => {
+    const found = after.filter((r) => r.role === role && r.round === round && r.name === name);
+    if (found.length !== 1) throw new Error(`${name}: ${found.length} rows`);
+    return found[0]!;
+  };
+
+  it('NFR-46 the after table has the same 85 labels (70 territories, 15 faction labels) in the same order as the before table', () => {
+    expect(after).toHaveLength(before.length);
+    expect(after).toHaveLength(85);
+    for (let i = 0; i < after.length; i++) {
+      expect(after[i]!.role).toBe(before[i]!.role);
+      expect(after[i]!.name).toBe(before[i]!.name);
+      expect(after[i]!.round).toBe(before[i]!.round);
+      expect(after[i]!.n).toBe(before[i]!.n);
     }
-    expect(digestNumbers(codes)).toBe(BEFORE_DIGEST);
+  });
+
+  it('NFR-46 every 007 frame centre lies within k rho of the centre of mass at the widening step k it was chosen at, and every label is in-land', () => {
+    for (const r of after) {
+      expect(r.frame, r.name).toBeDefined();
+      expect(r.status, r.name).toBe('in-land');
+      expect(r.k, r.name).toBeGreaterThanOrEqual(1);
+      expect(r.dist, `${r.name} d ${r.dist} k ${r.k} rho ${r.rho}`).toBeLessThanOrEqual(r.k * r.rho + 1e-9);
+    }
+    // All but one label (Liguria, the widened one) are found at step 1: within rho.
+    expect(after.filter((r) => r.k > 1).map((r) => r.name)).toStrictEqual(['Liguria']);
+  });
+
+  it('NFR-46 Francia at round 4 is a straight frame at step 1 within rho of C (reference B is at 0.109 sqrt n), 369 units away in 006 and well under 151 now', () => {
+    const f = row('faction', 4, 'Francia');
+    expect(f.frame).toMatchObject({ shape: 'straight', angle: -30, h: 189 });
+    expect(f.k).toBe(1);
+    expect(f.dist).toBeLessThanOrEqual(f.rho);
+    expect(f.dist).toBeLessThan(0.52 * f.rho + 1);
+    const b = before.find((r) => r.role === 'faction' && r.round === 4)!;
+    expect(b.dist).toBeGreaterThan(2 * b.rho);
+  });
+
+  it('NFR-46 Galicia and Castilla-La Mancha: the 007 frames are straight at +-45 deg (no side gaps), their offsets from C shrink from 20.2 and 49.3 units and from 0.143 and 0.213 sqrt n', () => {
+    const g = row('territory', -1, 'Galicia');
+    const c = row('territory', -1, 'Castilla-La Mancha');
+    const gb = before.find((r) => r.name === 'Galicia')!;
+    const cb = before.find((r) => r.name === 'Castilla-La Mancha')!;
+    expect(gb.frame).toMatchObject({ shape: 'straight', angle: 90 });
+    expect(cb.frame).toMatchObject({ shape: 'horizontal' });
+    expect(cb.gaps).toBeDefined();
+    expect(g.frame?.shape).toBe('straight');
+    expect(c.frame?.shape).toBe('straight');
+    expect(Math.abs(g.frame!.angle)).toBeLessThanOrEqual(45);
+    expect(Math.abs(c.frame!.angle)).toBeLessThanOrEqual(45);
+    expect(g.gaps).toBeUndefined();
+    expect(c.gaps).toBeUndefined();
+    expect(g.dist).toBeLessThan(gb.dist);
+    expect(c.dist).toBeLessThan(cb.dist);
+    expect(g.dist).toBeLessThanOrEqual(g.rho);
+    expect(c.dist).toBeLessThanOrEqual(c.rho);
+  });
+
+  it('NFR-46 Italia at rounds 0..3: the faction label is within rho of its centre of mass (006: 0.557 and 0.013 sqrt n)', () => {
+    for (const round of [0, 1, 2, 3]) {
+      const r = row('faction', round, 'Italia');
+      expect(r.k).toBe(1);
+      expect(r.dist, `round ${String(round)}`).toBeLessThanOrEqual(r.rho);
+    }
+    expect(row('faction', 0, 'Italia').frame).toMatchObject({ shape: 'straight', angle: -15 });
+    expect(row('faction', 3, 'Italia').frame).toMatchObject({ shape: 'horizontal' });
+  });
+
+  it('NFR-46 the shape counts of the after table: territories 15 horizontal / 55 straight / 0 arc, faction labels 9 horizontal / 6 straight', () => {
+    const count = (role: 'territory' | 'faction', shape: string): number => after.filter((r) => r.role === role && r.frame?.shape === shape).length;
+    expect([count('territory', 'horizontal'), count('territory', 'straight'), count('territory', 'arc')]).toStrictEqual([15, 55, 0]);
+    expect([count('faction', 'horizontal'), count('faction', 'straight'), count('faction', 'arc')]).toStrictEqual([9, 6, 0]);
+  });
+
+  it('NFR-46 the review labels of plan section 12 have the pinned after rows', () => {
+    expect(Object.keys(AFTER_ROWS).length).toBeGreaterThan(0);
+    for (const [prefix, line] of Object.entries(AFTER_ROWS)) expect(find(prefix), prefix).toBe(line);
+  });
+
+  it('NFR-46 the whole after table is pinned by a digest of its lines', () => {
+    expect(linesDigest(lines)).toBe(AFTER_DIGEST);
   });
 });

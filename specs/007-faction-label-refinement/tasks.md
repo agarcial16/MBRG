@@ -60,7 +60,7 @@ Rules for every task:
   - Commit: `feat(web): wire centred labels`.
   - Done when: tests green; the counts shown match `labelCounts` for the shown state; first screenshots shown to the user.
 
-- [ ] **T8. "After" screenshots and figures; user acceptance.** NFR-45, NFR-46
+- [ ] **T8. "After" screenshots and figures; user acceptance.** NFR-45, NFR-46 (PENDING user review of the screenshots: after shots, pairs and figures done; not ticked until the user accepts every pair)
   - Files: `apps/web/test/centred-figures.test.ts` (after columns), `specs/007-faction-label-refinement/plan.md` (section 15 after columns).
   - Steps: after screenshots of every plan section 12 scene at the same addresses; before / after pairs side by side (`francia-r4` beside reference B, U2; Italia rounds 0-3; Galicia; Castilla-La Mancha; the step frames); figures recorded and checked (every offset <= k rho; Francia round 4 straight within rho of C). **User reviews and accepts every pair, Galicia and Castilla-La Mancha explicitly.** A rejection is a spec change (spec first), not a code tweak.
   - Commit: `test(web): record centred label figures`.

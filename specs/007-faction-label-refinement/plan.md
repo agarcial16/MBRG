@@ -282,6 +282,23 @@ Territory shapes: 006 39 horizontal / 22 straight / 9 arc (both aspect sets); 00
 - **Scene count:** 39 (fit r0-r4 5, `francia-r4` 1, Italia r0-r3 4, step 5, named close-ups 6, steep close-ups 12, shape-change close-ups 6). Camera for a close-up: exact centre of mass, scale `hitScale(min(006 h, 007 h))` (3.0, Bremen 3.5). Reference B is not an image: its figures (+40 deg, h155, centre (905, 941)) are the comparison for `francia-r4`.
 - **"Before" screenshots:** all 39 taken in Chrome (devtools MCP, 1920 x 988 viewport, the debug panel left visible) on the 006 placement (`ui/main.ts` unchanged; the panel counts 39 horizontal / 22 straight / 9 arc confirm it), stored in the session scratchpad `t6-before/<scene label>.png` and not committed.
 
+**T8 check ("after" screenshots and figures; measured aspects, seed 1; `centred-figures.test.ts` after columns, pinned by the digest `ba6fd9cbf0eda6da` of the 85 lines and by the rows below).** Same labels and order as the before table; k is the widening step, "d / k rho" the centre offset in units of the allowed radius.
+| label | role | 006 frame, offset from C (before) | 007 frame, offset from C (after) | k | d / k rho |
+|---|---|---|---|---|---|
+| Galicia | territory | straight +90 h50, 20.2 = 0.143 sqrt n | straight -45 h44 @(198.5, 1214.5), 8.5 = 0.060 | 1 | 0.43 |
+| Castilla-La Mancha | territory | horizontal h29, 49.3 = 0.213 sqrt n, side gaps L 20.0 / R 10.6 | straight +45 h33 @(501.5, 1524.5), 13.6 = 0.059 (no side gaps: not a horizontal frame) | 1 | 0.42 |
+| Baviera | territory | straight -75 h73, 15.6 | straight -45 h66, 11.7 | 1 | 0.38 |
+| Bremen / Hamburgo | territory | straight -30 h3 / h4, 0.3 / 2.5 | straight -15 h3 / -30 h4, 0.3 / 2.5 | 1 | 0.15 / 0.78 |
+| Trentino-Alto Adigio / Friuli-Venecia Julia | territory | straight +45 h14 / -45 h9 | straight +45 h14 / -30 h9, 6.8 / 3.5 | 1 | 0.51 / 0.36 |
+| Liguria | territory | horizontal h10, 37.8 = 0.62 sqrt n (L 48.0) | straight +30 h7, 16.6 (the only label widened) | 2 | 0.97 |
+| Italia r0, r1, r2 | faction | horizontal h120, 229.1 = 0.557 sqrt n (L 62.0 / R 66.7) | straight -15 h87 @(1542.5, 1208.5), 28.8 = 0.070 | 1 | 0.50 |
+| Italia r3 | faction | horizontal h120, 8.4 | horizontal h133, 0.1 | 1 | 0.00 |
+| Francia r4 | faction | horizontal h120, 369.2 = 0.342 sqrt n (L 310.0 / R 1004.2) | straight -30 h189 @(956.5, 982.5), 78.0 = 0.072 sqrt n | 1 | 0.52 |
+- Checks in the test: every 85 frames is in-land, every offset <= k rho (largest ratio 0.97, Liguria; all others <= 0.78), every label but Liguria at step 1 (within rho); Francia r4 is straight within rho of C (0.52 rho, reference B at 0.109 sqrt n would be 118.9 units); shape counts after: territories 15 horizontal / 55 straight / 0 arc; faction labels (15) 9 horizontal / 6 straight / 0 arc.
+- Francia at r4, last letter: at fit the final "a" ends about 25 px from the Gulf of Lion coast (checked zoomed at scale 1.25 in `t8-extra-francia-a-zoom.png`): inside land, not touching.
+- **Screenshots:** the 39 after shots (same 39 addresses as the before set, 1920 x 988, debug panel visible, dev server) are in the session scratchpad `t8-after/`; 39 side-by-side pairs "before | after" in `t8-pairs/` (fit scenes and `francia-r4` show the map area, 1120 x 988 each; the others a 880 x 580 crop around the viewport centre). Not committed. User acceptance pending.
+- **Panel round-change figure (FR-190, Chrome via chrome-devtools, 5 runs, ms; T9 re-checks):** dev server 2->3: 80, 60, 60, 54, 70; 3->4: 101, 97, 102, 105, 109; production build (`vite preview`) 2->3: 103, 56, 55, 66, 53; 3->4: 122, 133, 127, 100, 100 (backward steps 4->3 78-112, 3->2 59-88). Both exceed the 100 ms budget at 3->4 (the heaviest step: Francia re-fit, Node 61 ms); no code was changed. For T9 and the user.
+
 ## 16. Risks
 - Cost of uncapped searches on large regions: bounded by the disc, the faction cap (hCap about 170 for Francia at round 4), binary search per straight angle and the PD5 prune; measured in Node in T3 / T4 before the browser. If the budget fails: exact speed-ups first (per-angle EDT maxima, row-run bounds), then a spec change.
 - Horizontal relaxed bound R(h) too loose on irregular regions (long descending scans): logged in `centred-perf.test.ts`; an exact tighter bound may be added with its proof and reference test.
