@@ -21,8 +21,9 @@ import { labelTexts, roundLabels } from '../core/label-input';
 import { labelCounts } from '../core/label-counts';
 import type { Counts } from '../core/label-counts';
 import { LABEL_PARAMS } from '../core/label-params';
-import { placeFactions, placeTerritories } from '../core/label-place';
-import type { FactionLayout } from '../core/label-place';
+import { CENTRE_PARAMS } from '../core/centre-params';
+import { placeCentredFactions, placeCentredTerritories } from '../core/label-centred-place';
+import type { CentredFactionLayout } from '../core/label-centred-place';
 import { navigate, parseTypedRound, typedRoundMessage } from '../core/navigation';
 import type { NavAction } from '../core/navigation';
 import { checkPackage, packageErrorMessage } from '../core/package';
@@ -60,7 +61,7 @@ const INTERACTION_GAP_MS = 250;
 /** Everything the drawing needs of one round: its owner table, faction label layout and label draw data. */
 interface RoundView {
   table: Uint8Array;
-  layout: FactionLayout;
+  layout: CentredFactionLayout;
   labels: RoundLabels;
   draws: AnyLabelDraw[];
   counts: { faction: Counts; territory: Counts };
@@ -138,15 +139,16 @@ async function start(): Promise<void> {
     const aspect = aspectOf.get(name);
     if (aspect !== undefined) factionAspects.set(faction, aspect);
   }
-  const territoryLayout = placeTerritories(
+  const territoryLayout = placeCentredTerritories(
     pieces,
     texts.territories.map((t) => (t === undefined ? undefined : aspectOf.get(t))),
     LABEL_PARAMS,
     SHAPE_PARAMS,
+    CENTRE_PARAMS,
   );
 
   const viewOf = (table: Uint8Array, previous?: RoundView): RoundView => {
-    const layout = placeFactions(pieces, table, factionAspects, LABEL_PARAMS, SHAPE_PARAMS, previous?.layout);
+    const layout = placeCentredFactions(pieces, table, factionAspects, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS, previous?.layout);
     const placement = { factions: layout.placed, territories: territoryLayout.placed };
     const labels = roundLabels(texts, table, layout.boxes, territoryLayout.boxes, placement);
     return { table, layout, labels, draws: instantLabels(labels), counts: labelCounts(texts, table, layout, territoryLayout) };

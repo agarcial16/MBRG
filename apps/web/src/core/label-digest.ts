@@ -1,5 +1,6 @@
 // Layout digest (NFR-39; plan D11). Pure: a 64-bit FNV-1a hash over the IEEE-754 bits of numbers, so a layout
 // can be compared bit for bit between Node and a browser. Hand-written, no dependency (NFR-42).
+import type { CentredFactionLayout, CentredTerritoryLayout } from './label-centred-place';
 import type { LabelBox } from './label-layout';
 import type { FactionLayout, Placed, TerritoryLayout } from './label-place';
 import type { InLandFrame } from './label-shape';
@@ -65,6 +66,32 @@ export function layoutDigest(territories: TerritoryLayout, factions: readonly Fa
     numbers.push(-3, state.boxes.labels.size);
     for (const [faction, label] of state.boxes.labels) {
       numbers.push(faction);
+      boxNumbers(label.box, numbers);
+      frameNumbers(state.inLand.get(faction), numbers);
+      frameNumbers(state.placed.get(faction), numbers);
+    }
+  }
+  return digestNumbers(numbers);
+}
+
+/**
+ * The digest of a 007 placement (spec 007 NFR-44): the same items as `layoutDigest` (the `boxes` are the 007 horizontal
+ * frames) plus the widening step of every in-land frame. A separate export: `layoutDigest` and its pin are unchanged.
+ */
+export function centredLayoutDigest(territories: CentredTerritoryLayout, factions: readonly CentredFactionLayout[]): string {
+  const numbers: number[] = [];
+  for (let entry = 0; entry < territories.eligible.length; entry++) {
+    if (territories.eligible[entry] !== 1) continue;
+    numbers.push(entry, territories.steps[entry] ?? -1);
+    boxNumbers(territories.boxes[entry], numbers);
+    frameNumbers(territories.inLand[entry], numbers);
+    frameNumbers(territories.placed[entry], numbers);
+  }
+  numbers.push(-2, factions.length);
+  for (const state of factions) {
+    numbers.push(-3, state.boxes.labels.size);
+    for (const [faction, label] of state.boxes.labels) {
+      numbers.push(faction, state.steps.get(faction) ?? -1);
       boxNumbers(label.box, numbers);
       frameNumbers(state.inLand.get(faction), numbers);
       frameNumbers(state.placed.get(faction), numbers);
