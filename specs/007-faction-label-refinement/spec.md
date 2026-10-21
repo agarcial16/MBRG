@@ -1,5 +1,5 @@
 # Spec 007 — Label refinement (faction and territory labels)
-Status: approved (by the user on 2026-10-21; amended by D19 on 2026-10-21)
+Status: implemented
 
 ## Context and goal
 Specs 005 and 006 (both merged; 006 in PR #26) place one label per faction on its main region, recomputed from every displayed state (005 FR-171, 006 FR-209, FR-216), and one label per territory on its main piece, computed once from the territory map (006 FR-209). The user reviewed the 006 screenshots (2026-10-19) and reported:
