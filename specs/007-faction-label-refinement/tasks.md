@@ -45,7 +45,7 @@ Rules for every task:
   - Commit: `feat(web): place centred labels per role`.
   - Done when: tests green; Node times logged (territories at load, factions per step and from scratch); changed-label list and 007 digest recorded; mutations proved (reuse of a changed region, territory placement reading owners, 005 box leaking into `boxes`); `rg` finds the listed ids.
 
-- [ ] **T6. Step and drawing checks; review set; "before" screenshots.** FR-226, FR-227, NFR-45
+- [x] **T6. Step and drawing checks; review set; "before" screenshots.** FR-226, FR-227, NFR-45
   - Files: `apps/web/src/core/centred-review-set.ts`, `apps/web/test/{centred-steps.test.ts,centred-review-set.test.ts}`, `specs/007-faction-label-refinement/plan.md` (section 15 hits).
   - Tests first: plan section 13 `centred-steps.test.ts` (006 step rules on 007 layouts at f = 0, 0.25, 0.5, 0.75, 1; Italia 2 -> 3 crossfade; stretch only along the reading direction) and `centred-review-set.test.ts` (hits in order, addresses, steep-territory list).
   - Steps: find and pin the hits (step scene: seed 1 first, else seeds 2..1000; no-hit proof with `MBRG_SLOW=1`, U3); take the **before** screenshots of every plan section 12 scene with the viewer still on the 006 placement.
