@@ -204,6 +204,7 @@ describe('traceability', () => {
     expect(PENDING_008).toHaveLength(96 - DONE_008.length);
     // After M1: 8 ids traced (FR-252, FR-312, FR-313, NFR-47 part (e), NFR-48 seeds, NFR-51, NFR-53, NFR-55), 88 pending; M2a T2 adds FR-301 (9 / 87); M2a T3 adds FR-233, FR-234, FR-296, FR-297: 13 done, 83 pending; M2a T4 adds FR-253, FR-254, FR-257, FR-282: 17 done, 79 pending; M2a T5 adds FR-239, FR-249, FR-302, FR-314, NFR-50: 22 done, 74 pending; M2a T6 adds FR-237, FR-240, FR-247, FR-255, FR-256, FR-258, FR-269: 29 done, 67 pending; M2a T7 adds FR-244, FR-248, FR-295: 32 done, 64 pending; M2a T8 adds FR-261 to FR-268: 40 done, 56 pending.
     // M2a target (T10): 40 done / 56 pending; each M2a task moves its ids in its own commit.
+    // M2b target (T8): 63 done / 33 pending. M2b' target (T7'): 67 done / 29 pending (plan section 17).
     expect(DONE_008).toHaveLength(40);
     expect(PENDING_008).toHaveLength(56);
     expect(new Set([...PENDING_008, ...DONE_008]).size).toBe(96);
