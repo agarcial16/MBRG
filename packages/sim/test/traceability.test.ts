@@ -208,7 +208,8 @@ describe('traceability', () => {
     for (const id of PENDING_008) expect(expected, id).toContain(id);
   });
 
-  it("NFR-55 after M2b' T6': 67 ids done, 29 pending, the 23 M2b ids and the four M2b' ids done, later ids pending", () => {
+  it("NFR-55 M2b' closing state: 67 ids done, 29 pending, the M2b and M2b' ids done, M3 and later ids pending", () => {
+    // M2b' closing state (T7', plan sections 11 and 13): asserted explicitly.
     expect(DONE_008).toHaveLength(67);
     expect(PENDING_008).toHaveLength(29);
     expect(DONE_008.length + PENDING_008.length).toBe(96);
@@ -220,12 +221,22 @@ describe('traceability', () => {
     ];
     expect(closedByM2b).toHaveLength(23);
     for (const id of closedByM2b) expect(DONE_008, id).toContain(id);
-    // M2b' closes four ids (67 done, 29 pending): T2' closed FR-250 and FR-251, T4' FR-294, T6' NFR-57 (its results part stays open to M4).
-    for (const id of ['FR-250', 'FR-251', 'FR-294', 'NFR-57']) expect(DONE_008, id).toContain(id);
-    // M3 and later: still pending.
-    for (const id of ['FR-283', 'FR-284', 'FR-287', 'FR-271', 'FR-303', 'NFR-49', 'NFR-56']) {
-      expect(PENDING_008, id).toContain(id);
-    }
+    // M2b' closed four ids (67 done, 29 pending): T2' FR-250 and FR-251, T4' FR-294, T6' NFR-57 (its results part stays open to M4).
+    const closedByM2b2 = ['FR-250', 'FR-251', 'FR-294', 'NFR-57'];
+    expect(closedByM2b2).toHaveLength(4);
+    for (const id of closedByM2b2) expect(DONE_008, id).toContain(id);
+    // M2b and M2b' together closed 27 ids on top of the 40 of M1 and M2a.
+    expect(new Set([...closedByM2b, ...closedByM2b2]).size).toBe(27);
+    // M3a, M3b, M4 and M5: still pending (a literal list of every one of the 29).
+    const laterIds = [
+      'FR-271', 'FR-272', 'FR-273', 'FR-274', 'FR-275', 'FR-276', 'FR-277', 'FR-278', 'FR-279', 'FR-280',
+      'FR-281', 'FR-283', 'FR-284', 'FR-285', 'FR-286', 'FR-287', 'FR-298', 'FR-299',
+      'FR-303', 'FR-304', 'FR-305', 'FR-306', 'FR-307', 'FR-308', 'FR-309', 'FR-310', 'FR-311',
+      'NFR-49', 'NFR-56',
+    ];
+    expect(laterIds).toHaveLength(29);
+    expect([...PENDING_008].sort()).toStrictEqual([...laterIds].sort());
+    for (const id of laterIds) expect(DONE_008, id).not.toContain(id);
   });
 
   it('NFR-55 no pending id of spec 008 is already traced by a test title', () => {
