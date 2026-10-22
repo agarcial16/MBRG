@@ -16,7 +16,7 @@ describe('server manifest', () => {
     expect(server.private).toBe(true);
     expect(server.type).toBe('module');
     const deps = server.dependencies as Record<string, string>;
-    expect(Object.keys(deps).sort()).toStrictEqual(['@mbrg/shared', '@mbrg/sim']);
+    expect(Object.keys(deps).sort()).toStrictEqual(['@mbrg/protocol', '@mbrg/shared', '@mbrg/sim']);
     for (const name of Object.keys(deps)) expect(name.startsWith('@mbrg/')).toBe(true);
     for (const key of ['peerDependencies', 'optionalDependencies', 'bundledDependencies']) expect(server[key]).toBeUndefined();
   });
