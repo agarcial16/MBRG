@@ -201,6 +201,9 @@ describe('traceability', () => {
     // M2a target (T10): 40 done / 56 pending; each M2a task moves its ids in its own commit.
     // M2b target (T8): 63 done / 33 pending. M2b' target (T7'): 67 done / 29 pending (plan section 17).
     // M2b' T1' starts at 63 / 33; T2' adds FR-250, FR-251 (65 / 31); T4' adds FR-294 (66 / 30); T6' adds NFR-57 (67 / 29).
+    // M3a target (T10): 76 done / 20 pending (plan section 18.10). M3a T1 starts at 67 / 29; T2 adds FR-279 (68 / 28);
+    // T3 adds FR-283, FR-299 (70 / 26); T4 moves none; T5 adds FR-281 (71 / 25); T6 adds FR-284, FR-286 (73 / 23);
+    // T7 adds FR-280, FR-298 (75 / 21); T8 adds FR-285 (76 / 20); T9 moves none.
     expect(DONE_008).toHaveLength(67);
     expect(PENDING_008).toHaveLength(29);
     expect(new Set([...PENDING_008, ...DONE_008]).size).toBe(96);
@@ -237,6 +240,10 @@ describe('traceability', () => {
     expect(laterIds).toHaveLength(29);
     expect([...PENDING_008].sort()).toStrictEqual([...laterIds].sort());
     for (const id of laterIds) expect(DONE_008, id).not.toContain(id);
+    // The 9 ids M3a closes (plan section 18.10), a literal list; asserted done only at M3a T10 (76 / 20).
+    const closedByM3a = ['FR-279', 'FR-280', 'FR-281', 'FR-283', 'FR-284', 'FR-285', 'FR-286', 'FR-298', 'FR-299'];
+    expect(new Set(closedByM3a).size).toBe(9);
+    for (const id of closedByM3a) expect(laterIds, id).toContain(id);
   });
 
   it('NFR-55 no pending id of spec 008 is already traced by a test title', () => {
