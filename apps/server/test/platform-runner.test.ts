@@ -34,11 +34,14 @@ describe('warning filter predicate', () => {
 });
 
 describe('runner', () => {
-  it('NFR-53 without the filter, Node prints the SQLite ExperimentalWarning (recorded)', () => {
+  it('NFR-53 without the filter, Node may print the SQLite ExperimentalWarning (recorded, version dependent)', () => {
     const r = run([PLAIN], SERVER_DIR);
     expect(r.code).toBe(0);
-    // Recorded in plan section 13: present on this Node.
-    expect(SQLITE_WARNING.test(r.stderr)).toBe(true);
+    // Recorded in plan section 13: printed on Node v24.0.0; Node v24.21.0 (CI) no longer prints it. The filter must
+    // work either way, so the warning is only checked for its exact text when it is there.
+    if (SQLITE_WARNING.test(r.stderr)) {
+      expect(r.stderr).toMatch(/ExperimentalWarning: SQLite is an experimental feature/);
+    }
     expect(r.stderr).toContain('TestWarning');
   });
 
