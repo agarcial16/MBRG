@@ -203,6 +203,7 @@ describe('traceability', () => {
     // After M1: 8 ids traced (FR-252, FR-312, FR-313, NFR-47 part (e), NFR-48 seeds, NFR-51, NFR-53, NFR-55), 88 pending; M2a T2 adds FR-301 (9 / 87); M2a T3 adds FR-233, FR-234, FR-296, FR-297: 13 done, 83 pending; M2a T4 adds FR-253, FR-254, FR-257, FR-282: 17 done, 79 pending; M2a T5 adds FR-239, FR-249, FR-302, FR-314, NFR-50: 22 done, 74 pending; M2a T6 adds FR-237, FR-240, FR-247, FR-255, FR-256, FR-258, FR-269: 29 done, 67 pending; M2a T7 adds FR-244, FR-248, FR-295: 32 done, 64 pending; M2a T8 adds FR-261 to FR-268: 40 done, 56 pending; M2b T2 adds FR-289 (c) and FR-300 (digests): 42 done, 54 pending; M2b T3 adds FR-291 and FR-292: 44 done, 52 pending; M2b T4 adds FR-270 (storage) and FR-293 (FR-240 and FR-267 were already done in M2a): 46 done, 50 pending; M2b T5 adds FR-231, FR-232, FR-235, FR-236, FR-238, FR-259, FR-260 and NFR-54: 54 done, 42 pending; M2b T6 adds FR-241, FR-242, FR-243, FR-245, FR-246, FR-288, FR-290, FR-315 and NFR-52: 63 done, 33 pending; M2b T7 and T8 move no id.
     // M2a target (T10): 40 done / 56 pending; each M2a task moves its ids in its own commit.
     // M2b target (T8): 63 done / 33 pending. M2b' target (T7'): 67 done / 29 pending (plan section 17).
+    // M2b' T1' starts at 63 / 33; T2' adds FR-250, FR-251; T4' adds FR-294; T6' adds NFR-57 -> 67 / 29.
     expect(DONE_008).toHaveLength(63);
     expect(PENDING_008).toHaveLength(33);
     expect(new Set([...PENDING_008, ...DONE_008]).size).toBe(96);
