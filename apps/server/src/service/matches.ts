@@ -1,5 +1,11 @@
-// The match lifecycle service (spec 008 FR-231, FR-232, FR-235, FR-236, FR-238, FR-241 to FR-247, FR-259, FR-260, FR-261 to FR-267, FR-282, FR-290,
-// FR-295; plan 17.1). The shell around the pure core: it draws the secret, the match id and the host token, reads the map
+// The match lifecycle service (spec 008 FR-231, FR-232, FR-235, FR-236, FR-238, FR-241 to FR-247, FR-250, FR-251, FR-259, FR-260, FR-261 to
+// FR-267, FR-282, FR-290, FR-295; plan 17.1).
+//
+// Halting (FR-250, FR-251): the map check runs before every step (`depsOf`); the core turns a missing map, an engine
+// `isolated-faction` answer or a recomputed victim that differs from the stored one into a halted view and one
+// `match-halted` event, stored and published like any decision. A halted match is not running: it is never ticked or
+// armed, it does not count toward the limit, it answers `match-halted` to advances and submissions, and its public data
+// never carries the secret (only a finished match does, FR-259). The shell around the pure core: it draws the secret, the match id and the host token, reads the map
 // package, calls the core and the protocol readers, and writes everything of ONE decision in ONE storage transaction
 // (PD10) before it replies or publishes anything. It depends on core, protocol and store; the core never imports it.
 //
@@ -34,6 +40,7 @@ import type { RandomBytes } from '../secret';
 import { seedOfSecret } from '../seeds';
 import type { Store, StoredMatch, StoredStep } from '../store/store';
 import { credentialDigest, newHostToken, newMatchId, sameDigest, sha256Ascii } from './ids';
+import { mapForStep } from './maps';
 import type { MapCatalog } from './maps';
 import type { Scheduler, SchedulerHandle } from './scheduler';
 import type { Settings } from './settings';
@@ -195,15 +202,17 @@ export function createMatchService(options: ServiceOptions): MatchService {
 
   /**
    * The pure core's dependencies for a stored match. The map is read only when a step is really performed (the getter), so a
-   * tick with nothing due reads no file. The digest of the map file against the stored one is checked in M2b' (T2').
+   * tick with nothing due reads no file. The map check of FR-250 runs there, before every step: a package that is not
+   * listed, cannot be read, has another digest than the stored one or fails validation gives the core no map (null), and
+   * the core halts the match with `map-changed` (FR-251).
    */
   const depsOf = (stored: StoredMatch): StepDeps => {
-    const { matchId, mapId } = stored.match;
+    const { matchId, mapId, mapDigest } = stored.match;
     const seedOf = seedsOf(stored.secret, matchId);
     let loaded: { map: unknown } | undefined;
     return {
       get map(): unknown {
-        loaded ??= { map: maps.load(mapId)?.map ?? null };
+        loaded ??= { map: mapForStep(maps, mapId, mapDigest) };
         return loaded.map;
       },
       sha256: sha256Ascii,
@@ -438,7 +447,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
           depsOf(stored),
         );
         if (!decision.ok) {
-          // An advance that halts the match stores the halted view and its event (FR-251; the halting task tests it).
+          // An advance that halts the match stores the halted view and its `match-halted` event and replies `match-halted` (FR-251).
           if (decision.outcome !== undefined) {
             persist(matchId, decision.outcome);
             done.committed = { view: decision.outcome.view, events: decision.outcome.events };

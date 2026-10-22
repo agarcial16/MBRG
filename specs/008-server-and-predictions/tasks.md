@@ -245,12 +245,13 @@ M2b / M2b' rules (in addition to the M1 and M2a rules):
   - Done when: suite, typecheck and `CI=1` green.
   - Done (T1'): plan / tasks of M2b' were already in `rewrite` (b9effa5), so the docs commit only ticks T1'.
 
-- [ ] **T2'. Map check and halting through the service.** FR-250, FR-251
+- [x] **T2'. Map check and halting through the service.** FR-250, FR-251
   - Depends on: T1'.
   - Files: `apps/server/src/service/{matches.ts,maps.ts}`, `apps/server/test/service-halting.test.ts`, `packages/sim/test/traceability.test.ts`.
   - Tests first: the shell passes `map: null` when the listed package is missing, fails validation or has another digest than the stored one, at start and before every step; the match halts with `map-changed`; an `isolated-faction` map halts with `isolated-faction`; a forced victim difference halts with `victim-mismatch` (FR-250); a halted match stores stage and reason, publishes `match-halted`, performs no further step, never stores or sends the secret hex, keeps the victim fields when the victim was revealed, answers `match-halted` to submissions and advances, serves its public data with the reason, and does not count toward the running-match limit; predictions of the halting round that were not scored stay as stored (scoring itself is M4) (FR-251). Also through the service (ledger additions): FR-245 `match-halted` on a halted match, FR-266 `match-halted` to a submission, FR-259 secret never revealed when halted, FR-243 halt with `victim-mismatch`, and FR-241 / FR-243 map check before the step (test titles name these ids).
   - Commit: `feat(server): halt matches on map changes and engine errors`.
   - Done when: tests green; mutations proved (digest check skipped before a step, halted match counted as running, secret revealed on halt); FR-250, FR-251 moved; `rg` finds them.
+  - Done (T2'): `service/maps.ts` `mapForStep` (listed, readable, stored digest, validates; else null) is read lazily before every step by advance and tick; the halting itself was already in the core. Submissions perform no step and do not read the map. `isolated-faction` is unreachable on a valid map (validation refuses an unreachable faction first, so it halts `map-changed`); the test also pins `haltReasonOf`. Victim mismatch forced by a test seed source whose first draw of the round differs from the later ones. Mutations also proved: victim-mismatch check removed. Ledger 65 / 31; the planted pending-id test now uses FR-271. The check at server start comes with `start()` in T3'.
 
 - [ ] **T3'. Timer loop, storage failures and the 3 s retry.** FR-292 (unavailable, retry); FR-239, FR-244, FR-248 (timer, start-up and retry); FR-238 (purge timer); NFR-50 (real clock, measured)
   - Depends on: T2'.

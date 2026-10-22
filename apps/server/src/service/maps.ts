@@ -1,4 +1,4 @@
-// The map list of the server (spec 008 FR-232 `unknown-map`, FR-235): map ids and the package folders of the settings.
+// The map list of the server (spec 008 FR-232 `unknown-map`, FR-235, FR-250): map ids and the package folders of the settings.
 // The shell reads the three files, hashes `mapDigestBytes(files)` with SHA-256 and parses map.json; the protocol and the
 // core stay pure (PD8). A listed folder that cannot be read gives `map: null` and an empty digest, which the core
 // reports as map validation errors (a missing or unreadable package is never a match).
@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MAP_FILE_NAMES, mapDigestBytes } from '@mbrg/protocol';
 import type { MapFileName } from '@mbrg/protocol';
+import { validateMap } from '@mbrg/shared';
 import { sha256Bytes } from './ids';
 
 /** A listed map as read from its folder: the parsed map.json (unknown: validated by the core) and the package digest. */
@@ -24,6 +25,17 @@ export interface MapCatalog {
 }
 
 const hasOwn = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
+
+/**
+ * The map the core gets for a step of a match (FR-250): the parsed map.json of the package listed under the match's map
+ * id when the package can be read, has the stored map digest and passes validation; otherwise null, and the core halts
+ * the match with `map-changed`. Read at the moment of the step, never cached across decisions.
+ */
+export function mapForStep(catalog: MapCatalog, mapId: string, storedDigest: string): unknown {
+  const loaded = catalog.load(mapId);
+  if (loaded === undefined || loaded.digest === '' || loaded.digest !== storedDigest) return null;
+  return validateMap(loaded.map).ok ? loaded.map : null;
+}
 
 /** The catalog of the settings' `maps` (id -> package folder). Only own ids are listed. */
 export const createMapCatalog = (folders: Readonly<Record<string, string>>): MapCatalog => ({
