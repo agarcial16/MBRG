@@ -1,7 +1,8 @@
 // The scheduler of the lifecycle service (spec 008 FR-239, plan 17.1): it wakes the service at an instant. It is the ONLY
 // server file that uses timers (a scan pins that); the service sees it as the interface below, so tests drive a fake one
 // from the fake clock. A wake-up decides nothing: the service re-reads the stored match and the clock and performs the
-// step only if it is due (an early or late wake-up is harmless).
+// step only if it is due (an early or late wake-up is harmless). The service isolates every callback it arms (nothing it
+// throws reaches the timer) and arms the next one itself: a match step, its 3 s retry (FR-292) or the memo purge (FR-238).
 
 import type { Clock } from '../clock';
 

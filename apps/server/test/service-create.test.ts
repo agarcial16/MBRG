@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { errorReply } from '@mbrg/protocol';
 import { getState } from '@mbrg/sim';
 import { describe, expect, it } from 'vitest';
 import { CREATION_PATH } from '../src/service/matches';
@@ -8,7 +9,7 @@ import type { CreateOutcome } from '../src/service/matches';
 import { MEMO_RETENTION_MS } from '../src/core/memo';
 import { commitment } from '../src/secret';
 import { credentialDigest } from '../src/service/ids';
-import { withFaults, InjectedFault } from '../src/store/faults';
+import { withFaults } from '../src/store/faults';
 import { openStore } from '../src/store/sqlite';
 import { DEV_DIR, devMap, mapDigest, stateDigest } from './helpers/digests';
 import { credentialTextColumns, listColumns, scanValues, withRawDb } from './helpers/db-scan';
@@ -111,11 +112,12 @@ describe('creation', () => {
     }
   });
 
-  it('FR-231 everything is stored in one transaction before the reply: a failed transaction leaves no row and gives no reply', () => {
+  it('FR-231 everything is stored in one transaction before the reply: a failed transaction leaves no row and gives no creation reply', () => {
     const store = withFaults(openStore(':memory:'), { failTransaction: 1 });
     const h = serviceHarness({ store });
     try {
-      expect(() => h.service.create({ credential: OPERATOR, body: creationBody('req-1') })).toThrow(InjectedFault);
+      // Since M2b' T3' the injected storage failure is answered `unavailable` (FR-292) instead of being thrown.
+      expect(h.service.create({ credential: OPERATOR, body: creationBody('req-1') })).toStrictEqual({ ok: false, error: errorReply('unavailable') });
       expect(h.store.runningCount()).toBe(0);
       expect(h.store.memoGet({ credentialDigest: credentialDigest(OPERATOR), match: null }, 'req-1')).toBeUndefined();
       // The next transaction works, and the first attempt left nothing behind that it would collide with.
@@ -325,7 +327,7 @@ describe('what stays fixed', () => {
         expect(second.ok && second.reply.match.mapDigest).not.toBe(mapDigest());
         expect(h.store.getMatch(first.reply.matchId)!.match).toStrictEqual(before);
         // The operations of the service: only the steps change a stored match, and never its fixed fields (service-steps.test.ts checks them after a whole match).
-        expect(Object.keys(h.service).sort()).toStrictEqual(['advance', 'create', 'ownPredictions', 'publicMatch', 'purgeMemos', 'submit', 'subscribe', 'tick']);
+        expect(Object.keys(h.service).sort()).toStrictEqual(['advance', 'close', 'create', 'ownPredictions', 'publicMatch', 'purgeMemos', 'start', 'submit', 'subscribe', 'tick']);
       } finally {
         h.close();
       }

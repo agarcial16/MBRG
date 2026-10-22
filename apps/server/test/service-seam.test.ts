@@ -83,7 +83,7 @@ describe('the test-only round-seed source', () => {
   it('FR-260 once built, the service offers no way to set or read a seed source', () => {
     const h = serviceHarness({ testSeedSource: () => (k) => k });
     try {
-      expect(Object.keys(h.service).sort()).toStrictEqual(['advance', 'create', 'ownPredictions', 'publicMatch', 'purgeMemos', 'submit', 'subscribe', 'tick']);
+      expect(Object.keys(h.service).sort()).toStrictEqual(['advance', 'close', 'create', 'ownPredictions', 'publicMatch', 'purgeMemos', 'start', 'submit', 'subscribe', 'tick']);
       expect(Object.keys(h.settings).filter((k) => SEED_WORDS.test(k))).toStrictEqual([]);
     } finally {
       h.close();
