@@ -28,6 +28,8 @@ import { DEV_MAP, DEV_PRESENTATION } from './helpers/dev-map';
 // NFR-36 (spec 005 adds no dependency). The set below is the 004 set (libraries.test.ts pins versions and licences).
 const RUNTIME = { '@mbrg/shared': '*', '@mbrg/sim': '*', three: '0.186.1' };
 const DEV = { '@types/three': '0.186.0', vite: '8.3.4' };
+/** Every spec 008 workspace entry and its link (A1): apps/server, packages/protocol and their node_modules/@mbrg links. */
+const SPEC_008_ENTRY = /^(?:apps\/server|packages\/protocol|node_modules\/@mbrg\/(?:server|protocol))$/;
 /** Number of entries of package-lock.json at the end of spec 004 (root, workspaces and every package). */
 const LOCK_ENTRIES = 138;
 
@@ -49,8 +51,8 @@ describe('NFR-36 no dependency is added for labels and transitions', () => {
     expect(entry.devDependencies).toStrictEqual(DEV);
     expect(entry.peerDependencies).toBeUndefined();
     expect(entry.optionalDependencies).toBeUndefined();
-    // Spec 008 adds the server workspace and its link only (NFR-53).
-    expect(Object.keys(lock.packages).filter((k) => k !== 'apps/server' && k !== 'node_modules/@mbrg/server')).toHaveLength(LOCK_ENTRIES);
+    // Spec 008 adds its own workspaces and their links only (NFR-53).
+    expect(Object.keys(lock.packages).filter((k) => !SPEC_008_ENTRY.test(k))).toHaveLength(LOCK_ENTRIES);
   });
 });
 

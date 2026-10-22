@@ -9,6 +9,8 @@ const WEB_005 = {
   dependencies: { '@mbrg/shared': '*', '@mbrg/sim': '*', three: '0.186.1' },
   devDependencies: { '@types/three': '0.186.0', vite: '8.3.4' },
 };
+/** Every spec 008 workspace entry and its link (A1): apps/server, packages/protocol and node_modules/@mbrg/* of those. */
+const SPEC_008_ENTRY = /^(?:apps\/server|packages\/protocol|node_modules\/@mbrg\/(?:server|protocol))$/;
 const LOCK_ENTRIES_005 = 138;
 const LOCK_FNV_005 = '9907d04f21f33617';
 
@@ -38,9 +40,9 @@ describe('spec 006 dependencies', () => {
 
   it('NFR-42 the lockfile lists the same packages and versions as at spec 005', () => {
     const lock = JSON.parse(lockRaw) as { packages: Record<string, { version?: string }> };
-    // Spec 008 adds the server workspace and its link only (NFR-53); the 005 entries are unchanged.
+    // Spec 008 adds its own workspaces and their links only (NFR-53); the 005 entries are unchanged.
     const keys = Object.keys(lock.packages)
-      .filter((k) => k !== 'apps/server' && k !== 'node_modules/@mbrg/server')
+      .filter((k) => !SPEC_008_ENTRY.test(k))
       .sort();
     expect(keys).toHaveLength(LOCK_ENTRIES_005);
     const text = keys.map((k) => `${k}@${lock.packages[k]!.version ?? ''}`).join('\n');

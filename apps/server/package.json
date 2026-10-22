@@ -8,6 +8,7 @@
     "check": "tsx src/main.ts --check"
   },
   "dependencies": {
+    "@mbrg/protocol": "*",
     "@mbrg/shared": "*",
     "@mbrg/sim": "*"
   },
