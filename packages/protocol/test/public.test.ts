@@ -204,6 +204,8 @@ describe('the public view encoder', () => {
       { ...base, state: { ...base.state, owners: [[1, 1, 1]] } },
       { ...base, state: { ...base.state, mode: 'other' } },
       { ...base, schedule: { c1: 5, c2: 4, a: 9 } },
+      { ...base, schedule: { c1: 5, c2: 9, a: 8 } },
+      { ...phase2, schedule: { c1: 5, c2: 9, a: 4 } },
       { ...finished, winner: 1.5 },
       { ...finished, matchSecret: hex('F') },
       null,
@@ -216,5 +218,21 @@ describe('the public view encoder', () => {
 
   it('FR-254 inherited fields never count: an input whose fields come from the prototype is refused', () => {
     expect(() => encodes(Object.create(base) as object)).toThrow(RangeError);
+  });
+});
+
+
+describe('schedule order by stage (FR-244 shifts, FR-254)', () => {
+  it('FR-244 FR-254 phase-1 needs c1 <= c2 <= a; phase-2 only c2 <= a; locked no order (c1 and c2 are past)', () => {
+    const ok = (m: PublicMatch): void => expect(() => encodes(m)).not.toThrow();
+    ok({ ...base, schedule: { c1: 5, c2: 5, a: 5 } });
+    ok({ ...phase2, schedule: { c1: 900, c2: 40, a: 50 } }); // early manual phase-1 close: c1 is past and later than c2
+    ok({ ...phase2, schedule: { c1: 1, c2: 7, a: 7 } });
+    ok({ ...locked, schedule: { c1: 80, c2: 40, a: 30 } }); // early manual phase-2 close: only a is pending
+    ok({ ...locked, schedule: { c1: 1, c2: 2, a: 3 } });
+    expect(() => encodes({ ...base, schedule: { c1: 5, c2: 4, a: 9 } })).toThrow(RangeError);
+    expect(() => encodes({ ...phase2, schedule: { c1: 1, c2: 9, a: 4 } })).toThrow(RangeError);
+    expect(() => encodes({ ...locked, schedule: { c1: 1, c2: 2, a: 1.5 } })).toThrow(RangeError);
+    expect(() => encodes({ ...locked, schedule: { c1: -1, c2: 2, a: 3 } })).toThrow(RangeError);
   });
 });

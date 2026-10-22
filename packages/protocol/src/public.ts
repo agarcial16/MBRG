@@ -63,10 +63,16 @@ function readState(v: unknown, applied: number): PublicState {
   return { mode: 'classic', round: applied, owners };
 }
 
-function readSchedule(v: unknown): PublicSchedule {
+/**
+ * The anchors are those of the pending round as currently shifted (FR-244). An early manual close leaves earlier anchors
+ * behind the later ones, so the order is checked only for what is still pending: all three in `phase-1`, C2 and A in
+ * `phase-2`, nothing in `locked` (only A is pending).
+ */
+function readSchedule(v: unknown, stage: Stage): PublicSchedule {
   const o = objectOf(v, 'schedule', ['c1', 'c2', 'a']);
   const s = { c1: intField(o, 'c1', 0, 'schedule'), c2: intField(o, 'c2', 0, 'schedule'), a: intField(o, 'a', 0, 'schedule') };
-  if (!(s.c1 <= s.c2 && s.c2 <= s.a)) bad('schedule instants are not in order');
+  if (stage === 'phase-1' && !(s.c1 <= s.c2 && s.c2 <= s.a)) bad('schedule instants are not in order');
+  if (stage === 'phase-2' && !(s.c2 <= s.a)) bad('schedule instants are not in order');
   return s;
 }
 
@@ -162,7 +168,7 @@ function check(input: unknown): Checked {
   // Anchors of the pending round, only while the clock runs.
   if (has(o, 'schedule')) {
     if (!running || timing === 'manual') bad('schedule is not allowed here');
-    out.schedule = readSchedule(o.schedule);
+    out.schedule = readSchedule(o.schedule, out.stage);
   } else if (running && timing !== 'manual') bad('schedule is required while the clock runs');
 
   // FR-253, FR-259: the winner and the match secret only for a finished match, together.
