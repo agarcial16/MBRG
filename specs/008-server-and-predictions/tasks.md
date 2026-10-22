@@ -100,7 +100,7 @@ M2a rules (in addition to the M1 rules):
   - Commit: `feat(protocol): add the protocol package and error order`.
   - Done when: tests green; `npm ci` from the lockfile succeeds; the two viewer lockfile tests still assert the spec 005 / 004 views; mutation: swapping two kinds in `ERROR_ORDER` fails; FR-301 moved to `DONE_008`; `rg` finds FR-301.
 
-- [ ] **T3. Request readers: own-property rule, ids, timing split.** FR-233, FR-234, FR-296, FR-297
+- [x] **T3. Request readers: own-property rule, ids, timing split.** FR-233, FR-234, FR-296, FR-297
   - Depends on: T2.
   - Files: `packages/protocol/src/{ids.ts,timing.ts,read.ts,wire.ts}`, `packages/protocol/test/{ids.test.ts,timing.test.ts,read.test.ts}`, `packages/sim/test/traceability.test.ts`.
   - Tests first: creation body `{ mapId, timing, requestId }`, advance body `{ round, step, requestId? }`, submission body `{ kind, round?, faction, playerId, requestId? }` (round present exactly for victim and absorber); each reader rejects unknown, missing, inherited (prototype) and wrongly typed fields with `invalid-request` naming the first failing field in the documented order; timing `manual` accepted; a missing timing field, a missing value or a text value (`"3600"`) is `invalid-request`; I = 3.5 or L1 = 0 is `invalid-timing` rule (a); L2 = -1 rule (b); I = L1 + L2 rule (c); I = 2,592,001 rule (d); several failed rules listed in (a)-(d) order; I = 3, L1 = 1, L2 = 0 and I = 2,592,000 accepted; no default filled in (FR-234); local player id 1..64 of `A-Za-z0-9_-.`, `discord:1` and the empty text `invalid-player-id`; request id same set, else `invalid-request`; map id 1..64 of `a-z0-9-`.
