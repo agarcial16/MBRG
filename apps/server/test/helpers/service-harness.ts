@@ -96,7 +96,8 @@ export const withTempDir = <T>(body: (dir: string) => T): T => {
   try {
     return body(dir);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    // Retries: on Windows a file just closed can stay locked for a moment (EBUSY / EPERM).
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 };
 

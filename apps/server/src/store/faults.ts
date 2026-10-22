@@ -9,14 +9,15 @@ import type { Store } from './store';
 /**
  * `fail`: a transaction refused before it began; `abort`: the connection closed before a transaction began; `write`: one
  * write of a transaction failed (the store rolls back); `abort-inside`: the connection closed inside a transaction, with
- * no commit and no rollback statement (what a killed process leaves, NFR-57).
+ * no commit and no rollback statement (what a killed process leaves, NFR-57); `read`: one call of `runningMatchIds` (a
+ * read outside any transaction, counted from 1 on its own) failed, the connection stays usable.
  */
-export type FaultKind = 'fail' | 'abort' | 'write' | 'abort-inside';
+export type FaultKind = 'fail' | 'abort' | 'write' | 'abort-inside' | 'read';
 
 export class InjectedFault extends StoreError {
   readonly kind: FaultKind;
   constructor(kind: FaultKind, n: number) {
-    super('store-failure', `injected ${kind} ${kind === 'write' || kind === 'abort-inside' ? 'inside' : 'before'} transaction ${n}`);
+    super('store-failure', kind === 'read' ? `injected read failure of runningMatchIds call ${n}` : `injected ${kind} ${kind === 'write' || kind === 'abort-inside' ? 'inside' : 'before'} transaction ${n}`);
     this.name = 'InjectedFault';
     this.kind = kind;
   }
@@ -38,12 +39,16 @@ export interface FaultPlan {
    * when the transaction has no further write. The connection stays closed, as for `abortTransaction`.
    */
   readonly abortWrite?: { readonly transaction: number; readonly afterWrites: number };
+  /** The calls of `runningMatchIds` (counted from 1, apart from the transactions) that throw: the connection stays usable. */
+  readonly failRunningIds?: readonly number[];
 }
 
 export const withFaults = (store: Store, plan: FaultPlan): Store => {
   let count = 0;
   /** The writes of the current transaction so far. */
   let writes = 0;
+  /** The calls of `runningMatchIds` so far. */
+  let reads = 0;
   const failing = (n: number): boolean =>
     typeof plan.failTransaction === 'number' ? plan.failTransaction === n : (plan.failTransaction ?? []).includes(n);
   const killHere = (): boolean => plan.abortWrite !== undefined && count === plan.abortWrite.transaction && writes === plan.abortWrite.afterWrites;
@@ -64,7 +69,11 @@ export const withFaults = (store: Store, plan: FaultPlan): Store => {
     updateMatch: (match) => (write(), store.updateMatch(match)),
     getMatch: (matchId) => store.getMatch(matchId),
     runningCount: () => store.runningCount(),
-    runningMatchIds: () => store.runningMatchIds(),
+    runningMatchIds: () => {
+      reads += 1;
+      if ((plan.failRunningIds ?? []).includes(reads)) throw new InjectedFault('read', reads);
+      return store.runningMatchIds();
+    },
     getState: (matchId, round) => store.getState(matchId, round),
     putRecord: (matchId, record) => (write(), store.putRecord(matchId, record)),
     records: (matchId) => store.records(matchId),

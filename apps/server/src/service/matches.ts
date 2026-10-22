@@ -25,7 +25,9 @@
 // performs its one overdue step (late, at the effective instant) and arms it; the memo purge is armed at the retention
 // boundary of the oldest entry. After every decision the next wake-up is armed BEFORE the events are published. A storage
 // failure (`isStorageFailure`) makes a command reply `unavailable` (the transaction rolled back); a clock step that fails,
-// for any reason, is isolated from the other matches and retried RETRY_MS later. `close` cancels every wake-up.
+// for any reason, is isolated from the other matches and retried RETRY_MS later. A storage failure of the enumeration of
+// the running matches at `start` arms a retry of the whole start check RETRY_MS later, until it succeeds (FR-294); a
+// programming error there is rethrown by `start`. `close` cancels every wake-up.
 
 import { canonicalBody, encodePublicMatch, errorReply, isLocalId, isNamespace, playerIdOf, readAdvance, readCreation, readSubmission } from '@mbrg/protocol';
 import type { AdvanceReply, CreationReply, ErrorReply, MatchEvent, PredictionReply, PublicMatch, StepKind, StepMismatchReply, Timing } from '@mbrg/protocol';
@@ -126,9 +128,14 @@ export interface TickReport {
   readonly failed: readonly StepFailure[];
 }
 
-/** What `start` did: a tick of every stored running match, plus the matches halted by the map check at start (FR-250). */
+/**
+ * What `start` did: a tick of every stored running match, plus the matches halted by the map check at start (FR-250).
+ * `retry` is present only when the enumeration of the stored running matches failed with a storage failure: nothing was
+ * checked, stepped or armed, and the whole start check runs again at `at` (FR-292, FR-294), and so on until it succeeds.
+ */
 export interface StartReport extends TickReport {
   readonly halted: readonly string[];
+  readonly retry?: { readonly kind: 'unavailable'; readonly at: number };
 }
 
 /** The interval between the attempts of a clock step whose storage failed (FR-292): the retry follows FR-248 once overdue. */
@@ -184,6 +191,8 @@ export interface MatchService {
    * Server start on the stored matches: purges the expired memo entries; for every running match runs the map check
    * (FR-250: a changed package halts it with `map-changed`), then performs its one overdue step, if any, as a late step at
    * the effective instant (FR-248) and arms its next wake-up (FR-239); arms the memo purge at the retention boundary (FR-238).
+   * If the enumeration of the running matches fails with a storage failure, it reports `retry` and the whole check runs
+   * again RETRY_MS later (FR-292), repeated until it succeeds; it never throws for a storage failure.
    */
   start(): StartReport;
   /** Cancels every wake-up of this service and closes the store. */
@@ -385,7 +394,11 @@ export function createMatchService(options: ServiceOptions): MatchService {
     }
   };
 
-  /** The running matches a tick or the start walks; a storage failure gives none (each is retried by its own wake-up). */
+  /**
+   * The running matches a tick walks; a storage failure gives none (a tick is not the start: every match it would step was
+   * armed by `start` or by its last decision, and its own wake-up retries it). The start check enumerates on its own
+   * (`startCheck`): there a failure arms a retry of the whole check, since nothing is armed yet.
+   */
   const runningIds = (): string[] => orUnavailable(() => store.runningMatchIds(), () => []);
   /** The memo purge of a tick or the start; a storage failure purges nothing now (the next tick or the purge timer does). */
   const purgeOrNone = (): number => orUnavailable(purgeNow, () => 0);
@@ -487,11 +500,11 @@ export function createMatchService(options: ServiceOptions): MatchService {
   }
 
   /** Steps every stored running match once, each isolated from the others, and collects what happened. */
-  const stepAll = (checkMap: boolean): Omit<StartReport, 'purged'> => {
+  const stepAll = (checkMap: boolean, ids: readonly string[]): Omit<StartReport, 'purged'> => {
     const performed: { matchId: string; steps: readonly StepRow[] }[] = [];
     const failed: StepFailure[] = [];
     const halted: string[] = [];
-    for (const id of runningIds()) {
+    for (const id of ids) {
       const result = stepSafely(id, checkMap);
       if ('failure' in result) failed.push(result.failure);
       else if (result.done?.haltedAtStart === true) halted.push(id);
@@ -499,6 +512,49 @@ export function createMatchService(options: ServiceOptions): MatchService {
     }
     return { performed, failed, halted };
   };
+
+  /** The one wake-up of a start check whose enumeration failed (FR-292, FR-294). */
+  const startTimer: { handle?: SchedulerHandle } = {};
+
+  /**
+   * The start check (FR-238, FR-248, FR-250, FR-294): the memo purge, then per stored running match the map check, the one
+   * overdue late step and the arming, then the purge timer. A storage failure of the enumeration of the running matches
+   * arms a retry of this whole check RETRY_MS later (nothing else is armed yet, so nothing else would retry it); any other
+   * error is a programming error and is rethrown to the caller.
+   */
+  function startCheck(): StartReport {
+    const purged = purgeOrNone();
+    let ids: string[];
+    try {
+      ids = store.runningMatchIds();
+    } catch (error) {
+      if (!isStorageFailure(error)) throw error;
+      const at = wholeMs(clock.now()) + RETRY_MS;
+      armStartRetry(at);
+      return { purged, performed: [], failed: [], halted: [], retry: { kind: 'unavailable', at } };
+    }
+    const report = stepAll(true, ids);
+    try {
+      armPurge();
+    } catch {
+      armPurgeAt(wholeMs(clock.now()) + RETRY_MS);
+    }
+    return { purged, ...report };
+  }
+
+  /** Arms the retry of the start check; its callback is isolated: nothing escapes to the timer, and a failure re-arms it. */
+  function armStartRetry(at: number): void {
+    if (scheduler === undefined || life.closed) return;
+    if (startTimer.handle !== undefined) scheduler.cancel(startTimer.handle);
+    startTimer.handle = scheduler.at(at, () => {
+      delete startTimer.handle;
+      try {
+        startCheck();
+      } catch {
+        armStartRetry(wholeMs(clock.now()) + RETRY_MS);
+      }
+    });
+  }
 
   /** Everything after the shape, credential and memo checks; runs inside the transaction and writes only on success. */
   const decide = (mapId: string, timing: Timing, timingError: ErrorReply | undefined, now: number, made: (m: Committed & { reported: number }) => void): CreateOutcome => {
@@ -718,24 +774,19 @@ export function createMatchService(options: ServiceOptions): MatchService {
 
     tick(): TickReport {
       const purged = purgeOrNone();
-      const { performed, failed } = stepAll(false);
+      const { performed, failed } = stepAll(false, runningIds());
       return { purged, performed, failed };
     },
 
     start(): StartReport {
       life.started = true;
-      const purged = purgeOrNone();
-      const report = stepAll(true);
-      try {
-        armPurge();
-      } catch {
-        armPurgeAt(wholeMs(clock.now()) + RETRY_MS);
-      }
-      return { purged, ...report };
+      return startCheck();
     },
 
     close(): void {
       life.closed = true;
+      if (startTimer.handle !== undefined) scheduler?.cancel(startTimer.handle);
+      delete startTimer.handle;
       for (const handle of armed.values()) scheduler?.cancel(handle);
       armed.clear();
       if (purgeTimer.handle !== undefined) scheduler?.cancel(purgeTimer.handle);

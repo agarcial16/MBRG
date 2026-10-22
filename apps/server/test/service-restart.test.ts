@@ -4,8 +4,9 @@ import type { MatchEvent, PublicMatch } from '@mbrg/protocol';
 import { describe, expect, it } from 'vitest';
 import type { CoreMatch } from '../src/core/view';
 import { createMapCatalog } from '../src/service/maps';
-import { createMatchService } from '../src/service/matches';
+import { RETRY_MS, createMatchService } from '../src/service/matches';
 import type { MatchService, StartReport } from '../src/service/matches';
+import { withFaults } from '../src/store/faults';
 import { openStore } from '../src/store/sqlite';
 import type { Store } from '../src/store/store';
 import { withRawDb } from './helpers/db-scan';
@@ -184,6 +185,83 @@ describe('FR-294 resuming at the stored stage, round and anchors', () => {
       expect(server.scheduler.pending()).toStrictEqual([t + 30 * S, START_MS + 24 * 3_600 * S + 1]);
       expect(server.published.map((e) => e.type)).toStrictEqual(['match-halted', 'phase-closed', 'victim-revealed', 'schedule']);
       server.service.close();
+    });
+  });
+});
+
+describe('FR-294 FR-292 (retry) a start whose enumeration of the running matches fails', () => {
+  /** A server started on the file through a store wrapper (the fault seam, or a planted programming error). */
+  function startWrapped(h: Harness, file: string, wrap: (store: Store) => Store): Server {
+    const store = wrap(opened(openStore(file)));
+    const scheduler = fakeScheduler(h.clock);
+    const service = createMatchService({ store, clock: h.clock, maps: createMapCatalog(h.settings.maps), settings: h.settings, scheduler });
+    const published: MatchEvent[] = [];
+    service.subscribe((_, events) => published.push(...events));
+    return { store, service, scheduler, published, report: service.start() };
+  }
+
+  it('FR-294 FR-292 (retry) a storage failure of the enumeration at start arms one retry of the whole start check 3 s later, repeated until it succeeds; then the map check halts a changed match, an overdue match performs one late step and is armed', () => {
+    inTempDir((dir) => {
+      const file = join(dir, 'matches.sqlite');
+      const changed = writeMapPackage(dir, 'changed', DEV_MAP_JSON);
+      const { h, id } = firstServer(file, { folders: { dev: changed, other: DEV_DIR.replace(/[\\/]$/, '') } });
+      const created = h.service.create({ credential: OPERATOR, body: creationBody('c-2', { mapId: 'other' }) });
+      if (!created.ok) throw new Error('creation failed');
+      const other = created.reply.matchId;
+      h.service.close();
+
+      appendFileSync(join(changed, 'map.json'), '\n');
+      const t = START_MS + 500 * S;
+      h.clock.set(t);
+      // The first two enumerations fail (a transient lock): the start check is retried at t + 3 s and t + 6 s.
+      const server = startWrapped(h, file, (store) => withFaults(store, { failRunningIds: [1, 2] }));
+      expect(server.report).toStrictEqual({ purged: 0, performed: [], failed: [], halted: [], retry: { kind: 'unavailable', at: t + RETRY_MS } });
+      // Nothing was checked, stepped or armed: only the retry of the start check.
+      expect(server.scheduler.pending()).toStrictEqual([t + RETRY_MS]);
+      expect(viewOf(server.store, id).stage).toBe('phase-1');
+      expect(rowsOf(server.store, other)).toStrictEqual([]);
+      expect(server.published).toStrictEqual([]);
+
+      expect(server.scheduler.runTo(t + RETRY_MS)).toBe(1);
+      expect(server.scheduler.pending()).toStrictEqual([t + 2 * RETRY_MS]);
+      expect(server.published).toStrictEqual([]);
+
+      const at = t + 2 * RETRY_MS;
+      server.scheduler.runTo(at);
+      expect(viewOf(server.store, id)).toMatchObject({ stage: 'halted', haltReason: 'map-changed' });
+      expect(rowsOf(server.store, id)).toStrictEqual([]);
+      expect(rowsOf(server.store, other)).toStrictEqual([[1, 'phase-1-close', at, 'late']]);
+      expect(server.scheduler.pending()).toStrictEqual([at + 30 * S, START_MS + 24 * 3_600 * S + 1]);
+      expect(server.published.map((e) => e.type)).toStrictEqual(['match-halted', 'phase-closed', 'victim-revealed', 'schedule']);
+      server.service.close();
+    });
+  });
+
+  it('FR-294 FR-292 (retry) close() cancels a pending retry of the start check', () => {
+    inTempDir((dir) => {
+      const file = join(dir, 'matches.sqlite');
+      const { h } = firstServer(file);
+      h.service.close();
+      const server = startWrapped(h, file, (store) => withFaults(store, { failRunningIds: [1] }));
+      expect(server.scheduler.pending()).toStrictEqual([START_MS + RETRY_MS]);
+      server.service.close();
+      expect(server.scheduler.pending()).toStrictEqual([]);
+    });
+  });
+
+  it('FR-294 FR-292 (retry) a programming error of the enumeration at start is not a storage failure: start() rethrows it and arms no retry', () => {
+    inTempDir((dir) => {
+      const file = join(dir, 'matches.sqlite');
+      const { h } = firstServer(file);
+      h.service.close();
+      const planted = new TypeError('planted programming error');
+      const store = opened(openStore(file));
+      const scheduler = fakeScheduler(h.clock);
+      const broken: Store = { ...withFaults(store, {}), runningMatchIds: () => { throw planted; } };
+      const service = createMatchService({ store: broken, clock: h.clock, maps: createMapCatalog(h.settings.maps), settings: h.settings, scheduler });
+      expect(() => service.start()).toThrow(planted);
+      expect(scheduler.pending()).toStrictEqual([]);
+      service.close();
     });
   });
 });
