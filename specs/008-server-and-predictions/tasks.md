@@ -237,12 +237,13 @@ M2b / M2b' rules (in addition to the M1 and M2a rules):
 
 **Hand-offs from M2b** (delivered facts the tasks below rely on; plan section 13): the service has `create`, `advance`, `submit`, `ownPredictions`, `tick`, `publicMatch`, `subscribe`, `purgeMemos` and an optional `scheduler` option, but no `start()` / `close()`; a storage failure currently throws (T3' maps it to `unavailable`); the map-digest check and halting are not implemented in the service (T2'); `sentMax` is in memory (T4'); credentials are TEXT and the caller is `{ credential, namespace }` (HTTP reading is M3a); settings are `MBRG_OPERATOR_CREDENTIAL`, `MBRG_MAPS`, `MBRG_MAX_RUNNING_MATCHES`, `MBRG_DATABASE`; the store offers `runningMatchIds`, `runningCount`, `eventsAfter`, `withFaults({failTransaction, abortTransaction})` and the test helper `db-scan.ts`; WAL with the exclusive lock works on Windows (CI confirms on the M2b PR).
 
-- [ ] **T1'. Branch, commit plan / tasks; bookkeeping targets.** NFR-55
+- [x] **T1'. Branch, commit plan / tasks; bookkeeping targets.** NFR-55
   - Depends on: M2b merged.
   - Files: `specs/008-server-and-predictions/{plan,tasks}.md`, `packages/sim/test/traceability.test.ts`.
   - Tests first: counts 63 / 33, target 67 / 29 in a comment.
   - Commits: `docs: start spec 008 milestone M2b'`; `test: prepare the spec 008 bookkeeping for M2b'`.
   - Done when: suite, typecheck and `CI=1` green.
+  - Done (T1'): plan / tasks of M2b' were already in `rewrite` (b9effa5), so the docs commit only ticks T1'.
 
 - [ ] **T2'. Map check and halting through the service.** FR-250, FR-251
   - Depends on: T1'.
