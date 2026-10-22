@@ -142,6 +142,7 @@ T6 proves the chosen runner: a child process starts `apps/server/src/main.ts --c
 | NFR-57 | M2b; results part M4 |
 | FR-241, FR-243, FR-246, FR-251 | storage M2b; scoring parts M4 |
 | FR-270, FR-281, FR-282, FR-288, FR-289, FR-301, FR-302 | core or storage M2a/M2b; HTTP or stream M3a/M3b |
+- **M1 closing state**: the M1 ids FR-252, FR-312, FR-313, NFR-47, NFR-48, NFR-51, NFR-53, NFR-55 (8 ids) are in `DONE_008`; `PENDING_008` holds exactly 88 ids (96 - 8; the test asserts both numbers). Of these, NFR-47 is only partly covered (part (e), the absorber uniformity) and NFR-48 only for seeds and records (round-seed goldens): the other parts of NFR-47 ((a) to (d), (f)) and the lifecycle and results parts of NFR-48 are completed by the milestones of the ledger above, and their test titles must name the part they cover (for example `NFR-47 (b) ...`), because the id can no longer be reported missing. NFR-55 stays partial in every milestone.
 - M5 removes the pending set (an empty list) and the spec goes to `implemented` after M5's acceptance.
 
 ## 12. Milestones (delivery)
@@ -156,6 +157,8 @@ T6 proves the chosen runner: a child process starts `apps/server/src/main.ts --c
 | M5 | `feat/008-m5-live-viewer` | Live viewer, address rules, map digest in the browser, web test client, production build check | FR-303 to FR-311; NFR-56 | M3b, M4 |
 
 ## 13. Recorded figures and checks
+**M1 closing summary**: delivers the three sim exports with state/faction checks (FR-312, FR-313), the `apps/server` skeleton with the tsx runner and warning filter, the secret/commitment/round-seed derivation (FR-252), the D7 checks (NFR-53), the dev-map seed goldens, the absorber uniformity (NFR-47(e), worst 0.2227 pp) and the traceability pending set (NFR-55). Earlier tests edited (only as the plan allows): `packages/sim/test/{candidates,match,traceability}.test.ts`, `packages/shared/test/no-regression.test.ts`, `apps/web/test/{shaped-deps,labels-render}.test.ts` (lockfile-entry pins now ignore `apps/server`). Lockfile diff = the workspace entry and link only. New dependencies: `tsx` 4.23.15 and `@types/node` 24.19.2, dev dependencies of `apps/server` (approved U2). Node `v24.0.0`, `node:sqlite` prints an `ExperimentalWarning` (filtered by the server). Map digest of `maps/dev`: `4d1698a310b46a6507fd128dad87f20873065d44a71b2ee5a78c062eb5c1e679`.
+
 (Filled during M1: Node version, `node:sqlite` stability label, experimental warning yes/no, runner check, test vectors, dev-map golden digests, absorber uniformity worst deviation. Later milestones add their figures.)
 
 - **T5 (`node:sqlite`)**: Node `v24.0.0` (win32). `import('node:sqlite')` works with no flag. Stability label: 1.1 Active development (from the Node 24 documentation, not checked online here); a plain import prints `ExperimentalWarning: SQLite is an experimental feature and might change at any time` (warning present: yes). In-memory and file databases, commit, rollback and the `PRAGMA locking_mode = EXCLUSIVE` lock (second connection fails with locked/busy) all pass on Windows. `engines` (>=24) and `.nvmrc` (24) untouched (U3). Lockfile gained only the `apps/server` workspace entry and its link (`tsx` 4.23.15, `@types/node` 24.19.2 were already locked).

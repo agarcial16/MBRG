@@ -65,7 +65,7 @@ Rules for every task:
   - Commit: `test(server): pin dev-map round-seed goldens and absorber uniformity`.
   - Done when: tests green; worst deviation and runtime recorded in plan section 13 (above 5 s: own timeout, run alone for timing); mutation: a seed source that reuses s_1 for every round changes the golden (fails); `rg` finds NFR-47, NFR-48.
 
-- [ ] **T9. Close M1: ledger, process checks, PR.** NFR-55, done criteria of M1
+- [x] **T9. Close M1: ledger, process checks, PR.** NFR-55, done criteria of M1
   - Files: `packages/sim/test/traceability.test.ts` (assert the pending set now holds exactly 88 ids: the M1 ids FR-252, FR-312, FR-313, NFR-47, NFR-48, NFR-51, NFR-53, NFR-55 were removed by the tasks that traced them), `specs/008-server-and-predictions/plan.md` (sections 11 and 13 updated), `MEMORY.md` (local).
   - Steps: `git diff --exit-code rewrite -- packages/shared/src packages/sim/test/golden maps/dev` clean; `git diff --stat rewrite -- packages apps tools` shows only the planned files; full suite, typecheck and `CI=1` green; PR body lists the ledger of plan section 11, the figures of section 13 and the U1 to U5 decisions (2026-10-21/22). Push, PR, CI green, squash only with the user's OK.
   - Commit: `test: pin the spec 008 pending set after M1`.
