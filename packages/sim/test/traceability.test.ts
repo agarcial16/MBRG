@@ -62,20 +62,20 @@ const expected = specIds.filter((id) => !RETIRED.includes(id));
  */
 const PENDING_008: readonly string[] = [
   'FR-231', 'FR-232', 'FR-235', 'FR-236', 'FR-238',
-  'FR-241', 'FR-242', 'FR-243', 'FR-244', 'FR-245', 'FR-246', 'FR-248', 'FR-250',
+  'FR-241', 'FR-242', 'FR-243', 'FR-245', 'FR-246', 'FR-250',
   'FR-251', 'FR-259', 'FR-260',
   'FR-261', 'FR-262', 'FR-263', 'FR-264', 'FR-265', 'FR-266', 'FR-267', 'FR-268', 'FR-270',
   'FR-271', 'FR-272', 'FR-273', 'FR-274', 'FR-275', 'FR-276', 'FR-277', 'FR-278', 'FR-279', 'FR-280',
   'FR-281', 'FR-283', 'FR-284', 'FR-285', 'FR-286', 'FR-287', 'FR-288', 'FR-289', 'FR-290',
-  'FR-291', 'FR-292', 'FR-293', 'FR-294', 'FR-295', 'FR-298', 'FR-299', 'FR-300',
+  'FR-291', 'FR-292', 'FR-293', 'FR-294', 'FR-298', 'FR-299', 'FR-300',
   'FR-303', 'FR-304', 'FR-305', 'FR-306', 'FR-307', 'FR-308', 'FR-309', 'FR-310',
   'FR-311', 'FR-315',
   'NFR-49', 'NFR-52', 'NFR-54', 'NFR-56',
   'NFR-57',
 ];
 
-/** Ids of spec 008 already removed from PENDING_008 by the tasks that traced them (T2: FR-313; T3: NFR-51, NFR-55; T4: FR-312, NFR-48; T5: NFR-53; T7: FR-252; T2 of M2a: FR-301 (kinds and order); T3 of M2a: FR-233, FR-234, FR-296, FR-297; T4 of M2a: FR-253, FR-254, FR-257, FR-282 (NFR-47 part (b) also traced, part names in titles); T5 of M2a: FR-239, FR-249, FR-302, FR-314, NFR-50 (NFR-51 part server core also traced, part named in titles); T6 of M2a: FR-237, FR-240 (decision), FR-247, FR-255, FR-256, FR-258, FR-269 (FR-257 core part and NFR-48 core timeline also traced, parts named in titles); T8: NFR-47 (part (e) only, the other parts stay open in later milestones: test titles of those milestones must say which part)). */
-const DONE_008: readonly string[] = ['FR-313', 'NFR-51', 'NFR-55', 'FR-312', 'NFR-48', 'NFR-53', 'FR-252', 'NFR-47', 'FR-301', 'FR-233', 'FR-234', 'FR-296', 'FR-297', 'FR-253', 'FR-254', 'FR-257', 'FR-282', 'FR-239', 'FR-249', 'FR-302', 'FR-314', 'NFR-50', 'FR-237', 'FR-240', 'FR-247', 'FR-255', 'FR-256', 'FR-258', 'FR-269'];
+/** Ids of spec 008 already removed from PENDING_008 by the tasks that traced them (T2: FR-313; T3: NFR-51, NFR-55; T4: FR-312, NFR-48; T5: NFR-53; T7: FR-252; T2 of M2a: FR-301 (kinds and order); T3 of M2a: FR-233, FR-234, FR-296, FR-297; T4 of M2a: FR-253, FR-254, FR-257, FR-282 (NFR-47 part (b) also traced, part names in titles); T5 of M2a: FR-239, FR-249, FR-302, FR-314, NFR-50 (NFR-51 part server core also traced, part named in titles); T6 of M2a: FR-237, FR-240 (decision), FR-247, FR-255, FR-256, FR-258, FR-269 (FR-257 core part and NFR-48 core timeline also traced, parts named in titles); T7 of M2a: FR-244, FR-248 (letters a to c; the predictions-before-cutoff clause is traced by T8), FR-295 (letters b, c; letter a is traced by T8 in prediction titles); T8: NFR-47 (part (e) only, the other parts stay open in later milestones: test titles of those milestones must say which part)). */
+const DONE_008: readonly string[] = ['FR-313', 'NFR-51', 'NFR-55', 'FR-312', 'NFR-48', 'NFR-53', 'FR-252', 'NFR-47', 'FR-301', 'FR-233', 'FR-234', 'FR-296', 'FR-297', 'FR-253', 'FR-254', 'FR-257', 'FR-282', 'FR-239', 'FR-249', 'FR-302', 'FR-314', 'NFR-50', 'FR-237', 'FR-240', 'FR-247', 'FR-255', 'FR-256', 'FR-258', 'FR-269', 'FR-244', 'FR-248', 'FR-295'];
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -202,10 +202,10 @@ describe('traceability', () => {
     expect(literal).toContain('FR-315');
     expect(literal).toContain('NFR-57');
     expect(PENDING_008).toHaveLength(96 - DONE_008.length);
-    // After M1: 8 ids traced (FR-252, FR-312, FR-313, NFR-47 part (e), NFR-48 seeds, NFR-51, NFR-53, NFR-55), 88 pending; M2a T2 adds FR-301 (9 / 87); M2a T3 adds FR-233, FR-234, FR-296, FR-297: 13 done, 83 pending; M2a T4 adds FR-253, FR-254, FR-257, FR-282: 17 done, 79 pending; M2a T5 adds FR-239, FR-249, FR-302, FR-314, NFR-50: 22 done, 74 pending; M2a T6 adds FR-237, FR-240, FR-247, FR-255, FR-256, FR-258, FR-269: 29 done, 67 pending.
+    // After M1: 8 ids traced (FR-252, FR-312, FR-313, NFR-47 part (e), NFR-48 seeds, NFR-51, NFR-53, NFR-55), 88 pending; M2a T2 adds FR-301 (9 / 87); M2a T3 adds FR-233, FR-234, FR-296, FR-297: 13 done, 83 pending; M2a T4 adds FR-253, FR-254, FR-257, FR-282: 17 done, 79 pending; M2a T5 adds FR-239, FR-249, FR-302, FR-314, NFR-50: 22 done, 74 pending; M2a T6 adds FR-237, FR-240, FR-247, FR-255, FR-256, FR-258, FR-269: 29 done, 67 pending; M2a T7 adds FR-244, FR-248, FR-295: 32 done, 64 pending.
     // M2a target (T10): 40 done / 56 pending; each M2a task moves its ids in its own commit.
-    expect(DONE_008).toHaveLength(29);
-    expect(PENDING_008).toHaveLength(67);
+    expect(DONE_008).toHaveLength(32);
+    expect(PENDING_008).toHaveLength(64);
     expect(new Set([...PENDING_008, ...DONE_008]).size).toBe(96);
     expect([...PENDING_008, ...DONE_008].sort()).toStrictEqual([...literal].sort());
     for (const id of PENDING_008) expect(expected, id).toContain(id);
@@ -223,8 +223,8 @@ describe('traceability', () => {
   });
 
   it('NFR-55 the pending-id check sees a pending M2a id planted in a dummy title', () => {
-    const planted = tracedIds({ 'x/a.test.ts': "it('FR-244 a', () => {});" });
-    expect(PENDING_008.filter((id) => planted.has(id))).toStrictEqual(['FR-244']);
+    const planted = tracedIds({ 'x/a.test.ts': "it('FR-261 a', () => {});" });
+    expect(PENDING_008.filter((id) => planted.has(id))).toStrictEqual(['FR-261']);
   });
 
   it('NFR-44 the 18 ids of spec 007 are all expected', () => {

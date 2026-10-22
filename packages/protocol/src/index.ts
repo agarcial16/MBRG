@@ -10,8 +10,9 @@ export type { AdvanceBody, CreationBody, PredictionKind, StepKind, SubmissionBod
 export { MAP_FILE_NAMES, REQUEST_ID_KEY, canonicalBody, mapDigestBytes, stateText } from './canonical';
 export type { MapFileName } from './canonical';
 export { encodePublicMatch } from './public';
-export { HALT_REASONS, PUBLIC_MATCH_KEYS, PUBLIC_VICTIM_KEYS, STAGES } from './wire';
+export { HALT_REASONS, PUBLIC_MATCH_KEYS, PUBLIC_VICTIM_KEYS, STAGES, STEP_CAUSES } from './wire';
 export type {
+  AdvanceReply,
   CreationReply,
   HaltReason,
   MatchEvent,
@@ -26,5 +27,8 @@ export type {
   RoundAppliedEvent,
   ScheduleEvent,
   Stage,
+  StepCause,
+  StepInfo,
+  StepMismatchReply,
   VictimRevealedEvent,
 } from './wire';

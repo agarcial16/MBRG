@@ -2,11 +2,11 @@
 // It has NO absorber field and NO pending-state field (FR-256 by construction) and carries no secret (PD6);
 // it maps onto the protocol's `PublicMatch` by `publicOf`.
 
-import type { HaltReason, PublicMatch, PublicState, PublicVictim, Stage, StepKind, Timing } from '@mbrg/protocol';
+import type { HaltReason, PublicMatch, PublicState, PublicVictim, Stage, StepCause, StepKind, Timing } from '@mbrg/protocol';
 import type { Anchors } from './time';
 
 /** Why a step was performed (FR-240). */
-export type StepCause = 'clock' | 'manual' | 'late';
+export type { StepCause };
 
 /** One stored step (FR-240, FR-293): round, kind, instant (whole ms) and cause. */
 export interface StepRow {

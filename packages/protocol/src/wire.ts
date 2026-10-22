@@ -191,3 +191,34 @@ export type MatchEvent =
   | ScheduleEvent
   | MatchFinishedEvent
   | MatchHaltedEvent;
+
+/** Why a step was performed (FR-240): the clock on time, a manual advance, or a late catch-up (FR-248). */
+export const STEP_CAUSES = ['clock', 'manual', 'late'] as const;
+export type StepCause = (typeof STEP_CAUSES)[number];
+
+/** A step as an advance reply carries it (FR-295 (b)): round, kind, instant in whole ms and cause. */
+export interface StepInfo {
+  readonly round: number;
+  readonly kind: StepKind;
+  readonly instant: number;
+  readonly cause: StepCause;
+}
+
+/**
+ * The reply to an accepted advance (FR-295 (b)): `performed` with the step just performed, or `already-performed` with
+ * the stored row of the named step (nothing was performed); both carry the public data after the decision. A data
+ * result, not an error (FR-301).
+ */
+export interface AdvanceReply {
+  readonly result: 'performed' | 'already-performed';
+  readonly step: StepInfo;
+  readonly match: PublicMatch;
+}
+
+/** The `step-mismatch` reply (FR-295 (b)): the named step is neither the next one nor a performed one; it names the current stage and N. */
+export interface StepMismatchReply {
+  readonly kind: 'step-mismatch';
+  readonly stage: Stage;
+  /** N: the number of applied rounds. */
+  readonly appliedRounds: number;
+}
