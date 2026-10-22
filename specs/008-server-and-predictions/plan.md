@@ -1,9 +1,9 @@
 # Plan 008 — Server and predictions
 Spec: `specs/008-server-and-predictions/spec.md` (approved by the user on 2026-10-21, D25). Covers FR-231 to FR-315 and NFR-47 to NFR-57 (96 ids). Delivery in milestones (spec D18, D24): M1, M2a, M2b, M3a, M3b, M4, M5, each with its own branch cut from an up-to-date `rewrite`, its own PR into `rewrite`, squash merge with the user's OK and CI green. GitHub issues: one per milestone only if the user wants them (spec "Splitting").
 
-This plan is at overview level for the whole spec and detailed for **M1** (branch `feat/008-m1-secret-and-sim-exports`), **M2a** (section 16), **M2b** and **M2b'** (section 17). M3a to M5 get their detailed sections and tasks in a later revision of this plan, each approved before its first task.
+This plan is at overview level for the whole spec and detailed for **M1** (branch `feat/008-m1-secret-and-sim-exports`), **M2a** (section 16), **M2b** and **M2b'** (section 17) and **M3a** (section 18). M3b to M5 get their detailed sections and tasks in a later revision of this plan, each approved before its first task.
 
-**Gate.** This plan and `tasks.md` were approved by the user for M1 and M2a, and for M2b and M2b' on 2026-10-22. The items of section 1 were answered by the user on 2026-10-21/22 (U1 to U5, now decisions).
+**Gate.** This plan and `tasks.md` were approved by the user for M1 and M2a, and for M2b and M2b' on 2026-10-22, and for M3a on 2026-10-22 (section 18 with C1 to C8 as recommended, `tasks.md`; C2 recorded in the spec as D26). The items of section 1 were answered by the user on 2026-10-21/22 (U1 to U5, now decisions).
 
 ## 0. Starting point and guards (read before coding)
 - `rewrite` at 14127e6 (spec 007 merged, PR #27). Node: `.nvmrc` = `24`, root `engines` = `>=24`; CI uses `.nvmrc`. TypeScript `^7.0.2` (type-check only, `noEmit`), Vitest `^5.0.4`. Workspaces: `packages/*`, `tools/build-map`, `apps/web`.
@@ -162,6 +162,7 @@ T6 proves the chosen runner: a child process starts `apps/server/src/main.ts --c
 | FR-253, FR-254, FR-257, FR-258 | public view, encoder and core decisions M2a; replies over HTTP M3a, events M3b |
 - **M2a target**: 32 more ids move to `DONE_008` (section 16); after M2a `DONE_008` holds 40 and `PENDING_008` 56 ids.
 - **M2b target** (section 17.3): M2b moves 23 ids (`DONE_008` 63 / `PENDING_008` 33), M2b' moves 4 (67 / 29).
+- **M3a target** (section 18.10): M3a moves 9 ids (FR-279, FR-280, FR-281, FR-283, FR-284, FR-285, FR-286, FR-298, FR-299): `DONE_008` 76, `PENDING_008` 20 (FR-271 to FR-278, FR-287, FR-303 to FR-311, NFR-49, NFR-56).
 - **M2a closing state** (T10): `DONE_008` holds 40 ids and `PENDING_008` 56 (asserted explicitly in `traceability.test.ts`). Closed in M2a (32): FR-233, FR-234, FR-237, FR-239, FR-240 (decision part), FR-244, FR-247, FR-248, FR-249, FR-253, FR-254, FR-255, FR-256, FR-257, FR-258, FR-261 to FR-269, FR-282 (content part), FR-295, FR-296, FR-297, FR-301 (kinds and order), FR-302 (reported time), FR-314, NFR-50. Partial, still to complete (every part still open, by milestone): FR-240 and FR-295 (storage transaction and per-match serialisation, M2b); FR-249 "also across restarts" (store, M2b; only the pure rule is proven); FR-255 and FR-256 "not store, cache or log" (checked only in the pure core; storage check NFR-47 (d) M2b, log scan NFR-47 (c) M3a); FR-267 persistence of the prediction row (M2b); FR-269 "empty result for that phase" (results stored M2b, filled M4); FR-239, FR-244, FR-247, FR-248 timer loop, authorisation, start-up detection, storage-failure retry and the 3 s retry (shell: M2b/M3a); FR-237 creation reply and the too-few-factions reply over the wire (M3a); FR-262 to FR-266 complete at the decision level only (replies M3a, storage M2b); FR-253, FR-254, FR-257, FR-258 (replies over HTTP M3a, events M3b); FR-282 (transport M3a; letter (a) is only the key encoding); FR-301 and FR-302 (HTTP M3a; `map-validation` is a stand-in kind, the wire kind for 001 validation errors is left to M3a); NFR-47 (b) done only by structure (events are built from CoreMatch plus the engine result in `steps.ts`, not from PublicMatch; equivalent, not literally "event builders take only the public view type"), (a), (d), (f) M2b, (c) M3a; NFR-48 core timelines done (the publicDigest, recordDigest and event-type lists in `core-timelines.json` are code-generated regression pins, not independent; rows, anchors and stage are hand-derived), lifecycle M2b, results M4; NFR-50 only the fake-clock logic part, "by measurement (real clock)" not done (M2b/M3a); NFR-51 protocol and server core done; NFR-53 and NFR-55 rechecked every milestone. FR-248 letters a to c and the cutoff clause are traced by T7/T8 titles. No id was left untraced: FR-283/FR-284 (M3) appear in no M2a title.
 - **M2b closing state** (T8): `DONE_008` holds 63 ids and `PENDING_008` 33 (asserted explicitly in `traceability.test.ts`, which also pins the 23 ids M2b closed). Closed in M2b (23): FR-231, FR-232, FR-235, FR-236, FR-238, FR-241, FR-242, FR-243, FR-245, FR-246, FR-259, FR-260, FR-270 (storage), FR-288 (data), FR-289 (data), FR-290, FR-291, FR-292 (durability settings), FR-293, FR-300 (digests), FR-315, NFR-52 (store and lifecycle), NFR-54 (store). Partial, every part still open by milestone: FR-238 purge timer, FR-239/FR-244/FR-248 timer loop, start-up detection and the 3 s retry (M2b' T3'); FR-249 across restarts (M2b' T4'); FR-250 and FR-251 (halting, map-digest check) M2b' T2'; FR-294 M2b' T4'; FR-255 and FR-256 storage check (M2b' T5'), log scan NFR-47 (c) (M3a); NFR-47 (a), (d) M2b' T5', (c) M3a; NFR-48 lifecycle goldens M2b' T4', results M4; NFR-50 real-clock measurement M2b' T3'; NFR-57 durability M2b' T6'; FR-292 (unavailable, retry) M2b' T3'; FR-293 use at restart M2b' T4'; FR-300 constant-time comparison and header reading M3a; FR-283, FR-284 credential reading and namespaces M3a; FR-282 transport and FR-286 M3a; FR-287 and the stream parts of FR-288, FR-289, FR-290 M3b; FR-270 read over HTTP and FR-237/FR-259 replies M3a; NFR-54 logs M3a; NFR-52 network M3; scoring parts of FR-241, FR-243, FR-246 and results parts M4. No M2b title names FR-283 or FR-284.
 - **M2b' closing state** (T7'): `DONE_008` holds 67 ids and `PENDING_008` 29 (asserted explicitly in `traceability.test.ts`, whose closing-state test pins the 23 M2b ids and the 4 M2b' ids as done and the 29 M3a to M5 ids, as a literal list, as pending). Closed in M2b' (4): FR-250, FR-251 (halting; scoring part (c) M4), FR-294, NFR-57 (M2b part: states, records, step rows, events, predictions, memo). Parts completed in M2b' (ids already done): FR-238 purge timer, FR-239 / FR-244 / FR-248 timer loop, start-up detection and the 3 s retry, FR-249 across restarts, FR-255 / FR-256 storage check, FR-292 (unavailable, retry), FR-293 use at restart, FR-315 restart after every step, FR-245 / FR-266 / FR-259 / FR-243 / FR-241 through the service with a halted match, NFR-47 (a), (d), NFR-48 (lifecycle), NFR-50 (real clock, measured). **Every part still open, with the milestone that completes it**: NFR-57 results part and NFR-48 results (M4); NFR-47 (c) log scan, with the log parts of FR-255 / FR-256 (M3a); FR-283, FR-284, FR-285, FR-286 credential reading, namespaces and the constant-time comparison of FR-300 (M3a); FR-287 and the stream parts of FR-288, FR-289, FR-290 (M3b); FR-292 transport and the HTTP parts of FR-237, FR-253, FR-254, FR-257, FR-258, FR-259, FR-262 to FR-267, FR-270 (read), FR-281 (non-result), FR-282 (transport), FR-301, FR-302 (M3a; events M3b); NFR-52 network (M3), NFR-54 logs (M3a); FR-260 and NFR-47 (f) re-asserted against `createServer` and the listener (M3a); `main.ts` does not call `start()` yet (wired with the listener in M3a); programming errors in clock steps are retried every 3 s and reported as `error`, but the service has no log (M3a logs them); scoring parts of FR-241, FR-243, FR-246, FR-251 (c) and the results of FR-269 (M4). Not decided: a running clock match with a NULL anchor (corruption only) never steps; halting it would need a spec decision. Not covered by tests: a kill during the recovery of `start()` itself, and a kill after `COMMIT` but before publication (needs the M3b event replay); the FR-250 map check is not done for submissions (they perform no step). No M2b' title names FR-283 or FR-284. The B1 fix of the M2b' review (a failed enumeration at `start()` is retried) completes the FR-294 / FR-292 (retry) parts already counted; the ledger stays 67 / 29. **Follow-ups recommended by the M2b' reviewer, still open for M3a**: log the original cause of native SQLite errors (`StoreError` keeps no `cause`) or narrow the mapping to the busy / locked / I/O / full codes (today every `ERR_SQLITE_ERROR`, constraint violations included, maps to `store-failure`, so a programming error of that kind replies `unavailable` and a clock step retries it every 3 s, reported only as `unavailable`); the base64 scan of the database matches only an aligned, complete encoding of a secret (a known limitation).
@@ -175,7 +176,7 @@ T6 proves the chosen runner: a child process starts `apps/server/src/main.ts --c
 | M2a | `feat/008-m2a-protocol-and-core` | Protocol package; pure core: timing rules, schedule and anchors, stage machine, late step, effective and reported time, advance decision, prediction validation and cutoffs, public view, error order, canonical forms | FR-233, FR-234, FR-237, FR-239, FR-240 (decision), FR-244, FR-247 to FR-249, FR-253 to FR-258, FR-261 to FR-269, FR-282 (content), FR-295 to FR-297, FR-301 (kinds), FR-302 (reported time), FR-314; NFR-47(b), NFR-50, NFR-51 | M1 |
 | M2b | `feat/008-m2b-store-and-lifecycle` | SQLite store, transactions and lock, lifecycle service with the fake clock, creation, memo, events storage, steps and predictions through the service (section 17, split B1 approved 2026-10-22) | FR-231, FR-232, FR-235, FR-236, FR-238, FR-240 to FR-243, FR-245, FR-246, FR-259, FR-260, FR-270 (storage), FR-288, FR-289 (data), FR-290 to FR-293, FR-300 (digests), FR-315; NFR-47(f), NFR-52, NFR-54 (store) | M2a |
 | M2b' | `feat/008-m2b2-halting-and-recovery` | Halting and map check, timer loop and 3 s retry, restart recovery, lifecycle goldens, storage anti-spoiler checks, kill-and-restart durability | FR-250, FR-251, FR-294; FR-249 (restarts), FR-292 (unavailable, retry); NFR-47(a), (d), NFR-48 (lifecycle), NFR-50 (real clock), NFR-57 | M2b |
-| M3a | `feat/008-m3a-http-api` | HTTP commands and reads, credentials and namespaces, cross-origin, limits, paging, map files | FR-257 (HTTP), FR-270 (read), FR-279, FR-280, FR-281 (non-result), FR-282 (transport), FR-283 to FR-286, FR-298 to FR-300, FR-301, FR-302 (HTTP); NFR-47(c), NFR-52, NFR-54 (logs) | M2b |
+| M3a | `feat/008-m3a-http-api` | HTTP commands and reads, credentials and namespaces, cross-origin, limits, paging, map files, entry point and shutdown (section 18); closes FR-279, FR-280, FR-281, FR-283, FR-284, FR-285, FR-286, FR-298, FR-299 | FR-257 (HTTP), FR-270 (read), FR-279, FR-280, FR-281 (non-result), FR-282 (transport), FR-283 to FR-286, FR-298 to FR-300, FR-301, FR-302 (HTTP); FR-260, NFR-47(c), (f), NFR-52, NFR-54 (logs) | M2b' |
 | M3b | `feat/008-m3b-event-stream` | Server-Sent Events, replay, heartbeat, NFR-49 procedure | FR-287, FR-288, FR-289 (stream), FR-290 (stream); NFR-49 | M3a |
 | M4 | `feat/008-m4-scoring-and-results` | Scoring, results, leaderboard reads | FR-271 to FR-278, FR-281(e) to (g), scoring parts of FR-241, FR-243, FR-246, FR-251(c); NFR-48 (results), NFR-57 (results) | M2b, M3a |
 | M5 | `feat/008-m5-live-viewer` | Live viewer, address rules, map digest in the browser, web test client, production build check | FR-303 to FR-311; NFR-56 | M3b, M4 |
@@ -364,3 +365,150 @@ M2b moves 23 ids to `DONE_008` (FR-231, FR-232, FR-235, FR-236, FR-238, FR-241, 
 - **WAL with an exclusive lock on Windows**: checked in T3 on Windows and in CI (Linux); a failure falls back to `journal_mode = DELETE` (PD9 alternative) without a spec change. **Checked in M2b T3 (Windows, Node v24.0.0): WAL with `locking_mode = EXCLUSIVE` works, no fallback needed**: `journal_mode` reads back `wal`, a second connection in the same process and a second Node process both fail with `database-locked` while the first is open and succeed after it closes. The Linux result comes from CI: not yet seen, to be confirmed on the M2b PR (the in-memory database reads `memory`, and no test depends on the SQLite warning or on a Node-version-specific journal behaviour; CI runs Node `v24.21.0`).
 - **Fault injection fidelity** (NFR-57): the abort happens before `COMMIT` and the connection is closed without commit, which is what a process kill leaves; a real child-process kill test is added once as a check of the seam.
 - **Real-clock accuracy** (NFR-50 measurement): measured by a script with the real scheduler on the reference PC, recorded in section 13, not run in CI.
+
+## 18. M3a detail (HTTP commands and reads, credentials, limits)
+Branch `feat/008-m3a-http-api` from `rewrite` at 93727f4 or later (M2b' merged, PR #31); one PR; 10 tasks (`tasks.md`). **No new dependency (D9)**: the listener, routing, body limit, JSON parsing, CORS, rate limiting and shutdown use `node:http`, `node:crypto`, `node:fs` and the language only; the lockfile, root `package.json`, `engines` and `.nvmrc` do not change. Events and the SSE route are M3b; scoring, results and the leaderboard are M4 (their paths answer `unknown-path` until then); the viewer is M5.
+**DECIDED 2026-10-22**: the user approved this section, the 10 M3a tasks and C1 to C8 as recommended (`tasks.md`, M3a): C1 the status table of 18.4 (403 always, 500 with body kind `unavailable`); C2 `unknown-match` not memoised, recorded in the spec as D26 (FR-282 (d) amended in T1's docs commit, before T5); C3 own predictions namespace-wide, paged, optional `?playerId=`; C4 the defaults of 18.5, PD21 and 18.8; C5 the logging policy of 18.7; C6 the `ErrorReply` optional fields `stage`, `appliedRounds`, `retryAfter`; C7 `MBRG_CLIENTS` as a JSON array; C8 one M3a with the checkpoint after T7 (18.12).
+### 18.1 Files
+```
+packages/protocol/src/
+  errors.ts (edit)        ErrorReply gains the named optional fields `stage`, `appliedRounds`, `retryAfter` (C6);
+                          constructors roundNotApplied(n), stepMismatch(stage, n), rateLimited(seconds)      FR-301
+  wire.ts (edit)          + MatchSummary, OwnPrediction, StateReply, RecordReply, Page<T>
+  encode.ts (new)         fixed-key-order encoders of every reply (error, creation, advance, prediction, own
+                          prediction, summary, state, record, page); encodePublicMatch unchanged            FR-257, FR-301
+  page.ts (new)           readPageQuery (limit 1..500 default 100, cursor), encodeCursor/decodeCursor per list
+                          tag, pageOf (keyset helper for tests)                                              FR-279
+apps/server/src/core/
+  reads.ts, advance.ts (edit)  use the unified constructors (StepMismatchReply removed as a separate type)
+  memo.ts (edit)          `unknown-match` joins NON_MEMOISABLE_KINDS (C2, spec D26)                           FR-282 (d)
+apps/server/src/store/
+  store.ts, sqlite.ts (edit)   + listMatches, recordsAfter, predictionsInNamespace, hostTokenDigest;
+                          StoreError keeps `cause` and the SQLite code; storage-failure classification by
+                          primary result code                                                                 FR-292, FR-279, FR-270, NFR-54
+  faults.ts (edit)        pass-through of the new operations
+apps/server/src/service/
+  matches.ts (edit)       + listMatches, stateAt, recordAt, records, ownPredictionsPage (namespace-wide, optional
+                          local id), hostTokenMatches, mapFile; `onFailure(failure, cause)` option;
+                          reads reply `unavailable` on a storage failure                                      FR-281, FR-258, FR-302, FR-270
+  maps.ts (edit)          MapCatalog.file(mapId, name) -> { size, open() } (the stored bytes)                   FR-281 (j)
+  settings.ts (edit)      ServerSettings = Settings + clients, allowedOrigins, host, port, limits               FR-283, FR-299 (b)
+apps/server/src/http/                       the only users of node:http
+  limits.ts (pure)        sliding-window limiter, two-phase admit/cancel, retry-after seconds                 FR-299
+  identity.ts (pure)      Bearer parsing, operator / client / host / anonymous, all-compare, player id          FR-283, FR-284, FR-300
+  cors.ts (pure)          CORS decision and headers                                                           FR-286
+  status.ts (pure)        kind -> HTTP status table, success statuses, extra headers                           FR-301
+  log.ts                  closed LogEvent union, describeError (name, code, SQLite code, frames; no message)   NFR-54
+  body.ts                 bounded body reader (4096 bytes), JSON parse                                         FR-298, FR-296
+  router.ts               route table, path parameters, query validation                                       FR-280, FR-281
+  respond.ts              writes encoded replies: status, headers, CORS, Retry-After, Allow
+  server.ts               createServer({ service, settings, clock, log, scheduler }): the pipeline of 18.2     FR-280..FR-286, FR-298..FR-302
+  shutdown.ts             graceful shutdown with an injected scheduler for the grace period, signal wiring
+apps/server/src/main.ts (rewrite)           settings -> store -> service (onFailure -> log) -> start() -> listen -> signals
+apps/server/test/helpers/{http-client.ts,server-harness.ts}   fetch-based JSON client, raw `node:net` client, harness
+```
+### 18.2 The request pipeline, in the FR-301 order
+Every request runs these stages in order; the first stage that fails answers, so the reply kind is the first applicable in the fixed order.
+1. **Identify and admit** (`rate-limited`): the method gives the class (GET and OPTIONS are reads, POST a command); the `Authorization` header is read as `Bearer <token>` (anything else is anonymous); the token is compared, in time independent of its content, with the operator credential and every client credential (all comparisons always run) and, only for `POST /matches/{id}/advance`, with the match's host token (`hostTokenMatches`); a token that matches nothing is anonymous. The limiter admits the request under its credential key or, when anonymous, its address key (the TCP peer; forwarding headers are not trusted). A request over a limit is answered 429 here, before any routing.
+2. **Route** (`unknown-path`, `method-not-allowed`): the table of 18.3. `OPTIONS` on a known path is the preflight (CORS, 204); on an unknown path `unknown-path`.
+3. **Body** (`too-large`, then `invalid-request`): a `Content-Length` above 4,096 is answered at once without reading the body; a body without length (chunked) is counted while read and answered as soon as it passes 4,096; a body that is not UTF-8 JSON of the required type, or a query that breaks the rules of the route (unknown parameter, `limit`, `cursor`, `playerId`), is `invalid-request` naming the first failing field.
+4. **Shape** (`invalid-request`, `invalid-player-id`): the readers of the protocol (`readCreation` shape part, `readAdvance`, `readSubmission`) run before the credential check, as FR-301 orders them.
+5. **Authorization** (`forbidden`): routes that need a client credential (submission, own predictions) require one; creation and advance are authorized by the service (operator credential, host token) in its own order.
+6. **Per-player limit** (`rate-limited`): a submission is counted under (match, player id) once its body is read; if it is over, the ticket of stage 1 is cancelled, so a rate-limited request is counted nowhere (FR-299 (c)).
+7. **Decision**: the service call; its outcome (success, or an `ErrorReply`) is mapped by `status.ts` and encoded by the protocol encoders.
+8. **Unexpected exception**: caught at the top; logged once through the closed `LogEvent` (18.7); answered 500 with the body `{"kind":"unavailable"}` (C1); a response already started is ended, nothing is written twice.
+### 18.3 Routes (M3a)
+| Method and path | Credential | Limiter class | Call |
+|---|---|---|---|
+| `POST /matches` | operator (service) | command | `create` |
+| `GET /matches` | none | read | `listMatches` (paged) |
+| `GET /matches/{id}` | none | read | `publicMatch` |
+| `POST /matches/{id}/advance` | operator or host token (service) | command (host token: advances) | `advance` |
+| `POST /matches/{id}/predictions` | client | command, then (match, player id) | `submit` |
+| `GET /matches/{id}/predictions` | client | read | `ownPredictionsPage` (paged; `?playerId=` optional local id) |
+| `GET /matches/{id}/states/{round}` | none | read | `stateAt` |
+| `GET /matches/{id}/records` | none | read | `records` (paged) |
+| `GET /matches/{id}/records/{round}` | none | read | `recordAt` (round >= 1; 0 is `invalid-request`) |
+| `GET /maps/{mapId}/{file}` | none | read | `mapFile` (`map.json`, `ids.png`, `presentation.json`) |
+| `OPTIONS` of the above | none | read (anonymous, address) | CORS preflight |
+Path parameters are matched literally against their character sets (no percent-decoding): a malformed match id is `unknown-match`, a malformed map id `unknown-map`, a file name outside the three `unknown-path`, a round segment that is not `0` or a number without leading zero `invalid-request ['round']`. Trailing slashes, empty segments and `HEAD` are not offered. No other path exists in M3a (there is no health path: FR-281 lists "exactly" these reads).
+### 18.4 Status table (C1; one status per kind, a pure function)
+| Kind | Status | Extra |
+|---|---|---|
+| `rate-limited` | 429 | `Retry-After` |
+| `unknown-path`, `unknown-match`, `unknown-map`, `round-not-applied` | 404 | |
+| `method-not-allowed` | 405 | `Allow` |
+| `too-large` | 413 | `Connection: close` |
+| `invalid-request`, `invalid-player-id` | 400 | |
+| `forbidden` | 403 | (never 401: one kind, one status, nothing about the header leaks) |
+| `request-id-reused`, `too-many-matches`, `match-halted`, `match-finished`, `step-mismatch`, `stale-cursor`, `prediction-closed` | 409 | |
+| `map-validation`, `too-few-factions`, `invalid-timing`, `invalid-choice` | 422 | |
+| `unavailable` | 503 | |
+| unexpected exception | 500 | body kind `unavailable` |
+Success: creation 201; advance, submission, reads, map files 200; preflight 204. A memoised reply gets the status of its kind or success again.
+### 18.4b CORS (FR-286, `cors.ts`, applied to every reply including errors)
+| Request | Answer |
+|---|---|
+| no `Origin` header | no CORS headers (not a browser cross-origin request) |
+| credential-free read (GET without `Authorization`), any origin | `Access-Control-Allow-Origin: *`; `Access-Control-Expose-Headers: retry-after`; never `Allow-Credentials` |
+| any request carrying `Authorization`, from an allowed origin (`MBRG_ALLOWED_ORIGINS`) | `Access-Control-Allow-Origin: <that origin>`, `Vary: Origin`, `Expose-Headers: retry-after` |
+| any request carrying `Authorization`, from another origin | no permission headers (the browser blocks the reply; the server still processes the request, since CORS binds browsers only and a command always needs a credential) |
+| preflight (`OPTIONS`) of a read path whose `Access-Control-Request-Headers` do not list `authorization` | 204 with `Allow-Origin: *`, `Allow-Methods: GET`, `Max-Age: 600` |
+| preflight of a command path, or listing `authorization`, from an allowed origin | 204 with `Allow-Origin: <origin>`, `Vary: Origin`, `Allow-Methods: GET, POST`, `Allow-Headers: authorization, content-type`, `Max-Age: 600` |
+| the same preflight from another origin | 204 with no permission headers |
+### 18.5 Settings (T3), names consistent with the existing `MBRG_*`
+| Variable | Meaning | Default | Refused when |
+|---|---|---|---|
+| `MBRG_CLIENTS` | JSON array of `{ "namespace", "credential" }` | none | not an array, element with other keys, namespace outside `[a-z0-9]{1,16}`, duplicate namespace, credential outside `[A-Za-z0-9_-]{22,256}`, two equal credentials, one equal to the operator credential |
+| `MBRG_ALLOWED_ORIGINS` | comma-separated origins for credentialed requests | none | an item that is not `http(s)://host[:port]` (no path, query or `*`) |
+| `MBRG_HOST` | listener address | `127.0.0.1` | empty or with whitespace |
+| `MBRG_PORT` | listener port (`0` = any free port, for tests) | `8787` | not a whole number 0..65535 |
+| `MBRG_LIMIT_COMMANDS` / `_READS` | per credential per minute | 600 / 1,200 | not a whole number 1..1,000,000 |
+| `MBRG_LIMIT_SUBMISSIONS` | per player id per match per minute | 30 | same |
+| `MBRG_LIMIT_ADVANCES` | per host token per minute | 30 | same |
+| `MBRG_LIMIT_ANONYMOUS` | per network address per minute | 120 | same |
+`MBRG_OPERATOR_CREDENTIAL` now also needs the credential character set and length (FR-283). The operator credential uses the client values for commands and reads (C4). A problem names the variable, never its value. The stream limits (50 per credential, 5 per address) join in M3b. NFR-49 runs with these variables raised (FR-299 (f)); there is no switch that turns limits off.
+### 18.6 Limiter (pure)
+Per key an array of accepted request instants; `admit(keys, now)` prunes entries older than 60,000 ms, refuses when any key already holds its limit, and otherwise records `now` under every key and returns a ticket; the wait of a refusal is the largest over the exceeded keys of `ceil((oldest + 60,000 - now) / 1000)` with a minimum of 1. `ticket.cancel()` removes the instants it recorded. Keys exist only for the operator, the configured client namespaces, host tokens of existing matches (checked against the store before a key is created), addresses and (match, player id) pairs; a key with no instants is deleted at the next prune, and a full sweep runs every 1,000 admissions, so memory follows the traffic of the last minute. State is in memory only (FR-299 (d)).
+### 18.7 Logging policy (C5)
+- Output is a closed union `LogEvent` (`listening`, `start-report`, `step-failed`, `request-failed`, `shutdown`, `fatal`, `listen-failed`) rendered by `main.ts` as one JSON line: lifecycle events on stdout, failures on stderr. The union has no field that can hold a credential, token, secret, round seed, player id, choice, path, query or body.
+- A cause is described by `describeError`: error name, `code` when it is an upper-case identifier, the SQLite result code and `errstr` when the platform gives them, the cause chain to depth 3, and up to 8 stack frames as `function file:line`. **The message is never logged** (it may quote values; Node's JSON errors quote the input).
+- There is no per-request access log (paths carry match ids and query strings carry player ids). Client errors (4xx) and expected 503 from a storage failure are not logged per request; the failure of a clock step and any 500 are.
+### 18.8 Entry point and shutdown
+`main.ts`: `readSettings` (problems named, exit 1) -> `openStore` -> `createMatchService({ ..., onFailure })` -> `service.start()` (log the counts of the report) -> `createServer(...).listen(port, host)` -> `listening` event with the bound port -> signal handlers. `SIGINT`/`SIGTERM`: stop accepting, close idle connections, wait up to 5,000 ms for requests in flight (the grace period is armed through the scheduler interface, so timers stay in `scheduler.ts`), close the remaining connections, `service.close()` (cancels every wake-up, closes the store and releases the lock), exit 0; a second signal exits at once with 1. `uncaughtException`/`unhandledRejection`: log `fatal` through the closed union, run the same shutdown, exit 1. A listen error (port in use) logs `listen-failed` with the error code, closes the service and exits 1. Windows cannot deliver a signal to a child process, so the real-signal test runs on POSIX (CI Linux) and is skipped on Windows; the shutdown function itself and the signal wiring (a fake process emitter) are tested on both.
+### 18.9 Hand-offs of M2b and M2b' and where each is resolved
+| Hand-off | Resolved in |
+|---|---|
+| `main.ts` must call `start()` and keep the process alive | T9 |
+| map `unavailable` and the other kinds to HTTP statuses | T6 (table), T7 |
+| log `error` failures of clock steps; keep the original cause of native SQLite errors | T4 (cause, classification), T9 (`onFailure`, log) |
+| resolve credentials and namespaces; `submit` throws `TypeError` for a bad identity | T6 (identity from settings), T7 (the pipeline builds the identity; a `TypeError` is an unexpected exception: 500 and one log event) |
+| `ownPredictions` one local id per call | T4 (namespace read), T5 (`ownPredictionsPage`), C3 |
+| `unknown-match` memo growth | T5 (C2), T6 and T7 (limits) |
+| `StepMismatchReply` and `round-not-applied` shapes vs `ErrorReply` | T2 (C6); memoised `step-mismatch` replies keep their stored shape |
+| memo content digest frozen (`sha256(ascii(canonicalBody(method, path, body)))`, paths `/matches`, `/matches/{id}/advance`, `/matches/{id}/predictions`) | T7: the routes build their paths with `CREATION_PATH`, `advancePath`, `submissionPath`; a test replays through HTTP a command first made through the service API |
+| FR-300 constant-time comparison (transport part) | T6 |
+| re-assert FR-260 and NFR-47 (f) against `createServer` and the listener | T9 |
+| NFR-47 (c) log scan; NFR-54 logs | T9 |
+| NFR-52 network integration tests | T7, T8, T9 |
+| FR-250 is not checked for submissions | unchanged: they perform no step |
+| `ownPredictions`/`publicMatch` load the whole match per call | measured in M3b (NFR-49) |
+### 18.10 Ids and ledger
+M3a closes (first trace) 9 ids: FR-279 (T2), FR-283 and FR-299 (T3), FR-281 (T5), FR-284 and FR-286 (T6), FR-280 and FR-298 (T7), FR-285 (T8); counts after each task: T2 68 / 28, T3 70 / 26, T5 71 / 25, T6 73 / 23, T7 75 / 21, T8 76 / 20; **M3a closing state 76 / 20**. The 20 left: FR-271 to FR-278 (M4; NFR-48 and NFR-57 results parts are also M4 but those ids are already done), FR-287 and NFR-49 (M3b), FR-303 to FR-311 and NFR-56 (M5). Test titles of earlier tasks do not name an id that a later task closes (they cite the neighbouring done id with its part, for example `FR-301 (rate-limited reply)`). Parts completed in M3a for ids already done: FR-257, FR-258 (encoders, reads, twin test over HTTP); FR-270 (read); FR-279 (HTTP paging; the leaderboard `stale-cursor` part is M4); FR-281 (a) to (d), (h), (j) (results (e) to (g) M4, stream (i) M3b); FR-285 (the event stream part is M3b); FR-292 (`unavailable` over HTTP; error classification); FR-296, FR-297 (transport); FR-300 (transport); FR-301 (status table, order over HTTP); FR-302 (HTTP); FR-231 to FR-238, FR-244, FR-245, FR-259, FR-261 to FR-267 (replies over HTTP); FR-260, NFR-47 (f) (re-asserted); FR-255, FR-256 and NFR-47 (c) (log scan); FR-239, FR-294 (`start()` wired); NFR-52 (network); NFR-54 (logs).
+### 18.11 Decisions of this plan (planner, with the discarded alternative)
+- PD14. The pipeline admits (rate limit) before routing, since `rate-limited` is first in the FR-301 order; the per-player-id limit runs after the body is read and cancels the earlier ticket. Discarded: counting rate-limited requests (against FR-299 (c)).
+- PD15. Pure decision modules (`limits`, `identity`, `cors`, `status`) take the clock reading and the settings as parameters; only `server.ts`, `body.ts`, `respond.ts`, `shutdown.ts` and `main.ts` touch `node:http` or the process. Discarded: one large handler.
+- PD16. Host-token classification reads one stored digest (`hostTokenDigest`) only for `advance` requests that did not match the operator or a client; it never creates a limiter key for an unverified token. Discarded: a key per presented token (unbounded memory).
+- PD17. No access log; closed log events; messages of errors are never logged (18.7). Discarded: logging error messages (they can quote request values).
+- PD18. `createServer` receives a built service; the test-only seed source is a parameter of `createMatchService` only, so `createServer` and `main.ts` have no way to take one (FR-260). Discarded: passing the seam through `createServer`.
+- PD19. Wire replies are built by protocol encoders with a fixed key order and optional members omitted (FR-257); the HTTP layer never serialises a service object directly. Discarded: `JSON.stringify` of service results.
+- PD20. Keyset cursors: `base64url(JSON [list, ...key])`, validated by list tag and key shape only; the cursor is opaque to clients and carries no secret (match ids and player ids it names are public to the reader of that list). Discarded: signed cursors (no forgery risk: a forged cursor only chooses where a read starts).
+- PD21. Connection hardening by the platform's server options: `maxHeaderSize` 8,192 bytes, `headersTimeout` 10,000 ms, `requestTimeout` 30,000 ms, `keepAliveTimeout` 5,000 ms; the tests read the options back and test the body limit with a raw socket. Discarded: custom socket timers.
+### 18.12 Risks of M3a
+- **Size**: 10 tasks; T7 (pipeline), T8 (reads and CORS) and T9 (entry point) are the heaviest. Checkpoint after T7: if the branch passes about 3,500 changed lines or T7 needs more than one sitting, split per D24 into M3a (T1 to T6: protocol, settings, store, service, pure modules; closes FR-279, FR-283, FR-299, FR-281, FR-284, FR-286) and M3a' (T7 to T10: pipeline, reads, entry point; closes FR-280, FR-298, FR-285). Ids do not change.
+- **Native SQLite error codes** (T4): `errcode`/`errstr` exist on the errors of the installed Node (v24.0.0 locally, v24.21.0 in CI) only if the platform provides them; T4 checks both and falls back to the message pattern, recording the result.
+- **Client reset on a large rejected body**: a server that closes while the client still sends may make a client see a reset instead of the 413; tests use headers-only (`Content-Length` above the limit) and a chunked body cut at the limit, with a raw socket.
+- **Real signals on Windows**: not deliverable to a child; covered by the in-process shutdown tests and a POSIX-only child test (CI).
+- **Rate-limit defaults for spectators behind one address**: 120 requests per minute per anonymous address (approved default P16); a viewer uses a handful of reads and one stream, so a normal crowd behind one NAT is not limited; raise the variable if needed.
+- **Behind a proxy** every client shares the proxy address (forwarding headers are not trusted); out of scope (D14), noted for deployment.
+- **Memo growth** by arbitrary match ids: closed by C2 (decided 2026-10-22, spec D26: not memoising `unknown-match`) plus the per-credential limits.
