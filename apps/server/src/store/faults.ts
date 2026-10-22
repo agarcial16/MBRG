@@ -1,16 +1,22 @@
 // Fault-injection seam for the failure and kill tests (spec 008 FR-292, NFR-57, plan 17.2). A wrapper over a Store that
-// fails or aborts the chosen transaction, or fails one write inside it. It lives in the store directory, is imported by
-// tests only, and no production module reaches it (a scan pins that). Transactions are counted from 1 on the wrapper.
-// An injected fault is a storage failure (`StoreError` code `store-failure`), as the service classifies it (FR-292).
+// fails or aborts the chosen transaction, fails one write inside it, or kills it from the inside. It lives in the store
+// directory, is imported by tests only, and no production module reaches it (a scan pins that). Transactions are counted
+// from 1 on the wrapper. An injected fault is a storage failure (`StoreError` code `store-failure`), as the service
+// classifies it (FR-292).
 import { StoreError } from './store';
 import type { Store } from './store';
 
-export type FaultKind = 'fail' | 'abort' | 'write';
+/**
+ * `fail`: a transaction refused before it began; `abort`: the connection closed before a transaction began; `write`: one
+ * write of a transaction failed (the store rolls back); `abort-inside`: the connection closed inside a transaction, with
+ * no commit and no rollback statement (what a killed process leaves, NFR-57).
+ */
+export type FaultKind = 'fail' | 'abort' | 'write' | 'abort-inside';
 
 export class InjectedFault extends StoreError {
   readonly kind: FaultKind;
   constructor(kind: FaultKind, n: number) {
-    super('store-failure', `injected ${kind} ${kind === 'write' ? 'inside' : 'before'} transaction ${n}`);
+    super('store-failure', `injected ${kind} ${kind === 'write' || kind === 'abort-inside' ? 'inside' : 'before'} transaction ${n}`);
     this.name = 'InjectedFault';
     this.kind = kind;
   }
@@ -26,18 +32,30 @@ export interface FaultPlan {
    * transaction ran, so the rollback must undo a partial write.
    */
   readonly failWrite?: { readonly transaction: number; readonly afterWrites: number };
+  /**
+   * Inside transaction `transaction`, once its first `afterWrites` writes ran, the connection is closed with no commit and
+   * no rollback statement (a process killed in the middle of a decision): before the next write, or before the commit
+   * when the transaction has no further write. The connection stays closed, as for `abortTransaction`.
+   */
+  readonly abortWrite?: { readonly transaction: number; readonly afterWrites: number };
 }
 
 export const withFaults = (store: Store, plan: FaultPlan): Store => {
   let count = 0;
+  /** The writes of the current transaction so far. */
   let writes = 0;
   const failing = (n: number): boolean =>
     typeof plan.failTransaction === 'number' ? plan.failTransaction === n : (plan.failTransaction ?? []).includes(n);
-  /** Counts the writes of the planned transaction and throws at the planned one. */
+  const killHere = (): boolean => plan.abortWrite !== undefined && count === plan.abortWrite.transaction && writes === plan.abortWrite.afterWrites;
+  const kill = (): never => {
+    store.close();
+    throw new InjectedFault('abort-inside', count);
+  };
+  /** Counts the writes of the current transaction and throws or kills at the planned one. */
   const write = (): void => {
-    if (plan.failWrite === undefined || count !== plan.failWrite.transaction) return;
+    if (killHere()) kill();
     writes += 1;
-    if (writes === plan.failWrite.afterWrites + 1) throw new InjectedFault('write', count);
+    if (plan.failWrite !== undefined && count === plan.failWrite.transaction && writes === plan.failWrite.afterWrites + 1) throw new InjectedFault('write', count);
   };
   return {
     settings: () => store.settings(),
@@ -62,12 +80,18 @@ export const withFaults = (store: Store, plan: FaultPlan): Store => {
     memoOldest: () => store.memoOldest(),
     transaction<T>(fn: () => T): T {
       count += 1;
+      writes = 0;
       if (count === plan.abortTransaction) {
         store.close();
         throw new InjectedFault('abort', count);
       }
       if (failing(count)) throw new InjectedFault('fail', count);
-      return store.transaction(fn);
+      return store.transaction(() => {
+        const value = fn();
+        // No further write came: the kill falls between the last write and the commit.
+        if (killHere()) kill();
+        return value;
+      });
     },
     close: () => store.close(),
   };
