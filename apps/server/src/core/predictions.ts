@@ -5,7 +5,7 @@
 // Scoring (M4) is not here: the core stores choices only. "Closed" means the cutoff passed or the closing step began.
 
 import { errorReply } from '@mbrg/protocol';
-import type { ErrorReply, PredictionKind } from '@mbrg/protocol';
+import type { ErrorReply, PredictionKind, PredictionReply } from '@mbrg/protocol';
 import type { CoreMatch } from './view';
 
 /** A submission as the shell decoded it: the kind, the round of a per-round kind (none for the winner) and the faction. */
@@ -22,14 +22,6 @@ export interface StoredPrediction {
   readonly version: number;
   readonly storedMs: number;
   readonly winnerCandidates?: number;
-}
-
-/** The reply of an accepted submission: the stored prediction and its version (FR-267). */
-export interface PredictionReply {
-  readonly kind: PredictionKind;
-  readonly round?: number;
-  readonly choice: number;
-  readonly version: number;
 }
 
 export interface SubmissionInput {

@@ -2,7 +2,7 @@
 // Pure: the map and the SHA-256 function are parameters; ids, secrets and instants are decided by the caller.
 
 import { stateText } from '@mbrg/protocol';
-import type { Timing } from '@mbrg/protocol';
+import type { MatchEvent, Timing } from '@mbrg/protocol';
 import { validateMap } from '@mbrg/shared';
 import type { ValidationError } from '@mbrg/shared';
 import { getState, livingFactions } from '@mbrg/sim';
@@ -62,4 +62,21 @@ export function createMatch(input: CreateInput, deps: CreateDeps): CreateResult 
       anchors: anchorsFrom(at, input.timing),
     },
   };
+}
+
+/**
+ * FR-289 (c): the first event of a match is a `schedule` event, sequence number 1, stage `phase-1`, with the anchors
+ * when the clock runs (none with timing `manual`). The view returned has `lastSeq` 1, as the public data requires in
+ * every stage (FR-289 (b)). The shell stores the event with the creation, before replying (FR-231).
+ */
+export function creationEvents(view: CoreMatch, reportedTime: number): { readonly view: CoreMatch; readonly events: readonly MatchEvent[] } {
+  if (view.lastSeq !== 0) throw new RangeError('the creation event is the first event of a match');
+  const event: MatchEvent = {
+    type: 'schedule',
+    seq: 1,
+    stage: 'phase-1',
+    ...(view.anchors === null ? {} : { schedule: { c1: view.anchors.c1, c2: view.anchors.c2, a: view.anchors.a } }),
+    reportedTime,
+  };
+  return { view: { ...view, lastSeq: 1 }, events: [event] };
 }

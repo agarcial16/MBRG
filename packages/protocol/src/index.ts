@@ -19,6 +19,7 @@ export type {
   MatchFinishedEvent,
   MatchHaltedEvent,
   PhaseClosedEvent,
+  PredictionReply,
   PublicMatch,
   PublicSchedule,
   PublicState,

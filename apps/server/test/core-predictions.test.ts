@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Timing } from '@mbrg/protocol';
 import { absorptionCandidatesOf, livingFactions, playRoundWithSeed } from '@mbrg/sim';
@@ -390,5 +391,17 @@ describe('predictions count only before the cutoff and the closing step (FR-295 
     const cand = d.view.victim!.candidates[0]!;
     accepted(submit(d, { kind: 'absorber', round: 1, choice: cand }, late + 29_999));
     expect(submit(d, { kind: 'absorber', round: 1, choice: cand }, late + 30_000)).toStrictEqual({ ok: false, error: { kind: 'prediction-closed' } });
+  });
+});
+
+describe('reply type placement (B4)', () => {
+  const read = (rel: string): string => readFileSync(new URL(rel, import.meta.url), 'utf8');
+
+  it('FR-267 (reply type) PredictionReply is declared and exported by the protocol, and the core imports it from there instead of declaring it', () => {
+    expect(read('../../../packages/protocol/src/wire.ts')).toMatch(/export interface PredictionReply/);
+    expect(read('../../../packages/protocol/src/index.ts')).toMatch(/PredictionReply/);
+    const core = read('../src/core/predictions.ts');
+    expect(core).not.toMatch(/(?:interface|type)\s+PredictionReply/);
+    expect(core).toMatch(/import type \{[^}]*PredictionReply[^}]*\} from '@mbrg\/protocol'/);
   });
 });
