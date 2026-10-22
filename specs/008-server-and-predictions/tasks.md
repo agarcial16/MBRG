@@ -107,7 +107,7 @@ M2a rules (in addition to the M1 rules):
   - Commit: `feat(protocol): read command bodies and timing settings`.
   - Done when: tests green; mutations proved (own-property check removed, rule (c) `<=` to `<`, `:` allowed in local ids); FR-233, FR-234, FR-296, FR-297 moved; `rg` finds them.
 
-- [ ] **T4. Canonical forms and the public view encoder.** FR-253, FR-254, FR-257, FR-282 (canonical content); NFR-47 (b)
+- [x] **T4. Canonical forms and the public view encoder.** FR-253, FR-254, FR-257, FR-282 (canonical content); NFR-47 (b)
   - Depends on: T3.
   - Files: `packages/protocol/src/{canonical.ts,public.ts,wire.ts}`, `packages/protocol/test/{canonical.test.ts,public.test.ts}`, `apps/server/test/canonical-digests.test.ts`, `packages/sim/test/traceability.test.ts`.
   - Tests first: `stateText` equals the M1 helper for every state of `golden/dev-secrets.json`; `mapDigestBytes` hashed with `node:crypto` gives the pinned `4d1698a3...e679` for `maps/dev`; `canonicalBody` ignores key order and whitespace, drops only the request-id field, and differs for another method, path or value. `PublicMatch` (NFR-47 (b)): its key list is pinned exactly and has no secret, seed, absorber or pending-state key (type-level and runtime check); `encodePublicMatch` writes fields in the documented order (byte-stable for equal inputs, independent of input key order); stage rules: victim fields only in `phase-2`, `locked` and `halted` after a reveal; winner and secret hex only in `finished`; an encoder input of another stage carrying them is rejected (FR-253, FR-254). FR-257 (core part): two inputs with equal public fields encode to identical bytes.
