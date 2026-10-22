@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { SCENARIOS, T0, runScenario } from './helpers/core-timelines';
-import type { ActionSummary, Scenario } from './helpers/core-timelines';
+import type { ActionSummary, CreationSummary, Scenario } from './helpers/core-timelines';
 
 // NFR-48 (core timelines) and NFR-50 (fake clock, logic part): six scripted dev-map matches driven through the pure core
 // with the fake clock. Each action has hand-derived expectations (helpers/core-timelines.ts: instants, causes, anchors,
@@ -11,7 +11,7 @@ import type { ActionSummary, Scenario } from './helpers/core-timelines';
 
 interface Golden {
   t0: number;
-  scenarios: Record<string, { timing: unknown; secret: string; actions: ActionSummary[] }>;
+  scenarios: Record<string, { timing: unknown; secret: string; creation: CreationSummary; actions: ActionSummary[] }>;
 }
 interface DevSecrets {
   matches: Record<string, { rounds: { round: number; victim: number; absorber: number; transferred: number[]; stateDigest: string }[] }>;
@@ -55,6 +55,16 @@ describe('core timeline goldens (NFR-48 core timelines)', () => {
           expect(got.anchors, label).toStrictEqual(a.expect.anchors === null ? null : a.expect.anchors.map((o) => T0 + o));
           expect(got.stage, label).toBe(a.expect.stage);
         });
+      });
+
+      it(`FR-289 (c) NFR-48 (core timelines) ${s.name}: the first event is the creation schedule event, seq 1, with the hand-derived anchors, and it equals the pinned golden`, () => {
+        const first = run(s).driver.events[0]!;
+        const t = s.timing;
+        const anchors = t === 'manual' ? {} : { schedule: { c1: T0 + (t.i - t.l1 - t.l2) * 1000, c2: T0 + (t.i - t.l2) * 1000, a: T0 + t.i * 1000 } };
+        expect(first).toStrictEqual({ type: 'schedule', seq: 1, stage: 'phase-1', ...anchors, reportedTime: T0 });
+        expect(run(s).driver.events.map((e) => e.seq)).toStrictEqual(run(s).driver.events.map((_, i) => i + 1));
+        expect(golden.scenarios[s.name]!.creation).toStrictEqual(run(s).creation);
+        expect(run(s).creation).toMatchObject({ events: ['schedule'], lastSeq: 1 });
       });
 
       it(`NFR-48 (core timelines) ${s.name}: the run equals the pinned golden, action by action`, () => {

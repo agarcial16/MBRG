@@ -106,7 +106,8 @@ describe('creation check', () => {
     expect(d.view.appliedRounds).toBe(1);
     expect(d.view.winner).toBe(victim === 10 ? 20 : 10);
     expect(d.view.anchors).toBeNull();
-    expect(d.events.some((e) => e.type === 'schedule' && e.stage === 'phase-1')).toBe(false);
+    // Event 1 is the creation event (FR-289 (c)); no later event announces a next round.
+    expect(d.events.slice(1).some((e) => e.type === 'schedule' && e.stage === 'phase-1')).toBe(false);
   });
 });
 
@@ -483,7 +484,7 @@ describe('seed adapter and the real secret', () => {
     const events: MatchEvent[] = d.events;
     expect(events.map((e) => e.seq)).toStrictEqual(events.map((_, i) => i + 1));
     const revealed = events.find((e) => e.type === 'victim-revealed')!;
-    expect(revealed.seq).toBe(2);
+    expect(revealed.seq).toBe(3); // 1 is the creation event (FR-289 (c)), 2 the phase-1 close
     expect(d.view.lastSeq).toBe(events.length);
   });
 });

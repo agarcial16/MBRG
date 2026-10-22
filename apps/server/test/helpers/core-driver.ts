@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { MapData } from '@mbrg/shared';
 import type { MatchEvent, Timing } from '@mbrg/protocol';
-import { createMatch } from '../../src/core/create';
+import { createMatch, creationEvents } from '../../src/core/create';
 import { effectiveInstant, reportedTime } from '../../src/core/time';
 import { performStep, runDue } from '../../src/core/steps';
 import type { Applied, StepDeps, StepOutcome } from '../../src/core/steps';
@@ -61,12 +61,14 @@ export function coreDriver(options: DriverOptions = {}): Driver {
     { map, sha256 },
   );
   if (!created.ok) throw new Error(`creation failed: ${JSON.stringify(created.errors)}`);
+  // The shell stores the first event with the creation (FR-289 (c)): the driver starts at lastSeq 1 with that event.
+  const first = creationEvents(created.view, reportedTime(clock.now(), 0));
   const driver: Driver = {
-    view: created.view,
+    view: first.view,
     clock,
     map,
     steps: [],
-    events: [],
+    events: [...first.events],
     applied: [],
     seedCalls,
     deps,
