@@ -14,8 +14,8 @@ const PLAIN = path('./fixtures/sqlite-plain.mjs');
 const FILTERED = path('./fixtures/sqlite-filtered.ts');
 const SQLITE_WARNING = /ExperimentalWarning: SQLite is an experimental feature/;
 
-const run = (args: string[], cwd: string): { code: number | null; stdout: string; stderr: string } => {
-  const r = spawnSync(process.execPath, args, { cwd, encoding: 'utf8', timeout: 20_000, killSignal: 'SIGKILL' });
+const run = (args: string[], cwd: string, env: Record<string, string> = {}): { code: number | null; stdout: string; stderr: string } => {
+  const r = spawnSync(process.execPath, args, { cwd, encoding: 'utf8', timeout: 20_000, killSignal: 'SIGKILL', env: { ...process.env, ...env } });
   if (r.error) throw r.error;
   return { code: r.status, stdout: r.stdout, stderr: r.stderr };
 };
@@ -64,9 +64,10 @@ describe('runner', () => {
     expect(r.stderr).not.toMatch(/Warning/);
   });
 
-  it('NFR-53 main.ts without --check does nothing visible and exits 0 (no server in M1)', () => {
-    const r = run(viaTsx(MAIN), SERVER_DIR);
-    expect(r.code).toBe(0);
+  it('NFR-53 main.ts without --check and without settings names the missing variables on stderr and exits 1 (service-seam.test.ts runs it with settings)', () => {
+    const r = run(viaTsx(MAIN), SERVER_DIR, { MBRG_OPERATOR_CREDENTIAL: '', MBRG_MAPS: '' });
+    expect(r.code).toBe(1);
     expect(r.stdout).toBe('');
+    expect(r.stderr.trim()).toBe('invalid settings: MBRG_OPERATOR_CREDENTIAL, MBRG_MAPS');
   });
 });
