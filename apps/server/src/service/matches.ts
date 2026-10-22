@@ -30,7 +30,7 @@
 // programming error there is rethrown by `start`. `close` cancels every wake-up.
 
 import { canonicalBody, encodePublicMatch, errorReply, isLocalId, isNamespace, playerIdOf, readAdvance, readCreation, readSubmission } from '@mbrg/protocol';
-import type { AdvanceReply, CreationReply, ErrorReply, MatchEvent, PredictionReply, PublicMatch, StepKind, StepMismatchReply, Timing } from '@mbrg/protocol';
+import type { AdvanceReply, CreationReply, ErrorReply, MatchEvent, PredictionReply, PublicMatch, StepKind, Timing } from '@mbrg/protocol';
 import type { Clock } from '../clock';
 import { decideAdvance } from '../core/advance';
 import { createMatch, creationEvents } from '../core/create';
@@ -67,8 +67,8 @@ export interface CreateRequest {
   readonly body: unknown;
 }
 
-/** The reply of an advance: the reply of FR-295 (b), or the error (`step-mismatch` has its own shape until M3a unifies them). */
-export type AdvanceOutcome = { readonly ok: true; readonly reply: AdvanceReply } | { readonly ok: false; readonly error: ErrorReply | StepMismatchReply };
+/** The reply of an advance: the reply of FR-295 (b), or the error (`step-mismatch` carries the stage and N, C6). */
+export type AdvanceOutcome = { readonly ok: true; readonly reply: AdvanceReply } | { readonly ok: false; readonly error: ErrorReply };
 
 export interface AdvanceRequest {
   /** The credential the caller presented: the operator credential or the match's host token (FR-244, FR-245). Reading it from a request is M3a. */

@@ -215,13 +215,7 @@ export interface AdvanceReply {
   readonly match: PublicMatch;
 }
 
-/** The `step-mismatch` reply (FR-295 (b)): the named step is neither the next one nor a performed one; it names the current stage and N. */
-export interface StepMismatchReply {
-  readonly kind: 'step-mismatch';
-  readonly stage: Stage;
-  /** N: the number of applied rounds. */
-  readonly appliedRounds: number;
-}
+// The `step-mismatch` reply (FR-295 (b)) is an `ErrorReply` with `stage` and `appliedRounds` (C6, `stepMismatch`).
 
 /** The reply of an accepted prediction: the stored prediction and its version (FR-267); `round` is absent for the winner. */
 export interface PredictionReply {
@@ -230,3 +224,56 @@ export interface PredictionReply {
   readonly choice: number;
   readonly version: number;
 }
+
+/** One stored prediction of a client's own player (FR-270): the local player id (no namespace) and the stored prediction. */
+export interface OwnPrediction {
+  readonly playerId: string;
+  readonly kind: PredictionKind;
+  /** Absent exactly for the winner. */
+  readonly round?: number;
+  readonly choice: number;
+  readonly version: number;
+}
+
+/** One row of the match list (FR-279 (b): ordered by creation instant, then match id). */
+export interface MatchSummary {
+  readonly matchId: string;
+  readonly mapId: string;
+  readonly stage: Stage;
+  readonly appliedRounds: number;
+  readonly totalRounds: number;
+  readonly createdAt: number;
+}
+
+/** The state at an applied round j <= N with its state digest and the reported time of the read (FR-302). */
+export interface StateReply {
+  readonly round: number;
+  readonly owners: readonly (readonly [number, number])[];
+  readonly stateDigest: string;
+  readonly reportedTime: number;
+}
+
+/** The record of an applied round j >= 1 (spec 001 record). */
+export interface RecordReply {
+  readonly round: number;
+  readonly eliminated: number;
+  readonly absorber: number;
+  readonly transferred: readonly number[];
+}
+
+/** One page of a list read (FR-279 (a)): `next` is present exactly when the page is not the last. */
+export interface Page<T> {
+  readonly items: readonly T[];
+  readonly next?: string;
+}
+
+/** Wire key order of each reply (FR-257 (encoders)): fixed, whatever the order of the input object. */
+export const CREATION_REPLY_KEYS = ['matchId', 'match', 'hostToken'] as const;
+export const ADVANCE_REPLY_KEYS = ['result', 'step', 'match'] as const;
+export const STEP_INFO_KEYS = ['round', 'kind', 'instant', 'cause'] as const;
+export const PREDICTION_REPLY_KEYS = ['kind', 'round', 'choice', 'version'] as const;
+export const OWN_PREDICTION_KEYS = ['playerId', 'kind', 'round', 'choice', 'version'] as const;
+export const MATCH_SUMMARY_KEYS = ['matchId', 'mapId', 'stage', 'appliedRounds', 'totalRounds', 'createdAt'] as const;
+export const STATE_REPLY_KEYS = ['round', 'owners', 'stateDigest', 'reportedTime'] as const;
+export const RECORD_REPLY_KEYS = ['round', 'eliminated', 'absorber', 'transferred'] as const;
+export const PAGE_KEYS = ['items', 'next'] as const;

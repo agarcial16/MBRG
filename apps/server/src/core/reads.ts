@@ -1,6 +1,6 @@
 // Round reads of the core (spec 008 FR-258): which rounds a client may ask about, decided from N alone.
 
-import { errorReply } from '@mbrg/protocol';
+import { errorReply, roundNotApplied } from '@mbrg/protocol';
 import type { ErrorReply } from '@mbrg/protocol';
 import type { CoreMatch } from './view';
 
@@ -13,6 +13,6 @@ export type RoundRead = { readonly ok: true; readonly round: number } | { readon
  */
 export function readRound(view: CoreMatch, round: number): RoundRead {
   if (typeof round !== 'number' || !Number.isSafeInteger(round) || round < 0) return { ok: false, error: errorReply('invalid-request', ['round']) };
-  if (round > view.appliedRounds) return { ok: false, error: errorReply('round-not-applied', [String(view.appliedRounds)]) };
+  if (round > view.appliedRounds) return { ok: false, error: roundNotApplied(view.appliedRounds) };
   return { ok: true, round };
 }

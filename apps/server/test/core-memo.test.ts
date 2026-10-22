@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ERROR_ORDER, canonicalBody, errorReply } from '@mbrg/protocol';
+import { ERROR_ORDER, canonicalBody, errorReply, stepMismatch } from '@mbrg/protocol';
 import type { ErrorKind } from '@mbrg/protocol';
 import { MEMO_RETENTION_MS, NON_MEMOISABLE_KINDS, decideMemo, isMemoisable, memoKey } from '../src/core/memo';
 import type { MemoEntry } from '../src/core/memo';
@@ -112,7 +112,7 @@ describe('memo key and memoisable replies', () => {
     expect(isMemoisable({ ok: true })).toBe(true);
     expect(isMemoisable({ ok: false, error: errorReply('prediction-closed') })).toBe(true);
     expect(isMemoisable({ ok: false, error: errorReply('invalid-choice') })).toBe(true);
-    expect(isMemoisable({ ok: false, error: errorReply('step-mismatch') })).toBe(true);
+    expect(isMemoisable({ ok: false, error: stepMismatch('phase-1', 0) })).toBe(true);
     expect(isMemoisable({ ok: false, error: errorReply('rate-limited') })).toBe(false);
     expect(isMemoisable({ ok: false, error: errorReply('unavailable') })).toBe(false);
   });

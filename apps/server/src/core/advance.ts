@@ -5,8 +5,8 @@
 // Late steps (FR-248) need no module of their own: an overdue clock step is `runDue` in steps.ts (cause `late` at the
 // effective instant, anchors shifted from it by `anchorsAfterStep`, one step per call).
 
-import { errorReply } from '@mbrg/protocol';
-import type { AdvanceReply, ErrorReply, StepKind, StepMismatchReply } from '@mbrg/protocol';
+import { errorReply, stepMismatch } from '@mbrg/protocol';
+import type { AdvanceReply, ErrorReply, StepKind } from '@mbrg/protocol';
 import { nextStep, performStep } from './steps';
 import type { StepDeps, StepOutcome } from './steps';
 import { publicOf } from './view';
@@ -30,7 +30,7 @@ export interface AdvanceInput {
 export type AdvanceDecision =
   | { readonly ok: true; readonly outcome: StepOutcome; readonly reply: AdvanceReply }
   /** `outcome` is present only when the advance halted the match (FR-251): the halted view and its event are to be stored. */
-  | { readonly ok: false; readonly error: ErrorReply | StepMismatchReply; readonly outcome?: StepOutcome };
+  | { readonly ok: false; readonly error: ErrorReply; readonly outcome?: StepOutcome };
 
 const KIND_INDEX: Record<StepKind, number> = { 'phase-1-close': 0, 'phase-2-close': 1, application: 2 };
 /** The position of a step in the match: three per round, in order. */
@@ -47,7 +47,7 @@ export function decideAdvance(view: CoreMatch, input: AdvanceInput, deps: StepDe
   if (view.stage === 'finished') return { ok: false, error: errorReply('match-finished') };
   const next = nextStep(view);
   if (next === null) throw new RangeError(`a running match has a next step; stage ${view.stage}`);
-  const mismatch: AdvanceDecision = { ok: false, error: { kind: 'step-mismatch', stage: view.stage, appliedRounds: view.appliedRounds } };
+  const mismatch: AdvanceDecision = { ok: false, error: stepMismatch(view.stage, view.appliedRounds) };
   if (!Number.isSafeInteger(input.round) || input.round < 1) return mismatch;
   const named = positionOf(input.round, input.step);
   const current = positionOf(view.appliedRounds + 1, next);
