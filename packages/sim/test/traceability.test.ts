@@ -200,7 +200,7 @@ describe('traceability', () => {
     expect(literal).toContain('FR-315');
     expect(literal).toContain('NFR-57');
     expect(PENDING_008).toHaveLength(96 - DONE_008.length);
-    // After M1: 8 ids traced (FR-252, FR-312, FR-313, NFR-47 part (e), NFR-48 seeds, NFR-51, NFR-53, NFR-55), 88 pending; M2a T2 adds FR-301 (9 / 87); M2a T3 adds FR-233, FR-234, FR-296, FR-297: 13 done, 83 pending; M2a T4 adds FR-253, FR-254, FR-257, FR-282: 17 done, 79 pending; M2a T5 adds FR-239, FR-249, FR-302, FR-314, NFR-50: 22 done, 74 pending; M2a T6 adds FR-237, FR-240, FR-247, FR-255, FR-256, FR-258, FR-269: 29 done, 67 pending; M2a T7 adds FR-244, FR-248, FR-295: 32 done, 64 pending; M2a T8 adds FR-261 to FR-268: 40 done, 56 pending; M2b T2 adds FR-289 (c) and FR-300 (digests): 42 done, 54 pending; M2b T3 adds FR-291 and FR-292: 44 done, 52 pending; M2b T4 adds FR-270 (storage) and FR-293 (FR-240 and FR-267 were already done in M2a): 46 done, 50 pending; M2b T5 adds FR-231, FR-232, FR-235, FR-236, FR-238, FR-259, FR-260 and NFR-54: 54 done, 42 pending; M2b T6 adds FR-241, FR-242, FR-243, FR-245, FR-246, FR-288, FR-290, FR-315 and NFR-52: 63 done, 33 pending.
+    // After M1: 8 ids traced (FR-252, FR-312, FR-313, NFR-47 part (e), NFR-48 seeds, NFR-51, NFR-53, NFR-55), 88 pending; M2a T2 adds FR-301 (9 / 87); M2a T3 adds FR-233, FR-234, FR-296, FR-297: 13 done, 83 pending; M2a T4 adds FR-253, FR-254, FR-257, FR-282: 17 done, 79 pending; M2a T5 adds FR-239, FR-249, FR-302, FR-314, NFR-50: 22 done, 74 pending; M2a T6 adds FR-237, FR-240, FR-247, FR-255, FR-256, FR-258, FR-269: 29 done, 67 pending; M2a T7 adds FR-244, FR-248, FR-295: 32 done, 64 pending; M2a T8 adds FR-261 to FR-268: 40 done, 56 pending; M2b T2 adds FR-289 (c) and FR-300 (digests): 42 done, 54 pending; M2b T3 adds FR-291 and FR-292: 44 done, 52 pending; M2b T4 adds FR-270 (storage) and FR-293 (FR-240 and FR-267 were already done in M2a): 46 done, 50 pending; M2b T5 adds FR-231, FR-232, FR-235, FR-236, FR-238, FR-259, FR-260 and NFR-54: 54 done, 42 pending; M2b T6 adds FR-241, FR-242, FR-243, FR-245, FR-246, FR-288, FR-290, FR-315 and NFR-52: 63 done, 33 pending; M2b T7 and T8 move no id.
     // M2a target (T10): 40 done / 56 pending; each M2a task moves its ids in its own commit.
     // M2b target (T8): 63 done / 33 pending. M2b' target (T7'): 67 done / 29 pending (plan section 17).
     expect(DONE_008).toHaveLength(63);
@@ -208,6 +208,26 @@ describe('traceability', () => {
     expect(new Set([...PENDING_008, ...DONE_008]).size).toBe(96);
     expect([...PENDING_008, ...DONE_008].sort()).toStrictEqual([...literal].sort());
     for (const id of PENDING_008) expect(expected, id).toContain(id);
+  });
+
+  it('NFR-55 M2b closing state: 63 ids done, 33 pending, the 23 M2b ids done and the M2b and later ids pending', () => {
+    expect(DONE_008).toHaveLength(63);
+    expect(PENDING_008).toHaveLength(33);
+    expect(DONE_008.length + PENDING_008.length).toBe(96);
+    // The ids M2b closed (plan section 17.3), a literal list independent of DONE_008.
+    const closedByM2b = [
+      'FR-231', 'FR-232', 'FR-235', 'FR-236', 'FR-238', 'FR-241', 'FR-242', 'FR-243', 'FR-245', 'FR-246',
+      'FR-259', 'FR-260', 'FR-270', 'FR-288', 'FR-289', 'FR-290', 'FR-291', 'FR-292', 'FR-293', 'FR-300',
+      'FR-315', 'NFR-52', 'NFR-54',
+    ];
+    expect(closedByM2b).toHaveLength(23);
+    for (const id of closedByM2b) expect(DONE_008, id).toContain(id);
+    // M2b' closes these four next (67 done, 29 pending): they are still pending here.
+    for (const id of ['FR-250', 'FR-251', 'FR-294', 'NFR-57']) expect(PENDING_008, id).toContain(id);
+    // M3 and later: still pending.
+    for (const id of ['FR-283', 'FR-284', 'FR-287', 'FR-271', 'FR-303', 'NFR-49', 'NFR-56']) {
+      expect(PENDING_008, id).toContain(id);
+    }
   });
 
   it('NFR-55 no pending id of spec 008 is already traced by a test title', () => {

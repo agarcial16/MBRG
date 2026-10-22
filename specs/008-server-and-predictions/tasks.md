@@ -67,7 +67,7 @@ Rules for every task:
 
 - [x] **T9. Close M1: ledger, process checks, PR.** NFR-55, done criteria of M1
   - Files: `packages/sim/test/traceability.test.ts` (assert the pending set now holds exactly 88 ids: the M1 ids FR-252, FR-312, FR-313, NFR-47, NFR-48, NFR-51, NFR-53, NFR-55 were removed by the tasks that traced them), `specs/008-server-and-predictions/plan.md` (sections 11 and 13 updated), `MEMORY.md` (local).
-  - Steps: `git diff --exit-code rewrite -- packages/shared/src packages/sim/test/golden maps/dev` clean; `git diff --stat rewrite -- packages apps tools` shows only the planned files; full suite, typecheck and `CI=1` green; PR body lists the ledger of plan section 11, the figures of section 13 and the U1 to U5 decisions (2026-10-21/22). Push, PR, CI green, squash only with the user's OK.
+  - Steps: `git diff --exit-code rewrite -- packages/shared/src packages/sim/test/golden maps/dev` clean; `git diff --stat rewrite -- packages apps tools` shows only the planned files; full suite, typecheck and `CI=1` green; PR body lists the ledger of plan section 11, the figures of section 13 and the U1 to U5 decisions (2026-10-21/22). Push, PR, CI green, squash only with the user's OK (the push and the PR are made by the coordinator after asking the user, not by T8).
   - Commit: `test: pin the spec 008 pending set after M1`.
   - Done when: CI green; ledger and figures in the PR; `MEMORY.md` updated (state, decisions, lessons; next: detail M2a).
 
@@ -226,7 +226,7 @@ M2b / M2b' rules (in addition to the M1 and M2a rules):
   - Done when: tests green; mutations proved (reply before commit, memo of a non-memoisable kind); no new id moved (partial parts only, titles name them).
   - Done (T7): also memoises advance requests with a request id (FR-282 covers advances); service takes the caller as {credential text, namespace} (resolving them is M3a); command path texts `/matches/{id}/advance` and `/matches/{id}/predictions`. The non-memoisable-kind mutation is unreachable at service level (those kinds are returned before the memo); covered by the core memo tests and T5.
 
-- [ ] **T8. Close M2b: ledger, process checks, PR.** NFR-55
+- [x] **T8. Close M2b: ledger, process checks, PR.** NFR-55
   - Depends on: T1 to T7.
   - Files: `packages/sim/test/traceability.test.ts` (assert 63 / 33), `specs/008-server-and-predictions/plan.md` (sections 11 and 13: M2b figures, partial parts), `MEMORY.md` (local).
   - Steps: `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server/test/golden/dev-secrets.json` clean; `git diff --stat rewrite` shows only planned files (and the reviewed `core-timelines.json` re-pin); purity and store scans green; PR body lists the ledger, the moved ids and B1 to B4. Push, PR, CI green, squash only with the user's OK.
@@ -234,6 +234,8 @@ M2b / M2b' rules (in addition to the M1 and M2a rules):
   - Done when: CI green; counts 63 / 33; `MEMORY.md` updated (next: M2b').
 
 ### M2b'
+
+**Hand-offs from M2b** (delivered facts the tasks below rely on; plan section 13): the service has `create`, `advance`, `submit`, `ownPredictions`, `tick`, `publicMatch`, `subscribe`, `purgeMemos` and an optional `scheduler` option, but no `start()` / `close()`; a storage failure currently throws (T3' maps it to `unavailable`); the map-digest check and halting are not implemented in the service (T2'); `sentMax` is in memory (T4'); credentials are TEXT and the caller is `{ credential, namespace }` (HTTP reading is M3a); settings are `MBRG_OPERATOR_CREDENTIAL`, `MBRG_MAPS`, `MBRG_MAX_RUNNING_MATCHES`, `MBRG_DATABASE`; the store offers `runningMatchIds`, `runningCount`, `eventsAfter`, `withFaults({failTransaction, abortTransaction})` and the test helper `db-scan.ts`; WAL with the exclusive lock works on Windows (CI confirms on the M2b PR).
 
 - [ ] **T1'. Branch, commit plan / tasks; bookkeeping targets.** NFR-55
   - Depends on: M2b merged.
@@ -249,17 +251,17 @@ M2b / M2b' rules (in addition to the M1 and M2a rules):
   - Commit: `feat(server): halt matches on map changes and engine errors`.
   - Done when: tests green; mutations proved (digest check skipped before a step, halted match counted as running, secret revealed on halt); FR-250, FR-251 moved; `rg` finds them.
 
-- [ ] **T3'. Timer loop, storage failures and the 3 s retry.** FR-292 (unavailable, retry); FR-239, FR-244, FR-248 (timer, start-up and retry); NFR-50 (real clock, measured)
+- [ ] **T3'. Timer loop, storage failures and the 3 s retry.** FR-292 (unavailable, retry); FR-239, FR-244, FR-248 (timer, start-up and retry); FR-238 (purge timer); NFR-50 (real clock, measured)
   - Depends on: T2'.
   - Files: `apps/server/src/service/{matches.ts,scheduler.ts}`, `apps/server/src/store/faults.ts`, `apps/server/test/{service-timer.test.ts,service-faults.test.ts}`, `apps/server/scripts/clock-accuracy.ts`, plan section 13.
-  - Tests first: the scheduler is armed for the next due instant after every decision and at start; a fake clock jump forward makes the next tick perform one late step at the effective instant and shift the anchors (FR-248); a backward jump makes it wait (FR-249 (shell)); a storage failure (fault seam) inside a submission or an advance gives `unavailable` and leaves the database unchanged; a failed clock step is retried 3 s later, on time if within the tolerance, else late (PD13). NFR-50 measurement: the script runs a real-clock match with I = 6, L1 = 2, L2 = 1 for 10 rounds and records the worst delay from scheduled to performed (target within 1,000 ms) in plan section 13; not run in CI.
+  - Tests first: (M2b already arms the scheduler for the next due instant of a match after every decision, tested with the fake scheduler; this task adds `start()`, which arms every stored running match, and `close()`, which cancels the timers) the scheduler is armed after every decision and at start; the memo purge runs from a timer at the retention boundary (FR-238), not only at `tick()`; a fake clock jump forward makes the next tick perform one late step at the effective instant and shift the anchors (FR-248); a backward jump makes it wait (FR-249 (shell)); a storage failure (fault seam) inside a submission or an advance gives `unavailable` and leaves the database unchanged; a failed clock step is retried 3 s later, on time if within the tolerance, else late (PD13). NFR-50 measurement: the script runs a real-clock match with I = 6, L1 = 2, L2 = 1 for 10 rounds and records the worst delay from scheduled to performed (target within 1,000 ms) in plan section 13; not run in CI.
   - Commit: `feat(server): schedule steps and retry after storage failures`.
   - Done when: tests green; figure recorded; mutations proved (retry at 0 s, two overdue steps performed, `unavailable` after a partial write); no new id moved; `rg` finds `FR-292 (unavailable`.
 
 - [ ] **T4'. Restart recovery and lifecycle goldens.** FR-294; FR-249 (across restarts); NFR-48 (lifecycle)
   - Depends on: T3'.
   - Files: `apps/server/test/{service-restart.test.ts,service-timeline-golden.test.ts}`, `apps/server/test/golden/service-timelines.json`, `packages/sim/test/traceability.test.ts`.
-  - Tests first: with a temporary file database, a scripted match is stopped and restarted after every step: the restarted service resumes at the stored stage, round and anchors, never repeats or skips a step, applies the map check and then the late rule (FR-294); stored instants never decrease across a restart with a clock set back (FR-249 (across restarts)); events stored before a stop are read back with their sequence numbers; golden service timelines for the six M2a scenarios (rows, anchors, stages, event types and seqs, victims, record and state digests) equal the core goldens re-pinned in M2b T2 and stay equal with a restart after every step (NFR-48 (lifecycle)).
+  - Tests first: with a temporary file database, a scripted match is stopped and restarted after every step: the restarted service resumes at the stored stage, round and anchors, never repeats or skips a step, applies the map check and then the late rule (FR-294); stored instants never decrease across a restart with a clock set back, and the reported time (kept in memory per match as `sentMax` in M2b) is rebuilt from the stored last step instant so it never decreases either (FR-249 (across restarts)); events stored before a stop are read back with their sequence numbers; golden service timelines for the six M2a scenarios (rows, anchors, stages, event types and seqs, victims, record and state digests) equal the core goldens re-pinned in M2b T2 and stay equal with a restart after every step (NFR-48 (lifecycle)).
   - Commit: `test(server): resume matches after a restart`.
   - Done when: tests green; mutation: resuming from the creation anchors instead of the stored ones fails; FR-294 moved; `rg` finds it and `NFR-48 (lifecycle)`.
 
