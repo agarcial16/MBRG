@@ -149,7 +149,7 @@ M2a rules (in addition to the M1 rules):
   - Commit: `test(server): pin core timelines and the memo decision`.
   - Done when: tests green; regenerating the golden is a separate, reviewed step (the test never writes it); mutation: an off-by-one ms in C1 changes the golden; `rg` finds `FR-282 (d)`, `NFR-48 (lifecycle`.
 
-- [ ] **T10. Close M2a: ledger, process checks, PR.** NFR-55; done criteria of M2a
+- [x] **T10. Close M2a: ledger, process checks, PR.** NFR-55; done criteria of M2a
   - Depends on: T1 to T9.
   - Files: `packages/sim/test/traceability.test.ts` (assert `DONE_008` 40 and `PENDING_008` 56), `specs/008-server-and-predictions/plan.md` (sections 11 and 13: M2a figures, partial ids), `MEMORY.md` (local).
   - Steps: `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server/test/golden/dev-secrets.json` clean; `git diff --stat rewrite -- packages apps tools` shows only the planned files; purity scans green; PR body lists the ledger, the moved ids and A1. Push, PR, CI green, squash only with the user's OK.
