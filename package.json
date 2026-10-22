@@ -15,7 +15,7 @@
     "dev": "npm run dev -w @mbrg/web",
     "build": "npm run build -w @mbrg/web",
     "test": "vitest run",
-    "typecheck": "tsc -p packages/shared/tsconfig.json && tsc -p packages/sim/tsconfig.json && tsc -p tsconfig.test.json && tsc -p tools/build-map/tsconfig.json && tsc -p tools/build-map/tsconfig.test.json && tsc -p apps/web/tsconfig.json && tsc -p apps/web/tsconfig.test.json && tsc -p apps/server/tsconfig.json && tsc -p apps/server/tsconfig.test.json"
+    "typecheck": "tsc -p packages/shared/tsconfig.json && tsc -p packages/sim/tsconfig.json && tsc -p packages/protocol/tsconfig.json && tsc -p tsconfig.test.json && tsc -p tools/build-map/tsconfig.json && tsc -p tools/build-map/tsconfig.test.json && tsc -p apps/web/tsconfig.json && tsc -p apps/web/tsconfig.test.json && tsc -p apps/server/tsconfig.json && tsc -p apps/server/tsconfig.test.json"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

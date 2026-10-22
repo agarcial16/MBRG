@@ -68,14 +68,14 @@ const PENDING_008: readonly string[] = [
   'FR-271', 'FR-272', 'FR-273', 'FR-274', 'FR-275', 'FR-276', 'FR-277', 'FR-278', 'FR-279', 'FR-280',
   'FR-281', 'FR-282', 'FR-283', 'FR-284', 'FR-285', 'FR-286', 'FR-287', 'FR-288', 'FR-289', 'FR-290',
   'FR-291', 'FR-292', 'FR-293', 'FR-294', 'FR-295', 'FR-296', 'FR-297', 'FR-298', 'FR-299', 'FR-300',
-  'FR-301', 'FR-302', 'FR-303', 'FR-304', 'FR-305', 'FR-306', 'FR-307', 'FR-308', 'FR-309', 'FR-310',
+  'FR-302', 'FR-303', 'FR-304', 'FR-305', 'FR-306', 'FR-307', 'FR-308', 'FR-309', 'FR-310',
   'FR-311', 'FR-314', 'FR-315',
   'NFR-49', 'NFR-50', 'NFR-52', 'NFR-54', 'NFR-56',
   'NFR-57',
 ];
 
-/** Ids of spec 008 already removed from PENDING_008 by the tasks that traced them (T2: FR-313; T3: NFR-51, NFR-55; T4: FR-312, NFR-48; T5: NFR-53; T7: FR-252; T8: NFR-47 (part (e) only, the other parts stay open in later milestones: test titles of those milestones must say which part)). */
-const DONE_008: readonly string[] = ['FR-313', 'NFR-51', 'NFR-55', 'FR-312', 'NFR-48', 'NFR-53', 'FR-252', 'NFR-47'];
+/** Ids of spec 008 already removed from PENDING_008 by the tasks that traced them (T2: FR-313; T3: NFR-51, NFR-55; T4: FR-312, NFR-48; T5: NFR-53; T7: FR-252; T2 of M2a: FR-301 (kinds and order); T8: NFR-47 (part (e) only, the other parts stay open in later milestones: test titles of those milestones must say which part)). */
+const DONE_008: readonly string[] = ['FR-313', 'NFR-51', 'NFR-55', 'FR-312', 'NFR-48', 'NFR-53', 'FR-252', 'NFR-47', 'FR-301'];
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -202,10 +202,10 @@ describe('traceability', () => {
     expect(literal).toContain('FR-315');
     expect(literal).toContain('NFR-57');
     expect(PENDING_008).toHaveLength(96 - DONE_008.length);
-    // After M1: 8 ids traced (FR-252, FR-312, FR-313, NFR-47 part (e), NFR-48 seeds, NFR-51, NFR-53, NFR-55), 88 pending.
+    // After M1: 8 ids traced (FR-252, FR-312, FR-313, NFR-47 part (e), NFR-48 seeds, NFR-51, NFR-53, NFR-55), 88 pending; M2a T2 adds FR-301: 9 done, 87 pending.
     // M2a target (T10): 40 done / 56 pending; each M2a task moves its ids in its own commit.
-    expect(DONE_008).toHaveLength(8);
-    expect(PENDING_008).toHaveLength(88);
+    expect(DONE_008).toHaveLength(9);
+    expect(PENDING_008).toHaveLength(87);
     expect(new Set([...PENDING_008, ...DONE_008]).size).toBe(96);
     expect([...PENDING_008, ...DONE_008].sort()).toStrictEqual([...literal].sort());
     for (const id of PENDING_008) expect(expected, id).toContain(id);

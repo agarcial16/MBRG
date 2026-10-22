@@ -93,7 +93,7 @@ M2a rules (in addition to the M1 rules):
   - Commits: `docs: detail spec 008 milestone M2a`; `test: prepare the spec 008 bookkeeping for M2a`.
   - Done when: suite, typecheck and `CI=1` green; no id moved yet; `rg` finds NFR-55.
 
-- [ ] **T2. `packages/protocol` workspace, error kinds and their fixed order.** FR-301 (kinds and order); NFR-51 (protocol); NFR-53 (protocol manifest)
+- [x] **T2. `packages/protocol` workspace, error kinds and their fixed order.** FR-301 (kinds and order); NFR-51 (protocol); NFR-53 (protocol manifest)
   - Depends on: T1.
   - Files: `packages/protocol/{package.json,tsconfig.json,src/index.ts,src/errors.ts}`, `packages/protocol/test/{errors.test.ts,purity.test.ts,manifest.test.ts}`, root `package.json` (`typecheck`), `package-lock.json` (workspace entry and link only), `apps/web/test/{shaped-deps,labels-render}.test.ts` (A1 filter), `packages/sim/test/traceability.test.ts`.
   - Tests first: `ERROR_ORDER` equals the FR-301 list literally (21 kinds plus the map-validation group at its position, 22 entries in order); `firstError` returns the first kind present in that order for every pair of kinds; only map validation errors and `invalid-timing` may carry several items; `already-performed` and the halt reasons are not error kinds; every kind is English kebab-case; the error shape has no field able to carry a secret or token (key list pinned). Purity scan over `packages/protocol/src` with planted violations (`Date.now`, `Math.random`, `node:fs`, `crypto`). Manifest: `@mbrg/protocol` private, module, dependencies only `@mbrg/shared` and `@mbrg/sim`, no dev dependencies; lockfile gains only `packages/protocol` and `node_modules/@mbrg/protocol`.
