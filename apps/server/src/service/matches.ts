@@ -1,4 +1,4 @@
-// The match lifecycle service (spec 008 FR-231, FR-232, FR-235, FR-236, FR-238, FR-241 to FR-247, FR-259, FR-260, FR-290,
+// The match lifecycle service (spec 008 FR-231, FR-232, FR-235, FR-236, FR-238, FR-241 to FR-247, FR-259, FR-260, FR-261 to FR-267, FR-282, FR-290,
 // FR-295; plan 17.1). The shell around the pure core: it draws the secret, the match id and the host token, reads the map
 // package, calls the core and the protocol readers, and writes everything of ONE decision in ONE storage transaction
 // (PD10) before it replies or publishes anything. It depends on core, protocol and store; the core never imports it.
@@ -15,13 +15,15 @@
 // Write order of a step (the application order of the plan): `updateMatch` (N + 1 and its state), `putRecord`, `putStep`,
 // `appendEvents`.
 
-import { canonicalBody, encodePublicMatch, errorReply, readAdvance, readCreation } from '@mbrg/protocol';
-import type { AdvanceReply, CreationReply, ErrorReply, MatchEvent, PublicMatch, StepMismatchReply, Timing } from '@mbrg/protocol';
+import { canonicalBody, encodePublicMatch, errorReply, isLocalId, isNamespace, playerIdOf, readAdvance, readCreation, readSubmission } from '@mbrg/protocol';
+import type { AdvanceReply, CreationReply, ErrorReply, MatchEvent, PredictionReply, PublicMatch, StepKind, StepMismatchReply, Timing } from '@mbrg/protocol';
 import type { Clock } from '../clock';
 import { decideAdvance } from '../core/advance';
 import { createMatch, creationEvents } from '../core/create';
 import { decideMemo, isMemoisable } from '../core/memo';
 import type { MemoScope } from '../core/memo';
+import { decideSubmission } from '../core/predictions';
+import type { StoredPrediction, Submission } from '../core/predictions';
 import { runDue } from '../core/steps';
 import type { StepDeps, StepOutcome } from '../core/steps';
 import { dueStep, effectiveInstant, reportedTime, wholeMs } from '../core/time';
@@ -60,6 +62,40 @@ export interface AdvanceRequest {
   readonly body: unknown;
 }
 
+/** The path texts of the commands in the canonical content of FR-282 (the HTTP layer of M3a uses the same texts). */
+export const advancePath = (matchId: string): string => `${CREATION_PATH}/${matchId}/advance`;
+export const submissionPath = (matchId: string): string => `${CREATION_PATH}/${matchId}/predictions`;
+
+/**
+ * The caller of a prediction command, as the HTTP layer of M3a resolves it from the client credential: the credential TEXT
+ * (only its digest is kept, as the memo scope) and the namespace registered for it. The player id is built from this
+ * namespace and never from the body (FR-284 is M3a; the service trusts the pair it is given).
+ */
+export interface ClientIdentity {
+  readonly credential: string;
+  readonly namespace: string;
+}
+
+export interface SubmitRequest {
+  readonly client: ClientIdentity;
+  readonly matchId: string;
+  /** The parsed JSON body `{ kind, round?, faction, playerId, requestId? }`. */
+  readonly body: unknown;
+}
+
+/** The reply of a submission: the stored prediction and its version (FR-267), or the error (first use, or its memoised replay). */
+export type SubmitOutcome = { readonly ok: true; readonly reply: PredictionReply } | { readonly ok: false; readonly error: ErrorReply };
+
+export interface OwnPredictionsRequest {
+  /** Only the namespace of the credential: a client reads its own player ids and no others. */
+  readonly namespace: string;
+  /** The local player id (the namespace is added here, never taken from the caller's text). */
+  readonly playerId: string;
+  readonly matchId: string;
+}
+
+export type OwnPredictionsOutcome = { readonly ok: true; readonly predictions: readonly PredictionReply[] } | { readonly ok: false; readonly error: ErrorReply };
+
 /** What one `tick` did: the memo entries purged and, per match, the step rows performed (one decision per match at most). */
 export interface TickReport {
   readonly purged: number;
@@ -93,6 +129,10 @@ export interface MatchService {
   create(request: CreateRequest): CreateOutcome;
   /** FR-244, FR-245, FR-295: an advance naming the step the caller expects; one storage transaction when it performs a step. */
   advance(request: AdvanceRequest): AdvanceOutcome;
+  /** FR-261 to FR-267, FR-282 (b) (c): stores or replaces a prediction, or replays or refuses; one storage transaction. */
+  submit(request: SubmitRequest): SubmitOutcome;
+  /** FR-270 (storage): the stored predictions of one of the caller's own player ids in one match. */
+  ownPredictions(request: OwnPredictionsRequest): OwnPredictionsOutcome;
   /** FR-239, FR-248: purges the expired memo entries and performs the one due step of every running match. */
   tick(): TickReport;
   /** The public data of a match now (FR-288 victim fields in `phase-2` and `locked`; the secret only once finished, FR-246), or undefined. */
@@ -355,17 +395,42 @@ export function createMatchService(options: ServiceOptions): MatchService {
         const isOperator = presented !== undefined && sameDigest(presented, operatorDigest);
         const isHost = presented !== undefined && stored !== undefined && sameDigest(presented, stored.hostTokenDigest);
         if (!isOperator && !isHost) return { ok: false, error: errorReply('forbidden') };
-        if (stored === undefined) return { ok: false, error: errorReply('unknown-match') };
-        done.touched = true;
+        // FR-282 (b) (c): a client request id makes the advance idempotent under (credential digest, match id); a replay
+        // or a reused id changes nothing and publishes nothing. The memo is written in the same transaction as the decision.
+        const requestId = read.value.requestId;
+        const memoScope: MemoScope = { credentialDigest: presented as string, match: matchId };
+        const content = sha256Ascii(canonicalBody('POST', advancePath(matchId), request.body));
+        const now = wholeMs(clock.now());
+        if (requestId !== undefined) {
+          const memoStored = store.memoGet(memoScope, requestId);
+          const memo = decideMemo<AdvanceOutcome>(
+            memoStored === undefined ? undefined : { content: memoStored.contentDigest, reply: memoStored.reply as AdvanceOutcome, createdMs: memoStored.createdMs },
+            { content, now },
+          );
+          if (memo.decision === 'replay') return memo.reply;
+          if (memo.decision === 'request-id-reused') return { ok: false, error: memo.error };
+        }
+        let result: AdvanceOutcome = { ok: false, error: errorReply('unknown-match') };
+        if (stored !== undefined) {
+          done.touched = true;
+          result = decideStep(stored, read.value);
+        }
+        if (requestId !== undefined && isMemoisable(result)) store.memoPut(memoScope, requestId, { contentDigest: content, reply: result, createdMs: now });
+        return result;
+      });
+      if (done.touched) settle(matchId, done.reported, done.committed);
+      return outcome;
+
+      function decideStep(stored: StoredMatch, wanted: { round: number; step: StepKind }): AdvanceOutcome {
         const times = timesOf(stored.match);
         done.reported = times.reported;
         // The stored row of the named step, if it was performed: the core answers `already-performed` from it.
-        const row = store.steps(matchId).find((s) => s.round === read.value.round && s.kind === read.value.step);
+        const row = store.steps(matchId).find((s) => s.round === wanted.round && s.kind === wanted.step);
         const decision = decideAdvance(
           stored.match,
           {
-            round: read.value.round,
-            step: read.value.step,
+            round: wanted.round,
+            step: wanted.step,
             effective: times.effective,
             reportedTime: times.reported,
             ...(row === undefined ? {} : { stored: { round: row.round, kind: row.kind, instant: row.instant, cause: row.cause } }),
@@ -387,9 +452,57 @@ export function createMatchService(options: ServiceOptions): MatchService {
         // The finished public data needs the secret and the event number of `match-finished`: the shell builds it (FR-246).
         const match = final.view.stage === 'finished' ? publicOf(final.view, times.reported, secretHex(stored.secret)) : decision.reply.match;
         return { ok: true, reply: { ...decision.reply, match } };
+      }
+    },
+
+    submit(request: SubmitRequest): SubmitOutcome {
+      const read = readSubmission(request.body);
+      if (!read.ok) return { ok: false, error: read.error };
+      const { client, matchId } = request;
+      if (!isNamespace(client.namespace) || typeof client.credential !== 'string') throw new TypeError('the caller identity is a credential text and a namespace');
+      const body = read.value;
+      const playerId = playerIdOf(client.namespace, body.playerId);
+      const submission: Submission = body.kind === 'winner' ? { kind: 'winner', choice: body.faction } : { kind: body.kind, round: body.round as number, choice: body.faction };
+      const round = body.kind === 'winner' ? 0 : (body.round as number);
+      const scope: MemoScope = { credentialDigest: credentialDigest(client.credential), match: matchId };
+      const content = sha256Ascii(canonicalBody('POST', submissionPath(matchId), request.body));
+      return store.transaction((): SubmitOutcome => {
+        const now = wholeMs(clock.now());
+        if (body.requestId !== undefined) {
+          const memoStored = store.memoGet(scope, body.requestId);
+          const memo = decideMemo<SubmitOutcome>(
+            memoStored === undefined ? undefined : { content: memoStored.contentDigest, reply: memoStored.reply as SubmitOutcome, createdMs: memoStored.createdMs },
+            { content, now },
+          );
+          if (memo.decision === 'replay') return memo.reply;
+          if (memo.decision === 'request-id-reused') return { ok: false, error: memo.error };
+        }
+        const stored = typeof matchId === 'string' ? store.getMatch(matchId) : undefined;
+        let result: SubmitOutcome = { ok: false, error: errorReply('unknown-match') };
+        if (stored !== undefined) {
+          // The cutoff uses the server's effective instant from the stored last step instant, never a time of the caller (FR-266).
+          const effective = timesOf(stored.match).effective;
+          const row = store.predictionsOf(matchId, playerId).find((p) => p.kind === submission.kind && p.round === round);
+          const decision = decideSubmission(stored.match, { submission, effective, ...(row === undefined ? {} : { stored: row }) });
+          if (decision.ok) {
+            if (decision.store !== undefined) store.putPrediction(matchId, playerId, decision.store);
+            result = { ok: true, reply: decision.reply };
+          } else {
+            result = { ok: false, error: decision.error };
+          }
+        }
+        if (body.requestId !== undefined && isMemoisable(result)) store.memoPut(scope, body.requestId, { contentDigest: content, reply: result, createdMs: now });
+        return result;
       });
-      if (done.touched) settle(matchId, done.reported, done.committed);
-      return outcome;
+    },
+
+    ownPredictions(request: OwnPredictionsRequest): OwnPredictionsOutcome {
+      if (!isNamespace(request.namespace)) throw new TypeError('the caller identity is a namespace');
+      if (!isLocalId(request.playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+      if (typeof request.matchId !== 'string' || store.getMatch(request.matchId) === undefined) return { ok: false, error: errorReply('unknown-match') };
+      const player = playerIdOf(request.namespace, request.playerId);
+      const toReply = (p: StoredPrediction): PredictionReply => ({ kind: p.kind, ...(p.kind === 'winner' ? {} : { round: p.round }), choice: p.choice, version: p.version });
+      return { ok: true, predictions: store.predictionsOf(request.matchId, player).map(toReply) };
     },
 
     tick(): TickReport {

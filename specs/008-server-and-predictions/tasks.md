@@ -218,12 +218,13 @@ M2b / M2b' rules (in addition to the M1 and M2a rules):
   - Commit: `feat(server): run match steps through the lifecycle service`.
   - Done when: tests green; mutations proved (events published before commit, application stored in two transactions, advance check skipping the host token); FR-241, FR-242, FR-243, FR-245, FR-246, FR-288, FR-290, FR-315, NFR-52 moved; `rg` finds them.
 
-- [ ] **T7. Predictions through the service: storage, memo replays, own predictions.** FR-262 to FR-267 (storage); FR-269 (no result rows for an empty phase); FR-270 (storage); FR-282 (b), (c) (stored replies)
+- [x] **T7. Predictions through the service: storage, memo replays, own predictions.** FR-262 to FR-267 (storage); FR-269 (no result rows for an empty phase); FR-270 (storage); FR-282 (b), (c) (stored replies)
   - Depends on: T6.
   - Files: `apps/server/src/service/matches.ts`, `apps/server/test/service-predictions.test.ts`.
   - Tests first: accepted submissions are stored before the reply (a failing commit gives no reply of acceptance); the cutoff uses the effective instant from the stored last step instant, not a client time; a replacement increments the stored version; an equal resubmission writes nothing; a submission with a request id is memoised under the client-credential digest and replayed after the cutoff; rejections `prediction-closed` and `invalid-choice` are memoised, `invalid-player-id` is not; `ownPredictions` returns only the caller's namespaced player ids; a phase with no prediction leaves no result row and the match goes on (FR-269).
   - Commit: `feat(server): store predictions through the lifecycle service`.
   - Done when: tests green; mutations proved (reply before commit, memo of a non-memoisable kind); no new id moved (partial parts only, titles name them).
+  - Done (T7): also memoises advance requests with a request id (FR-282 covers advances); service takes the caller as {credential text, namespace} (resolving them is M3a); command path texts `/matches/{id}/advance` and `/matches/{id}/predictions`. The non-memoisable-kind mutation is unreachable at service level (those kinds are returned before the memo); covered by the core memo tests and T5.
 
 - [ ] **T8. Close M2b: ledger, process checks, PR.** NFR-55
   - Depends on: T1 to T7.
