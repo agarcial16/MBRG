@@ -59,7 +59,7 @@ Rules for every task:
   - Commit: `feat(server): derive round seeds from the match secret`.
   - Done when: tests green; vectors recorded in plan section 13; mutations proved (little-endian read, message without `v1/`, key hex text instead of raw bytes); `rg` finds FR-252.
 
-- [ ] **T8. Dev-map seed goldens and absorber uniformity.** NFR-47, NFR-48
+- [x] **T8. Dev-map seed goldens and absorber uniformity.** NFR-47, NFR-48
   - Files: `apps/server/test/{seed-golden.test.ts,absorber-uniformity.test.ts,helpers/digests.ts,golden/dev-secrets.json}`, plan section 13.
   - Tests first: for three fixed secrets (0x00..0x1f, 0x20..0x3f, and 32 bytes of 0xa5): every `s_k`, victim, absorber, record and state digest of the dev map from round 1 to T, computed by chaining `playRoundWithSeed` with `roundSeed(secret, k)`, equal to the golden file; the map digest of `maps/dev` per the spec definition (helper in the test folder, node:crypto) pinned; the state digest text built per the spec definition (helper). NFR-47(e): over round seeds 0 to 2^20 − 1 on the dev map's round-1 state, for each victim, the absorber share of every candidate within ±2 percentage points of uniform; the bulk loop uses the engine's own draw functions and is proven equal to `playRoundWithSeed` on the first 10,000 seeds.
   - Commit: `test(server): pin dev-map round-seed goldens and absorber uniformity`.
