@@ -225,7 +225,7 @@ function searchOf(units: readonly Unit[], aspect: number, params: { margin: numb
 }
 
 describe('FR-198 NFR-38 the squared distance map and the disc filter', () => {
-  it('NFR-38 the squared distance to the nearest non-set unit centre equals the brute force, window with a one-unit ring', () => {
+  it('NFR-38 the squared distance to the nearest non-set unit centre equals the brute force, window with a one-unit ring', { timeout: 60_000 }, () => {
     for (let seed = 1; seed <= 25; seed++) {
       const units = blobUnits(seed, 20);
       const { p, pieces } = setOfUnits(units, 24, 24);

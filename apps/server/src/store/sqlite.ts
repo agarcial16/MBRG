@@ -19,6 +19,26 @@ const asStoreError = (error: unknown, path: string): Error => {
   return error instanceof Error ? error : new Error(String(error));
 };
 
+/**
+ * A native SQLite error (`ERR_SQLITE_ERROR`: I/O, full disk, busy, constraint) or a use of the closed connection
+ * (`ERR_INVALID_STATE`) is a storage failure, which the service answers `unavailable` (FR-292); every other error (a
+ * refused write, a programming error) is kept as it is.
+ */
+const asFailure = (error: unknown): unknown => {
+  if (error instanceof StoreError || !(error instanceof Error)) return error;
+  const code = (error as { code?: unknown }).code;
+  if (code !== 'ERR_SQLITE_ERROR' && code !== 'ERR_INVALID_STATE') return error;
+  return new StoreError(isLockedError(error) ? 'database-locked' : 'store-failure', `storage failure: ${error.message}`);
+};
+
+const guard = <T>(action: () => T): T => {
+  try {
+    return action();
+  } catch (error) {
+    throw asFailure(error);
+  }
+};
+
 const closeQuietly = (db: DatabaseSync): void => {
   try {
     db.close();
@@ -112,10 +132,10 @@ export const openStore = (path: string): Store => {
   const requireTransaction = (): void => {
     if (!inTransaction) throw invalid('a store write runs inside a transaction');
   };
-  const one = (sql: string, ...params: Param[]): Row | undefined => db.prepare(sql).get(...params);
-  const all = (sql: string, ...params: Param[]): Row[] => db.prepare(sql).all(...params);
+  const one = (sql: string, ...params: Param[]): Row | undefined => guard(() => db.prepare(sql).get(...params));
+  const all = (sql: string, ...params: Param[]): Row[] => guard(() => db.prepare(sql).all(...params));
   const run = (sql: string, ...params: Param[]): void => {
-    db.prepare(sql).run(...params);
+    guard(() => db.prepare(sql).run(...params));
   };
 
   const checkMatch = (match: CoreMatch): void => {
@@ -213,11 +233,11 @@ export const openStore = (path: string): Store => {
     },
     transaction<T>(fn: () => T): T {
       if (inTransaction) throw new Error('store transactions do not nest');
-      db.exec('BEGIN IMMEDIATE');
+      guard(() => db.exec('BEGIN IMMEDIATE'));
       inTransaction = true;
       try {
         const value = fn();
-        db.exec('COMMIT');
+        guard(() => db.exec('COMMIT'));
         return value;
       } catch (error) {
         try {
@@ -350,8 +370,12 @@ export const openStore = (path: string): Store => {
     },
     memoPurge(now: number): number {
       requireTransaction();
-      const result = db.prepare('DELETE FROM memo WHERE ? - created_ms > ?').run(now, MEMO_RETENTION_MS);
+      const result = guard(() => db.prepare('DELETE FROM memo WHERE ? - created_ms > ?').run(now, MEMO_RETENTION_MS));
       return Number(result.changes);
+    },
+    memoOldest(): number | undefined {
+      const row = one('SELECT MIN(created_ms) AS oldest FROM memo');
+      return row === undefined || row.oldest === null ? undefined : num(row, 'oldest');
     },
     close(): void {
       if (closed) return;

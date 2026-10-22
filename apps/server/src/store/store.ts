@@ -7,7 +7,10 @@ import type { MemoScope } from '../core/memo';
 import type { StoredPrediction } from '../core/predictions';
 import type { CoreMatch, StepRow } from '../core/view';
 
-/** Why a store could not be opened. */
+/**
+ * Why a store could not be opened or used. `store-failure` and `database-locked` are storage failures (the service replies
+ * `unavailable` and retries a clock step, FR-292); `invalid-write` and `unknown-schema-version` are not.
+ */
 export type StoreErrorCode = 'unknown-schema-version' | 'database-locked' | 'store-failure' | 'invalid-write';
 
 export class StoreError extends Error {
@@ -112,6 +115,8 @@ export interface Store {
   memoPut(scope: MemoScope, requestId: string, entry: StoredMemo): void;
   /** Deletes the entries older than the 24 h retention at `now` (FR-282 (e)) and returns how many. */
   memoPurge(now: number): number;
+  /** The first-use instant of the oldest memo entry, or undefined with none: where the purge timer is armed (FR-238). */
+  memoOldest(): number | undefined;
   /** Releases the connection and the exclusive lock. */
   close(): void;
 }

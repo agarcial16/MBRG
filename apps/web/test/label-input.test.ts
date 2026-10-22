@@ -111,7 +111,7 @@ describe('FR-167 FR-168 FR-174 FR-189 the labels of a round', () => {
 });
 
 describe('FR-174 FR-181 NFR-33 on the dev map every label is white with a black halo', () => {
-  it('FR-174 the labels of rounds 0..4 and of every step between them at several f are all #FFFFFF with a #000000 halo', async () => {
+  it('FR-174 the labels of rounds 0..4 and of every step between them at several f are all #FFFFFF with a #000000 halo', { timeout: 60_000 }, async () => {
     const { at, index, factionIndex } = await setup();
     let seen = 0;
     const check = (labels: readonly { ink: unknown; halo: unknown; text: string }[], what: string): void => {

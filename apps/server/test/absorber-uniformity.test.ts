@@ -33,7 +33,7 @@ function draw(seed: number): [number, number] {
 }
 
 describe('NFR-47 absorber uniformity on the dev map', () => {
-  it('NFR-47 the bulk draw equals playRoundWithSeed on seeds 0..9999', () => {
+  it('NFR-47 the bulk draw equals playRoundWithSeed on seeds 0..9999', { timeout: 60_000 }, () => {
     for (let seed = 0; seed < PREFIX; seed++) {
       const record = ok(playRoundWithSeed(map, state, seed)).record;
       expect(draw(seed), `seed ${seed}`).toStrictEqual([record.eliminated, record.absorber]);

@@ -1,5 +1,11 @@
-// The match lifecycle service (spec 008 FR-231, FR-232, FR-235, FR-236, FR-238, FR-241 to FR-247, FR-259, FR-260, FR-261 to FR-267, FR-282, FR-290,
-// FR-295; plan 17.1). The shell around the pure core: it draws the secret, the match id and the host token, reads the map
+// The match lifecycle service (spec 008 FR-231, FR-232, FR-235, FR-236, FR-238, FR-241 to FR-247, FR-250, FR-251, FR-259, FR-260, FR-261 to
+// FR-267, FR-282, FR-290, FR-295; plan 17.1).
+//
+// Halting (FR-250, FR-251): the map check runs before every step (`depsOf`); the core turns a missing map, an engine
+// `isolated-faction` answer or a recomputed victim that differs from the stored one into a halted view and one
+// `match-halted` event, stored and published like any decision. A halted match is not running: it is never ticked or
+// armed, it does not count toward the limit, it answers `match-halted` to advances and submissions, and its public data
+// never carries the secret (only a finished match does, FR-259). The shell around the pure core: it draws the secret, the match id and the host token, reads the map
 // package, calls the core and the protocol readers, and writes everything of ONE decision in ONE storage transaction
 // (PD10) before it replies or publishes anything. It depends on core, protocol and store; the core never imports it.
 //
@@ -14,17 +20,25 @@
 //
 // Write order of a step (the application order of the plan): `updateMatch` (N + 1 and its state), `putRecord`, `putStep`,
 // `appendEvents`.
+//
+// Timer loop and failures (FR-238, FR-239, FR-248, FR-292; M2b' T3'): `start` checks the map of every stored running match,
+// performs its one overdue step (late, at the effective instant) and arms it; the memo purge is armed at the retention
+// boundary of the oldest entry. After every decision the next wake-up is armed BEFORE the events are published. A storage
+// failure (`isStorageFailure`) makes a command reply `unavailable` (the transaction rolled back); a clock step that fails,
+// for any reason, is isolated from the other matches and retried RETRY_MS later. A storage failure of the enumeration of
+// the running matches at `start` arms a retry of the whole start check RETRY_MS later, until it succeeds (FR-294); a
+// programming error there is rethrown by `start`. `close` cancels every wake-up.
 
 import { canonicalBody, encodePublicMatch, errorReply, isLocalId, isNamespace, playerIdOf, readAdvance, readCreation, readSubmission } from '@mbrg/protocol';
 import type { AdvanceReply, CreationReply, ErrorReply, MatchEvent, PredictionReply, PublicMatch, StepKind, StepMismatchReply, Timing } from '@mbrg/protocol';
 import type { Clock } from '../clock';
 import { decideAdvance } from '../core/advance';
 import { createMatch, creationEvents } from '../core/create';
-import { decideMemo, isMemoisable } from '../core/memo';
+import { MEMO_RETENTION_MS, decideMemo, isMemoisable } from '../core/memo';
 import type { MemoScope } from '../core/memo';
 import { decideSubmission } from '../core/predictions';
 import type { StoredPrediction, Submission } from '../core/predictions';
-import { runDue } from '../core/steps';
+import { haltMatch, runDue } from '../core/steps';
 import type { StepDeps, StepOutcome } from '../core/steps';
 import { dueStep, effectiveInstant, reportedTime, wholeMs } from '../core/time';
 import { publicOf } from '../core/view';
@@ -32,8 +46,10 @@ import type { CoreMatch, StepRow } from '../core/view';
 import { DERIVATION_RULE, commitment as commitmentOf, newSecret, secretHex } from '../secret';
 import type { RandomBytes } from '../secret';
 import { seedOfSecret } from '../seeds';
+import { StoreError } from '../store/store';
 import type { Store, StoredMatch, StoredStep } from '../store/store';
 import { credentialDigest, newHostToken, newMatchId, sameDigest, sha256Ascii } from './ids';
+import { mapForStep } from './maps';
 import type { MapCatalog } from './maps';
 import type { Scheduler, SchedulerHandle } from './scheduler';
 import type { Settings } from './settings';
@@ -96,11 +112,41 @@ export interface OwnPredictionsRequest {
 
 export type OwnPredictionsOutcome = { readonly ok: true; readonly predictions: readonly PredictionReply[] } | { readonly ok: false; readonly error: ErrorReply };
 
-/** What one `tick` did: the memo entries purged and, per match, the step rows performed (one decision per match at most). */
+/**
+ * A clock step that could not run (FR-292): `unavailable` for a storage failure, `error` for anything else (a programming
+ * error or inconsistent stored data). Either way nothing of it was stored or published, and its retry is armed.
+ */
+export interface StepFailure {
+  readonly matchId: string;
+  readonly kind: 'unavailable' | 'error';
+}
+
+/** What one `tick` did: the memo entries purged and, per match, the step rows performed (one decision per match at most) or the failure. */
 export interface TickReport {
   readonly purged: number;
   readonly performed: readonly { readonly matchId: string; readonly steps: readonly StepRow[] }[];
+  readonly failed: readonly StepFailure[];
 }
+
+/**
+ * What `start` did: a tick of every stored running match, plus the matches halted by the map check at start (FR-250).
+ * `retry` is present only when the enumeration of the stored running matches failed with a storage failure: nothing was
+ * checked, stepped or armed, and the whole start check runs again at `at` (FR-292, FR-294), and so on until it succeeds.
+ */
+export interface StartReport extends TickReport {
+  readonly halted: readonly string[];
+  readonly retry?: { readonly kind: 'unavailable'; readonly at: number };
+}
+
+/** The interval between the attempts of a clock step whose storage failed (FR-292): the retry follows FR-248 once overdue. */
+export const RETRY_MS = 3000;
+
+/**
+ * A storage failure (FR-292): the store could not read or write (`store-failure`, `database-locked`, the fault seam's
+ * injected faults). Anything else (a RangeError of inconsistent data, a refused write, a TypeError) is a programming error:
+ * commands rethrow it, and the timer loop isolates it like a storage failure but reports it as `error`.
+ */
+export const isStorageFailure = (error: unknown): boolean => error instanceof StoreError && (error.code === 'store-failure' || error.code === 'database-locked');
 
 /** A subscriber: called after the commit of a decision with the events it stored, in order (FR-287, FR-290). */
 export type MatchListener = (matchId: string, events: readonly MatchEvent[]) => void;
@@ -118,7 +164,7 @@ export interface ServiceOptions {
   readonly settings: Settings;
   /** The random source of secrets, match ids and host tokens; omitted in production (the platform CSPRNG). */
   readonly random?: RandomBytes;
-  /** Wakes the service at the next due instant of each running match; omitted: only `tick` performs clock steps. */
+  /** Wakes the service at the next due instant of each running match, a retry, or the memo purge; omitted: only `tick` performs clock steps. */
   readonly scheduler?: Scheduler;
   /** TEST-ONLY (FR-260). Production passes none. */
   readonly testSeedSource?: TestSeedSource;
@@ -141,6 +187,16 @@ export interface MatchService {
   subscribe(listener: MatchListener): () => void;
   /** Deletes the memo entries past the 24 h retention, host tokens in plain form included (FR-238); returns how many. */
   purgeMemos(): number;
+  /**
+   * Server start on the stored matches: purges the expired memo entries; for every running match runs the map check
+   * (FR-250: a changed package halts it with `map-changed`), then performs its one overdue step, if any, as a late step at
+   * the effective instant (FR-248) and arms its next wake-up (FR-239); arms the memo purge at the retention boundary (FR-238).
+   * If the enumeration of the running matches fails with a storage failure, it reports `retry` and the whole check runs
+   * again RETRY_MS later (FR-292), repeated until it succeeds; it never throws for a storage failure.
+   */
+  start(): StartReport;
+  /** Cancels every wake-up of this service and closes the store. */
+  close(): void;
 }
 
 /**
@@ -172,6 +228,13 @@ interface Committed {
   readonly events: readonly MatchEvent[];
 }
 
+/** What one clock step of a match stored: its rows (none for a halt), and whether it was the halt of the start check. */
+interface TickDone {
+  readonly matchId: string;
+  readonly steps: readonly StepRow[];
+  readonly haltedAtStart: boolean;
+}
+
 export function createMatchService(options: ServiceOptions): MatchService {
   const { store, clock, maps, settings, random, scheduler } = options;
   if (options.testSeedSource !== undefined && typeof options.testSeedSource !== 'function') throw new TypeError('the test seed source is a function');
@@ -179,31 +242,47 @@ export function createMatchService(options: ServiceOptions): MatchService {
   const operatorDigest = credentialDigest(settings.operatorCredential);
   const limit = settings.runningMatchLimit;
 
-  /** The largest reported time already sent per match (FR-302, Definitions): kept in memory, a restart starts from the effective instant. */
+  /**
+   * The largest reported time already sent per match (FR-302, Definitions), kept in memory. A process that has sent nothing
+   * yet for a match (after a restart) starts from the largest reported time of the match's stored events, read once
+   * (FR-249 across restarts, plan section 13 M2b' T4'): the reported time of events never decreases across a restart.
+   */
   const sentMax = new Map<string, number>();
   const listeners = new Set<MatchListener>();
   const armed = new Map<string, SchedulerHandle>();
 
+  const sentOf = (matchId: string): number => {
+    const known = sentMax.get(matchId);
+    if (known !== undefined) return known;
+    let stored = 0;
+    for (const event of store.eventsAfter(matchId, 0)) if ('reportedTime' in event) stored = Math.max(stored, event.reportedTime);
+    sentMax.set(matchId, stored);
+    return stored;
+  };
+
   /** The effective instant and the reported time of a match at the current clock reading (FR-249, FR-302). */
   const timesOf = (view: CoreMatch): { effective: number; reported: number } => {
     const effective = effectiveInstant(clock.now(), view.lastStepMs);
-    return { effective, reported: reportedTime(effective, sentMax.get(view.matchId) ?? 0) };
+    return { effective, reported: reportedTime(effective, sentOf(view.matchId)) };
   };
   const remember = (matchId: string, reported: number): void => {
+    // No store read here (it runs after the commit): `timesOf` already filled the entry of a stored match.
     sentMax.set(matchId, Math.max(sentMax.get(matchId) ?? 0, reported));
   };
 
   /**
    * The pure core's dependencies for a stored match. The map is read only when a step is really performed (the getter), so a
-   * tick with nothing due reads no file. The digest of the map file against the stored one is checked in M2b' (T2').
+   * tick with nothing due reads no file. The map check of FR-250 runs there, before every step: a package that is not
+   * listed, cannot be read, has another digest than the stored one or fails validation gives the core no map (null), and
+   * the core halts the match with `map-changed` (FR-251).
    */
   const depsOf = (stored: StoredMatch): StepDeps => {
-    const { matchId, mapId } = stored.match;
+    const { matchId, mapId, mapDigest } = stored.match;
     const seedOf = seedsOf(stored.secret, matchId);
     let loaded: { map: unknown } | undefined;
     return {
       get map(): unknown {
-        loaded ??= { map: maps.load(mapId)?.map ?? null };
+        loaded ??= { map: mapForStep(maps, mapId, mapDigest) };
         return loaded.map;
       },
       sha256: sha256Ascii,
@@ -223,31 +302,119 @@ export function createMatchService(options: ServiceOptions): MatchService {
     }
   };
 
-  /** Arms the scheduler for the next due step of the match, replacing the earlier wake-up (FR-239). */
-  const arm = (view: CoreMatch): void => {
-    if (scheduler === undefined) return;
-    const earlier = armed.get(view.matchId);
-    if (earlier !== undefined) scheduler.cancel(earlier);
-    armed.delete(view.matchId);
-    if (!isRunning(view)) return;
-    const at = nextInstant(view);
-    if (at === null) return;
+  /** Whether `start` ran (the memo purge timer is armed only after it) and whether `close` ran (nothing is armed after it). */
+  const life = { started: false, closed: false };
+
+  const disarm = (matchId: string): void => {
+    const earlier = armed.get(matchId);
+    if (earlier !== undefined) scheduler?.cancel(earlier);
+    armed.delete(matchId);
+  };
+
+  /**
+   * Arms the one wake-up of a match at `at`, replacing the earlier one. The callback is isolated (`stepSafely`): whatever
+   * happens inside it, nothing escapes to the timer and the match is armed again (its next step, or the retry).
+   */
+  const armAt = (matchId: string, at: number, checkMap: boolean): void => {
+    if (scheduler === undefined || life.closed) return;
+    disarm(matchId);
     armed.set(
-      view.matchId,
+      matchId,
       scheduler.at(at, () => {
-        armed.delete(view.matchId);
-        tickMatch(view.matchId);
+        armed.delete(matchId);
+        stepSafely(matchId, checkMap);
       }),
     );
   };
 
-  /** After the commit: remember the reported time, tell the subscribers, arm the next wake-up. */
+  /** Arms the scheduler for the next due step of the match, replacing the earlier wake-up (FR-239); nothing when it is not running. */
+  const arm = (view: CoreMatch): void => {
+    if (scheduler === undefined) return;
+    disarm(view.matchId);
+    if (!isRunning(view)) return;
+    const at = nextInstant(view);
+    if (at !== null) armAt(view.matchId, at, false);
+  };
+
+  /** A clock step (or the start check) that failed is tried again RETRY_MS later (FR-292); the core then decides on time or late (FR-248). */
+  const armRetry = (matchId: string, checkMap: boolean): void => armAt(matchId, wholeMs(clock.now()) + RETRY_MS, checkMap);
+
+  /**
+   * After the commit: remember the reported time, arm the next wake-up from the stored view, then tell the subscribers.
+   * Arming first means a subscriber that advances inside its callback re-arms last, from its own newer view: no stale
+   * wake-up is left behind.
+   */
   const settle = (matchId: string, reported: number, committed: Committed | undefined): void => {
     remember(matchId, reported);
     if (committed === undefined) return;
-    publish(matchId, committed.events);
     arm(committed.view);
+    publish(matchId, committed.events);
   };
+
+  /** The memo purge in its own transaction (FR-238, FR-282 (e)); returns how many entries were deleted. */
+  const purgeNow = (): number => store.transaction(() => store.memoPurge(wholeMs(clock.now())));
+
+  /** The one purge wake-up (FR-238 purge timer), armed only after `start`. */
+  const purgeTimer: { handle?: SchedulerHandle } = {};
+  const armPurgeAt = (at: number): void => {
+    if (scheduler === undefined || !life.started || life.closed) return;
+    if (purgeTimer.handle !== undefined) scheduler.cancel(purgeTimer.handle);
+    purgeTimer.handle = scheduler.at(at, runPurge);
+  };
+  /** Arms the purge at the retention boundary of the oldest stored entry (purged once older than the retention), or disarms it. */
+  const armPurge = (): void => {
+    if (scheduler === undefined || !life.started || life.closed) return;
+    const oldest = store.memoOldest();
+    if (oldest !== undefined) return armPurgeAt(oldest + MEMO_RETENTION_MS + 1);
+    if (purgeTimer.handle !== undefined) scheduler.cancel(purgeTimer.handle);
+    delete purgeTimer.handle;
+  };
+  /** The purge callback: nothing escapes to the timer; a failure is retried RETRY_MS later. */
+  function runPurge(): void {
+    delete purgeTimer.handle;
+    try {
+      purgeNow();
+      armPurge();
+    } catch {
+      armPurgeAt(wholeMs(clock.now()) + RETRY_MS);
+    }
+  }
+  /** After a memo entry was committed at `createdMs`: it expires after every older entry, so only an unarmed purge needs arming. */
+  const memoStored = (createdMs: number | undefined): void => {
+    if (createdMs !== undefined && purgeTimer.handle === undefined) armPurgeAt(createdMs + MEMO_RETENTION_MS + 1);
+  };
+
+  /** A command whose storage fails replies `unavailable` (FR-292); the transaction rolled back, so nothing was accepted or performed. */
+  const orUnavailable = <T>(run: () => T, unavailable: () => T): T => {
+    try {
+      return run();
+    } catch (error) {
+      if (isStorageFailure(error)) return unavailable();
+      throw error;
+    }
+  };
+
+  /**
+   * The running matches a tick walks; a storage failure gives none (a tick is not the start: every match it would step was
+   * armed by `start` or by its last decision, and its own wake-up retries it). The start check enumerates on its own
+   * (`startCheck`): there a failure arms a retry of the whole check, since nothing is armed yet.
+   */
+  const runningIds = (): string[] => orUnavailable(() => store.runningMatchIds(), () => []);
+  /** The memo purge of a tick or the start; a storage failure purges nothing now (the next tick or the purge timer does). */
+  const purgeOrNone = (): number => orUnavailable(purgeNow, () => 0);
+
+  /**
+   * One clock step of one match, isolated from the others (the timer callbacks, `tick` and `start`): an exception is caught,
+   * classified (FR-292: `unavailable` for a storage failure, `error` otherwise) and the match is armed for a retry.
+   */
+  function stepSafely(matchId: string, checkMap: boolean): { done: TickDone | null } | { failure: StepFailure } {
+    try {
+      return { done: tickMatch(matchId, checkMap) };
+    } catch (error) {
+      armRetry(matchId, checkMap);
+      return { failure: { matchId, kind: isStorageFailure(error) ? 'unavailable' : 'error' } };
+    }
+  }
 
   /**
    * Adds the `match-finished` event after the application of round T (FR-246, FR-259, FR-287 (f)): the winner, the match
@@ -292,18 +459,31 @@ export function createMatchService(options: ServiceOptions): MatchService {
     store.appendEvents(matchId, outcome.events);
   };
 
-  /** Runs the one due step of a running match, if any, in one transaction; then publishes and re-arms. Null: nothing was due. */
-  function tickMatch(matchId: string): { matchId: string; steps: readonly StepRow[] } | null {
+  /**
+   * Runs the one due step of a running match, if any, in one transaction; then re-arms and publishes. Null: nothing was due.
+   * With `checkMap` (server start, FR-250) the map check runs first even when no step is due: a changed package halts the
+   * match with `map-changed`, stored and published like a step decision. A step that is overdue is performed once, late, at
+   * the effective instant, with shifted anchors (the core's rule, FR-248); the next one waits for its own wake-up.
+   */
+  function tickMatch(matchId: string, checkMap: boolean): TickDone | null {
     // Filled inside the transaction (a box, so that the reads after it see the assignments).
-    const done: { current?: CoreMatch; committed?: Committed; steps: readonly StepRow[]; reported: number } = { steps: [], reported: 0 };
+    const done: { current?: CoreMatch; committed?: Committed; steps: readonly StepRow[]; reported: number; haltedAtStart: boolean } = { steps: [], reported: 0, haltedAtStart: false };
     store.transaction(() => {
       const stored = store.getMatch(matchId);
       if (stored === undefined || !isRunning(stored.match)) return;
       done.current = stored.match;
       const times = timesOf(stored.match);
       done.reported = times.reported;
+      const deps = depsOf(stored);
+      if (checkMap && deps.map === null) {
+        const halted = haltMatch(stored.match, 'map-changed', times.reported);
+        persist(matchId, halted);
+        done.committed = { view: halted.view, events: halted.events };
+        done.haltedAtStart = true;
+        return;
+      }
       if (dueStep(stored.match.stage, stored.match.anchors, times.effective) === null) return;
-      const outcome = runDue(stored.match, times.effective, times.reported, depsOf(stored));
+      const outcome = runDue(stored.match, times.effective, times.reported, deps);
       if (outcome === null) return;
       const final = withFinish(stored, outcome, times.reported);
       persist(matchId, final);
@@ -316,7 +496,64 @@ export function createMatchService(options: ServiceOptions): MatchService {
       return null;
     }
     settle(matchId, done.reported, done.committed);
-    return { matchId, steps: done.steps };
+    return { matchId, steps: done.steps, haltedAtStart: done.haltedAtStart };
+  }
+
+  /** Steps every stored running match once, each isolated from the others, and collects what happened. */
+  const stepAll = (checkMap: boolean, ids: readonly string[]): Omit<StartReport, 'purged'> => {
+    const performed: { matchId: string; steps: readonly StepRow[] }[] = [];
+    const failed: StepFailure[] = [];
+    const halted: string[] = [];
+    for (const id of ids) {
+      const result = stepSafely(id, checkMap);
+      if ('failure' in result) failed.push(result.failure);
+      else if (result.done?.haltedAtStart === true) halted.push(id);
+      else if (result.done != null) performed.push({ matchId: id, steps: result.done.steps });
+    }
+    return { performed, failed, halted };
+  };
+
+  /** The one wake-up of a start check whose enumeration failed (FR-292, FR-294). */
+  const startTimer: { handle?: SchedulerHandle } = {};
+
+  /**
+   * The start check (FR-238, FR-248, FR-250, FR-294): the memo purge, then per stored running match the map check, the one
+   * overdue late step and the arming, then the purge timer. A storage failure of the enumeration of the running matches
+   * arms a retry of this whole check RETRY_MS later (nothing else is armed yet, so nothing else would retry it); any other
+   * error is a programming error and is rethrown to the caller.
+   */
+  function startCheck(): StartReport {
+    const purged = purgeOrNone();
+    let ids: string[];
+    try {
+      ids = store.runningMatchIds();
+    } catch (error) {
+      if (!isStorageFailure(error)) throw error;
+      const at = wholeMs(clock.now()) + RETRY_MS;
+      armStartRetry(at);
+      return { purged, performed: [], failed: [], halted: [], retry: { kind: 'unavailable', at } };
+    }
+    const report = stepAll(true, ids);
+    try {
+      armPurge();
+    } catch {
+      armPurgeAt(wholeMs(clock.now()) + RETRY_MS);
+    }
+    return { purged, ...report };
+  }
+
+  /** Arms the retry of the start check; its callback is isolated: nothing escapes to the timer, and a failure re-arms it. */
+  function armStartRetry(at: number): void {
+    if (scheduler === undefined || life.closed) return;
+    if (startTimer.handle !== undefined) scheduler.cancel(startTimer.handle);
+    startTimer.handle = scheduler.at(at, () => {
+      delete startTimer.handle;
+      try {
+        startCheck();
+      } catch {
+        armStartRetry(wholeMs(clock.now()) + RETRY_MS);
+      }
+    });
   }
 
   /** Everything after the shape, credential and memo checks; runs inside the transaction and writes only on success. */
@@ -366,19 +603,30 @@ export function createMatchService(options: ServiceOptions): MatchService {
       const scope: MemoScope = { credentialDigest: operatorDigest, match: null };
       const contentDigest = sha256Ascii(canonicalBody('POST', CREATION_PATH, request.body));
       const now = wholeMs(clock.now());
-      const fresh: { value?: Committed & { reported: number } } = {};
-      const outcome = store.transaction((): CreateOutcome => {
-        const stored = store.memoGet(scope, requestId);
-        const memo = decideMemo<CreateOutcome>(
-          stored === undefined ? undefined : { content: stored.contentDigest, reply: stored.reply as CreateOutcome, createdMs: stored.createdMs },
-          { content: contentDigest, now },
-        );
-        if (memo.decision === 'replay') return memo.reply;
-        if (memo.decision === 'request-id-reused') return failure(memo.error);
-        const result = decide(mapId, timing, timingError, now, (made) => (fresh.value = made));
-        if (isMemoisable(result)) store.memoPut(scope, requestId, { contentDigest, reply: result, createdMs: now });
-        return result;
-      });
+      const fresh: { value?: Committed & { reported: number }; memoAt?: number } = {};
+      const unavailable = { ok: false as const, error: errorReply('unavailable') };
+      const outcome = orUnavailable(
+        () =>
+          store.transaction((): CreateOutcome => {
+            const stored = store.memoGet(scope, requestId);
+            const memo = decideMemo<CreateOutcome>(
+              stored === undefined ? undefined : { content: stored.contentDigest, reply: stored.reply as CreateOutcome, createdMs: stored.createdMs },
+              { content: contentDigest, now },
+            );
+            if (memo.decision === 'replay') return memo.reply;
+            if (memo.decision === 'request-id-reused') return failure(memo.error);
+            const result = decide(mapId, timing, timingError, now, (made) => (fresh.value = made));
+            if (isMemoisable(result)) {
+              store.memoPut(scope, requestId, { contentDigest, reply: result, createdMs: now });
+              fresh.memoAt = now;
+            }
+            return result;
+          }),
+        // FR-292: the transaction rolled back, so no match exists and the request id is free (unavailable is never memoised).
+        (): CreateOutcome => unavailable,
+      );
+      if (outcome === unavailable) return outcome;
+      memoStored(fresh.memoAt);
       if (fresh.value !== undefined && outcome.ok) settle(outcome.reply.matchId, fresh.value.reported, fresh.value);
       return outcome;
     },
@@ -388,8 +636,10 @@ export function createMatchService(options: ServiceOptions): MatchService {
       if (!read.ok) return { ok: false, error: read.error };
       const presented = typeof request.credential === 'string' ? credentialDigest(request.credential) : undefined;
       const matchId = request.matchId;
-      const done: { committed?: Committed; reported: number; touched: boolean } = { reported: 0, touched: false };
-      const outcome = store.transaction((): AdvanceOutcome => {
+      const done: { committed?: Committed; reported: number; touched: boolean; memoAt?: number } = { reported: 0, touched: false };
+      const unavailable = { ok: false as const, error: errorReply('unavailable') };
+      // FR-292: a storage failure rolls the whole decision back: nothing is performed, published or memoised.
+      const outcome = orUnavailable((): AdvanceOutcome => store.transaction((): AdvanceOutcome => {
         const stored = typeof matchId === 'string' ? store.getMatch(matchId) : undefined;
         // Both comparisons always run, in time independent of the credential (FR-300).
         const isOperator = presented !== undefined && sameDigest(presented, operatorDigest);
@@ -415,9 +665,14 @@ export function createMatchService(options: ServiceOptions): MatchService {
           done.touched = true;
           result = decideStep(stored, read.value);
         }
-        if (requestId !== undefined && isMemoisable(result)) store.memoPut(memoScope, requestId, { contentDigest: content, reply: result, createdMs: now });
+        if (requestId !== undefined && isMemoisable(result)) {
+          store.memoPut(memoScope, requestId, { contentDigest: content, reply: result, createdMs: now });
+          done.memoAt = now;
+        }
         return result;
-      });
+      }), (): AdvanceOutcome => unavailable);
+      if (outcome === unavailable) return outcome;
+      memoStored(done.memoAt);
       if (done.touched) settle(matchId, done.reported, done.committed);
       return outcome;
 
@@ -438,7 +693,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
           depsOf(stored),
         );
         if (!decision.ok) {
-          // An advance that halts the match stores the halted view and its event (FR-251; the halting task tests it).
+          // An advance that halts the match stores the halted view and its `match-halted` event and replies `match-halted` (FR-251).
           if (decision.outcome !== undefined) {
             persist(matchId, decision.outcome);
             done.committed = { view: decision.outcome.view, events: decision.outcome.events };
@@ -466,7 +721,9 @@ export function createMatchService(options: ServiceOptions): MatchService {
       const round = body.kind === 'winner' ? 0 : (body.round as number);
       const scope: MemoScope = { credentialDigest: credentialDigest(client.credential), match: matchId };
       const content = sha256Ascii(canonicalBody('POST', submissionPath(matchId), request.body));
-      return store.transaction((): SubmitOutcome => {
+      const memo: { at?: number } = {};
+      // FR-292: a storage failure rolls the prediction and its memo back together: nothing is reported as accepted.
+      const outcome = orUnavailable((): SubmitOutcome => store.transaction((): SubmitOutcome => {
         const now = wholeMs(clock.now());
         if (body.requestId !== undefined) {
           const memoStored = store.memoGet(scope, body.requestId);
@@ -491,28 +748,50 @@ export function createMatchService(options: ServiceOptions): MatchService {
             result = { ok: false, error: decision.error };
           }
         }
-        if (body.requestId !== undefined && isMemoisable(result)) store.memoPut(scope, body.requestId, { contentDigest: content, reply: result, createdMs: now });
+        if (body.requestId !== undefined && isMemoisable(result)) {
+          store.memoPut(scope, body.requestId, { contentDigest: content, reply: result, createdMs: now });
+          memo.at = now;
+        }
         return result;
-      });
+      }), (): SubmitOutcome => ({ ok: false, error: errorReply('unavailable') }));
+      memoStored(memo.at);
+      return outcome;
     },
 
     ownPredictions(request: OwnPredictionsRequest): OwnPredictionsOutcome {
       if (!isNamespace(request.namespace)) throw new TypeError('the caller identity is a namespace');
       if (!isLocalId(request.playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
-      if (typeof request.matchId !== 'string' || store.getMatch(request.matchId) === undefined) return { ok: false, error: errorReply('unknown-match') };
       const player = playerIdOf(request.namespace, request.playerId);
       const toReply = (p: StoredPrediction): PredictionReply => ({ kind: p.kind, ...(p.kind === 'winner' ? {} : { round: p.round }), choice: p.choice, version: p.version });
-      return { ok: true, predictions: store.predictionsOf(request.matchId, player).map(toReply) };
+      return orUnavailable(
+        (): OwnPredictionsOutcome => {
+          if (typeof request.matchId !== 'string' || store.getMatch(request.matchId) === undefined) return { ok: false, error: errorReply('unknown-match') };
+          return { ok: true, predictions: store.predictionsOf(request.matchId, player).map(toReply) };
+        },
+        () => ({ ok: false, error: errorReply('unavailable') }),
+      );
     },
 
     tick(): TickReport {
-      const purged = store.transaction(() => store.memoPurge(wholeMs(clock.now())));
-      const performed: { matchId: string; steps: readonly StepRow[] }[] = [];
-      for (const id of store.runningMatchIds()) {
-        const done = tickMatch(id);
-        if (done !== null) performed.push(done);
-      }
-      return { purged, performed };
+      const purged = purgeOrNone();
+      const { performed, failed } = stepAll(false, runningIds());
+      return { purged, performed, failed };
+    },
+
+    start(): StartReport {
+      life.started = true;
+      return startCheck();
+    },
+
+    close(): void {
+      life.closed = true;
+      if (startTimer.handle !== undefined) scheduler?.cancel(startTimer.handle);
+      delete startTimer.handle;
+      for (const handle of armed.values()) scheduler?.cancel(handle);
+      armed.clear();
+      if (purgeTimer.handle !== undefined) scheduler?.cancel(purgeTimer.handle);
+      delete purgeTimer.handle;
+      store.close();
     },
 
     publicMatch(matchId: string): PublicMatch | undefined {
@@ -531,7 +810,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
     },
 
     purgeMemos(): number {
-      return store.transaction(() => store.memoPurge(wholeMs(clock.now())));
+      return purgeNow();
     },
   };
 }
