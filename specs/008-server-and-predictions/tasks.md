@@ -72,7 +72,7 @@ Rules for every task:
   - Done when: CI green; ledger and figures in the PR; `MEMORY.md` updated (state, decisions, lessons; next: detail M2a).
 
 ## M2a — Protocol package and pure match core (`feat/008-m2a-protocol-and-core`)
-Depends on M1 (merged). Plan section 16. Status: **awaiting the user's approval**, together with the item below.
+Depends on M1 (merged). Plan section 16. Status: **approved 2026-10-22** (with A1: filter widened once, in T2).
 
 **Needs a user decision before T1**
 - **A1. Lockfile-filter edits in two earlier viewer tests.** `apps/web/test/shaped-deps.test.ts` (line 43) and `apps/web/test/labels-render.test.ts` (line 53) ignore the `apps/server` lockfile entries since M1; the new workspace adds `packages/protocol` and `node_modules/@mbrg/protocol`, which they must also ignore (same meaning: the viewer's own dependencies are unchanged). Recommendation: approve, and write the filter once as "every spec 008 workspace entry and its link" so M2b to M5 need no further edit. Alternative: put the wire types inside `apps/server` (no new workspace, no edit), against U1 and P13 (the bot and the viewer need them).
@@ -86,7 +86,7 @@ M2a rules (in addition to the M1 rules):
 - Traceability bookkeeping: a task that traces an id moves it from `PENDING_008` to `DONE_008` in the same commit, updates the `DONE_008` comment (task and id) and the two pinned counts; partial ids already in `DONE_008` are cited with their part (for example `NFR-47 (b)`).
 - Fake clock and fake random only in tests (`apps/server/test/helpers`); the core gets `now` as a parameter and seeds through `seedOf(k)` (plan PD6).
 
-- [ ] **T1. Branch, commit plan / tasks; bookkeeping check.** NFR-55
+- [x] **T1. Branch, commit plan / tasks; bookkeeping check.** NFR-55
   - Depends on: M1; user approval of plan section 16 and A1.
   - Files: `specs/008-server-and-predictions/{plan,tasks}.md` (as approved), `packages/sim/test/traceability.test.ts`.
   - Tests first: the counts test reads `DONE_008` and `PENDING_008` from their literals and asserts their sizes (8 / 88 now) with the M2a target noted in a comment (40 / 56); a planted M2a id (for example `FR-233`) in a dummy title is reported by "no pending id is already traced" (the existing planted test uses FR-231, which stays pending until M2b).

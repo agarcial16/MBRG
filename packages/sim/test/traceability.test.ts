@@ -203,6 +203,7 @@ describe('traceability', () => {
     expect(literal).toContain('NFR-57');
     expect(PENDING_008).toHaveLength(96 - DONE_008.length);
     // After M1: 8 ids traced (FR-252, FR-312, FR-313, NFR-47 part (e), NFR-48 seeds, NFR-51, NFR-53, NFR-55), 88 pending.
+    // M2a target (T10): 40 done / 56 pending; each M2a task moves its ids in its own commit.
     expect(DONE_008).toHaveLength(8);
     expect(PENDING_008).toHaveLength(88);
     expect(new Set([...PENDING_008, ...DONE_008]).size).toBe(96);
@@ -219,6 +220,11 @@ describe('traceability', () => {
   it('NFR-55 the pending-id check sees a pending id planted in a test title', () => {
     const planted = tracedIds({ 'x/a.test.ts': "it('FR-231 a', () => {});" });
     expect(PENDING_008.filter((id) => planted.has(id))).toStrictEqual(['FR-231']);
+  });
+
+  it('NFR-55 the pending-id check sees a pending M2a id planted in a dummy title', () => {
+    const planted = tracedIds({ 'x/a.test.ts': "it('FR-233 a', () => {});" });
+    expect(PENDING_008.filter((id) => planted.has(id))).toStrictEqual(['FR-233']);
   });
 
   it('NFR-44 the 18 ids of spec 007 are all expected', () => {
