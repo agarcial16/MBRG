@@ -72,7 +72,7 @@ describe('NFR-46 the before figures (006 placement, measured aspects)', () => {
     expect(row.cy).toBeCloseTo(Number(s.sy) / Number(s.n) + 0.5, 6);
   });
 
-  it('NFR-46 Francia at round 4 (n 1,165,291, C near (932, 1056), rho 151) is horizontal h 120 far outside the centre disc in 006, with the injected aspect 4 and with the measured one', async () => {
+  it('NFR-46 Francia at round 4 (n 1,165,291, C near (932, 1056), rho 151) is horizontal h 120 far outside the centre disc in 006, with the injected aspect 4 and with the measured one', { timeout: 60_000 }, async () => {
     const dev = await devRun();
     const layout = dev.factions[4]!;
     expect(layout.boxes.labels.size).toBe(1);

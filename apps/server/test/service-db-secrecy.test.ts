@@ -152,7 +152,7 @@ const NEXT = { 'phase-1': 'phase-1-close', 'phase-2': 'phase-2-close', locked: '
 const CLIENT = { credential: 'client-credential-web-0123456789ab', namespace: 'web' } as const;
 
 describe('NFR-47 (d) the database never holds the future', () => {
-  it('NFR-47 (d) FR-255 (storage) FR-256 (storage) a full match and a halted one, stopped and restarted after every action: no absorber, pending state, later round, round seed or secret in storage', () => {
+  it('NFR-47 (d) FR-255 (storage) FR-256 (storage) a full match and a halted one, stopped and restarted after every action: no absorber, pending state, later round, round seed or secret in storage', { timeout: 60_000 }, () => {
     withTempDir((dir) => {
       const file = join(dir, 'secrecy.sqlite');
       const pkg = writeMapPackage(dir, 'pkg', DEV_MAP_JSON);

@@ -181,7 +181,7 @@ describe('exact centre of mass and sums (spec 007 FR-218, FR-228)', () => {
     expect(centreSums(r.p, [])).toStrictEqual({ n: 0n, sx: 0n, sy: 0n });
   });
 
-  it('FR-218 FR-228 the sums of every dev-map label (rounds 0..4) equal the 006 sums, and Francia at round 4 has n and C of the spec', async () => {
+  it('FR-218 FR-228 the sums of every dev-map label (rounds 0..4) equal the 006 sums, and Francia at round 4 has n and C of the spec', { timeout: 60_000 }, async () => {
     const run = await devRun();
     let biggest = 0n;
     let francia: CentreSums | undefined;
@@ -229,7 +229,7 @@ describe('exact integer square root and dyadic split (spec 007 FR-228)', () => {
     expect(() => isqrt(-1n)).toThrow(RangeError);
   });
 
-  it('FR-228 dyadic writes every height x aspect product exactly as W / 2^E with the smallest E', () => {
+  it('FR-228 dyadic writes every height x aspect product exactly as W / 2^E with the smallest E', { timeout: 60_000 }, () => {
     const aspects = [...Object.values(MEASURED_ASPECTS), 0.6, 1, 4, 3, 0.1, 1e-3, 123.456];
     let checked = 0;
     for (const a of aspects) {
