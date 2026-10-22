@@ -142,6 +142,9 @@ T6 proves the chosen runner: a child process starts `apps/server/src/main.ts --c
 | NFR-57 | M2b; results part M4 |
 | FR-241, FR-243, FR-246, FR-251 | storage M2b; scoring parts M4 |
 | FR-270, FR-281, FR-282, FR-288, FR-289, FR-301, FR-302 | core or storage M2a/M2b; HTTP or stream M3a/M3b |
+| FR-240, FR-295 | pure decision M2a; storage transaction and per-match serialisation M2b |
+| FR-253, FR-254, FR-257, FR-258 | public view, encoder and core decisions M2a; replies over HTTP M3a, events M3b |
+- **M2a target**: 32 more ids move to `DONE_008` (section 16); after M2a `DONE_008` holds 40 and `PENDING_008` 56 ids.
 - **M1 closing state**: the M1 ids FR-252, FR-312, FR-313, NFR-47, NFR-48, NFR-51, NFR-53, NFR-55 (8 ids) are in `DONE_008`; `PENDING_008` holds exactly 88 ids (96 - 8; the test asserts both numbers). Of these, NFR-47 is only partly covered (part (e), the absorber uniformity) and NFR-48 only for seeds and records (round-seed goldens): the other parts of NFR-47 ((a) to (d), (f)) and the lifecycle and results parts of NFR-48 are completed by the milestones of the ledger above, and their test titles must name the part they cover (for example `NFR-47 (b) ...`), because the id can no longer be reported missing. NFR-55 stays partial in every milestone.
 - M5 removes the pending set (an empty list) and the spec goes to `implemented` after M5's acceptance.
 
@@ -157,11 +160,11 @@ T6 proves the chosen runner: a child process starts `apps/server/src/main.ts --c
 | M5 | `feat/008-m5-live-viewer` | Live viewer, address rules, map digest in the browser, web test client, production build check | FR-303 to FR-311; NFR-56 | M3b, M4 |
 
 ## 13. Recorded figures and checks
-**M1 closing summary**: delivers the three sim exports with state/faction checks (FR-312, FR-313), the `apps/server` skeleton with the tsx runner and warning filter, the secret/commitment/round-seed derivation (FR-252), the D7 checks (NFR-53), the dev-map seed goldens, the absorber uniformity (NFR-47(e), worst 0.2227 pp) and the traceability pending set (NFR-55). Earlier tests edited (only as the plan allows): `packages/sim/test/{candidates,match,traceability}.test.ts`, `packages/shared/test/no-regression.test.ts`, `apps/web/test/{shaped-deps,labels-render}.test.ts` (lockfile-entry pins now ignore `apps/server`). Lockfile diff = the workspace entry and link only. New dependencies: `tsx` 4.23.15 and `@types/node` 24.19.2, dev dependencies of `apps/server` (approved U2). Node `v24.0.0`, `node:sqlite` prints an `ExperimentalWarning` (filtered by the server). Map digest of `maps/dev`: `4d1698a310b46a6507fd128dad87f20873065d44a71b2ee5a78c062eb5c1e679`.
+**M1 closing summary**: delivers the three sim exports with state/faction checks (FR-312, FR-313), the `apps/server` skeleton with the tsx runner and warning filter, the secret/commitment/round-seed derivation (FR-252), the D7 checks (NFR-53), the dev-map seed goldens, the absorber uniformity (NFR-47(e), worst 0.2227 pp) and the traceability pending set (NFR-55). Earlier tests edited (only as the plan allows): `packages/sim/test/{candidates,match,traceability}.test.ts`, `packages/shared/test/no-regression.test.ts`, `apps/web/test/{shaped-deps,labels-render}.test.ts` (lockfile-entry pins now ignore `apps/server`). Lockfile diff = the workspace entry and link only. New dependencies: `tsx` 4.23.15 and `@types/node` 24.19.2, dev dependencies of `apps/server` (approved U2). Node `v24.0.0` (local), `node:sqlite` prints an `ExperimentalWarning` (filtered by the server). **Version dependence (noted after the merge, PR #28, 061119b):** CI runs Node `v24.21.0`, which no longer prints that warning; the M1 runner test was made version tolerant (it records whether the warning appears and checks the filter only drops that one). The filter stays harmless where the warning is absent. Map digest of `maps/dev`: `4d1698a310b46a6507fd128dad87f20873065d44a71b2ee5a78c062eb5c1e679`.
 
 (Filled during M1: Node version, `node:sqlite` stability label, experimental warning yes/no, runner check, test vectors, dev-map golden digests, absorber uniformity worst deviation. Later milestones add their figures.)
 
-- **T5 (`node:sqlite`)**: Node `v24.0.0` (win32). `import('node:sqlite')` works with no flag. Stability label: 1.1 Active development (from the Node 24 documentation, not checked online here); a plain import prints `ExperimentalWarning: SQLite is an experimental feature and might change at any time` (warning present: yes). In-memory and file databases, commit, rollback and the `PRAGMA locking_mode = EXCLUSIVE` lock (second connection fails with locked/busy) all pass on Windows. `engines` (>=24) and `.nvmrc` (24) untouched (U3). Lockfile gained only the `apps/server` workspace entry and its link (`tsx` 4.23.15, `@types/node` 24.19.2 were already locked).
+- **T5 (`node:sqlite`)**: Node `v24.0.0` (win32; CI: `v24.21.0`, no warning there, see above). `import('node:sqlite')` works with no flag. Stability label: 1.1 Active development (from the Node 24 documentation, not checked online here); a plain import prints `ExperimentalWarning: SQLite is an experimental feature and might change at any time` (warning present: yes). In-memory and file databases, commit, rollback and the `PRAGMA locking_mode = EXCLUSIVE` lock (second connection fails with locked/busy) all pass on Windows. `engines` (>=24) and `.nvmrc` (24) untouched (U3). Lockfile gained only the `apps/server` workspace entry and its link (`tsx` 4.23.15, `@types/node` 24.19.2 were already locked).
 - **T6 (runner and warning filter)**: `tsx` 4.23.15 runs `apps/server/src/main.ts --check` from `apps/server` and from the repository root (`node --import tsx`; scripts `start` = `tsx src/main.ts`, `check` = `tsx src/main.ts --check`): imports `@mbrg/sim`, `@mbrg/shared` and `node:sqlite` through the workspace links, opens `:memory:`, prints `check ok`, exits 0. Without the filter stderr has the SQLite `ExperimentalWarning` (yes). `installWarningFilter()` wraps `process.emitWarning` and drops only name `ExperimentalWarning` + message matching /sqlite/i; with it installed first the SQLite warning is gone, a planted `TestWarning` and another `ExperimentalWarning` still print. Mutation (filter drops everything) fails the planted-warning test.
 - **T7 (secret and round seeds)**: `apps/server/src/secret.ts` (imports only `node:crypto`). Vectors pinned in `apps/server/test/secret.test.ts`: 5 fixed secrets (ascending 0x00..0x1f, all 0x00, all 0xff, bytes (7i+3) mod 256, SHA-256 of a label) x k = 1, 2, 3, 4, 70, 255, 256, 65536, 2^31-1, each equal through `createHmac`, a pure-JS HMAC built on `createHash`, and (secret 0x00..0x1f, k in 1, 2, 3, 4, 70, 2^31-1) Web Crypto `subtle.sign`; RFC 4231 test case 2 passes through the helper. Secret 0x00..0x1f: commitment `630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd`; s_1..s_4 = 3730603940, 4041377160, 3246583532, 361591214; s_70 = 330976203; s_(2^31-1) = 282600578. Mutations proved: little-endian read, message without `v1/`, key as hex text.
 - **T8 (dev-map goldens, uniformity)**: `apps/server/test/golden/dev-secrets.json` pins 3 secrets (0x00..0x1f, 0x20..0x3f, 32 x 0xa5) x rounds 1..4 (dev map T = 4): seed, victim, absorber, transferred, state digest; produced by an independent script (createHmac, own sfc32 victim redraw, digests from the spec text; absorber and transfers from the sim). Map digest of maps/dev `4d1698a310b46a6507fd128dad87f20873065d44a71b2ee5a78c062eb5c1e679`. NFR-47(e): seeds 0..2^20-1, worst deviation 0.2227 pp (tolerance 2 pp), loop 447 ms (whole file about 3 s); bulk draw equals `playRoundWithSeed` on seeds 0..9999. Mutations: roundSeed ignoring k fails goldens + secret tests; biased pickIndex fails uniformity + goldens.
@@ -182,3 +185,51 @@ T6 proves the chosen runner: a child process starts `apps/server/src/main.ts --c
 - PD3. `tsx` as the runner (section 7; user decisions U2, U5). Discarded: type stripping, compiler emit, a Vite bundle.
 - PD4. Pending-set traceability with "no pending id already traced" (section 11). Discarded: adding ranges per milestone (ids would be missing from the ranges while their tests exist).
 - PD5. Golden data of the server in `apps/server/test/golden` (section 9). Discarded: `packages/sim/test/golden` (must stay byte-identical).
+- PD6 (M2a). The core receives round seeds as a function `seedOf(k)` and never imports `secret.ts` (which imports `node:crypto`); a one-line shell adapter binds `seedOf = (k) => roundSeed(secret, k)`. Discarded: the core holding the secret bytes (a secret field in the core view would make FR-253 a convention instead of a type rule).
+- PD7 (M2a). The core view type has **no absorber field and no pending-state field**; the phase-1 close returns only the victim, its candidates and the living factions, and drops the rest of the engine result before returning (FR-256 by construction). Discarded: returning the full engine result and filtering in the shell.
+- PD8 (M2a). Canonical forms (state text, map-digest bytes, canonical body) live in `packages/protocol` as pure byte/text builders; hashing is done by the caller with the platform's crypto (server: `node:crypto`; viewer in M5: Web Crypto). No change to `packages/shared` (spec P32 placement; no "ask first" needed). Discarded: a pure-TypeScript SHA-256 in shared.
+
+## 16. M2a detail (protocol package and pure match core)
+Branch `feat/008-m2a-protocol-and-core` from `rewrite` at 061119b or later; one PR; tasks in `tasks.md`.
+### 16.1 Files
+```
+packages/protocol/                         NEW workspace (covered by the root `packages/*` glob)
+  package.json        name @mbrg/protocol, private, type module, exports ./src/index.ts,
+                      dependencies @mbrg/shared, @mbrg/sim (workspace only; types and pure reads)
+  tsconfig.json       extends the base, types []
+  src/errors.ts       ERROR_ORDER (FR-301 list), ErrorKind, firstError, listsSeveral    FR-301
+  src/ids.ts          local player id, request id, map id, namespace text rules       FR-297
+  src/timing.ts       timing reader: shape -> invalid-request, rules (a)-(d) -> invalid-timing FR-233, FR-234
+  src/read.ts         own-property readers of the command bodies (creation, advance,
+                      submission), documented field order, first failing field        FR-296
+  src/wire.ts         wire types: commands, replies, PublicMatch, events (payload types only)
+  src/public.ts       encodePublicMatch: fixed field order, stage-dependent fields    FR-253, FR-254, FR-257
+  src/canonical.ts    stateText, mapDigestBytes(files), canonicalBody(method, path, body) FR-282
+  src/index.ts
+  test/*.test.ts      unit tests, protocol purity scan                                 NFR-51 (protocol)
+apps/server/src/core/                      PURE (no node:*, no clock, no randomness)
+  time.ts             toMs, anchors(t0, timing), effectiveInstant, reportedTime, onTime/overdue FR-239, FR-249, FR-302, NFR-50
+  view.ts             CoreMatch (no absorber, no pending state), stage, anchors, lastStepMs
+  steps.ts            nextStep, closePhase1, closePhase2, apply, dueStep            FR-240, FR-247, FR-255, FR-256, FR-269
+  advance.ts          decideAdvance (expected step), late steps, shifted anchors      FR-244, FR-248, FR-295
+  predictions.ts      decideSubmission: stage, choice, cutoff, replace / no-op, version FR-261..FR-268
+  reads.ts            readRound (round-not-applied), publicView(core) -> PublicMatch   FR-254, FR-258
+  create.ts           creation checks: map T >= 1, timing                              FR-233, FR-237
+  memo.ts             decideMemo: replay / request-id-reused / new, retention, memoisable kinds FR-282
+apps/server/src/clock.ts                   systemClock (the only Date.now reader)    FR-314
+apps/server/src/seeds.ts                   seedOf(secret) adapter over secret.ts      PD6
+apps/server/test/helpers/{fake-clock.ts,fake-random.ts,core-driver.ts}
+apps/server/test/golden/core-timelines.json
+```
+### 16.2 Core decision shape
+`decideX(view: CoreMatch, input, now: number, deps: { seedOf(k): number }) -> { view: CoreMatch, steps: StepRow[], events: EventDraft[], reply: Reply }`, all plain JSON, no I/O. The shell (M2b) loads the view, calls the decision under the per-match serialisation, stores `view` + `steps` + `events` in one transaction (FR-240, FR-290), then publishes. M2a tests call the decisions directly through a small driver (`core-driver.ts`) that keeps the view in memory and advances a fake clock.
+### 16.3 Earlier-test and manifest edits in M2a
+- `apps/web/test/shaped-deps.test.ts` (line 43) and `apps/web/test/labels-render.test.ts` (line 53): their lockfile filters ignore `apps/server` and `node_modules/@mbrg/server` since M1; they must also ignore `packages/protocol` and `node_modules/@mbrg/protocol` (meaning unchanged: the viewer's lockfile view stays the spec 005/004 one). Needs the user's confirmation (tasks.md "Needs a user decision before T1").
+- `apps/server/test/manifest.test.ts` (spec 008's own test): runtime dependencies become `@mbrg/protocol`, `@mbrg/shared`, `@mbrg/sim`; a new protocol manifest test pins no third-party dependency (NFR-53, already traced).
+- Root `package.json`: `typecheck` gains `tsc -p packages/protocol/tsconfig.json` (protocol tests are already covered by the root `tsconfig.test.json` glob `packages/*/test`); `workspaces` unchanged (the `packages/*` glob covers it). Lockfile: only the `packages/protocol` entry, its link, and the new `@mbrg/protocol` dependency line of `apps/server`.
+### 16.4 Ids
+Traced and moved to `DONE_008` in M2a (32): FR-233, FR-234, FR-237, FR-239, FR-240, FR-244, FR-247, FR-248, FR-249, FR-253, FR-254, FR-255, FR-256, FR-257, FR-258, FR-261 to FR-269, FR-282, FR-295, FR-296, FR-297, FR-301, FR-302, FR-314, NFR-50. Partial parts also covered (already in `DONE_008`): NFR-47 (b), NFR-48 (lifecycle, core timelines), NFR-51 (protocol and server core), NFR-53 (protocol manifest), NFR-55. Test titles of partial ids name the part.
+### 16.5 Risks of M2a
+- **Size**: 10 tasks; T6 to T8 are the heaviest. If T6 or T7 overruns (more than one sitting), split the PR after T5 into M2a (protocol and time) and M2a' (stage machine, advances, predictions, memo, goldens), per D24's spirit; ids do not change.
+- **Decision API drift before M2b**: the decision shape of section 16.2 is pinned by the driver tests; M2b only adds storage around it.
+- **Victim recomputation cost**: the application recomputes the engine step (P26); one step on the dev map is well under 1 ms (M1 figures), so no cache.
