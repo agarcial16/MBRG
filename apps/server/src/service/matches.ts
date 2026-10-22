@@ -233,17 +233,31 @@ export function createMatchService(options: ServiceOptions): MatchService {
   const operatorDigest = credentialDigest(settings.operatorCredential);
   const limit = settings.runningMatchLimit;
 
-  /** The largest reported time already sent per match (FR-302, Definitions): kept in memory, a restart starts from the effective instant. */
+  /**
+   * The largest reported time already sent per match (FR-302, Definitions), kept in memory. A process that has sent nothing
+   * yet for a match (after a restart) starts from the largest reported time of the match's stored events, read once
+   * (FR-249 across restarts, plan section 13 M2b' T4'): the reported time of events never decreases across a restart.
+   */
   const sentMax = new Map<string, number>();
   const listeners = new Set<MatchListener>();
   const armed = new Map<string, SchedulerHandle>();
 
+  const sentOf = (matchId: string): number => {
+    const known = sentMax.get(matchId);
+    if (known !== undefined) return known;
+    let stored = 0;
+    for (const event of store.eventsAfter(matchId, 0)) if ('reportedTime' in event) stored = Math.max(stored, event.reportedTime);
+    sentMax.set(matchId, stored);
+    return stored;
+  };
+
   /** The effective instant and the reported time of a match at the current clock reading (FR-249, FR-302). */
   const timesOf = (view: CoreMatch): { effective: number; reported: number } => {
     const effective = effectiveInstant(clock.now(), view.lastStepMs);
-    return { effective, reported: reportedTime(effective, sentMax.get(view.matchId) ?? 0) };
+    return { effective, reported: reportedTime(effective, sentOf(view.matchId)) };
   };
   const remember = (matchId: string, reported: number): void => {
+    // No store read here (it runs after the commit): `timesOf` already filled the entry of a stored match.
     sentMax.set(matchId, Math.max(sentMax.get(matchId) ?? 0, reported));
   };
 
