@@ -190,7 +190,7 @@ M2b / M2b' rules (in addition to the M1 and M2a rules):
   - Commit: `feat(server): add the creation event and digest memo keys`.
   - Done when: tests green; mutations proved (creation event with seq 0, memo key built from the credential text); FR-289, FR-300 moved; `rg` finds `FR-289 (c)`, `FR-300 (digests)`.
 
-- [ ] **T3. SQLite store: open, settings, schema version, exclusive lock.** FR-291; FR-292 (durability settings)
+- [x] **T3. SQLite store: open, settings, schema version, exclusive lock.** FR-291; FR-292 (durability settings)
   - Depends on: T1.
   - Files: `apps/server/src/store/{store.ts,sqlite.ts,schema.ts}`, `apps/server/test/{store-open.test.ts,store-purity.test.ts}`, `packages/sim/test/traceability.test.ts`.
   - Tests first: `openStore(':memory:')` and a temporary file create schema version 1 in one transaction; reopening a version-1 file keeps the data; a file with `user_version` 2 is refused (`unknown-schema-version`); the PRAGMAs read back as PD9 (`journal_mode` wal on a file, `synchronous` full, `foreign_keys` on, `locking_mode` exclusive); a second `openStore` on the same file fails with `database-locked` while the first is open and succeeds after it closes (on Windows and Linux); `node:sqlite` is imported only under `src/store/`, and `src/core` / `packages/protocol/src` import neither the store nor the service (scan with planted violations).

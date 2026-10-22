@@ -292,6 +292,6 @@ M2b moves 23 ids to `DONE_008` (FR-231, FR-232, FR-235, FR-236, FR-238, FR-241, 
 ### 17.4 Risks of M2b
 - **Size**: 15 tasks in total, hence the split (B1). Without the split, T6 and the recovery/durability tasks would not fit 10 tasks.
 - **Re-pinning `core-timelines.json`**: `creationEvents` shifts every event sequence number by one and adds a first `schedule` event; the re-pin is a reviewed, separate commit whose diff must show only those two changes.
-- **WAL with an exclusive lock on Windows**: checked in T3 on Windows and in CI (Linux); a failure falls back to `journal_mode = DELETE` (PD9 alternative) without a spec change.
+- **WAL with an exclusive lock on Windows**: checked in T3 on Windows and in CI (Linux); a failure falls back to `journal_mode = DELETE` (PD9 alternative) without a spec change. **Checked in M2b T3 (Windows, Node v24.0.0): WAL with `locking_mode = EXCLUSIVE` works, no fallback needed**: `journal_mode` reads back `wal`, a second connection in the same process and a second Node process both fail with `database-locked` while the first is open and succeed after it closes. The Linux result comes from CI.
 - **Fault injection fidelity** (NFR-57): the abort happens before `COMMIT` and the connection is closed without commit, which is what a process kill leaves; a real child-process kill test is added once as a check of the seam.
 - **Real-clock accuracy** (NFR-50 measurement): measured by a script with the real scheduler on the reference PC, recorded in section 13, not run in CI.
