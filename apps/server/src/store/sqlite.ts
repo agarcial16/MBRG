@@ -268,6 +268,9 @@ export const openStore = (path: string): Store => {
       const row = one("SELECT COUNT(*) AS n FROM matches WHERE stage IN ('phase-1', 'phase-2', 'locked')");
       return row === undefined ? 0 : num(row, 'n');
     },
+    runningMatchIds(): string[] {
+      return all("SELECT id FROM matches WHERE stage IN ('phase-1', 'phase-2', 'locked') ORDER BY rowid").map((row) => str(row, 'id'));
+    },
     getState(matchId: string, round: number): StoredState | undefined {
       const row = one('SELECT owners_json, state_digest FROM states WHERE match_id = ? AND round = ?', matchId, round);
       if (row === undefined) return undefined;

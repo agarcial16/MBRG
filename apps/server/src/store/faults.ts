@@ -28,6 +28,7 @@ export const withFaults = (store: Store, plan: FaultPlan): Store => {
     updateMatch: (match) => store.updateMatch(match),
     getMatch: (matchId) => store.getMatch(matchId),
     runningCount: () => store.runningCount(),
+    runningMatchIds: () => store.runningMatchIds(),
     getState: (matchId, round) => store.getState(matchId, round),
     putRecord: (matchId, record) => store.putRecord(matchId, record),
     records: (matchId) => store.records(matchId),

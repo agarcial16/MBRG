@@ -64,3 +64,11 @@ export const roundSeed = (secret: Uint8Array, k: number): number => {
 
 /** The reveal path (FR-259): the secret as 64 lowercase hexadecimal characters, only after the last round. */
 export const secretHex = (secret: Uint8Array): string => Buffer.from(checkSecret(secret)).toString('hex');
+
+/**
+ * The derivation rule as the `match-finished` event publishes it (FR-259, FR-287 (f)): a finished match lets anyone check
+ * the commitment and recompute every round seed. It names the rule of this file's header and never changes for stored
+ * matches (a new rule would need a new name).
+ */
+export const DERIVATION_RULE =
+  'mbrg/round-seed/v1: commitment = SHA-256(secret bytes); s_k = first 4 bytes, big-endian, of HMAC-SHA-256(key = secret bytes, message = "mbrg/round-seed/v1/" + k in decimal)';

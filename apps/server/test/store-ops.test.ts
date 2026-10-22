@@ -234,6 +234,8 @@ describe('matches', () => {
         });
       });
       expect(store.runningCount()).toBe(4);
+      // The same matches by id, oldest first (what a tick walks): M0 phase-1, M1 phase-2, M2 locked, M5 phase-1.
+      expect(store.runningMatchIds()).toStrictEqual(['M0', 'M1', 'M2', 'M5']);
     });
   });
 });

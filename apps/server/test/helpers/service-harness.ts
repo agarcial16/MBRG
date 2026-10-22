@@ -10,6 +10,8 @@ import type { Settings } from '../../src/service/settings';
 import { fakeClock } from './fake-clock';
 import type { FakeClock } from './fake-clock';
 import { fakeRandom } from './fake-random';
+import { fakeScheduler } from './fake-scheduler';
+import type { FakeScheduler } from './fake-scheduler';
 import { DEV_DIR } from './digests';
 
 /** The operator credential of the tests: plain text, only ever compared through its digest. */
@@ -36,6 +38,10 @@ export interface HarnessOptions {
   /** Use this (already opened) store instead of a fresh in-memory one. */
   readonly store?: Store;
   readonly operator?: string;
+  /** The match secret of the first creation (the first 32-byte draw); every other draw comes from the fake random source. */
+  readonly secret?: Uint8Array;
+  /** Build a fake scheduler on the fake clock and give it to the service. */
+  readonly scheduler?: boolean;
 }
 
 export interface Draw {
@@ -47,6 +53,7 @@ export interface Harness {
   readonly store: Store;
   readonly service: MatchService;
   readonly clock: FakeClock;
+  readonly scheduler: FakeScheduler | undefined;
   readonly settings: Settings;
   /** Every call of the random source, in order. */
   readonly draws: Draw[];
@@ -61,6 +68,8 @@ export function serviceHarness(options: HarnessOptions = {}): Harness {
   const source = fakeRandom(options.seed ?? 1);
   const draws: Draw[] = [];
   const store = options.store ?? openStore(':memory:');
+  const scheduler = options.scheduler === true ? fakeScheduler(clock) : undefined;
+  let secretUsed = options.secret === undefined;
   const service = createMatchService({
     store,
     clock,
@@ -68,12 +77,17 @@ export function serviceHarness(options: HarnessOptions = {}): Harness {
     settings,
     random: (length) => {
       const bytes = source(length);
+      if (!secretUsed && length === 32) {
+        secretUsed = true;
+        bytes.set(options.secret!);
+      }
       draws.push({ length, bytes: Uint8Array.from(bytes) });
       return bytes;
     },
     ...(options.testSeedSource === undefined ? {} : { testSeedSource: options.testSeedSource }),
+    ...(scheduler === undefined ? {} : { scheduler }),
   });
-  return { store, service, clock, settings, draws, close: () => store.close() };
+  return { store, service, clock, scheduler, settings, draws, close: () => store.close() };
 }
 
 /** Runs `body` with a unique temporary directory, removed afterwards. */

@@ -86,6 +86,8 @@ export interface Store {
   getMatch(matchId: string): StoredMatch | undefined;
   /** Matches in `phase-1`, `phase-2` or `locked` (FR-232): halted and finished ones do not count. */
   runningCount(): number;
+  /** The ids of the running matches (the stages counted by `runningCount`), oldest first: what a tick walks. */
+  runningMatchIds(): string[];
   /** The state at an applied round, or undefined. */
   getState(matchId: string, round: number): StoredState | undefined;
   /** Stores the record of an applied round (1 <= round <= N): any other round is refused (FR-255, FR-256). */

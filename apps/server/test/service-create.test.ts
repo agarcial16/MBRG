@@ -324,8 +324,8 @@ describe('what stays fixed', () => {
         const second = h.service.create({ credential: OPERATOR, body: { mapId: 'live', timing: 'manual', requestId: 'b' } });
         expect(second.ok && second.reply.match.mapDigest).not.toBe(mapDigest());
         expect(h.store.getMatch(first.reply.matchId)!.match).toStrictEqual(before);
-        // No operation of the service changes a stored match.
-        expect(Object.keys(h.service).sort()).toStrictEqual(['create', 'purgeMemos']);
+        // The operations of the service: only the steps change a stored match, and never its fixed fields (service-steps.test.ts checks them after a whole match).
+        expect(Object.keys(h.service).sort()).toStrictEqual(['advance', 'create', 'publicMatch', 'purgeMemos', 'subscribe', 'tick']);
       } finally {
         h.close();
       }
