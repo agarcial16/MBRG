@@ -197,7 +197,7 @@ M2b / M2b' rules (in addition to the M1 and M2a rules):
   - Commit: `feat(server): open the sqlite store with an exclusive lock`.
   - Done when: tests green; mutations proved (version check removed, lock PRAGMA removed); FR-291, FR-292 moved (FR-292 (unavailable, retry) completed in M2b' T3'); `rg` finds them.
 
-- [ ] **T4. Store operations and atomic transactions.** FR-293; FR-270 (storage); FR-240 (storage); FR-267 (persistence)
+- [x] **T4. Store operations and atomic transactions.** FR-293; FR-270 (storage); FR-240 (storage); FR-267 (persistence)
   - Depends on: T3.
   - Files: `apps/server/src/store/{store.ts,sqlite.ts}`, `apps/server/test/{store-ops.test.ts,helpers/db-scan.ts}`, `packages/sim/test/traceability.test.ts`.
   - Tests first: a `CoreMatch` round-trips through `matches` for every field of `CORE_MATCH_KEYS` in every stage (anchors null and set, victim fields, winner, halt reason) plus the plain secret column (D14) and the host-token digest (FR-293); states and records per applied round; two step rows written in one transaction keep their order and instant (FR-240 (storage)); a prediction is upserted by (match, player, kind, round) with its version and winner-candidate count, and read back per player id (FR-267 (persistence), FR-270 (storage)); events get unique increasing `seq` and `eventsAfter(seq)` returns them in order; memo entries are read by key and purged after 24 h; a transaction that throws leaves no row of any table; `db-scan.ts` lists every table and column: no column for an absorber outside `records`, none for a pending state, none for a credential text.

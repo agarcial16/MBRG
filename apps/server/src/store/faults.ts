@@ -24,6 +24,22 @@ export const withFaults = (store: Store, plan: FaultPlan): Store => {
   return {
     settings: () => store.settings(),
     tables: () => store.tables(),
+    insertMatch: (row) => store.insertMatch(row),
+    updateMatch: (match) => store.updateMatch(match),
+    getMatch: (matchId) => store.getMatch(matchId),
+    runningCount: () => store.runningCount(),
+    getState: (matchId, round) => store.getState(matchId, round),
+    putRecord: (matchId, record) => store.putRecord(matchId, record),
+    records: (matchId) => store.records(matchId),
+    putStep: (matchId, step) => store.putStep(matchId, step),
+    steps: (matchId) => store.steps(matchId),
+    putPrediction: (matchId, playerId, prediction) => store.putPrediction(matchId, playerId, prediction),
+    predictionsOf: (matchId, playerId) => store.predictionsOf(matchId, playerId),
+    appendEvents: (matchId, events) => store.appendEvents(matchId, events),
+    eventsAfter: (matchId, seq) => store.eventsAfter(matchId, seq),
+    memoGet: (scope, requestId) => store.memoGet(scope, requestId),
+    memoPut: (scope, requestId, entry) => store.memoPut(scope, requestId, entry),
+    memoPurge: (now) => store.memoPurge(now),
     transaction<T>(fn: () => T): T {
       count += 1;
       if (count === plan.abortTransaction) {
