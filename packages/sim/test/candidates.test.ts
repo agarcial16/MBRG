@@ -85,7 +85,16 @@ describe('absorption candidates, direct part (FR-75, FR-76, FR-81)', () => {
 
   it('FR-81 the operation is internal: not exported from @mbrg/sim', () => {
     expect(Object.keys(sim)).not.toContain('absorptionCandidates');
-    expect(Object.keys(sim).sort()).toEqual(['MODE', 'getRounds', 'getState', 'ownerOf', 'totalRounds']);
+    expect(Object.keys(sim).sort()).toEqual([
+      'MODE',
+      'absorptionCandidatesOf',
+      'getRounds',
+      'getState',
+      'livingFactions',
+      'ownerOf',
+      'playRoundWithSeed',
+      'totalRounds',
+    ]);
   });
 });
 

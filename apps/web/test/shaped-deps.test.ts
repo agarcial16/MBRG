@@ -38,7 +38,10 @@ describe('spec 006 dependencies', () => {
 
   it('NFR-42 the lockfile lists the same packages and versions as at spec 005', () => {
     const lock = JSON.parse(lockRaw) as { packages: Record<string, { version?: string }> };
-    const keys = Object.keys(lock.packages).sort();
+    // Spec 008 adds the server workspace and its link only (NFR-53); the 005 entries are unchanged.
+    const keys = Object.keys(lock.packages)
+      .filter((k) => k !== 'apps/server' && k !== 'node_modules/@mbrg/server')
+      .sort();
     expect(keys).toHaveLength(LOCK_ENTRIES_005);
     const text = keys.map((k) => `${k}@${lock.packages[k]!.version ?? ''}`).join('\n');
     expect(fnv1a64(text)).toBe(LOCK_FNV_005);

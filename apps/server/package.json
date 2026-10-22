@@ -1,0 +1,18 @@
+{
+  "name": "@mbrg/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "check": "tsx src/main.ts --check"
+  },
+  "dependencies": {
+    "@mbrg/shared": "*",
+    "@mbrg/sim": "*"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "tsx": "4.23.15"
+  }
+}
