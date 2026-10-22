@@ -9,12 +9,11 @@ const lock = JSON.parse(lockRaw) as { packages: Record<string, Record<string, an
 const root = JSON.parse(rootRaw) as Record<string, any>;
 
 describe('protocol manifest', () => {
-  it('NFR-53 (protocol manifest) @mbrg/protocol is private, a module, and depends only on shared and sim', () => {
+  it('NFR-53 (protocol manifest) @mbrg/protocol is private, a module, and has no dependency at all (B2: not even the workspaces)', () => {
     expect(manifest.name).toBe('@mbrg/protocol');
     expect(manifest.private).toBe(true);
     expect(manifest.type).toBe('module');
-    expect(Object.keys(manifest.dependencies).sort()).toStrictEqual(['@mbrg/shared', '@mbrg/sim']);
-    for (const key of ['devDependencies', 'peerDependencies', 'optionalDependencies', 'bundledDependencies', 'scripts']) {
+    for (const key of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies', 'bundledDependencies', 'scripts']) {
       expect(manifest[key], key).toBeUndefined();
     }
   });
@@ -28,7 +27,6 @@ describe('protocol manifest', () => {
     expect(lock.packages['packages/protocol']).toStrictEqual({
       name: '@mbrg/protocol',
       version: '0.0.0',
-      dependencies: manifest.dependencies,
     });
     expect(lock.packages['node_modules/@mbrg/protocol']).toStrictEqual({ resolved: 'packages/protocol', link: true });
   });

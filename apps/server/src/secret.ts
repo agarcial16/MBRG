@@ -32,11 +32,17 @@ const checkSecret = (secret: unknown): Uint8Array => {
  * The `random` parameter is a TEST-ONLY seam (FR-260): production code never passes it, so the
  * platform CSPRNG is the only source there; no setting, variable or request can reach it.
  */
-export const newSecret = (random: RandomBytes = platformRandom): Uint8Array => {
-  const drawn: unknown = random(SECRET_BYTES);
-  if (!isBytes(drawn) || drawn.length !== SECRET_BYTES) throw new RangeError(`the random source must return ${SECRET_BYTES} bytes`);
+export const newSecret = (random: RandomBytes = platformRandom): Uint8Array => drawBytes(SECRET_BYTES, random);
+
+/**
+ * Draws exactly `length` bytes with ONE call of the source (the only way the server obtains random bytes, FR-314):
+ * the result is a private copy. The service uses it for the match id and the host token (FR-236), one call each.
+ */
+export function drawBytes(length: number, random: RandomBytes = platformRandom): Uint8Array {
+  const drawn: unknown = random(length);
+  if (!isBytes(drawn) || drawn.length !== length) throw new RangeError(`the random source must return ${length} bytes`);
   return Uint8Array.from(drawn);
-};
+}
 
 /** SHA-256 of the raw secret as 64 lowercase hexadecimal characters (published at creation). */
 export const commitment = (secret: Uint8Array): string => createHash('sha256').update(checkSecret(secret)).digest('hex');
@@ -58,3 +64,11 @@ export const roundSeed = (secret: Uint8Array, k: number): number => {
 
 /** The reveal path (FR-259): the secret as 64 lowercase hexadecimal characters, only after the last round. */
 export const secretHex = (secret: Uint8Array): string => Buffer.from(checkSecret(secret)).toString('hex');
+
+/**
+ * The derivation rule as the `match-finished` event publishes it (FR-259, FR-287 (f)): a finished match lets anyone check
+ * the commitment and recompute every round seed. It names the rule of this file's header and never changes for stored
+ * matches (a new rule would need a new name).
+ */
+export const DERIVATION_RULE =
+  'mbrg/round-seed/v1: commitment = SHA-256(secret bytes); s_k = first 4 bytes, big-endian, of HMAC-SHA-256(key = secret bytes, message = "mbrg/round-seed/v1/" + k in decimal)';

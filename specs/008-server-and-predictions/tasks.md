@@ -1,7 +1,7 @@
 # Tasks 008 — Server and predictions
 Plan: `specs/008-server-and-predictions/plan.md`. Prerequisites: spec approved by the user (2026-10-21, D25); plan section 1 decisions U1 to U5 answered by the user (2026-10-21/22: workspaces `apps/server` and `packages/protocol`; `tsx` 4.23.15 and `@types/node` 24.19.2 reused as pinned dev dependencies of `apps/server`; no type stripping and no import-line changes in sim or shared; `engines >=24` and `.nvmrc 24` kept, any raise back to the user; exports `playRoundWithSeed`, `absorptionCandidatesOf`, `livingFactions`); **plan and tasks approved by the user (M1 and M2a)**. Any later change goes to the spec first, then the plan, then these tasks.
 
-This file details **M1** (merged, PR #28, 061119b) and **M2a** (approved, plan section 16). M2b to M5 are listed as headings at the end and are detailed (at most 10 tasks each) in a later revision, approved before their first task. The M1 rules below apply to every milestone, with the M2a additions in the M2a section.
+This file details **M1** (merged, PR #28, 061119b), **M2a** (merged, PR #29, ac1263a) and **M2b / M2b'** (pending the user's approval, plan section 17). M3a to M5 are listed as headings at the end and are detailed (at most 10 tasks each) in a later revision, approved before their first task. The M1 rules below apply to every milestone, with the M2a additions in the M2a section.
 
 Rules for every task:
 - Delivery: branch `feat/008-m1-secret-and-sim-exports` cut from an up-to-date `rewrite` (14127e6 or later); one PR into `rewrite`, squash merge only with the user's OK and CI green. GitHub issues only if the user asks for one per milestone. Never push to `main` or `rewrite`. One commit per task unless stated (English, conventional prefix, one line <= 72 chars).
@@ -67,14 +67,14 @@ Rules for every task:
 
 - [x] **T9. Close M1: ledger, process checks, PR.** NFR-55, done criteria of M1
   - Files: `packages/sim/test/traceability.test.ts` (assert the pending set now holds exactly 88 ids: the M1 ids FR-252, FR-312, FR-313, NFR-47, NFR-48, NFR-51, NFR-53, NFR-55 were removed by the tasks that traced them), `specs/008-server-and-predictions/plan.md` (sections 11 and 13 updated), `MEMORY.md` (local).
-  - Steps: `git diff --exit-code rewrite -- packages/shared/src packages/sim/test/golden maps/dev` clean; `git diff --stat rewrite -- packages apps tools` shows only the planned files; full suite, typecheck and `CI=1` green; PR body lists the ledger of plan section 11, the figures of section 13 and the U1 to U5 decisions (2026-10-21/22). Push, PR, CI green, squash only with the user's OK.
+  - Steps: `git diff --exit-code rewrite -- packages/shared/src packages/sim/test/golden maps/dev` clean; `git diff --stat rewrite -- packages apps tools` shows only the planned files; full suite, typecheck and `CI=1` green; PR body lists the ledger of plan section 11, the figures of section 13 and the U1 to U5 decisions (2026-10-21/22). Push, PR, CI green, squash only with the user's OK (the push and the PR are made by the coordinator after asking the user, not by T8).
   - Commit: `test: pin the spec 008 pending set after M1`.
   - Done when: CI green; ledger and figures in the PR; `MEMORY.md` updated (state, decisions, lessons; next: detail M2a).
 
 ## M2a — Protocol package and pure match core (`feat/008-m2a-protocol-and-core`)
 Depends on M1 (merged). Plan section 16. Status: **approved 2026-10-22** (with A1: filter widened once, in T2).
 
-**Needs a user decision before T1**
+**User decisions (2026-10-22, approved)**
 - **A1. Lockfile-filter edits in two earlier viewer tests.** `apps/web/test/shaped-deps.test.ts` (line 43) and `apps/web/test/labels-render.test.ts` (line 53) ignore the `apps/server` lockfile entries since M1; the new workspace adds `packages/protocol` and `node_modules/@mbrg/protocol`, which they must also ignore (same meaning: the viewer's own dependencies are unchanged). Recommendation: approve, and write the filter once as "every spec 008 workspace entry and its link" so M2b to M5 need no further edit. Alternative: put the wire types inside `apps/server` (no new workspace, no edit), against U1 and P13 (the bot and the viewer need them).
 - Not a user decision (already approved): the `packages/protocol` workspace (U1); no new third-party dependency (the lockfile gains only the workspace entry and links); the root `typecheck` script gains `tsc -p packages/protocol/tsconfig.json` (spec "Repository configuration"); `workspaces` unchanged (the `packages/*` glob covers it).
 
@@ -156,9 +156,140 @@ M2a rules (in addition to the M1 rules):
   - Commit: `test: pin the spec 008 pending set after M2a`.
   - Done when: CI green; counts 40 / 56; `MEMORY.md` updated (next: detail M2b).
 
+## M2b — SQLite store and lifecycle service (`feat/008-m2b-store-and-lifecycle`), then M2b' — halting and recovery (`feat/008-m2b2-halting-and-recovery`)
+Depends on M2a (merged, ac1263a). Plan section 17. Status: **approved by the user on 2026-10-22**, together with B1 to B4 (decisions below).
+
+**Needs a user decision before T1**
+- **B1. DECIDED 2026-10-22: split.** Split per D24 into M2b (store, creation, steps and predictions through the service; 8 tasks) and M2b' (halting, map check, timer and recovery, anti-spoiler and durability at the service level; 7 tasks), two PRs. Recommendation: split (15 tasks do not fit 10). Alternative: one PR of 10 larger tasks (recovery, timer and durability merged into two tasks; harder to review).
+- **B2. DECIDED 2026-10-22: drop both.** `packages/protocol` dependencies. Its manifest declares `@mbrg/shared` and `@mbrg/sim`, but `src` imports neither. Recommendation: drop both (the bot can then use the protocol without the engine; edits `packages/protocol/test/manifest.test.ts` and the lockfile entry only, no download). Alternative: keep them for future type imports.
+- **B3. DECIDED 2026-10-22: confirm `clock`, no core change.** Cause of the chained application after a manual or late phase-2 close with L2 = 0: the merged core stores it with cause `clock` (the application falls due by the schedule at that instant; the caller's cause stays on the phase-2 close row). Recommendation: confirm `clock` and state it in the plan (no spec change: FR-240 lists the causes, not this case). Alternative: the application inherits `manual` / `late` (a core change and a re-pin of `core-timelines.json`).
+- **B4. DECIDED 2026-10-22: as recommended.** Reply shapes. Recommendation: move `PredictionReply` from `apps/server/src/core/predictions.ts` to `packages/protocol` in M2b (the memo stores replies and the bot needs the type); leave the unification of `StepMismatchReply` and the `round-not-applied` items with `ErrorReply` to M3a, together with the HTTP status mapping. Alternative: do both in M2b, or both in M3a.
+- Not a user decision: no new dependency (`node:sqlite`, `node:crypto`, timers are built in); root `package.json`, `workspaces`, `engines`, `.nvmrc` unchanged; lockfile unchanged unless B2 drops the two protocol dependency lines; SQLite settings are plan PD9 to PD13. For spec 009 (not 008): in `locked`, `victim.a` keeps the reveal-time A while `schedule.a` is the shifted one (FR-288 "same fields"); the coordinator should tell spec 009.
+
+M2b / M2b' rules (in addition to the M1 and M2a rules):
+- Branches from an up-to-date `rewrite`; M2b' starts after M2b is merged. One PR each; squash with the user's OK and CI green.
+- `node:sqlite` is imported only in `apps/server/src/store/`; `apps/server/src/core` and `packages/protocol/src` never import the store, the service, timers or `node:*` (scan, FR-291). Random bytes only through `secret.ts` (an exported byte-drawing helper there serves `service/ids.ts`); the system clock only through `clock.ts`; timers only in `service/scheduler.ts` (the M2a scan allow-list is extended by that one file if it forbids timers).
+- No credential text is ever written to the database (digests, PD12); the plain host token exists only in the 24 h creation memo (D23).
+- The absorber and the pending state are never written (PD11); tests inspect the database, not only the API.
+- Tests use the fake clock, the fake scheduler, the fake random source and in-memory SQLite, plus temporary-file databases for lock, restart and durability tests (unique paths, closed in `finally`); no mocking library (NFR-52).
+- Bookkeeping as in M2a: a task that traces an id moves it to `DONE_008` in the same commit; partial ids already done are cited with their part.
+
+### M2b
+
+- [x] **T1. Branch, commit plan / tasks; bookkeeping targets.** NFR-55
+  - Depends on: M2a; user approval of plan section 17 and B1 to B4.
+  - Files: `specs/008-server-and-predictions/{plan,tasks}.md`, `packages/sim/test/traceability.test.ts`.
+  - Tests first: counts still 40 / 56, with the M2b target 63 / 33 and the M2b' target 67 / 29 noted in comments; the planted-id test still uses FR-231 (pending until T5), so T5 switches it to a still-pending M3a id (FR-283).
+  - Commits: `docs: detail spec 008 milestones M2b and M2b'`; `test: prepare the spec 008 bookkeeping for M2b`.
+  - Done when: suite, typecheck and `CI=1` green; no id moved; `rg` finds NFR-55.
+
+- [x] **T2. Hand-offs from M2a: creation event, memo key by digest, reply placement.** FR-289 (c); FR-300 (digests); NFR-54 (store, memo keys)
+  - Depends on: T1.
+  - Files: `apps/server/src/core/{create.ts,memo.ts,predictions.ts}`, `packages/protocol/src/{wire.ts,index.ts}` (B4), `packages/protocol/{package.json,test/manifest.test.ts}` and `package-lock.json` (only if B2 drops the dependencies), `apps/server/test/{core-create.test.ts,core-memo.test.ts}`, `apps/server/test/helpers/core-driver.ts`, `apps/server/test/golden/core-timelines.json` (re-pin, reviewed), `packages/sim/test/traceability.test.ts`.
+  - Tests first: `creationEvents(view, reportedTime)` returns one `schedule` event with seq 1 (stage `phase-1`, the anchors with a clock, none with `manual`) and the view with `lastSeq` 1, which `encodePublicMatch` accepts (FR-289 (c)); `memoKey` takes a credential digest: the key built for a credential contains no substring of the credential text, two credentials give different keys, the same credential the same key (FR-300 (digests), NFR-54 (store)); `PredictionReply` is exported by the protocol and the core imports it from there (B4); with B2, the protocol manifest has no dependencies. Re-pin: `core-timelines.json` regenerated by a separate reviewed step; its diff shows only seq + 1 for every event and one first `schedule` event per scenario.
+  - Commit: `feat(server): add the creation event and digest memo keys`.
+  - Done when: tests green; mutations proved (creation event with seq 0, memo key built from the credential text); FR-289, FR-300 moved; `rg` finds `FR-289 (c)`, `FR-300 (digests)`.
+
+- [x] **T3. SQLite store: open, settings, schema version, exclusive lock.** FR-291; FR-292 (durability settings)
+  - Depends on: T1.
+  - Files: `apps/server/src/store/{store.ts,sqlite.ts,schema.ts}`, `apps/server/test/{store-open.test.ts,store-purity.test.ts}`, `packages/sim/test/traceability.test.ts`.
+  - Tests first: `openStore(':memory:')` and a temporary file create schema version 1 in one transaction; reopening a version-1 file keeps the data; a file with `user_version` 2 is refused (`unknown-schema-version`); the PRAGMAs read back as PD9 (`journal_mode` wal on a file, `synchronous` full, `foreign_keys` on, `locking_mode` exclusive); a second `openStore` on the same file fails with `database-locked` while the first is open and succeeds after it closes (on Windows and Linux); `node:sqlite` is imported only under `src/store/`, and `src/core` / `packages/protocol/src` import neither the store nor the service (scan with planted violations).
+  - Commit: `feat(server): open the sqlite store with an exclusive lock`.
+  - Done when: tests green; mutations proved (version check removed, lock PRAGMA removed); FR-291, FR-292 moved (FR-292 (unavailable, retry) completed in M2b' T3'); `rg` finds them.
+
+- [x] **T4. Store operations and atomic transactions.** FR-293; FR-270 (storage); FR-240 (storage); FR-267 (persistence)
+  - Depends on: T3.
+  - Files: `apps/server/src/store/{store.ts,sqlite.ts}`, `apps/server/test/{store-ops.test.ts,helpers/db-scan.ts}`, `packages/sim/test/traceability.test.ts`.
+  - Tests first: a `CoreMatch` round-trips through `matches` for every field of `CORE_MATCH_KEYS` in every stage (anchors null and set, victim fields, winner, halt reason) plus the plain secret column (D14) and the host-token digest (FR-293); states and records per applied round; two step rows written in one transaction keep their order and instant (FR-240 (storage)); a prediction is upserted by (match, player, kind, round) with its version and winner-candidate count, and read back per player id (FR-267 (persistence), FR-270 (storage)); events get unique increasing `seq` and `eventsAfter(seq)` returns them in order; memo entries are read by key and purged after 24 h; a transaction that throws leaves no row of any table; `db-scan.ts` lists every table and column: no column for an absorber outside `records`, none for a pending state, none for a credential text.
+  - Commit: `feat(server): store matches, steps, predictions, events and memos`.
+  - Done when: tests green; mutations proved (steps written in two transactions, prediction key without the round, memo purge off by one ms); FR-270, FR-293 moved; `rg` finds them and the partial parts.
+
+- [x] **T5. Lifecycle service: creation, ids, map list, memo, test-only seed seam.** FR-231, FR-232, FR-235, FR-236, FR-238, FR-259 (commitment), FR-260; NFR-47 (f); NFR-54 (store)
+  - Depends on: T2, T4.
+  - Files: `apps/server/src/service/{matches.ts,maps.ts,ids.ts,settings.ts}`, `apps/server/src/secret.ts` (exported byte-drawing helper only), `apps/server/src/main.ts`, `apps/server/test/{service-create.test.ts,service-seam.test.ts,helpers/service-harness.ts}`, `packages/sim/test/traceability.test.ts` (planted-id test switched to FR-283).
+  - Tests first: creation with the operator credential stores the match, the secret, the host-token digest and the creation event before replying with match id, public data at round 0 (commitment, `lastSeq` 1) and host token (FR-231, FR-259 (commitment)); errors in the FR-301 order: `forbidden`, `unknown-map`, map validation errors, `too-few-factions`, `invalid-timing`, `too-many-matches` at the 21st running match (halted and finished do not count) (FR-232); timing and map fixed after creation (FR-235); match id from 12 random bytes and host token from 32, drawn separately, in the credential character set (FR-236); a repeated creation with the same request id and content within 24 h returns the first reply with the same host token and creates nothing; a different content `request-id-reused`; after the purge the database holds no plain host token (FR-238, NFR-54 (store)); the test-only seed source is accepted only by the service constructor; `main.ts` builds the service from settings with none, and an environment variable named like a seed source changes nothing (FR-260, NFR-47 (f)).
+  - Commit: `feat(server): create matches through the lifecycle service`.
+  - Done when: tests green; mutations proved (match id and host token from one draw, host token stored in plain, memo replay ignoring the content); FR-231, FR-232, FR-235, FR-236, FR-238, FR-259, FR-260, NFR-54 moved; `rg` finds them and `NFR-47 (f)`.
+
+- [x] **T6. Steps through the service: advance, clock ticks, one transaction per decision, finish.** FR-241, FR-242, FR-243, FR-245, FR-246, FR-288 (data), FR-290, FR-315; NFR-52 (store and lifecycle); FR-295 (serialisation); FR-247 (shell)
+  - Depends on: T5.
+  - Files: `apps/server/src/service/{matches.ts,scheduler.ts}`, `apps/server/test/{service-steps.test.ts,helpers/fake-scheduler.ts}`, `packages/sim/test/traceability.test.ts`.
+  - Tests first: with the fake clock and scheduler, a dev-map match runs from creation to T: each phase-1 close stores its step row, victim, reveal instant and events in one transaction and publishes after the commit (a subscriber reading the database inside its callback sees the rows) (FR-241, FR-290); each phase-2 close stores its row and the `locked` stage (FR-242); each application stores row, state, record and the next anchors (FR-243); after round T the match is finished, the winner stored, a `match-finished` event carries the secret hex and the rule, and the public data of the finished match shows the secret (FR-246); an advance without the operator credential or the host token is `forbidden`, on a finished match `match-finished` (FR-245); the public data in `phase-2` and `locked` carries the stored victim fields (FR-288 (data)); two advances naming the same step and a clock step racing an advance perform one step (FR-295 (serialisation), FR-247 (shell)); victims and records equal `golden/dev-secrets.json` for timing `manual`, two clock settings and mid-round advances (FR-315).
+  - Commit: `feat(server): run match steps through the lifecycle service`.
+  - Done when: tests green; mutations proved (events published before commit, application stored in two transactions, advance check skipping the host token); FR-241, FR-242, FR-243, FR-245, FR-246, FR-288, FR-290, FR-315, NFR-52 moved; `rg` finds them.
+
+- [x] **T7. Predictions through the service: storage, memo replays, own predictions.** FR-262 to FR-267 (storage); FR-269 (no result rows for an empty phase); FR-270 (storage); FR-282 (b), (c) (stored replies)
+  - Depends on: T6.
+  - Files: `apps/server/src/service/matches.ts`, `apps/server/test/service-predictions.test.ts`.
+  - Tests first: accepted submissions are stored before the reply (a failing commit gives no reply of acceptance); the cutoff uses the effective instant from the stored last step instant, not a client time; a replacement increments the stored version; an equal resubmission writes nothing; a submission with a request id is memoised under the client-credential digest and replayed after the cutoff; rejections `prediction-closed` and `invalid-choice` are memoised, `invalid-player-id` is not; `ownPredictions` returns only the caller's namespaced player ids; a phase with no prediction leaves no result row and the match goes on (FR-269).
+  - Commit: `feat(server): store predictions through the lifecycle service`.
+  - Done when: tests green; mutations proved (reply before commit, memo of a non-memoisable kind); no new id moved (partial parts only, titles name them).
+  - Done (T7): also memoises advance requests with a request id (FR-282 covers advances); service takes the caller as {credential text, namespace} (resolving them is M3a); command path texts `/matches/{id}/advance` and `/matches/{id}/predictions`. The non-memoisable-kind mutation is unreachable at service level (those kinds are returned before the memo); covered by the core memo tests and T5.
+
+- [x] **T8. Close M2b: ledger, process checks, PR.** NFR-55
+  - Depends on: T1 to T7.
+  - Files: `packages/sim/test/traceability.test.ts` (assert 63 / 33), `specs/008-server-and-predictions/plan.md` (sections 11 and 13: M2b figures, partial parts), `MEMORY.md` (local).
+  - Steps: `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server/test/golden/dev-secrets.json` clean; `git diff --stat rewrite` shows only planned files (and the reviewed `core-timelines.json` re-pin); purity and store scans green; PR body lists the ledger, the moved ids and B1 to B4. Push, PR, CI green, squash only with the user's OK.
+  - Commit: `test: pin the spec 008 pending set after M2b`.
+  - Done when: CI green; counts 63 / 33; `MEMORY.md` updated (next: M2b').
+
+### M2b'
+
+**Hand-offs from M2b** (delivered facts the tasks below rely on; plan section 13): the service has `create`, `advance`, `submit`, `ownPredictions`, `tick`, `publicMatch`, `subscribe`, `purgeMemos` and an optional `scheduler` option, but no `start()` / `close()`; a storage failure currently throws (T3' maps it to `unavailable`); the map-digest check and halting are not implemented in the service (T2'); `sentMax` is in memory (T4'); credentials are TEXT and the caller is `{ credential, namespace }` (HTTP reading is M3a); settings are `MBRG_OPERATOR_CREDENTIAL`, `MBRG_MAPS`, `MBRG_MAX_RUNNING_MATCHES`, `MBRG_DATABASE`; the store offers `runningMatchIds`, `runningCount`, `eventsAfter`, `withFaults({failTransaction, abortTransaction})` and the test helper `db-scan.ts`; WAL with the exclusive lock works on Windows (CI confirms on the M2b PR).
+
+- [ ] **T1'. Branch, commit plan / tasks; bookkeeping targets.** NFR-55
+  - Depends on: M2b merged.
+  - Files: `specs/008-server-and-predictions/{plan,tasks}.md`, `packages/sim/test/traceability.test.ts`.
+  - Tests first: counts 63 / 33, target 67 / 29 in a comment.
+  - Commits: `docs: start spec 008 milestone M2b'`; `test: prepare the spec 008 bookkeeping for M2b'`.
+  - Done when: suite, typecheck and `CI=1` green.
+
+- [ ] **T2'. Map check and halting through the service.** FR-250, FR-251
+  - Depends on: T1'.
+  - Files: `apps/server/src/service/{matches.ts,maps.ts}`, `apps/server/test/service-halting.test.ts`, `packages/sim/test/traceability.test.ts`.
+  - Tests first: the shell passes `map: null` when the listed package is missing, fails validation or has another digest than the stored one, at start and before every step; the match halts with `map-changed`; an `isolated-faction` map halts with `isolated-faction`; a forced victim difference halts with `victim-mismatch` (FR-250); a halted match stores stage and reason, publishes `match-halted`, performs no further step, never stores or sends the secret hex, keeps the victim fields when the victim was revealed, answers `match-halted` to submissions and advances, serves its public data with the reason, and does not count toward the running-match limit; predictions of the halting round that were not scored stay as stored (scoring itself is M4) (FR-251). Also through the service (ledger additions): FR-245 `match-halted` on a halted match, FR-266 `match-halted` to a submission, FR-259 secret never revealed when halted, FR-243 halt with `victim-mismatch`, and FR-241 / FR-243 map check before the step (test titles name these ids).
+  - Commit: `feat(server): halt matches on map changes and engine errors`.
+  - Done when: tests green; mutations proved (digest check skipped before a step, halted match counted as running, secret revealed on halt); FR-250, FR-251 moved; `rg` finds them.
+
+- [ ] **T3'. Timer loop, storage failures and the 3 s retry.** FR-292 (unavailable, retry); FR-239, FR-244, FR-248 (timer, start-up and retry); FR-238 (purge timer); NFR-50 (real clock, measured)
+  - Depends on: T2'.
+  - Files: `apps/server/src/service/{matches.ts,scheduler.ts}`, `apps/server/src/store/faults.ts`, `apps/server/test/{service-timer.test.ts,service-faults.test.ts}`, `apps/server/scripts/clock-accuracy.ts`, plan section 13.
+  - Tests first: (M2b already arms the scheduler for the next due instant of a match after every decision, tested with the fake scheduler; this task adds `start()`, which arms every stored running match, and `close()`, which cancels the timers) the scheduler is armed after every decision and at start; the memo purge runs from a timer at the retention boundary (FR-238), not only at `tick()`; a fake clock jump forward makes the next tick perform one late step at the effective instant and shift the anchors (FR-248); a backward jump makes it wait (FR-249 (shell)); a storage failure (fault seam) inside a submission or an advance gives `unavailable` and leaves the database unchanged; a failed clock step is retried 3 s later, on time if within the tolerance, else late (PD13). NFR-50 measurement: the script runs a real-clock match with I = 6, L1 = 2, L2 = 1 for 10 rounds and records the worst delay from scheduled to performed (target within 1,000 ms) in plan section 13; not run in CI.
+  - Review hand-offs (plan section 13): isolate matches in `tick()` and in timer callbacks (one failing `tickMatch`, including a store-failure from `getMatch` or the `RangeError` 'inconsistent stored data', must not abort later matches; a throwing callback must be caught and re-armed); classify store errors for `unavailable` (programming `RangeError` vs storage failure); arm before publishing in `settle` (or arm from the stored view) so a subscriber that advances leaves no stale wake-up; consider a child-process lock test (Linux POSIX locks differ).
+  - Commit: `feat(server): schedule steps and retry after storage failures`.
+  - Done when: tests green; figure recorded; mutations proved (retry at 0 s, two overdue steps performed, `unavailable` after a partial write); no new id moved; `rg` finds `FR-292 (unavailable`.
+
+- [ ] **T4'. Restart recovery and lifecycle goldens.** FR-294; FR-249 (across restarts); NFR-48 (lifecycle)
+  - Depends on: T3'.
+  - Files: `apps/server/test/{service-restart.test.ts,service-timeline-golden.test.ts}`, `apps/server/test/golden/service-timelines.json`, `packages/sim/test/traceability.test.ts`.
+  - Tests first: with a temporary file database, a scripted match is stopped and restarted after every step: the restarted service resumes at the stored stage, round and anchors, never repeats or skips a step, applies the map check and then the late rule (FR-294); stored instants never decrease across a restart with a clock set back, and the reported time (kept in memory per match as `sentMax` in M2b) is rebuilt from the stored last step instant so it never decreases either (FR-249 (across restarts)); events stored before a stop are read back with their sequence numbers; golden service timelines for the six M2a scenarios (rows, anchors, stages, event types and seqs, victims, record and state digests) equal the core goldens re-pinned in M2b T2 and stay equal with a restart after every step (NFR-48 (lifecycle)).
+  - Ledger additions: FR-315 "restart after every step" is traced here (title names `FR-315`). Note on `sentMax`: rebuilding it is not strictly required (the effective instant is already >= the last step instant; the Definitions say "by this process"); it may take the maximum with the stored events' reported times. `sentMax` is never pruned (tiny leak per match).
+  - Commit: `test(server): resume matches after a restart`.
+  - Done when: tests green; mutation: resuming from the creation anchors instead of the stored ones fails; FR-294 moved; `rg` finds it and `NFR-48 (lifecycle)`.
+
+- [ ] **T5'. Anti-spoiler at the service level.** NFR-47 (a), (d); FR-255, FR-256 (storage)
+  - Depends on: T4'.
+  - Files: `apps/server/test/{service-twins.test.ts,service-db-secrecy.test.ts}`, `apps/server/test/helpers/db-scan.ts`.
+  - Tests first: (a) two services with test seed sources that give the same victims up to round k and different absorbers (and later rounds): every reply, stored event payload and public data before round k's application is byte-identical apart from match id, host token, commitment and reported time; (d) after every step of a scripted match, the database holds no `records` or `states` row for a round above N, no event about a round above N, no round seed of the planted secret (scanned in decimal, hexadecimal, base64 and base64url over every text and blob column), and no column able to hold an absorber outside `records` (FR-255, FR-256 (storage)).
+  - Commit: `test(server): check that storage never holds the future`.
+  - Done when: tests green; mutation: storing the engine's absorber in the match row during phase 2 fails (d); no new id moved; `rg` finds `NFR-47 (a)`, `NFR-47 (d)`.
+
+- [ ] **T6'. Durability: kill and restart between every transaction.** NFR-57 (M2b part)
+  - Depends on: T4'.
+  - Files: `apps/server/src/store/faults.ts`, `apps/server/test/{service-durability.test.ts,fixtures/kill-child.ts}`, `packages/sim/test/traceability.test.ts`.
+  - Tests first: for a scripted match with predictions, for every n, the fault seam aborts before the n-th commit and closes the connection without committing; a new service on the same file resumes; the final states, records, step rows, events and predictions equal those of an uninterrupted run (results empty until M4); no accepted prediction is lost, no step repeated or skipped. Once, a real child process running the service is killed (`SIGKILL` / `taskkill`) between two commits to validate the seam.
+  - Commit: `test(server): survive a kill between any two transactions`.
+  - Done when: tests green (runtime logged; above 5 s gets its own timeout); mutation: a commit split in two fails; NFR-57 moved; `rg` finds `NFR-57`.
+
+- [ ] **T7'. Close M2b': ledger, process checks, PR.** NFR-55
+  - Depends on: T1' to T6'.
+  - Files: `packages/sim/test/traceability.test.ts` (assert 67 / 29), `specs/008-server-and-predictions/plan.md` (sections 11 and 13), `MEMORY.md` (local).
+  - Steps: as M2b T8; PR body lists the ledger and the NFR-50 figure.
+  - Commit: `test: pin the spec 008 pending set after M2b'`.
+  - Done when: CI green; counts 67 / 29; `MEMORY.md` updated (next: detail M3a).
+
 ## Later milestones (headings only; detailed later, at most 10 tasks each)
-- **M2b. SQLite store, lifecycle service with the fake clock, halting, memo, recovery, durability.** FR-231, FR-232, FR-235, FR-236, FR-238, FR-240 to FR-243, FR-245, FR-246, FR-250, FR-251, FR-259, FR-260, FR-270 (storage), FR-288, FR-289 (data), FR-290 to FR-294, FR-300 (digests), FR-315; NFR-47(a), (d), (f), NFR-48 (lifecycle), NFR-52, NFR-54 (store), NFR-57. Depends on M2a.
-- **M3a. HTTP commands and reads, credentials, cross-origin, limits, paging, map files.** FR-257 (HTTP), FR-270 (read), FR-279, FR-280, FR-281 (non-result), FR-282 (transport), FR-283 to FR-286, FR-298 to FR-300, FR-301, FR-302 (HTTP); NFR-47(c), NFR-52, NFR-54 (logs). Depends on M2b.
+- **M3a. HTTP commands and reads, credentials, cross-origin, limits, paging, map files.** FR-257 (HTTP), FR-270 (read), FR-279, FR-280, FR-281 (non-result), FR-282 (transport), FR-283 to FR-286, FR-298 to FR-300, FR-301, FR-302 (HTTP); NFR-47(c), NFR-52, NFR-54 (logs); also the `StepMismatchReply` / `round-not-applied` shape unification with the HTTP status mapping (B4). Depends on M2b'. Hand-offs from the M2b review (plan section 13): re-assert FR-260 and NFR-47 (f) against `createServer` and the listener; map the `TypeError` of `submit` for a bad identity or namespace; consider not memoising `unknown-match` for arbitrary ids (storage growth); `ownPredictions` namespace-wide listing needs a store operation; the `memo.content_digest` format is frozen; unifying `StepMismatchReply` changes `reply_json` shape for at most 24 h.
 - **M3b. Server-Sent Events, replay, heartbeat, performance procedure.** FR-287, FR-288, FR-289 (stream), FR-290 (stream); NFR-49. Depends on M3a.
-- **M4. Scoring, results and leaderboard.** FR-271 to FR-278, FR-281(e) to (g), scoring parts of FR-241, FR-243, FR-246, FR-251(c); NFR-48 (results), NFR-57 (results). Depends on M2b, M3a.
+- **M4. Scoring, results and leaderboard.** FR-271 to FR-278, FR-281(e) to (g), scoring parts of FR-241, FR-243, FR-246, FR-251(c); NFR-48 (results), NFR-57 (results). Depends on M2b', M3a.
 - **M5. Live viewer and web test client.** FR-303 to FR-311; NFR-56; screenshots reviewed by the user. Depends on M3b, M4. Closes the pending set; spec 008 becomes `implemented` after acceptance.

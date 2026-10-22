@@ -1,0 +1,537 @@
+// The match lifecycle service (spec 008 FR-231, FR-232, FR-235, FR-236, FR-238, FR-241 to FR-247, FR-259, FR-260, FR-261 to FR-267, FR-282, FR-290,
+// FR-295; plan 17.1). The shell around the pure core: it draws the secret, the match id and the host token, reads the map
+// package, calls the core and the protocol readers, and writes everything of ONE decision in ONE storage transaction
+// (PD10) before it replies or publishes anything. It depends on core, protocol and store; the core never imports it.
+//
+// Dependencies are injected: the clock, the random source (production: the platform CSPRNG through secret.ts), the map
+// catalog and, optionally, the scheduler (the only module with timers). The test-only round-seed source (FR-260) is a
+// parameter of this constructor and of nothing else: the production entry point builds the service from the settings alone.
+//
+// Per-match serialisation (FR-295, PD10): every decision is one synchronous `store.transaction` (the store is synchronous and
+// the process single-threaded), so decisions on a match never overlap and each sees the stored result of the ones before.
+// Events reach subscribers only after the commit, outside the transaction, so a subscriber that calls the service again sees
+// the stored result and cannot nest a transaction.
+//
+// Write order of a step (the application order of the plan): `updateMatch` (N + 1 and its state), `putRecord`, `putStep`,
+// `appendEvents`.
+
+import { canonicalBody, encodePublicMatch, errorReply, isLocalId, isNamespace, playerIdOf, readAdvance, readCreation, readSubmission } from '@mbrg/protocol';
+import type { AdvanceReply, CreationReply, ErrorReply, MatchEvent, PredictionReply, PublicMatch, StepKind, StepMismatchReply, Timing } from '@mbrg/protocol';
+import type { Clock } from '../clock';
+import { decideAdvance } from '../core/advance';
+import { createMatch, creationEvents } from '../core/create';
+import { decideMemo, isMemoisable } from '../core/memo';
+import type { MemoScope } from '../core/memo';
+import { decideSubmission } from '../core/predictions';
+import type { StoredPrediction, Submission } from '../core/predictions';
+import { runDue } from '../core/steps';
+import type { StepDeps, StepOutcome } from '../core/steps';
+import { dueStep, effectiveInstant, reportedTime, wholeMs } from '../core/time';
+import { publicOf } from '../core/view';
+import type { CoreMatch, StepRow } from '../core/view';
+import { DERIVATION_RULE, commitment as commitmentOf, newSecret, secretHex } from '../secret';
+import type { RandomBytes } from '../secret';
+import { seedOfSecret } from '../seeds';
+import type { Store, StoredMatch, StoredStep } from '../store/store';
+import { credentialDigest, newHostToken, newMatchId, sameDigest, sha256Ascii } from './ids';
+import type { MapCatalog } from './maps';
+import type { Scheduler, SchedulerHandle } from './scheduler';
+import type { Settings } from './settings';
+
+/** The path text of a creation in the canonical content of FR-282 (the HTTP layer of M3a uses the same text). */
+export const CREATION_PATH = '/matches';
+
+/** The reply of a creation: the first reply or the first error (both are what a replay returns). */
+export type CreateOutcome = { readonly ok: true; readonly reply: CreationReply } | { readonly ok: false; readonly error: ErrorReply };
+
+export interface CreateRequest {
+  /** The credential the caller presented (a missing one is `undefined`). */
+  readonly credential: string | undefined;
+  /** The parsed JSON body of the creation command. */
+  readonly body: unknown;
+}
+
+/** The reply of an advance: the reply of FR-295 (b), or the error (`step-mismatch` has its own shape until M3a unifies them). */
+export type AdvanceOutcome = { readonly ok: true; readonly reply: AdvanceReply } | { readonly ok: false; readonly error: ErrorReply | StepMismatchReply };
+
+export interface AdvanceRequest {
+  /** The credential the caller presented: the operator credential or the match's host token (FR-244, FR-245). Reading it from a request is M3a. */
+  readonly credential: string | undefined;
+  readonly matchId: string;
+  /** The parsed JSON body `{ round, step }`. */
+  readonly body: unknown;
+}
+
+/** The path texts of the commands in the canonical content of FR-282 (the HTTP layer of M3a uses the same texts). */
+export const advancePath = (matchId: string): string => `${CREATION_PATH}/${matchId}/advance`;
+export const submissionPath = (matchId: string): string => `${CREATION_PATH}/${matchId}/predictions`;
+
+/**
+ * The caller of a prediction command, as the HTTP layer of M3a resolves it from the client credential: the credential TEXT
+ * (only its digest is kept, as the memo scope) and the namespace registered for it. The player id is built from this
+ * namespace and never from the body (FR-284 is M3a; the service trusts the pair it is given).
+ */
+export interface ClientIdentity {
+  readonly credential: string;
+  readonly namespace: string;
+}
+
+export interface SubmitRequest {
+  readonly client: ClientIdentity;
+  readonly matchId: string;
+  /** The parsed JSON body `{ kind, round?, faction, playerId, requestId? }`. */
+  readonly body: unknown;
+}
+
+/** The reply of a submission: the stored prediction and its version (FR-267), or the error (first use, or its memoised replay). */
+export type SubmitOutcome = { readonly ok: true; readonly reply: PredictionReply } | { readonly ok: false; readonly error: ErrorReply };
+
+export interface OwnPredictionsRequest {
+  /** Only the namespace of the credential: a client reads its own player ids and no others. */
+  readonly namespace: string;
+  /** The local player id (the namespace is added here, never taken from the caller's text). */
+  readonly playerId: string;
+  readonly matchId: string;
+}
+
+export type OwnPredictionsOutcome = { readonly ok: true; readonly predictions: readonly PredictionReply[] } | { readonly ok: false; readonly error: ErrorReply };
+
+/** What one `tick` did: the memo entries purged and, per match, the step rows performed (one decision per match at most). */
+export interface TickReport {
+  readonly purged: number;
+  readonly performed: readonly { readonly matchId: string; readonly steps: readonly StepRow[] }[];
+}
+
+/** A subscriber: called after the commit of a decision with the events it stored, in order (FR-287, FR-290). */
+export type MatchListener = (matchId: string, events: readonly MatchEvent[]) => void;
+
+/**
+ * TEST-ONLY round-seed source (FR-260): replaces the HMAC derivation of FR-252 for the match it is asked about. It is a
+ * parameter of `createMatchService` only; no setting, variable, request or production entry point can set it.
+ */
+export type TestSeedSource = (matchId: string) => (round: number) => number;
+
+export interface ServiceOptions {
+  readonly store: Store;
+  readonly clock: Clock;
+  readonly maps: MapCatalog;
+  readonly settings: Settings;
+  /** The random source of secrets, match ids and host tokens; omitted in production (the platform CSPRNG). */
+  readonly random?: RandomBytes;
+  /** Wakes the service at the next due instant of each running match; omitted: only `tick` performs clock steps. */
+  readonly scheduler?: Scheduler;
+  /** TEST-ONLY (FR-260). Production passes none. */
+  readonly testSeedSource?: TestSeedSource;
+}
+
+export interface MatchService {
+  /** FR-231, FR-232, FR-238: creates a match, or replays or refuses; one storage transaction. */
+  create(request: CreateRequest): CreateOutcome;
+  /** FR-244, FR-245, FR-295: an advance naming the step the caller expects; one storage transaction when it performs a step. */
+  advance(request: AdvanceRequest): AdvanceOutcome;
+  /** FR-261 to FR-267, FR-282 (b) (c): stores or replaces a prediction, or replays or refuses; one storage transaction. */
+  submit(request: SubmitRequest): SubmitOutcome;
+  /** FR-270 (storage): the stored predictions of one of the caller's own player ids in one match. */
+  ownPredictions(request: OwnPredictionsRequest): OwnPredictionsOutcome;
+  /** FR-239, FR-248: purges the expired memo entries and performs the one due step of every running match. */
+  tick(): TickReport;
+  /** The public data of a match now (FR-288 victim fields in `phase-2` and `locked`; the secret only once finished, FR-246), or undefined. */
+  publicMatch(matchId: string): PublicMatch | undefined;
+  /** Registers a subscriber of every event stored after this call (FR-290); returns the function that removes it. */
+  subscribe(listener: MatchListener): () => void;
+  /** Deletes the memo entries past the 24 h retention, host tokens in plain form included (FR-238); returns how many. */
+  purgeMemos(): number;
+}
+
+/**
+ * `seedOf(secret, matchId)(k)`: the HMAC rule of FR-252, or the test-only source when one was given at construction
+ * (FR-260). The steps of the service call it; the secret never leaves the service.
+ */
+export const roundSeeds =
+  (testSeedSource?: TestSeedSource) =>
+  (secret: Uint8Array, matchId: string): ((round: number) => number) =>
+    testSeedSource === undefined ? seedOfSecret(secret) : testSeedSource(matchId);
+
+const failure = (error: ErrorReply): CreateOutcome => ({ ok: false, error });
+
+const RUNNING = ['phase-1', 'phase-2', 'locked'];
+const isRunning = (view: CoreMatch): boolean => RUNNING.includes(view.stage);
+
+/** The instant of the next step of a running match with a clock (FR-239): C1 in `phase-1`, C2 in `phase-2`, A in `locked`. */
+function nextInstant(view: CoreMatch): number | null {
+  if (view.anchors === null) return null;
+  if (view.stage === 'phase-1') return view.anchors.c1;
+  if (view.stage === 'phase-2') return view.anchors.c2;
+  if (view.stage === 'locked') return view.anchors.a;
+  return null;
+}
+
+/** A decision that was stored: its view, its events and the reported time of its replies, for the steps after the commit. */
+interface Committed {
+  readonly view: CoreMatch;
+  readonly events: readonly MatchEvent[];
+}
+
+export function createMatchService(options: ServiceOptions): MatchService {
+  const { store, clock, maps, settings, random, scheduler } = options;
+  if (options.testSeedSource !== undefined && typeof options.testSeedSource !== 'function') throw new TypeError('the test seed source is a function');
+  const seedsOf = roundSeeds(options.testSeedSource);
+  const operatorDigest = credentialDigest(settings.operatorCredential);
+  const limit = settings.runningMatchLimit;
+
+  /** The largest reported time already sent per match (FR-302, Definitions): kept in memory, a restart starts from the effective instant. */
+  const sentMax = new Map<string, number>();
+  const listeners = new Set<MatchListener>();
+  const armed = new Map<string, SchedulerHandle>();
+
+  /** The effective instant and the reported time of a match at the current clock reading (FR-249, FR-302). */
+  const timesOf = (view: CoreMatch): { effective: number; reported: number } => {
+    const effective = effectiveInstant(clock.now(), view.lastStepMs);
+    return { effective, reported: reportedTime(effective, sentMax.get(view.matchId) ?? 0) };
+  };
+  const remember = (matchId: string, reported: number): void => {
+    sentMax.set(matchId, Math.max(sentMax.get(matchId) ?? 0, reported));
+  };
+
+  /**
+   * The pure core's dependencies for a stored match. The map is read only when a step is really performed (the getter), so a
+   * tick with nothing due reads no file. The digest of the map file against the stored one is checked in M2b' (T2').
+   */
+  const depsOf = (stored: StoredMatch): StepDeps => {
+    const { matchId, mapId } = stored.match;
+    const seedOf = seedsOf(stored.secret, matchId);
+    let loaded: { map: unknown } | undefined;
+    return {
+      get map(): unknown {
+        loaded ??= { map: maps.load(mapId)?.map ?? null };
+        return loaded.map;
+      },
+      sha256: sha256Ascii,
+      seedOf,
+    };
+  };
+
+  /** Publishes after the commit (FR-290): a subscriber that throws never undoes a stored decision. */
+  const publish = (matchId: string, events: readonly MatchEvent[]): void => {
+    if (events.length === 0) return;
+    for (const listener of [...listeners]) {
+      try {
+        listener(matchId, events);
+      } catch {
+        // Ignored on purpose: the decision is stored; this service logs nothing (NFR-54).
+      }
+    }
+  };
+
+  /** Arms the scheduler for the next due step of the match, replacing the earlier wake-up (FR-239). */
+  const arm = (view: CoreMatch): void => {
+    if (scheduler === undefined) return;
+    const earlier = armed.get(view.matchId);
+    if (earlier !== undefined) scheduler.cancel(earlier);
+    armed.delete(view.matchId);
+    if (!isRunning(view)) return;
+    const at = nextInstant(view);
+    if (at === null) return;
+    armed.set(
+      view.matchId,
+      scheduler.at(at, () => {
+        armed.delete(view.matchId);
+        tickMatch(view.matchId);
+      }),
+    );
+  };
+
+  /** After the commit: remember the reported time, tell the subscribers, arm the next wake-up. */
+  const settle = (matchId: string, reported: number, committed: Committed | undefined): void => {
+    remember(matchId, reported);
+    if (committed === undefined) return;
+    publish(matchId, committed.events);
+    arm(committed.view);
+  };
+
+  /**
+   * Adds the `match-finished` event after the application of round T (FR-246, FR-259, FR-287 (f)): the winner, the match
+   * secret in hex and the derivation rule. It belongs to the same decision, hence the same transaction.
+   */
+  const withFinish = (stored: StoredMatch, outcome: StepOutcome, reported: number): StepOutcome => {
+    const { view } = outcome;
+    if (outcome.applied === undefined || view.stage !== 'finished' || view.winner === undefined) return outcome;
+    const seq = view.lastSeq + 1;
+    const finished: MatchEvent = { type: 'match-finished', seq, winner: view.winner, matchSecret: secretHex(stored.secret), rule: DERIVATION_RULE, reportedTime: reported };
+    return { ...outcome, view: { ...view, lastSeq: seq }, events: [...outcome.events, finished] };
+  };
+
+  /** Which events belong to which step row (D16): up to the step's own last event; trailing events (schedule, match-finished) go to the last step. */
+  const stepRowsOf = (outcome: StepOutcome): StoredStep[] => {
+    let from = 0;
+    return outcome.steps.map((step, i) => {
+      const last = i === outcome.steps.length - 1;
+      const end = last
+        ? outcome.events.length - 1
+        : outcome.events.findIndex(
+            (e, j) =>
+              j >= from &&
+              (step.kind === 'phase-1-close' ? e.type === 'victim-revealed' : step.kind === 'phase-2-close' ? e.type === 'phase-closed' && e.phase === 2 : e.type === 'round-applied'),
+          );
+      const first = outcome.events[from];
+      const closing = outcome.events[end];
+      if (first === undefined || closing === undefined || end < from) throw new RangeError('inconsistent decision: a step has no events');
+      from = end + 1;
+      return { ...step, firstSeq: first.seq, lastSeq: closing.seq };
+    });
+  };
+
+  /** Writes one decision, inside the caller's transaction, in the order of the plan: match (N + 1 and its state), record, step rows, events. */
+  const persist = (matchId: string, outcome: StepOutcome): void => {
+    store.updateMatch(outcome.view);
+    if (outcome.applied !== undefined) {
+      const { record } = outcome.applied;
+      store.putRecord(matchId, { round: record.round, eliminated: record.eliminated, absorber: record.absorber, transferred: [...record.transferred] });
+    }
+    for (const row of stepRowsOf(outcome)) store.putStep(matchId, row);
+    store.appendEvents(matchId, outcome.events);
+  };
+
+  /** Runs the one due step of a running match, if any, in one transaction; then publishes and re-arms. Null: nothing was due. */
+  function tickMatch(matchId: string): { matchId: string; steps: readonly StepRow[] } | null {
+    // Filled inside the transaction (a box, so that the reads after it see the assignments).
+    const done: { current?: CoreMatch; committed?: Committed; steps: readonly StepRow[]; reported: number } = { steps: [], reported: 0 };
+    store.transaction(() => {
+      const stored = store.getMatch(matchId);
+      if (stored === undefined || !isRunning(stored.match)) return;
+      done.current = stored.match;
+      const times = timesOf(stored.match);
+      done.reported = times.reported;
+      if (dueStep(stored.match.stage, stored.match.anchors, times.effective) === null) return;
+      const outcome = runDue(stored.match, times.effective, times.reported, depsOf(stored));
+      if (outcome === null) return;
+      const final = withFinish(stored, outcome, times.reported);
+      persist(matchId, final);
+      done.committed = { view: final.view, events: final.events };
+      done.steps = final.steps;
+    });
+    if (done.current === undefined) return null;
+    if (done.committed === undefined) {
+      arm(done.current);
+      return null;
+    }
+    settle(matchId, done.reported, done.committed);
+    return { matchId, steps: done.steps };
+  }
+
+  /** Everything after the shape, credential and memo checks; runs inside the transaction and writes only on success. */
+  const decide = (mapId: string, timing: Timing, timingError: ErrorReply | undefined, now: number, made: (m: Committed & { reported: number }) => void): CreateOutcome => {
+    const loaded = maps.load(mapId);
+    if (loaded === undefined) return failure(errorReply('unknown-map'));
+    // The id and the commitment are filled in below, once nothing can fail any more: errors draw no random bytes.
+    const created = createMatch(
+      { matchId: '', mapId, mapDigest: loaded.digest, timing, commitment: '', now },
+      { map: loaded.map, sha256: sha256Ascii },
+    );
+    if (!created.ok) {
+      // The 001 validation errors come before too-few-factions in the order of FR-301 (the shared validator may report both).
+      const others = created.errors.filter((e) => e.kind !== 'too-few-factions');
+      return failure(others.length === 0 ? errorReply('too-few-factions') : errorReply('map-validation', others.map((e) => e.kind)));
+    }
+    if (timingError !== undefined) return failure(timingError);
+    if (store.runningCount() >= limit) return failure(errorReply('too-many-matches'));
+
+    const secret = newSecret(random);
+    const matchId = newMatchId(random);
+    const hostToken = newHostToken(random);
+    const view = { ...created.view, matchId, commitment: commitmentOf(secret) };
+    const reported = reportedTime(effectiveInstant(now, view.lastStepMs), 0);
+    const first = creationEvents(view, reported);
+    const reply: CreationReply = { matchId, match: publicOf(first.view, reported), hostToken };
+    encodePublicMatch(reply.match); // the public data must be encodable before anything is stored
+    store.insertMatch({ match: first.view, secret, hostTokenDigest: credentialDigest(hostToken) });
+    store.appendEvents(matchId, first.events);
+    made({ view: first.view, events: first.events, reported });
+    return { ok: true, reply };
+  };
+
+  return {
+    create(request: CreateRequest): CreateOutcome {
+      const read = readCreation(request.body);
+      // Shape problems come first (FR-301); the timing rules come later in the order, so their error waits.
+      if (!read.ok && read.error.kind !== 'invalid-timing') return failure(read.error);
+      const body = request.body as Record<string, unknown>;
+      const mapId = (read.ok ? read.value.mapId : body.mapId) as string;
+      const timing = (read.ok ? read.value.timing : body.timing) as Timing;
+      const requestId = (read.ok ? read.value.requestId : body.requestId) as string;
+      const timingError = read.ok ? undefined : read.error;
+
+      if (typeof request.credential !== 'string' || !sameDigest(credentialDigest(request.credential), operatorDigest)) return failure(errorReply('forbidden'));
+
+      const scope: MemoScope = { credentialDigest: operatorDigest, match: null };
+      const contentDigest = sha256Ascii(canonicalBody('POST', CREATION_PATH, request.body));
+      const now = wholeMs(clock.now());
+      const fresh: { value?: Committed & { reported: number } } = {};
+      const outcome = store.transaction((): CreateOutcome => {
+        const stored = store.memoGet(scope, requestId);
+        const memo = decideMemo<CreateOutcome>(
+          stored === undefined ? undefined : { content: stored.contentDigest, reply: stored.reply as CreateOutcome, createdMs: stored.createdMs },
+          { content: contentDigest, now },
+        );
+        if (memo.decision === 'replay') return memo.reply;
+        if (memo.decision === 'request-id-reused') return failure(memo.error);
+        const result = decide(mapId, timing, timingError, now, (made) => (fresh.value = made));
+        if (isMemoisable(result)) store.memoPut(scope, requestId, { contentDigest, reply: result, createdMs: now });
+        return result;
+      });
+      if (fresh.value !== undefined && outcome.ok) settle(outcome.reply.matchId, fresh.value.reported, fresh.value);
+      return outcome;
+    },
+
+    advance(request: AdvanceRequest): AdvanceOutcome {
+      const read = readAdvance(request.body);
+      if (!read.ok) return { ok: false, error: read.error };
+      const presented = typeof request.credential === 'string' ? credentialDigest(request.credential) : undefined;
+      const matchId = request.matchId;
+      const done: { committed?: Committed; reported: number; touched: boolean } = { reported: 0, touched: false };
+      const outcome = store.transaction((): AdvanceOutcome => {
+        const stored = typeof matchId === 'string' ? store.getMatch(matchId) : undefined;
+        // Both comparisons always run, in time independent of the credential (FR-300).
+        const isOperator = presented !== undefined && sameDigest(presented, operatorDigest);
+        const isHost = presented !== undefined && stored !== undefined && sameDigest(presented, stored.hostTokenDigest);
+        if (!isOperator && !isHost) return { ok: false, error: errorReply('forbidden') };
+        // FR-282 (b) (c): a client request id makes the advance idempotent under (credential digest, match id); a replay
+        // or a reused id changes nothing and publishes nothing. The memo is written in the same transaction as the decision.
+        const requestId = read.value.requestId;
+        const memoScope: MemoScope = { credentialDigest: presented as string, match: matchId };
+        const content = sha256Ascii(canonicalBody('POST', advancePath(matchId), request.body));
+        const now = wholeMs(clock.now());
+        if (requestId !== undefined) {
+          const memoStored = store.memoGet(memoScope, requestId);
+          const memo = decideMemo<AdvanceOutcome>(
+            memoStored === undefined ? undefined : { content: memoStored.contentDigest, reply: memoStored.reply as AdvanceOutcome, createdMs: memoStored.createdMs },
+            { content, now },
+          );
+          if (memo.decision === 'replay') return memo.reply;
+          if (memo.decision === 'request-id-reused') return { ok: false, error: memo.error };
+        }
+        let result: AdvanceOutcome = { ok: false, error: errorReply('unknown-match') };
+        if (stored !== undefined) {
+          done.touched = true;
+          result = decideStep(stored, read.value);
+        }
+        if (requestId !== undefined && isMemoisable(result)) store.memoPut(memoScope, requestId, { contentDigest: content, reply: result, createdMs: now });
+        return result;
+      });
+      if (done.touched) settle(matchId, done.reported, done.committed);
+      return outcome;
+
+      function decideStep(stored: StoredMatch, wanted: { round: number; step: StepKind }): AdvanceOutcome {
+        const times = timesOf(stored.match);
+        done.reported = times.reported;
+        // The stored row of the named step, if it was performed: the core answers `already-performed` from it.
+        const row = store.steps(matchId).find((s) => s.round === wanted.round && s.kind === wanted.step);
+        const decision = decideAdvance(
+          stored.match,
+          {
+            round: wanted.round,
+            step: wanted.step,
+            effective: times.effective,
+            reportedTime: times.reported,
+            ...(row === undefined ? {} : { stored: { round: row.round, kind: row.kind, instant: row.instant, cause: row.cause } }),
+          },
+          depsOf(stored),
+        );
+        if (!decision.ok) {
+          // An advance that halts the match stores the halted view and its event (FR-251; the halting task tests it).
+          if (decision.outcome !== undefined) {
+            persist(matchId, decision.outcome);
+            done.committed = { view: decision.outcome.view, events: decision.outcome.events };
+          }
+          return { ok: false, error: decision.error };
+        }
+        const final = withFinish(stored, decision.outcome, times.reported);
+        if (final.steps.length === 0 && final.events.length === 0) return { ok: true, reply: decision.reply };
+        persist(matchId, final);
+        done.committed = { view: final.view, events: final.events };
+        // The finished public data needs the secret and the event number of `match-finished`: the shell builds it (FR-246).
+        const match = final.view.stage === 'finished' ? publicOf(final.view, times.reported, secretHex(stored.secret)) : decision.reply.match;
+        return { ok: true, reply: { ...decision.reply, match } };
+      }
+    },
+
+    submit(request: SubmitRequest): SubmitOutcome {
+      const read = readSubmission(request.body);
+      if (!read.ok) return { ok: false, error: read.error };
+      const { client, matchId } = request;
+      if (!isNamespace(client.namespace) || typeof client.credential !== 'string') throw new TypeError('the caller identity is a credential text and a namespace');
+      const body = read.value;
+      const playerId = playerIdOf(client.namespace, body.playerId);
+      const submission: Submission = body.kind === 'winner' ? { kind: 'winner', choice: body.faction } : { kind: body.kind, round: body.round as number, choice: body.faction };
+      const round = body.kind === 'winner' ? 0 : (body.round as number);
+      const scope: MemoScope = { credentialDigest: credentialDigest(client.credential), match: matchId };
+      const content = sha256Ascii(canonicalBody('POST', submissionPath(matchId), request.body));
+      return store.transaction((): SubmitOutcome => {
+        const now = wholeMs(clock.now());
+        if (body.requestId !== undefined) {
+          const memoStored = store.memoGet(scope, body.requestId);
+          const memo = decideMemo<SubmitOutcome>(
+            memoStored === undefined ? undefined : { content: memoStored.contentDigest, reply: memoStored.reply as SubmitOutcome, createdMs: memoStored.createdMs },
+            { content, now },
+          );
+          if (memo.decision === 'replay') return memo.reply;
+          if (memo.decision === 'request-id-reused') return { ok: false, error: memo.error };
+        }
+        const stored = typeof matchId === 'string' ? store.getMatch(matchId) : undefined;
+        let result: SubmitOutcome = { ok: false, error: errorReply('unknown-match') };
+        if (stored !== undefined) {
+          // The cutoff uses the server's effective instant from the stored last step instant, never a time of the caller (FR-266).
+          const effective = timesOf(stored.match).effective;
+          const row = store.predictionsOf(matchId, playerId).find((p) => p.kind === submission.kind && p.round === round);
+          const decision = decideSubmission(stored.match, { submission, effective, ...(row === undefined ? {} : { stored: row }) });
+          if (decision.ok) {
+            if (decision.store !== undefined) store.putPrediction(matchId, playerId, decision.store);
+            result = { ok: true, reply: decision.reply };
+          } else {
+            result = { ok: false, error: decision.error };
+          }
+        }
+        if (body.requestId !== undefined && isMemoisable(result)) store.memoPut(scope, body.requestId, { contentDigest: content, reply: result, createdMs: now });
+        return result;
+      });
+    },
+
+    ownPredictions(request: OwnPredictionsRequest): OwnPredictionsOutcome {
+      if (!isNamespace(request.namespace)) throw new TypeError('the caller identity is a namespace');
+      if (!isLocalId(request.playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+      if (typeof request.matchId !== 'string' || store.getMatch(request.matchId) === undefined) return { ok: false, error: errorReply('unknown-match') };
+      const player = playerIdOf(request.namespace, request.playerId);
+      const toReply = (p: StoredPrediction): PredictionReply => ({ kind: p.kind, ...(p.kind === 'winner' ? {} : { round: p.round }), choice: p.choice, version: p.version });
+      return { ok: true, predictions: store.predictionsOf(request.matchId, player).map(toReply) };
+    },
+
+    tick(): TickReport {
+      const purged = store.transaction(() => store.memoPurge(wholeMs(clock.now())));
+      const performed: { matchId: string; steps: readonly StepRow[] }[] = [];
+      for (const id of store.runningMatchIds()) {
+        const done = tickMatch(id);
+        if (done !== null) performed.push(done);
+      }
+      return { purged, performed };
+    },
+
+    publicMatch(matchId: string): PublicMatch | undefined {
+      const stored = typeof matchId === 'string' ? store.getMatch(matchId) : undefined;
+      if (stored === undefined) return undefined;
+      const { reported } = timesOf(stored.match);
+      remember(matchId, reported);
+      return publicOf(stored.match, reported, stored.match.stage === 'finished' ? secretHex(stored.secret) : undefined);
+    },
+
+    subscribe(listener: MatchListener): () => void {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+
+    purgeMemos(): number {
+      return store.transaction(() => store.memoPurge(wholeMs(clock.now())));
+    },
+  };
+}

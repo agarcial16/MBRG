@@ -3,10 +3,13 @@ import { ERROR_ORDER, canonicalBody, errorReply } from '@mbrg/protocol';
 import type { ErrorKind } from '@mbrg/protocol';
 import { MEMO_RETENTION_MS, NON_MEMOISABLE_KINDS, decideMemo, isMemoisable, memoKey } from '../src/core/memo';
 import type { MemoEntry } from '../src/core/memo';
+import { sha256 } from './helpers/core-driver';
 
 // FR-282 (d)(e) at the core level: the pure memo decision. The shell (M2b) stores the entry and the HTTP layer
 // (M3a) reads the request id; here only the decision exists. Parts (a)(b)(c) of the core decision are named in the titles.
 
+/** The credential digest of plan PD12 (the service builds it; the core only receives it). */
+const digestOf = (text: string): string => sha256('mbrg/credential/v1/' + text);
 const H24 = 24 * 60 * 60 * 1000;
 const T0 = 1_700_000_000_000;
 const advance = { method: 'POST', path: '/matches/m1/advance' };
@@ -62,19 +65,40 @@ describe('memo decision: replay, reuse, retention', () => {
 });
 
 describe('memo key and memoisable replies', () => {
-  it('FR-282 (d)(e) the key separates credential, match (or creation) and request id, whatever characters they hold', () => {
+  it('FR-282 (d)(e) the key separates credential digest, match (or creation) and request id, whatever characters they hold', () => {
+    const [d1, d2] = [digestOf('c1'), digestOf('c2')] as const;
     const keys = [
-      memoKey({ credential: 'c1', match: 'm1' }, 'r1'),
-      memoKey({ credential: 'c1', match: 'm1' }, 'r2'),
-      memoKey({ credential: 'c1', match: 'm2' }, 'r1'),
-      memoKey({ credential: 'c2', match: 'm1' }, 'r1'),
-      memoKey({ credential: 'c1', match: null }, 'r1'),
-      memoKey({ credential: 'c1', match: 'creation' }, 'r1'),
-      memoKey({ credential: 'c1|m1', match: 'x' }, 'r1'),
-      memoKey({ credential: 'c1', match: 'm1|x' }, 'r1'),
+      memoKey({ credentialDigest: d1, match: 'm1' }, 'r1'),
+      memoKey({ credentialDigest: d1, match: 'm1' }, 'r2'),
+      memoKey({ credentialDigest: d1, match: 'm2' }, 'r1'),
+      memoKey({ credentialDigest: d2, match: 'm1' }, 'r1'),
+      memoKey({ credentialDigest: d1, match: null }, 'r1'),
+      memoKey({ credentialDigest: d1, match: 'creation' }, 'r1'),
+      memoKey({ credentialDigest: d1, match: 'm1|x' }, 'r1'),
+      memoKey({ credentialDigest: d1, match: 'm1' }, 'r1|x'),
     ];
     expect(new Set(keys).size).toBe(keys.length);
-    expect(memoKey({ credential: 'c1', match: 'm1' }, 'r1')).toBe(memoKey({ credential: 'c1', match: 'm1' }, 'r1'));
+    expect(memoKey({ credentialDigest: d1, match: 'm1' }, 'r1')).toBe(memoKey({ credentialDigest: d1, match: 'm1' }, 'r1'));
+  });
+
+  it('FR-300 (digests) the key built for a credential contains no substring of the credential text (two credentials give two keys, one credential one key)', () => {
+    const hostToken = 'Zk3-plain_host.token/ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const operator = 'operator-secret-credential';
+    const key = memoKey({ credentialDigest: digestOf(hostToken), match: 'm1' }, 'r1');
+    // Every window of 4 or more characters of the credential text, and the text itself, is absent from the key.
+    for (let len = 4; len <= hostToken.length; len++) {
+      for (let at = 0; at + len <= hostToken.length; at++) expect(key.includes(hostToken.slice(at, at + len)), hostToken.slice(at, at + len)).toBe(false);
+    }
+    expect(key).toContain(digestOf(hostToken));
+    expect(memoKey({ credentialDigest: digestOf(operator), match: 'm1' }, 'r1')).not.toBe(key);
+    expect(memoKey({ credentialDigest: digestOf(hostToken), match: 'm1' }, 'r1')).toBe(key);
+  });
+
+  it('FR-300 (digests) the key refuses a credential given as text: only a 64-character lowercase hexadecimal digest is accepted', () => {
+    expect(() => memoKey({ credentialDigest: 'host-token-text', match: 'm1' }, 'r1')).toThrow(RangeError);
+    expect(() => memoKey({ credentialDigest: digestOf('x').toUpperCase(), match: 'm1' }, 'r1')).toThrow(RangeError);
+    expect(() => memoKey({ credentialDigest: digestOf('x') + '0', match: 'm1' }, 'r1')).toThrow(RangeError);
+    expect(() => memoKey({ credentialDigest: digestOf('x'), match: 'm1' }, 'r1')).not.toThrow();
   });
 
   it('FR-282 (d)(e) the eight kinds of letter (d) are not memoisable; every other error and every success is', () => {

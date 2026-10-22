@@ -222,3 +222,11 @@ export interface StepMismatchReply {
   /** N: the number of applied rounds. */
   readonly appliedRounds: number;
 }
+
+/** The reply of an accepted prediction: the stored prediction and its version (FR-267); `round` is absent for the winner. */
+export interface PredictionReply {
+  readonly kind: PredictionKind;
+  readonly round?: number;
+  readonly choice: number;
+  readonly version: number;
+}

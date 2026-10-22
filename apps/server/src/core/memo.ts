@@ -19,14 +19,26 @@ export const NON_MEMOISABLE_KINDS = [
   'unavailable',
 ] as const satisfies readonly ErrorKind[];
 
-/** The scope of an id (FR-282 (a)): the credential and the match; `match: null` is the scope of creations. */
+/**
+ * The scope of an id (FR-282 (a)): the DIGEST of the credential (PD12: 64 lowercase hexadecimal characters, built by the
+ * service) and the match; `match: null` is the scope of creations. A credential or host token is never part of a key
+ * (FR-300 (digests), NFR-54).
+ */
 export interface MemoScope {
-  readonly credential: string;
+  readonly credentialDigest: string;
   readonly match: string | null;
 }
 
-/** The store key of (scope, request id): an unambiguous encoding, whatever characters the parts hold. */
-export const memoKey = (scope: MemoScope, requestId: string): string => JSON.stringify([scope.credential, scope.match, requestId]);
+const DIGEST = /^[0-9a-f]{64}$/;
+
+/**
+ * The store key of (scope, request id): an unambiguous encoding, whatever characters the parts hold. A scope whose
+ * credential is not a digest is a RangeError (a credential as text must never reach a store key).
+ */
+export const memoKey = (scope: MemoScope, requestId: string): string => {
+  if (!DIGEST.test(scope.credentialDigest)) throw new RangeError('the memo scope holds a credential digest (64 lowercase hexadecimal characters)');
+  return JSON.stringify([scope.credentialDigest, scope.match, requestId]);
+};
 
 /** A stored first use: its canonical content (`canonicalBody`), its reply or error as given, and its first-use instant. */
 export interface MemoEntry<R> {

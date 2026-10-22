@@ -213,14 +213,22 @@ export interface ActionSummary {
   anchors: [number, number, number] | null;
   victim: number | null;
   recordDigest: string | null;
-  /** null before any event exists (lastSeq 0: the creation event is stored by the shell, FR-289 (c)). */
-  publicDigest: string | null;
+  /** The public view digest after the action: since the creation event (seq 1, FR-289 (c)) the view always has an event. */
+  publicDigest: string;
+}
+
+/** The match right after creation: the creation event (FR-289 (c)) and the public view digest with lastSeq 1. */
+export interface CreationSummary {
+  events: string[];
+  lastSeq: number;
+  publicDigest: string;
 }
 
 const sha = (text: string): string => createHash('sha256').update(text, 'ascii').digest('hex');
 
 export interface Run {
   driver: Driver;
+  creation: CreationSummary;
   summaries: ActionSummary[];
   /** The outcome of each action (null: nothing was due), parallel to `summaries`. */
   performed: boolean[];
@@ -232,6 +240,11 @@ export function runScenario(s: Scenario): Run {
   const driver = coreDriver({ timing: s.timing, start: T0, seedOf: (k) => roundSeed(secret, k) });
   const summaries: ActionSummary[] = [];
   const performed: boolean[] = [];
+  const creation: CreationSummary = {
+    events: driver.events.map((e) => e.type),
+    lastSeq: driver.view.lastSeq,
+    publicDigest: sha(encodePublicMatch(publicOf(driver.view, T0, hex(secret)))),
+  };
   let sentMax = 0;
   for (const a of s.actions) {
     driver.clock.set(T0 + a.at);
@@ -257,8 +270,8 @@ export function runScenario(s: Scenario): Run {
       anchors: view.anchors === null ? null : [view.anchors.c1, view.anchors.c2, view.anchors.a],
       victim: view.victim === undefined ? null : view.victim.victim,
       recordDigest: record === null ? null : sha(`${record.round}:${record.eliminated}:${record.absorber}:${record.transferred.join(',')}`),
-      publicDigest: view.lastSeq === 0 ? null : sha(encodePublicMatch(publicOf(view, reported, hex(secret)))),
+      publicDigest: sha(encodePublicMatch(publicOf(view, reported, hex(secret)))),
     });
   }
-  return { driver, summaries, performed };
+  return { driver, creation, summaries, performed };
 }
