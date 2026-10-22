@@ -135,7 +135,7 @@ M2a rules (in addition to the M1 rules):
   - Commit: `feat(server): add manual advances and late-step catch-up`.
   - Done when: tests green; mutations proved (phase-2 advance also applying, late rule performing two steps, on-time step shifting anchors, `already-performed` performing again); FR-244, FR-248, FR-295 moved; `rg` finds them.
 
-- [ ] **T8. Prediction acceptance, closing and replacement.** FR-261 to FR-268
+- [x] **T8. Prediction acceptance, closing and replacement.** FR-261 to FR-268
   - Depends on: T6 (T7 for stage changes in sequences).
   - Files: `apps/server/src/core/predictions.ts`, `apps/server/test/core-predictions.test.ts`, `packages/sim/test/traceability.test.ts`.
   - Tests first: victim open only in `phase-1`, absorber only in `phase-2`, winner until the phase-1 close of round T; a per-round prediction for another round, at the cutoff instant (exclusive) or after: `prediction-closed`, one millisecond before: accepted; finished: `match-finished`; halted: `match-halted`; victim must be living (`livingFactions`), absorber a candidate of the revealed victim (`absorptionCandidatesOf`), winner a winner candidate (revealed victim excluded), else `invalid-choice`; validation and replies equal for twin views with the same public data and different futures (FR-265); one prediction per key: a new choice replaces and increments the version, the same choice changes nothing and keeps the version; a delayed older resubmission without a request id overwrites (P37); a winner change stores the winner-candidate count at that instant; phases and the winner are independent; a missed cutoff gives no prediction and no penalty (FR-268).
