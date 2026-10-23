@@ -211,6 +211,8 @@ export interface FailureReporter {
  * failure that became an error, or the reverse) is reported at once; a repeat of the same kind is reported at most once per
  * `REPEAT_LOG_MS`, carrying how many repeats were skipped since (`suppressed`). A step retried every 3 s thus shows in the
  * log once a minute while it lasts. A clock that went backwards reports at once.
+ * Accepted limits: `suppressed` is only reported by the next report of the same kind, so repeats skipped in the last window
+ * of a failure that stops are never reported; a failure flipping between kinds reports at every flip (every retry, 3 s).
  */
 export function createFailureReporter(log: LogSink, clock: Clock): FailureReporter {
   const seen = new Map<string, { kind: StepFailure['kind']; at: number; suppressed: number }>();

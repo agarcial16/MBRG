@@ -40,7 +40,8 @@ import type { MatchService } from '../service/matches';
 import type { MapFile } from '../service/maps';
 import { CONNECTION_OPTIONS } from '../service/settings';
 import type { ServerSettings } from '../service/settings';
-import { readBody, tooLargeByLength } from './body';
+import { answerClientError } from './client-error';
+import { discardBody, readBody, tooLargeByLength, unreadLargeBody } from './body';
 import { credentialTable, hostIdentity, identify, playerIdFor, readBearer, requireClient } from './identity';
 import type { Identity } from './identity';
 import { createLimiter, limitKeys, playerKey } from './limits';
@@ -333,6 +334,11 @@ export function createServer(options: ServerOptions): Server {
       if (read.kind === 'aborted') return;
       if (read.kind === 'error') return sendError(target, read.error);
       body = read.value;
+    } else {
+      // A route without a body bounds one all the same (FR-298): over 4,096 bytes is `too-large`, a small one is ignored.
+      const read = await discardBody(req);
+      if (read.kind === 'aborted') return;
+      if (read.kind === 'error') return sendError(target, read.error);
     }
     const ctx: RouteContext = { params, query, body, token, identity, now };
     const queryError = route.checkQuery?.(ctx);
@@ -364,7 +370,8 @@ export function createServer(options: ServerOptions): Server {
   };
 
   const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
-    const target: ReplyTarget = { res, cors: corsRequestOf(req), allowedOrigins: settings.allowedOrigins };
+    // Any reply sent while a body over the limit is unread closes the connection (FR-298): nothing is drained.
+    const target: ReplyTarget = { res, cors: corsRequestOf(req), allowedOrigins: settings.allowedOrigins, closeAfter: () => unreadLargeBody(req) };
     const at = { stage: 'admit' as FailureStage };
     try {
       await run(req, target, at);
@@ -389,5 +396,7 @@ export function createServer(options: ServerOptions): Server {
     res.on('error', () => undefined);
     void handle(req, res);
   });
+  // Requests the parser refuses (or that time out) never reach `handle`: the reply is written here (NFR-52 network).
+  server.on('clientError', answerClientError);
   return server;
 }

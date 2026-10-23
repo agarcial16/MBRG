@@ -77,13 +77,13 @@ describe('the entry point as a process', () => {
         for (const step of ['phase-1-close', 'phase-2-close', 'application']) {
           expect((await post(port, `/matches/${manualId}/advance`, { round: 1, step })).status).toBe(200);
         }
-        // A clock match whose first step falls due one second after its creation: the process is killed before that.
-        const clock = await post(port, '/matches', creationBody('c-1', { timing: { i: 3, l1: 1, l2: 1 } }));
+        // A clock match whose first step falls due three seconds after its creation: the process is killed before that.
+        const clock = await post(port, '/matches', creationBody('c-1', { timing: { i: 5, l1: 1, l2: 1 } }));
         expect(clock.status).toBe(201);
         return { manualId, clockId: (clock.json() as { matchId: string }).matchId, createdAt: Date.now() };
       });
       // The first child was killed (SIGKILL: no shutdown code ran). Let the clock step become overdue while no server runs.
-      await new Promise((resolve) => setTimeout(resolve, Math.max(0, ids.createdAt + 1600 - Date.now())));
+      await new Promise((resolve) => setTimeout(resolve, Math.max(0, ids.createdAt + 3600 - Date.now())));
       await withMain(env, async (child, port) => {
         const report = eventsOf(child.stdout()).find((e) => e.event === 'start-report');
         expect(report).toMatchObject({ performed: 1, failed: 0, halted: 0, retry: false });

@@ -56,13 +56,31 @@ export function tooLargeByLength(req: IncomingMessage): ErrorReply | undefined {
   return declared !== undefined && declared > MAX_BODY_BYTES ? errorReply('too-large') : undefined;
 }
 
-/** Reads the body, counting bytes as they arrive; resolves once, at the end, at the limit, or when the client leaves. */
-export function readBody(req: IncomingMessage): Promise<BodyRead> {
-  return new Promise<BodyRead>((resolve) => {
+/** Whether the request carries a body: a declared length above 0, or a `Transfer-Encoding` (chunked). */
+export function carriesBody(req: IncomingMessage): boolean {
+  const declared = declaredLength(req);
+  return declared === undefined ? req.headers['transfer-encoding'] !== undefined : declared > 0;
+}
+
+/**
+ * Whether a body over the limit may still be unread: the length declared above 4,096, or a chunked body (its size is unknown)
+ * that has not been read to its end. A reply sent in that state must close the connection, so the platform never drains it.
+ */
+export function unreadLargeBody(req: IncomingMessage): boolean {
+  if (req.readableEnded) return false;
+  const declared = declaredLength(req);
+  return declared === undefined ? req.headers['transfer-encoding'] !== undefined : declared > MAX_BODY_BYTES;
+}
+
+type BytesRead = { readonly kind: 'bytes'; readonly bytes: Buffer } | { readonly kind: 'too-large' } | { readonly kind: 'aborted' };
+
+/** Counts the bytes as they arrive; resolves once, at the end, at the limit (the rest is not buffered), or when the client leaves. */
+function readBytes(req: IncomingMessage): Promise<BytesRead> {
+  return new Promise<BytesRead>((resolve) => {
     const chunks: Buffer[] = [];
     let total = 0;
     let done = false;
-    const finish = (result: BodyRead): void => {
+    const finish = (result: BytesRead): void => {
       if (done) return;
       done = true;
       chunks.length = 0;
@@ -72,13 +90,31 @@ export function readBody(req: IncomingMessage): Promise<BodyRead> {
       if (done) return; // keep draining: the reply is on its way and the connection closes after it
       total += chunk.length;
       if (total > MAX_BODY_BYTES) {
-        finish({ kind: 'error', error: errorReply('too-large') });
+        finish({ kind: 'too-large' });
         return;
       }
       chunks.push(chunk);
     });
-    req.on('end', () => finish(parseBodyBytes(Buffer.concat(chunks))));
+    req.on('end', () => finish({ kind: 'bytes', bytes: Buffer.concat(chunks) }));
     req.on('error', () => finish({ kind: 'aborted' }));
     req.on('close', () => finish({ kind: 'aborted' }));
   });
+}
+
+/** Reads the body of a route that takes one: at most 4,096 bytes, then UTF-8, JSON, an object. */
+export async function readBody(req: IncomingMessage): Promise<BodyRead> {
+  const read = await readBytes(req);
+  if (read.kind === 'bytes') return parseBodyBytes(read.bytes);
+  return read.kind === 'too-large' ? { kind: 'error', error: errorReply('too-large') } : read;
+}
+
+/**
+ * A route that takes no body: a body over 4,096 bytes is `too-large` all the same (counted, never kept); a small one is read and
+ * ignored (the request is answered as if it had none). Only the client leaving is `aborted`.
+ */
+export async function discardBody(req: IncomingMessage): Promise<{ readonly kind: 'ignored' } | { readonly kind: 'error'; readonly error: ErrorReply } | { readonly kind: 'aborted' }> {
+  if (!carriesBody(req)) return { kind: 'ignored' };
+  const read = await readBytes(req);
+  if (read.kind === 'bytes') return { kind: 'ignored' };
+  return read.kind === 'too-large' ? { kind: 'error', error: errorReply('too-large') } : read;
 }

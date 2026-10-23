@@ -229,6 +229,18 @@ describe('http pipeline: the limiter on the wire', () => {
     expect((await request(h.port, { path: '/ping' })).status).toBe(429);
   });
 
+  it('FR-299 (over HTTP) a preflight counts as a read of its credential bucket and is refused with 429 past the limit', async () => {
+    const h = await startServer({ limits: { reads: 2, anonymous: 100 } });
+    const preflight = (): Promise<ClientReply> => request(h.port, { method: 'OPTIONS', path: '/ping', headers: bearer(CLIENT_CREDENTIAL) });
+    expect((await preflight()).status).toBe(204);
+    expect((await request(h.port, { path: '/ping', headers: bearer(CLIENT_CREDENTIAL) })).status).toBe(200);
+    const refused = await preflight();
+    expect(refused.status).toBe(429);
+    expect(refused.json()).toStrictEqual({ kind: 'rate-limited', retryAfter: 60 });
+    // The anonymous bucket is untouched: a preflight without a credential is still answered.
+    expect((await request(h.port, { method: 'OPTIONS', path: '/ping' })).status).toBe(204);
+  });
+
   it('FR-299 (over HTTP) a token that matches nothing counts under the address, not under a bucket of its own', async () => {
     const h = await startServer({ limits: { anonymous: 3 } });
     for (const token of ['unknown-token-aaaaaaaaaaaaaaaa', 'unknown-token-bbbbbbbbbbbbbbbb', 'unknown-token-cccccccccccccccc']) {
@@ -302,6 +314,20 @@ describe('http pipeline: failures, headers and options', () => {
     expect(reply.text).toBe('{"kind":"unavailable"}');
     expect(h.logs).toStrictEqual([{ event: 'request-failed', stage: 'decide', error: { name: 'TypeError' } }]);
     expect(JSON.stringify([reply.text, h.logs])).not.toContain(PLANTED);
+  });
+
+  it('NFR-54 (logs) a log sink that throws does not stop the 500 reply, and the server still serves', async () => {
+    const h = await startServer({
+      onLog: () => {
+        throw new Error(`sink ${PLANTED}`);
+      },
+    });
+    const reply = await request(h.port, { path: '/boom' });
+    expect(reply.status).toBe(500);
+    expect(reply.text).toBe('{"kind":"unavailable"}');
+    expect(reply.text).not.toContain(PLANTED);
+    expect(h.logs).toHaveLength(1);
+    expect((await request(h.port, { path: '/ping' })).status).toBe(200);
   });
 
   it('NFR-54 (logs) client errors and expected 503 are not logged per request', async () => {

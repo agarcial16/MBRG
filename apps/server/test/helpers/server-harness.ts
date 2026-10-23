@@ -40,6 +40,8 @@ export interface ServerHarnessOptions {
   readonly wrapStore?: (store: Store) => Store;
   /** Options of the underlying service harness (map folders, fake random seed, test-only round-seed source, secret). */
   readonly service?: Omit<HarnessOptions, 'store'>;
+  /** Called after each logged event is recorded (it may throw: a failing sink). */
+  readonly onLog?: (event: LogEvent) => void;
 }
 
 export interface ServerHarness {
@@ -152,7 +154,12 @@ export async function startServer(options: ServerHarnessOptions = {}): Promise<S
   };
   const logs: LogEvent[] = [];
   const routes = (options.routes ?? testRoutes)(service, settings);
-  const server = createServer({ service, settings, clock: base.clock, log: (event) => void logs.push(event), routes });
+  const server = createServer({ service, settings, clock: base.clock, log: (event) => {
+      logs.push(event);
+      options.onLog?.(event);
+    },
+    routes,
+  });
   const sockets = new Set<Socket>();
   server.on('connection', (socket: Socket) => {
     sockets.add(socket);

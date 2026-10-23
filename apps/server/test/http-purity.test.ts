@@ -10,7 +10,7 @@ const server = import.meta.glob('../src/**/*.ts', { query: '?raw', import: 'defa
 /** The pure decision modules of plan 18.1 (each marked "pure"). */
 const PURE = ['http/cors.ts', 'http/identity.ts', 'http/limits.ts', 'http/status.ts'];
 /** The other HTTP files plan 18.1 lists (later tasks); they may use the platform. */
-const PLATFORM = ['http/body.ts', 'http/log.ts', 'http/respond.ts', 'http/router.ts', 'http/server.ts', 'http/shutdown.ts'];
+const PLATFORM = ['http/body.ts', 'http/client-error.ts', 'http/log.ts', 'http/respond.ts', 'http/router.ts', 'http/server.ts', 'http/shutdown.ts'];
 /** What a pure module may import: the other pure modules, the digest helpers, the settings types and the protocol. */
 const ALLOWED_IMPORTS = new Set(['./cors', './identity', './limits', './status', '../service/ids', '../service/settings', '@mbrg/protocol']);
 
@@ -67,7 +67,7 @@ describe('http purity', () => {
     for (const file of PURE) expect(names, file).toContain(file);
   });
 
-  it('NFR-51 (http modules) all six platform files of plan 18.1 exist', () => {
+  it('NFR-51 (http modules) all the platform files of plan 18.1 (and the client-error writer) exist', () => {
     const names = Object.keys(server).map(shortName);
     for (const file of PLATFORM) expect(names, file).toContain(file);
   });

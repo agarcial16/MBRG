@@ -16,7 +16,11 @@ export interface ReplyTarget {
   readonly res: ServerResponse;
   readonly cors: CorsRequest;
   readonly allowedOrigins: readonly string[];
+  /** True when the connection must close after this reply (a request body over the limit is still unread). */
+  readonly closeAfter?: () => boolean;
 }
+
+const closeHeader = (target: ReplyTarget): Readonly<Record<string, string>> => (target.closeAfter?.() === true ? { connection: 'close' } : {});
 
 const header = (req: IncomingMessage, name: string): string | undefined => {
   const value = req.headers[name];
@@ -47,7 +51,7 @@ function write(target: ReplyTarget, status: number, body: string | undefined, ex
     Object.assign(headers, BASE_HEADERS);
     headers['content-length'] = Buffer.byteLength(body, 'utf8');
   }
-  Object.assign(headers, extra, corsHeaders(target.cors, target.allowedOrigins));
+  Object.assign(headers, closeHeader(target), extra, corsHeaders(target.cors, target.allowedOrigins));
   res.writeHead(status, headers);
   res.end(body);
 }
@@ -64,6 +68,7 @@ export function sendFile(target: ReplyTarget, contentType: string, body: Uint8Ar
     'x-content-type-options': 'nosniff',
     'content-type': contentType,
     'content-length': body.length,
+    ...closeHeader(target),
     ...corsHeaders(target.cors, target.allowedOrigins),
   };
   target.res.writeHead(200, headers);
