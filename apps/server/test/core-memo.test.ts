@@ -101,10 +101,11 @@ describe('memo key and memoisable replies', () => {
     expect(() => memoKey({ credentialDigest: digestOf('x'), match: 'm1' }, 'r1')).not.toThrow();
   });
 
-  it('FR-282 (d)(e) the eight kinds of letter (d) are not memoisable; every other error and every success is', () => {
+  it('FR-282 (d)(e) the nine kinds of letter (d) (unknown-match added by spec D26) are not memoisable; every other error and every success is', () => {
     expect([...NON_MEMOISABLE_KINDS].sort()).toStrictEqual(
-      ['rate-limited', 'unknown-path', 'method-not-allowed', 'too-large', 'invalid-request', 'invalid-player-id', 'forbidden', 'unavailable'].sort(),
+      ['rate-limited', 'unknown-path', 'method-not-allowed', 'too-large', 'invalid-request', 'invalid-player-id', 'forbidden', 'unknown-match', 'unavailable'].sort(),
     );
+    expect(isMemoisable({ ok: false, error: errorReply('unknown-match') })).toBe(false);
     for (const kind of ERROR_ORDER as readonly ErrorKind[]) {
       const expected = !NON_MEMOISABLE_KINDS.includes(kind as (typeof NON_MEMOISABLE_KINDS)[number]);
       expect(isMemoisable({ ok: false, error: errorReply(kind) }), kind).toBe(expected);

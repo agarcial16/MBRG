@@ -7,7 +7,10 @@ import { errorReply } from '@mbrg/protocol';
 /** Retention of a memoised reply, counted from its first use (FR-282 (a)): 24 hours in ms. */
 export const MEMO_RETENTION_MS = 24 * 60 * 60 * 1000;
 
-/** The replies that are never memoised, so that the request may be retried with the same id (FR-282 (d)). */
+/**
+ * The replies that are never memoised, so that the request may be retried with the same id (FR-282 (d)). `unknown-match`
+ * joined by spec D26: a request id sent with an arbitrary match id stores nothing, so the memo cannot be grown with them.
+ */
 export const NON_MEMOISABLE_KINDS = [
   'rate-limited',
   'unknown-path',
@@ -16,6 +19,7 @@ export const NON_MEMOISABLE_KINDS = [
   'invalid-request',
   'invalid-player-id',
   'forbidden',
+  'unknown-match',
   'unavailable',
 ] as const satisfies readonly ErrorKind[];
 
