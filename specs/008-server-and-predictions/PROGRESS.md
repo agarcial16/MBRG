@@ -74,3 +74,11 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Run: typecheck clean; `npm test` x2 (also `CI=1`): 177 files, 3015 passed, 3 skipped. Mutations (full suite, all caught): two keys of `victim-revealed` swapped, extra member accepted, blank line dropped from the frame, parameter preferred to header, leading zero accepted, `Allow-Headers` missing.
 - Untested: nothing on the wire yet (T5).
 - Next step: T3 (stream limit settings, open-stream gauge).
+- T2 commit: 6b0142b (about 600 changed lines of src + tests against about 450 estimated).
+
+### M3b T3 - Stream limit settings and the open-stream gauge
+- Changed: `service/settings.ts` (`Limits.streams` 50 and `anonymousStreams` 5; `MBRG_LIMIT_STREAMS` and `MBRG_LIMIT_ANONYMOUS_STREAMS`, 1 to 1,000,000, 15 names in `SETTING_VARIABLES`, problems in variable order); `http/limits.ts` (`createGauge`: `open(keys)` -> `{ ok, lease }` or `{ ok: false }`, idempotent `release`, `count`, `keyCount`; `streamKeys`: operator and client at `streams:<digest>`, every other role at `streams-address:<address>`); `helpers/main-child.ts` raises both limits for child tests.
+- Tests: `http-limits.test.ts` (+7 gauge tests), `server-settings.test.ts`, `service-settings.test.ts`, `service-seam.test.ts` (lists and literals now 15 / seven limit fields; the older tests edited only for these pinned lists, as plan 19.1 says).
+- Run: typecheck clean; `npm test` and `CI=1 npm test`: 177 files, 3022 passed, 3 skipped. Mutations (full suite, all caught): default 5 -> 6, `release` not idempotent, host counted under a credential key, a refused open still counting (the first draft of the refused-open test missed it: added a count assertion on the full key).
+- Untested: the gauge is not wired to any route yet (T4/T5).
+- Next step: T4 (replay read `eventsAfter`, stream hub).

@@ -33,7 +33,7 @@ Plan section 19. **Approved by the user on 2026-10-23**: E1 to E10 (plan 19.13) 
   - Done when: tests green; mutations caught; no id moved; `rg` finds `FR-289 (stream framing)`.
   - Size: M (about 450).
 
-- [ ] **T3. Stream limit settings and the open-stream gauge.** FR-299 (stream limits: settings, gauge); FR-299 (b), (f); FR-260 (15 variables); NFR-51 (http modules)
+- [x] **T3. Stream limit settings and the open-stream gauge.** FR-299 (stream limits: settings, gauge); FR-299 (b), (f); FR-260 (15 variables); NFR-51 (http modules)
   - Depends on: T1 (D28 recorded), T2.
   - Files: `apps/server/src/service/settings.ts`, `apps/server/src/http/limits.ts`, `apps/server/test/{server-settings,service-settings,service-seam,http-limits}.test.ts`, `apps/server/test/helpers/main-child.ts` (raises the two new limits for child tests).
   - Tests first: `SETTING_VARIABLES` is the 15-name list (the 13 plus `MBRG_LIMIT_STREAMS`, `MBRG_LIMIT_ANONYMOUS_STREAMS`), none seed-like; defaults 50 and 5; values 1 to 1,000,000 accepted, `0`, `01`, `1000001`, text refused naming the variable only; the FR-260 environment scans cover the 15; gauge: `open` refuses when any key holds its limit, a lease counts under every key, `release` is idempotent (a second call changes nothing), a refused open records nothing; `streamKeys`: operator and client by credential digest at `streams`, anonymous, candidate and host by address at `anonymousStreams`; a gauge with no open lease holds no key.

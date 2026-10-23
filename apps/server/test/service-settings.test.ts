@@ -123,7 +123,7 @@ describe('settings', () => {
         allowedOrigins: [],
         host: '127.0.0.1',
         port: 8787,
-        limits: { commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120 },
+        limits: { commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120, streams: 50, anonymousStreams: 5 },
       },
     });
     expect(DEFAULT_RUNNING_MATCH_LIMIT).toBe(20);
@@ -156,7 +156,7 @@ describe('settings', () => {
     expect(SETTING_VARIABLES).toStrictEqual([
       'MBRG_OPERATOR_CREDENTIAL', 'MBRG_MAPS', 'MBRG_MAX_RUNNING_MATCHES', 'MBRG_DATABASE', 'MBRG_CLIENTS',
       'MBRG_ALLOWED_ORIGINS', 'MBRG_HOST', 'MBRG_PORT', 'MBRG_LIMIT_COMMANDS', 'MBRG_LIMIT_READS',
-      'MBRG_LIMIT_SUBMISSIONS', 'MBRG_LIMIT_ADVANCES', 'MBRG_LIMIT_ANONYMOUS',
+      'MBRG_LIMIT_SUBMISSIONS', 'MBRG_LIMIT_ADVANCES', 'MBRG_LIMIT_ANONYMOUS', 'MBRG_LIMIT_STREAMS', 'MBRG_LIMIT_ANONYMOUS_STREAMS',
     ]);
     const plain = readSettings(env);
     const noisy = readSettings({
