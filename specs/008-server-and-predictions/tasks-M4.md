@@ -18,7 +18,7 @@ Plan section 20. The rules of `tasks.md` apply; sizes are changed lines (src + t
 
 ## M4 (`feat/008-m4-scoring`, T1 to T5; 78 / 18 -> 82 / 14)
 
-- [ ] **T1. Branch, docs, bookkeeping targets.** NFR-55
+- [x] **T1. Branch, docs, bookkeeping targets.** NFR-55
   - Depends on: M3b' merged (PR #35); plan section 20 and this file approved; D29 approved (or not: then the spec is left as is and plan 20.11 records the open divergence).
   - Files: `specs/008-server-and-predictions/{spec,plan,tasks,tasks-M4}.md` (D29 in the spec's Decisions and status line only if approved; "DRAFT" markers removed), `packages/sim/test/traceability.test.ts` (comments only).
   - Tests first: counts stay 78 / 18; comments state the targets (M4: T2 79 / 17, T4 82 / 14; M4': T3' 86 / 10).
@@ -27,7 +27,7 @@ Plan section 20. The rules of `tasks.md` apply; sizes are changed lines (src + t
   - Done when: suite, typecheck and `CI=1` green; no id moved.
   - Size: S (about 40).
 
-- [ ] **T2. Pure scoring, ranking and the scored-phase rules.** FR-274 (close); FR-241 (scoring, pure), FR-243 (scoring, pure), FR-246 (scoring, pure); FR-279 (d) (generation, pure); FR-258 (results rounds, pure); NFR-51 (scoring and ranking)
+- [x] **T2. Pure scoring, ranking and the scored-phase rules.** FR-274 (close); FR-241 (scoring, pure), FR-243 (scoring, pure), FR-246 (scoring, pure); FR-279 (d) (generation, pure); FR-258 (results rounds, pure); NFR-51 (scoring and ranking)
   - Depends on: T1.
   - Files: `apps/server/src/core/scoring.ts` (new, pure), `apps/server/test/core-scoring.test.ts` (new), `apps/server/test/core-purity.test.ts` (the scan covers the new file, if it lists files), `packages/sim/test/traceability.test.ts` (FR-274 out of `PENDING_008`: 79 / 17).
   - Tests first (plan 20.3): `scorePhase` for a victim phase (worth n = `living.length`, with n = 5, 4, 3, 2 on the dev map and a non-round n = 7 on a fixture list), an absorber phase (worth d = `candidates.length`, d = 1 gives 1), a winner phase (each prediction worth its own stored `winnerCandidates`, two players with 5 and 3); one row per prediction, correct or not, ordered by player id; a wrong choice is 0, never negative; a player correct in every round gets the plain sum (no streak bonus, FR-274); `rankLeaderboard`: totals 9, 9, 4 give ranks 1, 1, 3, equal totals listed by player id in code-unit order (`web:B` before `web:a`), a player whose scored predictions are all 0 is ranked (D23), correct counts per kind; `scoredPhaseCount` (generation) = 2N + 1 while the victim of round N + 1 is revealed (phase-2, locked, halted after the reveal), 2N otherwise, 2T when finished; `isScored(view, k, phase)`: phase 1 of round N + 1 only once revealed, phase 2 only for k <= N, round 0 never; `readResultsRound` answers `round-not-applied` naming only N, byte-identical for every unscored (k, phase) and every stage, `invalid-request ['round']` for round 0 or a non-integer.
