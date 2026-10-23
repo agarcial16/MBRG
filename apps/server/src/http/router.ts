@@ -29,6 +29,8 @@ export interface RouteContext {
   readonly body: unknown;
   /** The Bearer token read from the request, or undefined (the credential the service compares itself). */
   readonly token: string | undefined;
+  /** The values of the `Last-Event-ID` header as received (several when repeated), or undefined when absent (FR-289 (d)). */
+  readonly lastEventId: readonly string[] | undefined;
   readonly identity: Identity;
   readonly now: number;
 }
@@ -38,6 +40,9 @@ export type Reply =
   | { readonly kind: 'success'; readonly status: 200 | 201; readonly body: string }
   // The bytes of a map file, read once for this request: the length sent is the length of these bytes (never a size read earlier).
   | { readonly kind: 'file'; readonly contentType: string; readonly body: Uint8Array }
+  // An event stream (FR-289): the pipeline opens it on the hub with the response; `after` is the last number the client has
+  // (undefined: only events committed after the open). A hub refusal is an ordinary error reply, written before any stream byte.
+  | { readonly kind: 'stream'; readonly matchId: string; readonly after: number | undefined }
   | { readonly kind: 'error'; readonly error: ErrorReply };
 
 /**
@@ -51,6 +56,8 @@ export interface Route {
   readonly path: string;
   /** `object`: the body is read (at most 4,096 bytes) and must be a JSON object; `none`: it is not read. */
   readonly body: 'none' | 'object';
+  /** An event-stream route: the pipeline takes an open-stream place at stage 1 and hands it to the hub (FR-299 (b)). */
+  readonly stream?: true;
   /** Names the path parameter holding the match id when the token may be that match's host token (advance only, PD16). */
   readonly hostParam?: string;
   checkQuery?(ctx: RouteContext): ErrorReply | undefined;

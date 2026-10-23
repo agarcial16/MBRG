@@ -25,6 +25,8 @@ export const baseEnv = (extra: Record<string, string> = {}): Record<string, stri
   MBRG_LIMIT_COMMANDS: '100000',
   MBRG_LIMIT_READS: '100000',
   MBRG_LIMIT_ANONYMOUS: '100000',
+  MBRG_LIMIT_STREAMS: '100000',
+  MBRG_LIMIT_ANONYMOUS_STREAMS: '100000',
   MBRG_LIMIT_ADVANCES: '100000',
   MBRG_LIMIT_SUBMISSIONS: '100000',
   ...extra,

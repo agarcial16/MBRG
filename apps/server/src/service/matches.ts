@@ -198,6 +198,12 @@ export type MatchListener = (matchId: string, events: readonly MatchEvent[]) => 
  */
 export type TestSeedSource = (matchId: string) => (round: number) => number;
 
+/** The reply of `eventsAfter`: the events after the given number and the stored last event number of the match. */
+export interface EventsRead {
+  readonly lastSeq: number;
+  readonly events: readonly MatchEvent[];
+}
+
 export interface ServiceOptions {
   readonly store: Store;
   readonly clock: Clock;
@@ -247,6 +253,12 @@ export interface MatchService {
   ownPredictionsPage(request: OwnPredictionsPageRequest): ReadOutcome<Page<OwnPrediction>>;
   /** FR-300 (host-token check): whether the credential is the host token of the match, by digest comparison; false for an unknown match. */
   hostTokenMatches(matchId: string, credential: string): ReadOutcome<boolean>;
+  /**
+   * FR-281 (i), FR-289 (d), (e): the stored events with a number above `after` in order, and the stored last number (the
+   * public data's `lastSeq`). `after` absent: no events (a stream of live events only). `unknown-match`, or `unavailable` on
+   * a storage failure. Writes nothing. An `after` that is not a whole number from 0 is a RangeError (the caller maps it).
+   */
+  eventsAfter(matchId: string, after: number | undefined): ReadOutcome<EventsRead>;
   /** FR-281 (j): one of the three files of a listed map package; `unknown-map`, `unknown-path` (another name), `unavailable` (unreadable). */
   mapFile(mapId: string, name: string): ReadOutcome<MapFile>;
   /** Registers a subscriber of every event stored after this call (FR-290); returns the function that removes it. */
@@ -987,6 +999,18 @@ export function createMatchService(options: ServiceOptions): MatchService {
         const digest = store.hostTokenDigest(matchId);
         // Compared as digests in time independent of the token (FR-300); an unknown match has no host token.
         return { ok: true, reply: presented !== undefined && digest !== undefined && sameDigest(presented, digest) };
+      });
+    },
+
+    eventsAfter(matchId: string, after: number | undefined): ReadOutcome<EventsRead> {
+      if (after !== undefined && !isRound(after, 0)) throw new RangeError('the event number is a whole number from 0');
+      return read(() => {
+        const stored = storedMatch(matchId);
+        if (stored === undefined) return unknownMatch();
+        const { lastSeq } = stored.match;
+        // Nothing above the stored last number: no read of the events (also keeps a huge number out of the query).
+        const events = after === undefined || after >= lastSeq ? [] : store.eventsAfter(stored.match.matchId, after);
+        return { ok: true, reply: { lastSeq, events } };
       });
     },
 

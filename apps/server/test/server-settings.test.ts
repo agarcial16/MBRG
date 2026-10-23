@@ -43,16 +43,16 @@ const settingsOf = (patch: Record<string, string>): ServerSettings => {
 };
 
 describe('server settings: variables and defaults', () => {
-  it('FR-299 (b) the variables read are exactly the plan list, in order, and none can set a round-seed source', () => {
+  it('FR-299 (stream limits) FR-260 the 15 variables read are exactly the plan list, in order, and none can set a round-seed source', () => {
     expect(SETTING_VARIABLES).toStrictEqual([
       'MBRG_OPERATOR_CREDENTIAL', 'MBRG_MAPS', 'MBRG_MAX_RUNNING_MATCHES', 'MBRG_DATABASE', 'MBRG_CLIENTS',
       'MBRG_ALLOWED_ORIGINS', 'MBRG_HOST', 'MBRG_PORT', 'MBRG_LIMIT_COMMANDS', 'MBRG_LIMIT_READS',
-      'MBRG_LIMIT_SUBMISSIONS', 'MBRG_LIMIT_ADVANCES', 'MBRG_LIMIT_ANONYMOUS',
+      'MBRG_LIMIT_SUBMISSIONS', 'MBRG_LIMIT_ADVANCES', 'MBRG_LIMIT_ANONYMOUS', 'MBRG_LIMIT_STREAMS', 'MBRG_LIMIT_ANONYMOUS_STREAMS',
     ]);
     expect(SETTING_VARIABLES.filter((name) => /seed|random|source/i.test(name))).toStrictEqual([]);
   });
 
-  it('FR-299 (b) the defaults: no clients, no origins, 127.0.0.1:8787, limits 600 / 1,200 / 30 / 30 / 120 per minute', () => {
+  it('FR-299 (b) the defaults: no clients, no origins, 127.0.0.1:8787, limits 600 / 1,200 / 30 / 30 / 120 per minute, 50 and 5 open streams', () => {
     expect(settingsOf({})).toStrictEqual({
       operatorCredential: OPERATOR,
       maps: { dev: 'maps/dev' },
@@ -62,11 +62,11 @@ describe('server settings: variables and defaults', () => {
       allowedOrigins: [],
       host: '127.0.0.1',
       port: 8787,
-      limits: { commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120 },
+      limits: { commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120, streams: 50, anonymousStreams: 5 },
     });
     expect(DEFAULT_HOST).toBe('127.0.0.1');
     expect(DEFAULT_PORT).toBe(8787);
-    expect(DEFAULT_LIMITS).toStrictEqual({ commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120 });
+    expect(DEFAULT_LIMITS).toStrictEqual({ commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120, streams: 50, anonymousStreams: 5 });
   });
 
   it('FR-299 (b) every limit is an operator setting, so a test or the performance run can raise each one', () => {
@@ -76,12 +76,14 @@ describe('server settings: variables and defaults', () => {
       MBRG_LIMIT_SUBMISSIONS: '1',
       MBRG_LIMIT_ADVANCES: '77',
       MBRG_LIMIT_ANONYMOUS: '4321',
+      MBRG_LIMIT_STREAMS: '1000000',
+      MBRG_LIMIT_ANONYMOUS_STREAMS: '1',
     });
-    expect(raised.limits).toStrictEqual({ commands: 1000000, reads: 999999, submissions: 1, advances: 77, anonymous: 4321 });
+    expect(raised.limits).toStrictEqual({ commands: 1000000, reads: 999999, submissions: 1, advances: 77, anonymous: 4321, streams: 1000000, anonymousStreams: 1 });
   });
 
-  it('FR-299 (b) a limit that is not a whole number 1 to 1,000,000 is refused naming its variable', () => {
-    for (const name of ['MBRG_LIMIT_COMMANDS', 'MBRG_LIMIT_READS', 'MBRG_LIMIT_SUBMISSIONS', 'MBRG_LIMIT_ADVANCES', 'MBRG_LIMIT_ANONYMOUS']) {
+  it('FR-299 (stream limits) a limit that is not a whole number 1 to 1,000,000 is refused naming its variable', () => {
+    for (const name of ['MBRG_LIMIT_COMMANDS', 'MBRG_LIMIT_READS', 'MBRG_LIMIT_SUBMISSIONS', 'MBRG_LIMIT_ADVANCES', 'MBRG_LIMIT_ANONYMOUS', 'MBRG_LIMIT_STREAMS', 'MBRG_LIMIT_ANONYMOUS_STREAMS']) {
       for (const value of ['0', '1000001', '-5', '2.5', '1e3', 'many', '', ' 30', '030', '0x10']) {
         expect(problemsOf({ [name]: value }), `${name}=${value}`).toStrictEqual([name]);
       }

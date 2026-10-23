@@ -1,4 +1,4 @@
-// The rate limiter (spec 008 FR-299 (a), (c) to (e); plan 18.6, PD14, PD16). Pure: the instant is a parameter; no
+// The rate limiter (spec 008 FR-299 (a), (c) to (e); plan 18.6, PD14, PD16) and the open-stream gauge (FR-299 (b); plan 19.4). Pure: the instant is a parameter; no
 // clock, no timer. State lives in memory only (FR-299 (d)) and follows the last minute of traffic.
 // - Per key, the instants of the ACCEPTED requests of the last 60,000 ms (sliding window). A refused request records
 //   nothing anywhere (FR-299 (c)).
@@ -60,6 +60,15 @@ export function limitKeys(identity: Identity, requestClass: RequestClass, addres
     default:
       return [{ key: `address:${address}`, limit: limits.anonymous }];
   }
+}
+
+/**
+ * The keys of an event stream (FR-299 (b), plan 19.4): the operator and a client by credential digest (the client values,
+ * C4); every other role, a host token included, by network address: only the advance route resolves host tokens (PD16).
+ */
+export function streamKeys(identity: Identity, address: string, limits: Limits): LimitKey[] {
+  if (identity.role === 'operator' || identity.role === 'client') return [{ key: `streams:${identity.digest}`, limit: limits.streams }];
+  return [{ key: `streams-address:${address}`, limit: limits.anonymousStreams }];
 }
 
 /** The key of the per-player limit of a match (a NUL separates the two parts: neither can hold one). */
@@ -180,5 +189,52 @@ export function createLimiter(): Limiter {
       sweep(now);
     },
     keyCount: () => held.size,
+  };
+}
+
+/** One open stream's place in the gauge; `release` gives it back once. */
+export interface StreamLease {
+  /** Gives the place back under every key; later calls do nothing. */
+  release(): void;
+}
+
+export type StreamOpening = { readonly ok: true; readonly lease: StreamLease } | { readonly ok: false };
+
+/** Counts open event streams per key (FR-299 (b)): no window, a stream stays counted until its lease is released. */
+export interface Gauge {
+  /** Takes a place under every key, or refuses when any key already holds its limit (nothing is recorded then). */
+  open(keys: readonly LimitKey[]): StreamOpening;
+  /** The open streams under a key. */
+  count(key: string): number;
+  /** The number of keys with at least one open stream. */
+  keyCount(): number;
+}
+
+export function createGauge(): Gauge {
+  const open = new Map<string, number>();
+  return {
+    open(keys) {
+      checkKeys(keys);
+      for (const { key, limit } of keys) if ((open.get(key) ?? 0) >= limit) return { ok: false };
+      const names = keys.map((k) => k.key);
+      for (const name of names) open.set(name, (open.get(name) ?? 0) + 1);
+      let released = false;
+      return {
+        ok: true,
+        lease: {
+          release() {
+            if (released) return;
+            released = true;
+            for (const name of names) {
+              const left = (open.get(name) ?? 0) - 1;
+              if (left > 0) open.set(name, left);
+              else open.delete(name);
+            }
+          },
+        },
+      };
+    },
+    count: (key) => open.get(key) ?? 0,
+    keyCount: () => open.size,
   };
 }

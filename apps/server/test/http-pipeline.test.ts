@@ -391,7 +391,7 @@ describe('http pipeline: failures, headers and options', () => {
   });
 
   it('FR-260 (option keys) the option keys of createServer are pinned and name no seed source', () => {
-    expect([...SERVER_OPTION_KEYS].sort()).toStrictEqual(['clock', 'log', 'routes', 'service', 'settings']);
+    expect([...SERVER_OPTION_KEYS].sort()).toStrictEqual(['clock', 'log', 'routes', 'service', 'settings', 'streams']);
     for (const key of SERVER_OPTION_KEYS) expect(key).not.toMatch(/seed|random|secret/i);
   });
 });

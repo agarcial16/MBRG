@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_LIMITS } from '../src/service/settings';
 import type { Limits } from '../src/service/settings';
-import { SWEEP_EVERY, WINDOW_MS, createLimiter, limitKeys, playerKey } from '../src/http/limits';
+import { SWEEP_EVERY, WINDOW_MS, createGauge, createLimiter, limitKeys, playerKey, streamKeys } from '../src/http/limits';
 import type { LimitKey } from '../src/http/limits';
 
 // The sliding-window limiter of plan 18.6 (M3a T6), driven with explicit instants (no clock): FR-299 (c) counts only
@@ -198,7 +198,7 @@ describe('http limiter', () => {
   });
 
   it('FR-299 (a) the keys of a request follow its credential and class, and anonymous requests the address', () => {
-    const limits: Limits = { commands: 11, reads: 13, submissions: 17, advances: 19, anonymous: 23 };
+    const limits: Limits = { commands: 11, reads: 13, submissions: 17, advances: 19, anonymous: 23, streams: 29, anonymousStreams: 31 };
     const digest = 'ab'.repeat(32);
     expect(limitKeys({ role: 'operator', digest }, 'command', '192.0.2.7', limits)).toStrictEqual([{ key: `command:${digest}`, limit: 11 }]);
     expect(limitKeys({ role: 'client', digest, namespace: 'web' }, 'read', '192.0.2.7', limits)).toStrictEqual([{ key: `read:${digest}`, limit: 13 }]);
@@ -217,5 +217,93 @@ describe('http limiter', () => {
     expect(() => limiter.admit([key('x', 0)], T0)).toThrow(RangeError);
     expect(() => limiter.admit([key('x', 1.5)], T0)).toThrow(RangeError);
     expect(() => limiter.admit([key('x', 1)], Number.NaN)).toThrow(RangeError);
+  });
+});
+
+describe('http open-stream gauge', () => {
+  it('FR-299 (stream limits) `open` is admitted while every key is under its limit and refused when any key holds its limit', () => {
+    const gauge = createGauge();
+    const a = [key('streams:a', 2)];
+    const first = gauge.open(a);
+    const second = gauge.open(a);
+    expect([first.ok, second.ok]).toStrictEqual([true, true]);
+    expect(gauge.count('streams:a')).toBe(2);
+    expect(gauge.open(a)).toStrictEqual({ ok: false });
+    // Two keys: the full one refuses although the other has room.
+    expect(gauge.open([key('streams:b', 5), key('streams:a', 2)])).toStrictEqual({ ok: false });
+    expect(gauge.count('streams:b')).toBe(0);
+  });
+
+  it('FR-299 (stream limits) a lease counts under every key it was opened with', () => {
+    const gauge = createGauge();
+    const keys = [key('streams:a', 3), key('streams-address:x', 3)];
+    const lease = gauge.open(keys);
+    expect(lease.ok).toBe(true);
+    expect([gauge.count('streams:a'), gauge.count('streams-address:x')]).toStrictEqual([1, 1]);
+    gauge.open([key('streams:a', 3)]);
+    expect([gauge.count('streams:a'), gauge.count('streams-address:x')]).toStrictEqual([2, 1]);
+  });
+
+  it('FR-299 (stream limits) `release` gives the room back and a second call changes nothing', () => {
+    const gauge = createGauge();
+    const k = [key('streams:a', 2)];
+    const one = gauge.open(k);
+    const two = gauge.open(k);
+    if (!one.ok || !two.ok) throw new Error('expected two leases');
+    one.lease.release();
+    expect(gauge.count('streams:a')).toBe(1);
+    one.lease.release();
+    one.lease.release();
+    expect(gauge.count('streams:a')).toBe(1);
+    expect(gauge.open(k).ok).toBe(true);
+    expect(gauge.open(k)).toStrictEqual({ ok: false });
+    two.lease.release();
+    expect(gauge.count('streams:a')).toBe(1);
+  });
+
+  it('FR-299 (stream limits) a refused open records nothing under any key', () => {
+    const gauge = createGauge();
+    const full = gauge.open([key('streams:a', 1)]);
+    expect(full.ok).toBe(true);
+    expect(gauge.open([key('streams-address:x', 4), key('streams:a', 1)])).toStrictEqual({ ok: false });
+    expect(gauge.count('streams-address:x')).toBe(0);
+    expect(gauge.count('streams:a')).toBe(1);
+    expect(gauge.keyCount()).toBe(1);
+  });
+
+  it('FR-299 (stream limits) a gauge with no open lease holds no key', () => {
+    const gauge = createGauge();
+    expect(gauge.keyCount()).toBe(0);
+    const a = gauge.open([key('streams:a', 4), key('streams-address:x', 4)]);
+    const b = gauge.open([key('streams:a', 4)]);
+    if (!a.ok || !b.ok) throw new Error('expected leases');
+    expect(gauge.keyCount()).toBe(2);
+    a.lease.release();
+    expect(gauge.keyCount()).toBe(1);
+    b.lease.release();
+    expect(gauge.keyCount()).toBe(0);
+    expect(gauge.count('streams:a')).toBe(0);
+  });
+
+  it('FR-299 (stream limits) a key list that is empty or a limit that is not a whole number >= 1 is a programming error', () => {
+    const gauge = createGauge();
+    expect(() => gauge.open([])).toThrow(RangeError);
+    expect(() => gauge.open([key('x', 0)])).toThrow(RangeError);
+    expect(() => gauge.open([key('x', 2.5)])).toThrow(RangeError);
+  });
+
+  it('FR-299 (stream limits) the keys of a stream: operator and client by credential digest, every other role by address', () => {
+    const limits: Limits = { commands: 11, reads: 13, submissions: 17, advances: 19, anonymous: 23, streams: 29, anonymousStreams: 31 };
+    const digest = 'cd'.repeat(32);
+    expect(streamKeys({ role: 'operator', digest }, '192.0.2.7', limits)).toStrictEqual([{ key: `streams:${digest}`, limit: 29 }]);
+    expect(streamKeys({ role: 'client', digest, namespace: 'web' }, '192.0.2.7', limits)).toStrictEqual([{ key: `streams:${digest}`, limit: 29 }]);
+    expect(streamKeys({ role: 'anonymous' }, '192.0.2.7', limits)).toStrictEqual([{ key: 'streams-address:192.0.2.7', limit: 31 }]);
+    // A candidate and a host token are anonymous on the stream route: no key of their own (PD16).
+    expect(streamKeys({ role: 'candidate', digest }, '192.0.2.7', limits)).toStrictEqual([{ key: 'streams-address:192.0.2.7', limit: 31 }]);
+    expect(streamKeys({ role: 'host', digest }, '192.0.2.7', limits)).toStrictEqual([{ key: 'streams-address:192.0.2.7', limit: 31 }]);
+    // The same address shares the anonymous gauge; the same credential shares the credential gauge.
+    expect(streamKeys({ role: 'operator', digest }, '192.0.2.7', limits)).toStrictEqual(streamKeys({ role: 'operator', digest }, '198.51.100.1', limits));
+    expect(DEFAULT_LIMITS.streams).toBe(50);
+    expect(DEFAULT_LIMITS.anonymousStreams).toBe(5);
   });
 });

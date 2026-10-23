@@ -192,6 +192,20 @@ export type MatchEvent =
   | MatchFinishedEvent
   | MatchHaltedEvent;
 
+/**
+ * Wire key order of each event type (FR-257 (event encoders), FR-287): fixed, whatever the order of the input object.
+ * No list holds an absorber before its application, a round seed or a credential; `matchSecret` is in `match-finished` only.
+ */
+export const EVENT_KEYS = {
+  'phase-closed': ['type', 'seq', 'round', 'phase', 'at'],
+  'victim-revealed': ['type', 'seq', 'round', 'victim', 'candidates', 'living', 'revealedAt', 'c2', 'a', 'reportedTime'],
+  'round-applied': ['type', 'seq', 'round', 'record', 'stateDigest', 'appliedAt'],
+  results: ['type', 'seq', 'round', 'phase'],
+  schedule: ['type', 'seq', 'stage', 'schedule', 'reportedTime'],
+  'match-finished': ['type', 'seq', 'winner', 'matchSecret', 'rule', 'reportedTime'],
+  'match-halted': ['type', 'seq', 'round', 'reason', 'reportedTime'],
+} as const satisfies Record<MatchEvent['type'], readonly string[]>;
+
 /** Why a step was performed (FR-240): the clock on time, a manual advance, or a late catch-up (FR-248). */
 export const STEP_CAUSES = ['clock', 'manual', 'late'] as const;
 export type StepCause = (typeof STEP_CAUSES)[number];

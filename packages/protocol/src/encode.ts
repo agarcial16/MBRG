@@ -4,6 +4,8 @@ import { encodePublicMatch } from './public';
 import {
   ADVANCE_REPLY_KEYS,
   CREATION_REPLY_KEYS,
+  EVENT_KEYS,
+  HALT_REASONS,
   MATCH_SUMMARY_KEYS,
   OWN_PREDICTION_KEYS,
   PAGE_KEYS,
@@ -17,6 +19,7 @@ import {
   STEP_KINDS,
   type AdvanceReply,
   type CreationReply,
+  type MatchEvent,
   type MatchSummary,
   type OwnPrediction,
   type Page,
@@ -51,14 +54,25 @@ function objectOf(v: unknown, what: string, keys: readonly string[]): Raw {
 }
 
 /** Joins `"key":text` for the members given, in the order of `keys`; a writer returning undefined omits its member. */
-function write(o: Raw, what: string, keys: readonly string[], writers: Record<string, (v: unknown) => string>, optional: readonly string[] = []): string {
+function write(
+  o: Raw,
+  what: string,
+  keys: readonly string[],
+  writers: Record<string, (v: unknown) => string>,
+  optional: readonly string[] = [],
+  nullable: readonly string[] = [],
+): string {
   const parts: string[] = [];
   for (const k of keys) {
     if (!present(o, k)) {
       if (!optional.includes(k)) bad(`${what}.${k} is required`);
       continue;
     }
-    if (o[k] === null) bad(`${what}.${k} is null`);
+    if (o[k] === null) {
+      if (!nullable.includes(k)) bad(`${what}.${k} is null`);
+      parts.push(`${JSON.stringify(k)}:null`);
+      continue;
+    }
     const writer = writers[k];
     if (writer === undefined) return bad(`${what}.${k} has no writer`);
     parts.push(`${JSON.stringify(k)}:${writer(o[k])}`);
@@ -204,5 +218,64 @@ export function encodePage<T>(page: Page<T>, encodeItem: (item: T) => string): s
       next: text('page.next'),
     },
     ['next'],
+  );
+}
+
+const RUNNING_STAGES = ['phase-1', 'phase-2', 'locked'] as const;
+const nullOrInt = (what: string, min: number) => (v: unknown): string => (v === null ? 'null' : int(what, min)(v));
+const schedule = (v: unknown): string => {
+  const o = objectOf(v, 'event.schedule', ['c1', 'c2', 'a']);
+  return write(o, 'event.schedule', ['c1', 'c2', 'a'], { c1: int('event.schedule.c1', 0), c2: int('event.schedule.c2', 0), a: int('event.schedule.a', 0) });
+};
+
+/** The writers of the members of each event type (the key lists are `EVENT_KEYS`). */
+const EVENT_WRITERS: Record<MatchEvent['type'], Record<string, (v: unknown) => string>> = {
+  'phase-closed': { seq: int('event.seq', 1), round: int('event.round', 1), phase: (v) => (v === 1 || v === 2 ? String(v) : bad('event.phase is not 1 or 2')), at: int('event.at', 0) },
+  'victim-revealed': {
+    seq: int('event.seq', 1),
+    round: int('event.round', 1),
+    victim: int('event.victim', 1),
+    candidates: ids('event.candidates'),
+    living: ids('event.living'),
+    revealedAt: int('event.revealedAt', 0),
+    c2: nullOrInt('event.c2', 0),
+    a: nullOrInt('event.a', 0),
+    reportedTime: int('event.reportedTime', 0),
+  },
+  'round-applied': {
+    seq: int('event.seq', 1),
+    round: int('event.round', 1),
+    record: (v) => encodeRecord(v as RecordReply),
+    stateDigest: hex64('event.stateDigest'),
+    appliedAt: int('event.appliedAt', 0),
+  },
+  results: { seq: int('event.seq', 1), round: int('event.round', 1), phase: (v) => (v === 1 || v === 2 ? String(v) : bad('event.phase is not 1 or 2')) },
+  schedule: { seq: int('event.seq', 1), stage: member('event.stage', RUNNING_STAGES), schedule, reportedTime: int('event.reportedTime', 0) },
+  'match-finished': { seq: int('event.seq', 1), winner: int('event.winner', 1), matchSecret: hex64('event.matchSecret'), rule: text('event.rule'), reportedTime: int('event.reportedTime', 0) },
+  'match-halted': { seq: int('event.seq', 1), round: int('event.round', 1), reason: member('event.reason', HALT_REASONS), reportedTime: int('event.reportedTime', 0) },
+};
+
+/**
+ * One event (FR-257 (event encoders), FR-287): `type` first, then the members of its `EVENT_KEYS` list. Refuses an unknown
+ * type, a member outside the list, an inherited member, a null member (only `c2` and `a` of a victim are null, both together,
+ * for a match without a clock) and a value out of shape. `schedule` of a schedule event is the only optional member.
+ */
+export function encodeEvent(event: MatchEvent): string {
+  if (typeof event !== 'object' || event === null || Array.isArray(event)) return bad('event is not an object');
+  const raw = event as unknown as Raw;
+  const type = own(raw, 'type') ? raw.type : undefined;
+  if (typeof type !== 'string' || !Object.prototype.hasOwnProperty.call(EVENT_KEYS, type)) return bad('event.type is not an event type');
+  const kind = type as MatchEvent['type'];
+  const keys = EVENT_KEYS[kind];
+  const o = objectOf(raw, 'event', keys);
+  for (const k of keys) if (k in o && !own(o, k)) bad(`event.${k} is inherited`);
+  if (kind === 'victim-revealed' && (o.c2 === null) !== (o.a === null)) bad('event.c2 and event.a are null together or not at all');
+  return write(
+    o,
+    'event',
+    keys,
+    { type: member('event.type', [kind]), ...EVENT_WRITERS[kind] },
+    kind === 'schedule' ? ['schedule'] : [],
+    kind === 'victim-revealed' ? ['c2', 'a'] : [],
   );
 }

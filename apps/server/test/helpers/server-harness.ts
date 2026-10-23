@@ -6,6 +6,8 @@ import { playerKey } from '../../src/http/limits';
 import type { LogEvent } from '../../src/http/log';
 import type { Route } from '../../src/http/router';
 import { createServer } from '../../src/http/server';
+import { createStreamHub } from '../../src/http/streams';
+import type { StreamHub } from '../../src/http/streams';
 import type { MatchService } from '../../src/service/matches';
 import { DEFAULT_LIMITS } from '../../src/service/settings';
 import type { Limits, ServerSettings } from '../../src/service/settings';
@@ -14,6 +16,8 @@ import type { FaultPlan } from '../../src/store/faults';
 import { openStore } from '../../src/store/sqlite';
 import type { Store } from '../../src/store/store';
 import type { FakeClock } from './fake-clock';
+import { fakeScheduler } from './fake-scheduler';
+import type { FakeScheduler } from './fake-scheduler';
 import { serviceHarness } from './service-harness';
 import type { Harness, HarnessOptions } from './service-harness';
 
@@ -51,6 +55,9 @@ export interface ServerHarness {
   readonly base: Harness;
   readonly clock: FakeClock;
   readonly settings: ServerSettings;
+  /** The event stream hub of the server and the fake scheduler that drives its heartbeat. */
+  readonly streams: StreamHub;
+  readonly scheduler: FakeScheduler;
   /** Every event the server logged, in order. */
   readonly logs: LogEvent[];
   close(): Promise<void>;
@@ -154,7 +161,9 @@ export async function startServer(options: ServerHarnessOptions = {}): Promise<S
   };
   const logs: LogEvent[] = [];
   const routes = (options.routes ?? testRoutes)(service, settings);
-  const server = createServer({ service, settings, clock: base.clock, log: (event) => {
+  const scheduler = fakeScheduler(base.clock);
+  const streams = createStreamHub({ service, scheduler, clock: base.clock });
+  const server = createServer({ service, settings, clock: base.clock, streams, log: (event) => {
       logs.push(event);
       options.onLog?.(event);
     },
@@ -179,6 +188,8 @@ export async function startServer(options: ServerHarnessOptions = {}): Promise<S
     base,
     clock: base.clock,
     settings,
+    streams,
+    scheduler,
     logs,
     async close() {
       if (closed) return;

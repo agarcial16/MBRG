@@ -204,6 +204,8 @@ describe('traceability', () => {
     // T3 adds FR-283, FR-299 (70 / 26); T4 moves none; T5 adds FR-281 (71 / 25); T6 adds FR-284, FR-286 (73 / 23); T7 moves none.
     // M3a' target (T5'): 76 done / 20 pending. T1' starts at 73 / 23; T2' adds FR-280, FR-298 (75 / 21); T3' adds FR-285 (76 / 20);
     // T4' moves none; T5' pins the 3 M3a' ids (FR-280, FR-285, FR-298) as done in the closing-state test.
+    // M3b target (T6): 76 done / 20 pending (plan section 19.10): M3b moves no id (it completes parts of done ids).
+    // M3b' (plan section 19): T2' adds FR-287 (77 / 19); T4' adds NFR-49 (78 / 18).
     expect(DONE_008).toHaveLength(76);
     expect(PENDING_008).toHaveLength(20);
     expect(new Set([...PENDING_008, ...DONE_008]).size).toBe(96);
@@ -211,9 +213,11 @@ describe('traceability', () => {
     for (const id of PENDING_008) expect(expected, id).toContain(id);
   });
 
-  it("NFR-55 M3a' closing state, 76 ids done and 20 pending: the M2b, M2b', M3a and M3a' ids done, the later ids pending", () => {
-    // M3a' closing state (plan sections 11 and 13): asserted explicitly. M3a moved six ids
+  it("NFR-55 M3b closing state, 76 ids done and 20 pending: the M2b, M2b', M3a and M3a' ids done, M3b moved none, the later ids pending", () => {
+    // M3b closing state (plan sections 11 and 13): asserted explicitly. M3a moved six ids
     // (T2: FR-279; T3: FR-283, FR-299; T5: FR-281; T6: FR-284, FR-286); M3a' T2' moved FR-280 and FR-298; T3' moved FR-285.
+    // M3b moved no id: it completed parts of done ids (event encoders, stream framing, stream limits, the replay read, the hub,
+    // the stream route), so the done and pending sets are those of M3a'.
     expect(DONE_008).toHaveLength(76);
     expect(PENDING_008).toHaveLength(20);
     expect(DONE_008.length + PENDING_008.length).toBe(96);
@@ -252,7 +256,7 @@ describe('traceability', () => {
     const closedByHttp = [...closedByM3a, ...closedByM3a2];
     expect(new Set(closedByHttp).size).toBe(9);
     for (const id of closedByHttp) expect(PENDING_008, id).not.toContain(id);
-    // M3b, M4 and M5: still pending (a literal list of every one of the 20).
+    // M3b' (FR-287, NFR-49), M4 and M5: still pending (a literal list of every one of the 20).
     const laterIds = [
       'FR-271', 'FR-272', 'FR-273', 'FR-274', 'FR-275', 'FR-276', 'FR-277', 'FR-278',
       'FR-287',

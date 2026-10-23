@@ -5,6 +5,8 @@
 //   exactly, is echoed with `Vary: Origin`; another origin gets no permission headers (the browser blocks the reply).
 // - A preflight (OPTIONS) is credential-free when it asks for GET (or names no method) and does not list `authorization`;
 //   then any origin is answered with `*`; otherwise only an allowed origin, with methods GET, POST and the two headers.
+//   A credential-free preflight that lists `last-event-id` (the event stream's reconnection header) also gets
+//   `Access-Control-Allow-Headers: last-event-id`.
 // `Access-Control-Allow-Credentials` is never sent: credentials travel only in the Bearer header, never in cookies.
 
 /** Preflight answers may be cached by the browser for 600 s. */
@@ -24,8 +26,9 @@ export interface CorsRequest {
   readonly requestHeaders?: string | undefined;
 }
 
-const listsAuthorization = (names: string | undefined): boolean =>
-  names !== undefined && names.split(',').some((name) => name.trim().toLowerCase() === 'authorization');
+const lists = (names: string | undefined, wanted: string): boolean =>
+  names !== undefined && names.split(',').some((name) => name.trim().toLowerCase() === wanted);
+const listsAuthorization = (names: string | undefined): boolean => lists(names, 'authorization');
 
 /** The CORS headers of a reply (lower-case names); `allowedOrigins` are compared exactly, `*` is never one of them. */
 export function corsHeaders(request: CorsRequest, allowedOrigins: readonly string[]): Readonly<Record<string, string>> {
@@ -34,7 +37,11 @@ export function corsHeaders(request: CorsRequest, allowedOrigins: readonly strin
   const allowed = origin !== '*' && allowedOrigins.includes(origin);
   if (request.method === 'OPTIONS') {
     const credentialFree = (request.requestMethod === undefined || request.requestMethod === 'GET') && !listsAuthorization(request.requestHeaders);
-    if (credentialFree) return { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET', 'access-control-max-age': String(PREFLIGHT_MAX_AGE) };
+    if (credentialFree) {
+      const base = { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET', 'access-control-max-age': String(PREFLIGHT_MAX_AGE) };
+      // The event stream reconnects with `Last-Event-ID` (FR-289 (d)): a credential-free preflight asking for it allows it.
+      return lists(request.requestHeaders, 'last-event-id') ? { ...base, 'access-control-allow-headers': 'last-event-id' } : base;
+    }
     if (!allowed) return {};
     return {
       'access-control-allow-origin': origin,

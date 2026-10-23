@@ -61,6 +61,11 @@ export function sendSuccess(target: ReplyTarget, status: 200 | 201, body: string
   write(target, status, body, {});
 }
 
+/** The 200 headers of an event stream (FR-286, plan 19.2): the stream type, no caching, no sniffing, the CORS headers of a read; no length. */
+export function streamHeaders(target: ReplyTarget): Record<string, string> {
+  return { 'content-type': 'text/event-stream', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', ...corsHeaders(target.cors, target.allowedOrigins) };
+}
+
 /** A map file: 200 with its bytes exactly as read, `Content-Length` their count, the content type of the file (the other headers as every reply). */
 export function sendFile(target: ReplyTarget, contentType: string, body: Uint8Array): void {
   const headers: Record<string, string | number> = {

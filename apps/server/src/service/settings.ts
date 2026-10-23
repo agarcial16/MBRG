@@ -33,6 +33,10 @@ export interface Limits {
   readonly advances: number;
   /** Requests per network address without a valid credential per minute. */
   readonly anonymous: number;
+  /** Open event streams per client (or operator) credential (FR-299 (b)). */
+  readonly streams: number;
+  /** Open event streams per network address without a valid credential (FR-299 (b)). */
+  readonly anonymousStreams: number;
 }
 
 /** The settings of the HTTP server: the service settings plus clients, origins, listener and limits. */
@@ -50,7 +54,7 @@ export const DEFAULT_RUNNING_MATCH_LIMIT = 20;
 export const DEFAULT_DATABASE_PATH = 'mbrg.sqlite';
 export const DEFAULT_HOST = '127.0.0.1';
 export const DEFAULT_PORT = 8787;
-export const DEFAULT_LIMITS: Limits = Object.freeze({ commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120 });
+export const DEFAULT_LIMITS: Limits = Object.freeze({ commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120, streams: 50, anonymousStreams: 5 });
 
 /** Connection hardening of the listener (plan PD21, C4): fixed values, not settings. */
 export const CONNECTION_OPTIONS = Object.freeze({ maxHeaderSize: 8192, headersTimeout: 10_000, requestTimeout: 30_000, keepAliveTimeout: 5_000 });
@@ -72,6 +76,8 @@ export const SETTING_VARIABLES = [
   'MBRG_LIMIT_SUBMISSIONS',
   'MBRG_LIMIT_ADVANCES',
   'MBRG_LIMIT_ANONYMOUS',
+  'MBRG_LIMIT_STREAMS',
+  'MBRG_LIMIT_ANONYMOUS_STREAMS',
 ] as const;
 
 export type SettingsResult = { readonly ok: true; readonly settings: ServerSettings } | { readonly ok: false; readonly problems: readonly string[] };
@@ -204,6 +210,10 @@ export function readSettings(env: Readonly<Record<string, string | undefined>>):
   if (advances === undefined) problems.push('MBRG_LIMIT_ADVANCES');
   const anonymous = limitOf(env.MBRG_LIMIT_ANONYMOUS, DEFAULT_LIMITS.anonymous);
   if (anonymous === undefined) problems.push('MBRG_LIMIT_ANONYMOUS');
+  const streams = limitOf(env.MBRG_LIMIT_STREAMS, DEFAULT_LIMITS.streams);
+  if (streams === undefined) problems.push('MBRG_LIMIT_STREAMS');
+  const anonymousStreams = limitOf(env.MBRG_LIMIT_ANONYMOUS_STREAMS, DEFAULT_LIMITS.anonymousStreams);
+  if (anonymousStreams === undefined) problems.push('MBRG_LIMIT_ANONYMOUS_STREAMS');
   if (
     problems.length > 0 ||
     !isCredential(credential) ||
@@ -216,7 +226,9 @@ export function readSettings(env: Readonly<Record<string, string | undefined>>):
     reads === undefined ||
     submissions === undefined ||
     advances === undefined ||
-    anonymous === undefined
+    anonymous === undefined ||
+    streams === undefined ||
+    anonymousStreams === undefined
   ) {
     return { ok: false, problems };
   }
@@ -231,7 +243,7 @@ export function readSettings(env: Readonly<Record<string, string | undefined>>):
       allowedOrigins,
       host,
       port,
-      limits: { commands, reads, submissions, advances, anonymous },
+      limits: { commands, reads, submissions, advances, anonymous, streams, anonymousStreams },
     },
   };
 }

@@ -1,7 +1,7 @@
 # Tasks 008 — Server and predictions
 Plan: `specs/008-server-and-predictions/plan.md`. Prerequisites: spec approved by the user (2026-10-21, D25); plan section 1 decisions U1 to U5 answered by the user (2026-10-21/22: workspaces `apps/server` and `packages/protocol`; `tsx` 4.23.15 and `@types/node` 24.19.2 reused as pinned dev dependencies of `apps/server`; no type stripping and no import-line changes in sim or shared; `engines >=24` and `.nvmrc 24` kept, any raise back to the user; exports `playRoundWithSeed`, `absorptionCandidatesOf`, `livingFactions`); **plan and tasks approved by the user (M1 and M2a)**. Any later change goes to the spec first, then the plan, then these tasks.
 
-This file details **M1** (merged, PR #28, 061119b), **M2a** (merged, PR #29, ac1263a) and **M2b / M2b'** (approved by the user: M2b on 2026-10-22, M2b' on 2026-10-22; plan section 17; M2b merged, PR #30, b9effa5; M2b' merged, PR #31, 93727f4) and **M3a / M3a'** (approved by the user on 2026-10-22 with C1 to C8, plan section 18; split into M3a and M3a' on 2026-10-23 under C8). M3b to M5 are listed as headings at the end and are detailed (at most 10 tasks each) in a later revision, approved before their first task. The M1 rules below apply to every milestone, with the M2a additions in the M2a section.
+This file details **M1** (merged, PR #28, 061119b), **M2a** (merged, PR #29, ac1263a) and **M2b / M2b'** (approved by the user: M2b on 2026-10-22, M2b' on 2026-10-22; plan section 17; M2b merged, PR #30, b9effa5; M2b' merged, PR #31, 93727f4) and **M3a / M3a'** (approved by the user on 2026-10-22 with C1 to C8, plan section 18; split into M3a and M3a' on 2026-10-23 under C8). M3b / M3b' are detailed in `tasks-M3b.md` (plan section 19, approved by the user on 2026-10-23: E1 to E10 and D28); M4 and M5 are listed as headings at the end and are detailed (at most 10 tasks each) in a later revision, approved before their first task. The M1 rules below apply to every milestone, with the M2a additions in the M2a section.
 
 Rules for every task:
 - Delivery: branch `feat/008-m1-secret-and-sim-exports` cut from an up-to-date `rewrite` (14127e6 or later); one PR into `rewrite`, squash merge only with the user's OK and CI green. GitHub issues only if the user asks for one per milestone. Never push to `main` or `rewrite`. One commit per task unless stated (English, conventional prefix, one line <= 72 chars).
@@ -22,10 +22,11 @@ One file per milestone; read only the active one plus the rules above. Do not re
 | M2a | `tasks-M2a.md` | merged (PR #29) |
 | M2b, M2b' | `tasks-M2b.md` | merged (PR #30, #31) |
 | M3a | `tasks-M3a.md` | merged (PR #32) |
-| M3a' | `tasks-M3a2.md` | active (next) |
+| M3a' | `tasks-M3a2.md` | merged (PR #33) |
+| M3b, M3b' | `tasks-M3b.md` | approved by the user 2026-10-23 (plan section 19, E1 to E10, D28) |
 
 Progress per task lives in `specs/008-server-and-predictions/PROGRESS.md`.
 ## Later milestones (headings only; detailed later, at most 10 tasks each)
-- **M3b. Server-Sent Events, replay, heartbeat, performance procedure.** FR-287, FR-288, FR-289 (stream), FR-290 (stream); NFR-49; the stream limits of FR-299 (50 per credential, 5 per address). Depends on M3a'.
+- **M3b / M3b'. Server-Sent Events, replay, heartbeat, stream limits, performance procedure.** Detailed in `tasks-M3b.md` (approved, plan section 19): M3b (T1 to T6) moves no id; M3b' (T1' to T5') closes FR-287 (letter (d) in M4) and NFR-49. Depends on M3a'.
 - **M4. Scoring, results and leaderboard.** FR-271 to FR-278, FR-281(e) to (g), scoring parts of FR-241, FR-243, FR-246, FR-251(c); NFR-48 (results), NFR-57 (results). Depends on M2b', M3a'.
-- **M5. Live viewer and web test client.** FR-303 to FR-311; NFR-56; screenshots reviewed by the user. Depends on M3b, M4. Closes the pending set; spec 008 becomes `implemented` after acceptance.
+- **M5. Live viewer and web test client.** FR-303 to FR-311; NFR-56; screenshots reviewed by the user. Depends on M3b', M4. Closes the pending set; spec 008 becomes `implemented` after acceptance.
