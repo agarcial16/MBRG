@@ -54,7 +54,7 @@ Plan section 20. The rules of `tasks.md` apply; sizes are changed lines (src + t
   - Done when: tests green; mutations caught; FR-271 to FR-273 moved (82 / 14); `rg` finds them and no FR-275 to FR-278 title.
   - Size: L (about 600).
 
-- [ ] **T5. Close M4: ledger, process checks, PR.** NFR-55
+- [x] **T5. Close M4: ledger, process checks, PR.** NFR-55
   - Depends on: T1 to T4.
   - Files: `packages/sim/test/traceability.test.ts` (closing-state test retitled to M4: 82 / 14, FR-271 to FR-274 pinned done, the 14 later ids as a literal list), `plan.md` (sections 11 and 13: M4 closing summary, figures, open parts for M4'), `PROGRESS.md`, `MEMORY.md` (local).
   - Steps: `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server/test/golden/dev-secrets.json` clean (the two re-pinned timeline goldens are the only golden changes); `git diff --stat rewrite` only planned files; no `package.json`, lockfile or `.nvmrc` change; `SCHEMA_VERSION` still 1; scans: `node:sqlite` only in `store/sqlite.ts`, timers only in `scheduler.ts`, no logging outside `main.ts` and the log sink, no production import of `store/faults.ts`, `core/scoring.ts` pure; the PR lists G1 to G10 as decided, D29, the ledger, the golden re-pin and the earlier tests edited. Push, PR, CI green, squash only with the user's OK.

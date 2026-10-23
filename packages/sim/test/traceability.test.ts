@@ -216,8 +216,8 @@ describe('traceability', () => {
     for (const id of PENDING_008) expect(expected, id).toContain(id);
   });
 
-  it("NFR-55 M3b' closing state plus M4 T2 and T4, 82 ids done and 14 pending: the M2b to M3a' ids done, the event order, the load procedure and the scoring done, the later ids pending", () => {
-    // M3b' closing state (plan sections 11 and 13): asserted explicitly. M3a moved six ids
+  it("NFR-55 M4 closing state, 82 ids done and 14 pending: the M2b to M3a' ids done, the event order, the load procedure and the scoring done, the later ids pending", () => {
+    // M4 closing state (plan sections 11 and 13): asserted explicitly. M3a moved six ids
     // (T2: FR-279; T3: FR-283, FR-299; T5: FR-281; T6: FR-284, FR-286); M3a' T2' moved FR-280 and FR-298; T3' moved FR-285.
     // M3b moved no id: it completed parts of done ids (event encoders, stream framing, stream limits, the replay read, the hub,
     // the stream route). M3b' T2' moves FR-287 (letter (d), the results event, is M4); T4' moves NFR-49.
@@ -259,8 +259,15 @@ describe('traceability', () => {
     const closedByHttp = [...closedByM3a, ...closedByM3a2];
     expect(new Set(closedByHttp).size).toBe(9);
     for (const id of closedByHttp) expect(PENDING_008, id).not.toContain(id);
-    // M3b' closed FR-287 (T2') and NFR-49 (T4'), M4 closed FR-274 (T2) and FR-271 to FR-273 (T4): done, not pending.
-    for (const id of ['FR-287', 'NFR-49', 'FR-274', 'FR-271', 'FR-272', 'FR-273']) {
+    // M4 closed four ids (82 done, 14 pending): T2 FR-274, T4 FR-271, FR-272, FR-273; a literal list independent of DONE_008.
+    const closedByM4 = ['FR-271', 'FR-272', 'FR-273', 'FR-274'];
+    expect(new Set(closedByM4).size).toBe(4);
+    for (const id of closedByM4) {
+      expect(DONE_008, id).toContain(id);
+      expect(PENDING_008, id).not.toContain(id);
+    }
+    // M3b' closed FR-287 (T2') and NFR-49 (T4'): done, not pending.
+    for (const id of ['FR-287', 'NFR-49']) {
       expect(DONE_008, id).toContain(id);
       expect(PENDING_008, id).not.toContain(id);
     }
