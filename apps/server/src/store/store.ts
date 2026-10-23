@@ -5,6 +5,7 @@
 import type { MatchEvent, MatchSummary, PredictionKind, PublicState } from '@mbrg/protocol';
 import type { MemoScope } from '../core/memo';
 import type { StoredPrediction } from '../core/predictions';
+import type { ResultRow, ScorablePrediction } from '../core/scoring';
 import type { CoreMatch, StepRow } from '../core/view';
 
 /**
@@ -149,6 +150,21 @@ export interface Store {
   putPrediction(matchId: string, playerId: string, prediction: StoredPrediction): void;
   /** The stored predictions of one player id in one match, by kind then round (FR-270). */
   predictionsOf(matchId: string, playerId: string): StoredPrediction[];
+  /**
+   * Every stored prediction of one phase of a match, ordered by player id (code unit order): the victim or absorber
+   * predictions of `round`, or the winner predictions (`round` 0), each with its stored candidate count (FR-267, M4 scoring).
+   * Read inside the decision's transaction, so the set is the one stored before the cutoff and the closing step (FR-295).
+   */
+  predictionsOfPhase(matchId: string, kind: PredictionKind, round: number): ScorablePrediction[];
+  /**
+   * Stores the result rows of one scored phase (FR-271 to FR-273; plan 20.5). Read in the same transaction after
+   * `updateMatch`, so the refusals (`invalid-write`) judge the match as the decision leaves it: an absorber row of a round
+   * above N, a victim row of a round above N + 1 (or of N + 1 while the match row holds no victim), a winner row unless the
+   * stage is `finished` (and then round 0 only), a row whose points do not fit its `correct` bit, and a second row with the
+   * same (round, kind, player): a phase is scored once. Defence in depth for FR-256 and FR-270: a premature `correct` bit
+   * would reveal an outcome.
+   */
+  putResults(matchId: string, rows: readonly ResultRow[]): void;
   /** Appends events: the first number is the stored last number + 1 and the rest follow without a gap (FR-289). */
   appendEvents(matchId: string, events: readonly MatchEvent[]): void;
   /** The events with a number above `seq`, in order. */

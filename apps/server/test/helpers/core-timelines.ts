@@ -201,6 +201,21 @@ export const SCENARIOS: readonly Scenario[] = [
   },
 ];
 
+/**
+ * The event types of one decision, derived by hand from plan 20.4 (never from the code under test): the step kinds it
+ * performs and whether the match is over after it. The pure core ends the last decision with the `results` event; the
+ * shell then adds `match-finished` (`shellFinish`).
+ */
+export function handEventTypes(kinds: readonly StepKind[], finished: boolean, shellFinish = false): string[] {
+  const end = finished ? (shellFinish ? ['match-finished'] : []) : ['schedule'];
+  const key = kinds.join('+');
+  if (key === 'phase-1-close') return ['phase-closed', 'victim-revealed', 'results', 'schedule'];
+  if (key === 'phase-2-close') return ['phase-closed', 'schedule'];
+  if (key === 'application') return ['round-applied', 'results', ...end];
+  if (key === 'phase-2-close+application') return ['phase-closed', 'round-applied', 'results', ...end];
+  throw new Error(`no hand-derived events for ${key}`);
+}
+
 export interface ActionSummary {
   at: number;
   act: string;

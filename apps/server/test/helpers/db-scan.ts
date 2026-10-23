@@ -127,7 +127,10 @@ const leaf = (path: string): string => path.slice(path.lastIndexOf('.') + 1);
 /**
  * The stored events and memoised replies that tell more than the stage of their match allows (FR-255, FR-256 storage,
  * NFR-47 (d)): with N the applied rounds of the match row,
- * - no event names a round above N + 1, and no `round-applied` event a round above N;
+ * - no event names a round above N + 1, and no `round-applied` or phase-2 `results` event a round above N (a phase-1
+ *   `results` event of round N + 1 exists only once that round's victim is revealed);
+ * - no result row scores an absorber of a round above N, a victim of a round above N + 1 (or of N + 1 before its reveal),
+ *   or a winner before the match is finished (M4: a premature `correct` bit would reveal an outcome);
  * - the phase-1 close and the victim of round N + 1 exist only once that close happened (stage `phase-2`, `locked`, or
  *   `halted` with the victim column set), and the match row holds a victim only then (a winner only when finished, a
  *   halt reason only when halted: no column of the row carries anything its stage does not reveal);
@@ -146,6 +149,12 @@ export function storedFutureViolations(db: DatabaseSync): string[] {
     if (!revealed && (m.victim !== null || m.reveal_ms !== null)) out.push(`${id}: victim column set in stage ${String(m.stage)}`);
     if (m.stage !== 'finished' && m.winner !== null) out.push(`${id}: winner column set in stage ${String(m.stage)}`);
     if (m.stage !== 'halted' && m.halt_reason !== null) out.push(`${id}: halt reason column set in stage ${String(m.stage)}`);
+    for (const r of db.prepare('SELECT round, kind, player_id FROM results WHERE match_id = ? ORDER BY rowid').all(id)) {
+      const where = `${id} result ${String(r.kind)} round ${String(r.round)} ${String(r.player_id)}`;
+      if (r.kind === 'absorber' && Number(r.round) > n) out.push(`${where}: absorber scored for a round above N = ${n}`);
+      if (r.kind === 'victim' && (Number(r.round) > n + 1 || (Number(r.round) === n + 1 && !revealed))) out.push(`${where}: victim scored before its reveal (N = ${n}, stage ${String(m.stage)})`);
+      if (r.kind === 'winner' && m.stage !== 'finished') out.push(`${where}: winner scored in stage ${String(m.stage)}`);
+    }
     for (const e of db.prepare('SELECT seq, type, payload_json FROM events WHERE match_id = ? ORDER BY seq').all(id)) {
       const where = `${id} event ${String(e.seq)} ${String(e.type)}`;
       const payload = parsed(String(e.payload_json));
@@ -156,6 +165,8 @@ export function storedFutureViolations(db: DatabaseSync): string[] {
       const round = typeof payload.round === 'number' ? payload.round : null;
       if (round !== null && round > n + 1) out.push(`${where}: round ${round} above N + 1 = ${n + 1}`);
       if (e.type === 'round-applied' && round !== null && round > n) out.push(`${where}: applied round ${round} above N = ${n}`);
+      if (e.type === 'results' && payload.phase === 2 && round !== null && round > n) out.push(`${where}: phase 2 results for round ${round} above N = ${n}`);
+      if (e.type === 'results' && payload.phase === 1 && !revealed && round === n + 1) out.push(`${where}: round ${round} scored in stage ${String(m.stage)}`);
       if (!revealed && round === n + 1 && (e.type === 'victim-revealed' || (e.type === 'phase-closed' && payload.phase === 1))) out.push(`${where}: round ${round} revealed in stage ${String(m.stage)}`);
       for (const path of keyPaths(payload, '', [])) {
         if (FUTURE_KEY.test(leaf(path)) && !(e.type === 'round-applied' && path === 'record.absorber')) out.push(`${where}: key ${path}`);

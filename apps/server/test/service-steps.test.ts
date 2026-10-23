@@ -150,7 +150,8 @@ describe('one transaction per decision, events published after the commit', () =
       // The creation was transaction 1, every decision since is exactly one more: step n of the match is transaction n + 1.
       expect(s.transactions, `round ${k}`).toBe(3 * (k - 1) + 2);
       expect(s.steps).toBe(3 * (k - 1) + 1);
-      expect(s.events.map((e) => e.type)).toStrictEqual(['phase-closed', 'victim-revealed', 'schedule']);
+      expect(s.events.map((e) => e.type)).toStrictEqual(['phase-closed', 'victim-revealed', 'results', 'schedule']);
+      expect(s.events[2]).toStrictEqual({ type: 'results', seq: s.events[1]!.seq + 1, round: k, phase: 1 });
       expect(s.view.stage).toBe('phase-2');
       expect(s.view.lastStepMs).toBe(at);
       expect(s.view.victim).toMatchObject({ round: k, victim: GOLD[i]!.victim, revealedAt: at });
@@ -211,7 +212,8 @@ describe('one transaction per decision, events published after the commit', () =
         expect(s.view.anchors).toStrictEqual({ t0: at, c1: at + 80 * S, c2: at + 110 * S, a: at + 120 * S });
         expect(s.view.stage).toBe('phase-1');
         expect(s.view.victim).toBeUndefined();
-        expect(s.events.map((e) => e.type)).toStrictEqual(['round-applied', 'schedule']);
+        expect(s.events.map((e) => e.type)).toStrictEqual(['round-applied', 'results', 'schedule']);
+        expect(s.events[1]).toStrictEqual({ type: 'results', seq: applied.seq + 1, round: k, phase: 2 });
       } else {
         expect(s.view.anchors).toBeNull();
       }
@@ -237,7 +239,8 @@ describe('one transaction per decision, events published after the commit', () =
       [1, 'application', START_MS + 60 * S, 'clock'],
     ]);
     const last = m.seen[m.seen.length - 1]!;
-    expect(last.events.map((e) => e.type)).toStrictEqual(['phase-closed', 'round-applied', 'schedule']);
+    expect(last.events.map((e) => e.type)).toStrictEqual(['phase-closed', 'round-applied', 'results', 'schedule']);
+    expect(last.events[2]).toMatchObject({ type: 'results', round: 1, phase: 2 });
     expect(last.inside).toBe(false);
     m.h.close();
   });
@@ -260,6 +263,27 @@ describe('one transaction per decision, events published after the commit', () =
   });
 });
 
+describe('the results event stored with its decision', () => {
+  it('FR-287 (d) FR-289 (results event numbering) the dev-map match stores 37 events, numbered 1 to 37, and the step rows cover the results events', () => {
+    const m = clockRun();
+    const events = m.h.store.eventsAfter(m.id, 0);
+    expect(events).toHaveLength(37);
+    expect(events.map((e) => e.seq)).toStrictEqual(Array.from({ length: 37 }, (_, i) => i + 1));
+    expect(events.filter((e) => e.type === 'results').map((e) => [(e as { round: number }).round, (e as { phase: number }).phase])).toStrictEqual([
+      [1, 1], [1, 2], [2, 1], [2, 2], [3, 1], [3, 2], [4, 1], [4, 2],
+    ]);
+    // Each step row ends at the last event of its decision: the schedule (or match-finished) that follows the results event.
+    const stepRows = m.h.store.steps(m.id).map((s) => [s.round, s.kind, s.firstSeq, s.lastSeq]);
+    expect(stepRows).toStrictEqual([
+      [1, 'phase-1-close', 2, 5], [1, 'phase-2-close', 6, 7], [1, 'application', 8, 10],
+      [2, 'phase-1-close', 11, 14], [2, 'phase-2-close', 15, 16], [2, 'application', 17, 19],
+      [3, 'phase-1-close', 20, 23], [3, 'phase-2-close', 24, 25], [3, 'application', 26, 28],
+      [4, 'phase-1-close', 29, 32], [4, 'phase-2-close', 33, 34], [4, 'application', 35, 37],
+    ]);
+    m.h.close();
+  });
+});
+
 describe('finishing a match', () => {
   it('FR-246 after round T the match is finished with its winner, a match-finished event carries the secret and the rule, and the public data shows the secret', () => {
     const m = clockRun();
@@ -269,8 +293,9 @@ describe('finishing a match', () => {
     // The only living faction is the absorber of the last round.
     expect(v.winner).toBe(GOLD[3]!.absorber);
     const last = m.seen[m.seen.length - 1]!;
-    expect(last.events.map((e) => e.type)).toStrictEqual(['round-applied', 'match-finished']);
-    const finished = last.events[1]!;
+    expect(last.events.map((e) => e.type)).toStrictEqual(['round-applied', 'results', 'match-finished']);
+    expect(last.events[1]).toStrictEqual({ type: 'results', seq: last.events[0]!.seq + 1, round: 4, phase: 2 });
+    const finished = last.events[2]!;
     expect(finished).toStrictEqual({
       type: 'match-finished',
       seq: finished.seq,
@@ -453,7 +478,7 @@ describe('one step at a time, in order, exactly once', () => {
     expect(second.step).toStrictEqual(first.step);
     expect(second.step).toStrictEqual({ round: 1, kind: 'phase-1-close', instant: START_MS + 7 * S, cause: 'manual' });
     expect(rows(m)).toHaveLength(1);
-    expect(m.h.store.eventsAfter(m.id, 0).map((e) => e.seq)).toStrictEqual([1, 2, 3, 4]);
+    expect(m.h.store.eventsAfter(m.id, 0).map((e) => e.seq)).toStrictEqual([1, 2, 3, 4, 5]);
     expect(m.seen).toHaveLength(2);
     expect(second.match.lastSeq).toBe(first.match.lastSeq);
     m.h.close();
@@ -706,8 +731,8 @@ describe('the whole lifecycle with the fake clock (NFR-52, FR-315)', () => {
     expect(received).toStrictEqual(m.h.store.eventsAfter(m.id, 0));
     const order = received.map((e) => e.type);
     expect(order[0]).toBe('schedule');
-    // Within each step: phase-closed, victim-revealed (phase 1 only), round-applied, schedule, match-finished.
-    const rank: Record<string, number> = { 'phase-closed': 0, 'victim-revealed': 1, 'round-applied': 2, schedule: 3, 'match-finished': 4 };
+    // Within each step: phase-closed, victim-revealed (phase 1 only), round-applied, results, schedule, match-finished.
+    const rank: Record<string, number> = { 'phase-closed': 0, 'victim-revealed': 1, 'round-applied': 2, results: 3, schedule: 4, 'match-finished': 5 };
     for (const s of m.seen) {
       const ranks = s.events.map((e) => rank[e.type]!);
       if (!s.events.some((e) => e.type === 'match-finished')) expect(ranks, JSON.stringify(s.events.map((e) => e.type))).toStrictEqual([...ranks].sort((a, b) => a - b));
@@ -735,7 +760,7 @@ describe('the whole lifecycle with the fake clock (NFR-52, FR-315)', () => {
       expect(again.ok && again.reply.result).toBe('already-performed');
       const next = second.service.advance({ credential: OPERATOR, matchId: id, body: { round: 1, step: 'phase-2-close' } });
       expect(next.ok && next.reply.step).toStrictEqual({ round: 1, kind: 'phase-2-close', instant: START_MS + 9 * S, cause: 'manual' });
-      expect(second.store.eventsAfter(id, 0).map((e) => e.seq)).toStrictEqual([1, 2, 3, 4, 5, 6]);
+      expect(second.store.eventsAfter(id, 0).map((e) => e.seq)).toStrictEqual([1, 2, 3, 4, 5, 6, 7]);
       expect(second.store.getMatch(id)!.match.victim?.victim).toBe(GOLD[0]!.victim);
       expect(second.store.steps(id).map((s) => [s.kind, s.instant])).toStrictEqual([['phase-1-close', START_MS + 3 * S], ['phase-2-close', START_MS + 9 * S]]);
       second.close();

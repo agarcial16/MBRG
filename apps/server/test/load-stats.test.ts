@@ -56,6 +56,26 @@ describe('NFR-49 decisions found in the events of a match', () => {
     ]);
   });
 
+  it('NFR-49 (decisions) a results event inside a decision changes neither its instant nor its end (the schedule or match-finished after it)', () => {
+    const events: LoadEvent[] = [
+      ev('schedule', 1, { reportedTime: 0 }),
+      ev('phase-closed', 2, { phase: 1, at: 1000 }),
+      ev('victim-revealed', 3, { revealedAt: 1000 }),
+      ev('results', 4, { round: 1, phase: 1 }),
+      ev('schedule', 5),
+      ev('phase-closed', 6, { phase: 2, at: 1600 }),
+      ev('schedule', 7),
+      ev('round-applied', 8, { appliedAt: 2000 }),
+      ev('results', 9, { round: 1, phase: 2 }),
+      ev('match-finished', 10),
+    ];
+    expect(decisionsOf('m', events)).toStrictEqual([
+      { matchId: 'm', at: 1000, lastSeq: 5 },
+      { matchId: 'm', at: 1600, lastSeq: 7 },
+      { matchId: 'm', at: 2000, lastSeq: 10 },
+    ]);
+  });
+
   it('NFR-49 (decisions) a merged phase-2 close and application is one decision at the instant of its first event; a halt is a decision at its reported time', () => {
     const merged = [ev('schedule', 1), ev('phase-closed', 2, { phase: 2, at: 500 }), ev('round-applied', 3, { appliedAt: 500 }), ev('schedule', 4)];
     expect(decisionsOf('m', merged)).toStrictEqual([{ matchId: 'm', at: 500, lastSeq: 4 }]);

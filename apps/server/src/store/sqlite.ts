@@ -1,10 +1,11 @@
 // The SQLite adapter (spec 008 FR-291, FR-292; plan PD9, PD10): the only module that imports `node:sqlite`.
 // It does not depend on the ExperimentalWarning being printed: warnings.ts only hides it where Node prints it.
 import { DatabaseSync } from 'node:sqlite';
-import { isLocalId, isNamespace, NAMESPACE_SEPARATOR } from '@mbrg/protocol';
-import type { MatchEvent, MatchSummary, PublicState, PublicVictim, Timing } from '@mbrg/protocol';
+import { isLocalId, isNamespace, NAMESPACE_SEPARATOR, PREDICTION_KINDS } from '@mbrg/protocol';
+import type { MatchEvent, MatchSummary, PredictionKind, PublicState, PublicVictim, Timing } from '@mbrg/protocol';
 import { MEMO_RETENTION_MS, type MemoScope } from '../core/memo';
 import type { StoredPrediction } from '../core/predictions';
+import type { ResultRow, ScorablePrediction } from '../core/scoring';
 import type { Anchors } from '../core/time';
 import type { CoreMatch } from '../core/view';
 import { SCHEMA_V1, SCHEMA_VERSION, TABLES } from './schema';
@@ -163,6 +164,8 @@ export const READ_SQL = {
     WHERE match_id = ? AND player_id >= ? AND player_id < ? AND (? IS NULL OR player_id = ?) AND (player_id, round, kind) > (?, ?, ?)
     ORDER BY player_id, round, kind LIMIT ?`,
   hostTokenDigest: 'SELECT host_token_digest FROM matches WHERE id = ?',
+  // The scorer's input: one phase of one match, by player id (BINARY order, the code unit order of the ASCII ids).
+  predictionsOfPhase: 'SELECT player_id, choice, winner_candidates FROM predictions WHERE match_id = ? AND kind = ? AND round = ? ORDER BY player_id',
 } as const;
 
 const checkLimit = (limit: number): void => {
@@ -468,6 +471,39 @@ export const openStore = (path: string): Store => {
     hostTokenDigest(matchId: string): string | undefined {
       const row = one(READ_SQL.hostTokenDigest, matchId);
       return row === undefined ? undefined : str(row, 'host_token_digest');
+    },
+    predictionsOfPhase(matchId: string, kind: PredictionKind, round: number): ScorablePrediction[] {
+      if (!PREDICTION_KINDS.includes(kind)) throw new RangeError('not a prediction kind');
+      if (!Number.isSafeInteger(round) || round < 0 || (kind === 'winner') !== (round === 0)) throw new RangeError('a winner phase is round 0, any other phase a round of at least 1');
+      return all(READ_SQL.predictionsOfPhase, matchId, kind, round).map((r) =>
+        kind === 'winner' ? { playerId: str(r, 'player_id'), choice: num(r, 'choice'), winnerCandidates: num(r, 'winner_candidates') } : { playerId: str(r, 'player_id'), choice: num(r, 'choice') },
+      );
+    },
+    putResults(matchId: string, rows: readonly ResultRow[]): void {
+      requireTransaction();
+      const match = one('SELECT stage, n, victim FROM matches WHERE id = ?', matchId);
+      if (match === undefined) throw invalid(`the match ${matchId} does not exist`);
+      const n = num(match, 'n');
+      const revealed = match.victim !== null;
+      const finished = str(match, 'stage') === 'finished';
+      for (const r of rows) {
+        if (!PREDICTION_KINDS.includes(r.kind)) throw invalid('a result row has a prediction kind');
+        if (!Number.isSafeInteger(r.choice) || typeof r.correct !== 'boolean' || !Number.isSafeInteger(r.points) || r.points < 0 || (!r.correct && r.points !== 0)) {
+          throw invalid('a result row has a choice, a correct bit and points that are 0 when wrong and never negative');
+        }
+        if (r.kind === 'winner') {
+          if (r.round !== 0) throw invalid('the winner row has round 0');
+          if (!finished) throw invalid('the winner is scored only when the match is finished');
+        } else {
+          if (!Number.isSafeInteger(r.round) || r.round < 1) throw invalid('a result row names a round of at least 1');
+          if (r.kind === 'absorber' && r.round > n) throw invalid('an absorber is scored only for an applied round');
+          if (r.kind === 'victim' && (r.round > n + 1 || (r.round === n + 1 && !revealed))) throw invalid('a victim is scored only once it is revealed');
+        }
+        if (one('SELECT 1 AS found FROM results WHERE match_id = ? AND round = ? AND kind = ? AND player_id = ?', matchId, r.round, r.kind, r.playerId) !== undefined) {
+          throw invalid('a phase is scored once: the result row already exists');
+        }
+        run('INSERT INTO results (match_id, round, kind, player_id, choice, correct, points) VALUES (?, ?, ?, ?, ?, ?, ?)', matchId, r.round, r.kind, r.playerId, r.choice, r.correct ? 1 : 0, r.points);
+      }
     },
     appendEvents(matchId: string, events: readonly MatchEvent[]): void {
       requireTransaction();

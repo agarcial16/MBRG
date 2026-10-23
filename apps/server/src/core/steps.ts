@@ -12,6 +12,7 @@ import { VALIDATION_KIND_ORDER, validateMap } from '@mbrg/shared';
 import type { FactionId, MapData, Result } from '@mbrg/shared';
 import { absorptionCandidatesOf, livingFactions, playRoundWithSeed } from '@mbrg/sim';
 import type { MatchError, MatchState, RoundRecord } from '@mbrg/sim';
+import type { ScoredPhase } from './scoring';
 import { anchorsAfterStep, dueStep, lastStepAfter } from './time';
 import type { CoreMatch, StepCause, StepRow } from './view';
 
@@ -46,6 +47,12 @@ export interface StepOutcome {
   readonly steps: readonly StepRow[];
   readonly events: readonly MatchEvent[];
   readonly applied?: Applied;
+  /**
+   * The phases this decision scores, built from public data only (plan 20.2): the victim phase at a phase-1 close, the absorber
+   * phase at an application, plus the winner phase when the match finishes; none at a halt or a phase-2 close. The shell scores
+   * the stored predictions of each inside the decision's transaction.
+   */
+  readonly scored?: readonly ScoredPhase[];
 }
 
 const NEXT: Partial<Record<Stage, StepKind>> = { 'phase-1': 'phase-1-close', 'phase-2': 'phase-2-close', locked: 'application' };
@@ -114,10 +121,14 @@ function closePhase1(view: CoreMatch, input: StepInput, instant: number, map: Ma
   };
   seq += 1;
   const revealed: MatchEvent = { type: 'victim-revealed', ...victim, reportedTime: input.reportedTime };
+  // The results of phase 1 are announced with the reveal (plan 20.4), also when nobody predicted (G2).
+  const results: MatchEvent = { type: 'results', seq: ++seq, round: k, phase: 1 };
   return {
     view: { ...view, stage: 'phase-2', anchors, victim, lastStepMs: instant, lastSeq: seq },
     steps: [{ round: k, kind: 'phase-1-close', instant, cause: input.cause }],
-    events: [closed, revealed],
+    events: [closed, revealed, results],
+    // n, the factions living at N with the victim among them (FR-271).
+    scored: [{ kind: 'victim', round: k, answer: victim.victim, worth: victim.living.length }],
   };
 }
 
@@ -148,6 +159,8 @@ function apply(view: CoreMatch, input: StepInput, instant: number, map: MapData,
   const anchors = finished ? null : anchorsAfterStep(view.anchors, 'application', instant, input.cause, view.timing);
   const { victim: _revealed, ...rest } = view;
   const seq = view.lastSeq + 1;
+  // The results of phase 2 follow the application; the winner scoring is announced by `match-finished` (plan 20.4).
+  const resultsSeq = seq + 1;
   const next: CoreMatch = {
     ...rest,
     stage: finished ? 'finished' : 'phase-1',
@@ -156,14 +169,22 @@ function apply(view: CoreMatch, input: StepInput, instant: number, map: MapData,
     stateDigest,
     anchors,
     lastStepMs: instant,
-    lastSeq: seq,
+    lastSeq: resultsSeq,
     ...(finished ? { winner: must(livingFactions(map, state), 'living factions')[0] } : {}),
   };
   return {
     view: next,
     steps: [{ round: k, kind: 'application', instant, cause: input.cause }],
-    events: [{ type: 'round-applied', seq, round: k, record: { round: record.round, eliminated: record.eliminated, absorber: record.absorber, transferred: [...record.transferred] }, stateDigest, appliedAt: instant }],
+    events: [
+      { type: 'round-applied', seq, round: k, record: { round: record.round, eliminated: record.eliminated, absorber: record.absorber, transferred: [...record.transferred] }, stateDigest, appliedAt: instant },
+      { type: 'results', seq: resultsSeq, round: k, phase: 2 },
+    ],
     applied: { record, state, stateDigest },
+    // d, the absorption candidates of the victim in the state at k - 1 (FR-272); the winner is scored when the match finishes (FR-273).
+    scored: [
+      { kind: 'absorber', round: k, answer: record.absorber, worth: view.victim.candidates.length },
+      ...(next.winner === undefined ? [] : [{ kind: 'winner' as const, answer: next.winner }]),
+    ],
   };
 }
 
@@ -183,11 +204,13 @@ function stepOnce(view: CoreMatch, input: StepInput, deps: StepDeps): StepOutcom
  * Performs the next step of the match at `input.instant` (FR-247: exactly the next step, never again, never early; any
  * other step is a RangeError, the caller having decided by FR-295 first). With L2 = 0 the application falls due at the
  * instant of the phase-2 close and follows it in the same decision, phase-2 close first, with the same instant (FR-240).
- * The result lists the rows and events in the order to store and publish them.
+ * The result lists the rows and events in the order to store and publish them (plan 20.4: a
+ * phase-1 close gives `phase-closed`, `victim-revealed`, `results`; an application `round-applied`, `results`; a halt only
+ * `match-halted`; the `schedule` event comes last while the match runs).
  */
 export function performStep(view: CoreMatch, input: StepInput, deps: StepDeps): StepOutcome {
   const first = stepOnce(view, input, deps);
-  let { view: current, steps, events, applied } = { ...first, steps: [...first.steps], events: [...first.events] };
+  let { view: current, steps, events, applied, scored } = { ...first, steps: [...first.steps], events: [...first.events] };
   if (input.kind === 'phase-2-close' && current.stage === 'locked') {
     const due = dueStep(current.stage, current.anchors, input.instant);
     if (due !== null && due.instant === input.instant) {
@@ -196,6 +219,7 @@ export function performStep(view: CoreMatch, input: StepInput, deps: StepDeps): 
       steps = [...steps, ...second.steps];
       events = [...events, ...second.events];
       applied = second.applied;
+      scored = second.scored;
     }
   }
   if (current.stage === 'phase-1' || current.stage === 'phase-2' || current.stage === 'locked') {
@@ -206,7 +230,13 @@ export function performStep(view: CoreMatch, input: StepInput, deps: StepDeps): 
       { type: 'schedule', seq, stage: current.stage, ...(current.anchors === null ? {} : { schedule: { c1: current.anchors.c1, c2: current.anchors.c2, a: current.anchors.a } }), reportedTime: input.reportedTime },
     ];
   }
-  return applied === undefined ? { view: current, steps, events } : { view: current, steps, events, applied };
+  return {
+    view: current,
+    steps,
+    events,
+    ...(applied === undefined ? {} : { applied }),
+    ...(scored === undefined ? {} : { scored }),
+  };
 }
 
 /**

@@ -49,7 +49,7 @@ describe('the event stream over full matches: order and content', () => {
     expect(played.decisions).toHaveLength(12);
     expect(played.stored.map((e) => e.type)).toStrictEqual([
       'schedule',
-      ...[1, 2, 3, 4].flatMap((k) => ['phase-closed', 'victim-revealed', 'schedule', 'phase-closed', 'schedule', 'round-applied', k < 4 ? 'schedule' : 'match-finished']),
+      ...[1, 2, 3, 4].flatMap((k) => ['phase-closed', 'victim-revealed', 'results', 'schedule', 'phase-closed', 'schedule', 'round-applied', 'results', k < 4 ? 'schedule' : 'match-finished']),
     ]);
     expect(played.events[played.events.length - 1]?.type).toBe('match-finished');
     for (const e of played.events.filter((x) => x.type === 'victim-revealed')) expect(Object.keys(e)).toStrictEqual(REVEAL_KEYS);
@@ -82,7 +82,7 @@ describe('the event stream over full matches: order and content', () => {
     expect(played.decisions).toHaveLength(8);
     expect(played.stored.map((e) => e.type)).toStrictEqual([
       'schedule',
-      ...[1, 2, 3, 4].flatMap((k) => ['phase-closed', 'victim-revealed', 'schedule', 'phase-closed', 'round-applied', k < 4 ? 'schedule' : 'match-finished']),
+      ...[1, 2, 3, 4].flatMap((k) => ['phase-closed', 'victim-revealed', 'results', 'schedule', 'phase-closed', 'round-applied', 'results', k < 4 ? 'schedule' : 'match-finished']),
     ]);
     expect(nondecreasing(reportedOf(played.events))).toBe(true);
   }, 60_000);
@@ -155,9 +155,9 @@ describe('the event stream when a decision cannot be stored', () => {
     // The retry performs the step (late, by the rule of FR-248) and the events reach the stream with their stored numbers.
     h.base.scheduler!.runTo(C1 + RETRY_MS);
     const stored = h.base.store.eventsAfter(id, 1);
-    expect(stored.map((e) => [e.seq, e.type])).toStrictEqual([[2, 'phase-closed'], [3, 'victim-revealed'], [4, 'schedule']]);
-    const got = await reader.takeEvents(3);
-    expect(got.map((f) => f.id)).toStrictEqual([2, 3, 4]);
+    expect(stored.map((e) => [e.seq, e.type])).toStrictEqual([[2, 'phase-closed'], [3, 'victim-revealed'], [4, 'results'], [5, 'schedule']]);
+    const got = await reader.takeEvents(4);
+    expect(got.map((f) => f.id)).toStrictEqual([2, 3, 4, 5]);
     expect(got.map((f) => f.data)).toStrictEqual(stored.map((e) => encodeEvent(e)));
     expect(reader.raw()).toBe(`${created[0]?.raw}:\n\n${got.map((f) => f.raw).join('')}`);
   }, 30_000);

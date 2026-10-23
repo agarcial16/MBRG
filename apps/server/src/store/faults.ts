@@ -81,6 +81,8 @@ export const withFaults = (store: Store, plan: FaultPlan): Store => {
     steps: (matchId) => store.steps(matchId),
     putPrediction: (matchId, playerId, prediction) => (write(), store.putPrediction(matchId, playerId, prediction)),
     predictionsOf: (matchId, playerId) => store.predictionsOf(matchId, playerId),
+    predictionsOfPhase: (matchId, kind, round) => store.predictionsOfPhase(matchId, kind, round),
+    putResults: (matchId, rows) => (write(), store.putResults(matchId, rows)),
     listMatches: (after, limit) => store.listMatches(after, limit),
     recordsAfter: (matchId, round, limit) => store.recordsAfter(matchId, round, limit),
     predictionsInNamespace: (matchId, namespace, after, limit, localId) => store.predictionsInNamespace(matchId, namespace, after, limit, localId),

@@ -13,9 +13,9 @@ import type { ServerHarness } from './server-harness';
 export function typesOfDecision(shown: PublicMatch, l2: number): string[] {
   const last = shown.appliedRounds + 1 === shown.totalRounds;
   const end = last ? 'match-finished' : 'schedule';
-  if (shown.stage === 'phase-1') return ['phase-closed', 'victim-revealed', 'schedule'];
-  if (shown.stage === 'phase-2') return l2 > 0 ? ['phase-closed', 'schedule'] : ['phase-closed', 'round-applied', end];
-  if (shown.stage === 'locked') return ['round-applied', end];
+  if (shown.stage === 'phase-1') return ['phase-closed', 'victim-revealed', 'results', 'schedule'];
+  if (shown.stage === 'phase-2') return l2 > 0 ? ['phase-closed', 'schedule'] : ['phase-closed', 'round-applied', 'results', end];
+  if (shown.stage === 'locked') return ['round-applied', 'results', end];
   throw new Error(`no decision in stage ${shown.stage}`);
 }
 

@@ -43,10 +43,10 @@ describe('service events: the replay read', () => {
     advance(h, id, 1, 'phase-1-close');
     advance(h, id, 1, 'phase-2-close');
     const stored = h.store.eventsAfter(id, 0);
-    expect(stored.map((e) => e.seq)).toStrictEqual([1, 2, 3, 4, 5, 6]);
+    expect(stored.map((e) => e.seq)).toStrictEqual([1, 2, 3, 4, 5, 6, 7]);
     const all = h.service.eventsAfter(id, 0);
-    expect(all).toStrictEqual({ ok: true, reply: { lastSeq: 6, events: stored } });
-    for (const n of [1, 2, 3, 4, 5]) expect(h.service.eventsAfter(id, n), String(n)).toStrictEqual({ ok: true, reply: { lastSeq: 6, events: stored.slice(n) } });
+    expect(all).toStrictEqual({ ok: true, reply: { lastSeq: 7, events: stored } });
+    for (const n of [1, 2, 3, 4, 5, 6]) expect(h.service.eventsAfter(id, n), String(n)).toStrictEqual({ ok: true, reply: { lastSeq: 7, events: stored.slice(n) } });
     h.close();
   });
 
