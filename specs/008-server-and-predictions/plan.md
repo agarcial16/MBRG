@@ -1,7 +1,7 @@
 # Plan 008 — Server and predictions
 Spec: `specs/008-server-and-predictions/spec.md` (approved by the user on 2026-10-21, D25). Covers FR-231 to FR-315 and NFR-47 to NFR-57 (96 ids). Delivery in milestones (spec D18, D24): M1, M2a, M2b, M3a, M3b, M4, M5, each with its own branch cut from an up-to-date `rewrite`, its own PR into `rewrite`, squash merge with the user's OK and CI green. GitHub issues: one per milestone only if the user wants them (spec "Splitting").
 
-This plan is at overview level for the whole spec and detailed for **M1** (branch `feat/008-m1-secret-and-sim-exports`), **M2a** (section 16), **M2b** and **M2b'** (section 17), **M3a** and **M3a'** (section 18) and **M3b** and **M3b'** (section 19, approved by the user on 2026-10-23: E1 to E10 and the spec clarification D28). M4 and M5 get their detailed sections and tasks in a later revision of this plan, each approved before its first task.
+This plan is at overview level for the whole spec and detailed for **M1** (branch `feat/008-m1-secret-and-sim-exports`), **M2a** (section 16), **M2b** and **M2b'** (section 17), **M3a** and **M3a'** (section 18) and **M3b** and **M3b'** (section 19, approved by the user on 2026-10-23: E1 to E10 and the spec clarification D28). M4 and M4' are detailed in section 20 and `tasks-M4.md` (approved by the user on 2026-10-23: G1 to G10 and the spec clarification D29). M5 gets its detailed section and tasks in a later revision of this plan, approved before its first task.
 
 **Gate.** This plan and `tasks.md` were approved by the user for M1 and M2a, and for M2b and M2b' on 2026-10-22, and for M3a on 2026-10-22 (section 18 with C1 to C8 as recommended, `tasks.md`; C2 recorded in the spec as D26). The items of section 1 were answered by the user on 2026-10-21/22 (U1 to U5, now decisions).
 
@@ -118,7 +118,7 @@ T6 proves the chosen runner: a child process starts `apps/server/src/main.ts --c
 ## 9. Test strategy (whole spec)
 - **Vitest only** (constitution 4); no mocking or event-source library (NFR-52).
 - **Unit (pure)**: sim exports (M1); secret derivation (M1); protocol readers, timing rules, error order, canonical forms (M2a); core decisions with a **fake clock** (`now`, `advance(ms)`, `set(ms)` including backwards) and a **fake random source** (seeded bytes) (M2a); scoring and ranking (M4); live viewer core (M5).
-- **Integration**: the server in-process via `createServer` with the fake clock, **in-memory SQLite** (`:memory:`), the test-only round-seed source; HTTP on port 0 with the platform `fetch`; event streams read by a hand-written reader over the `fetch` body (M3); one file-database restart test and the kill test of NFR-57 (an adapter wrapper that aborts before transaction n, then a reopen) (M2b).
+- **Integration**: the server in-process via `createServer` with the fake clock, **in-memory SQLite** (`:memory:`), the test-only round-seed source; HTTP on port 0 with the platform `fetch`; event streams read by a hand-written reader over the `fetch` body (M3) [superseded since M3b: both test clients use `node:http`, section 13; spec clarification D29, user-approved 2026-10-23, section 20.11]; one file-database restart test and the kill test of NFR-57 (an adapter wrapper that aborts before transaction n, then a reopen) (M2b).
 - **Goldens**: `apps/server/test/golden/*.json` for fixed secrets on the dev map: round seeds, victims, records, state digests, map digest of `maps/dev` (M1), lifecycle and step rows (M2b), results and leaderboard (M4). `packages/sim/test/golden` is never touched.
 - **Anti-spoiler** (NFR-47): (a) twin matches with equal public data and different futures via the test-only seed source (M2b, M3); (b) public-view type keys (M2a); (c) planted secret scan in decimal, hex, base64, base64url, raw bytes over replies, events, logs (M3a); (d) storage check (M2b); (e) absorber uniformity (M1); (f) `main.ts` offers no seed-source option (M2b).
 - **Traceability**: section 11.
@@ -133,16 +133,19 @@ Superseded by section 19.9 (2026-10-23). The first version used I = 120, L1 = 30
 | Id | Parts and milestones |
 |---|---|
 | NFR-47 | (e) M1; (b) M2a; (f) M2b (done; re-asserted over `createServer` in M3a' T4'); (a), (d) M2b' T5' (done); (c) M3a' T4'; (a) and (c) over the event stream M3b' T2' |
-| NFR-48 | seeds and records M1; core timelines M2a; lifecycle goldens M2b' T4' (done); results M4 |
+| NFR-48 | seeds and records M1; core timelines M2a; lifecycle goldens M2b' T4' (done); lifecycle re-pin for the `results` event M4 T3; results M4' T5' |
 | NFR-50 | fake-clock logic M2a; real-clock measurement M2b' T3' (done: recorded in section 13, not in CI) |
 | NFR-51 | sim scans M1; server core M2a; http modules M3a (pure `http/{limits,identity,cors,status}.ts`, done); `http/sse.ts` and the open-stream gauge of `limits.ts` M3b (T2, T3) |
 | NFR-52 | store and lifecycle M2b (done); network M3a' (T2' to T4'); event streams read by the hand-written reader M3b (T5) and M3b' (T2', T3') |
 | NFR-53 | manifest test M1; rechecked in every milestone |
 | NFR-54 | store (memo keys by digest, no credential text in the database) M2b (done); native error cause kept without values M3a T4 (done); logs M3a' (T2', T4') |
 | NFR-55 | export lists and traceability M1; every milestone |
-| NFR-57 | kill and restart M2b' T6' (done: states, records, step rows, events, predictions, memo; results stored empty); replay of events stored but never sent (a kill after `COMMIT` before publication, a kill during the late step of `start()`) M3b' T3'; results part (results and leaderboard after a kill) still open, M4 |
-| FR-241, FR-243, FR-246 | storage M2b (done); scoring parts M4 |
-| FR-251 | halting M2b' T2'; scoring part M4 |
+| NFR-57 | kill and restart M2b' T6' (done: states, records, step rows, events, predictions, memo; results stored empty); replay of events stored but never sent (a kill after `COMMIT` before publication, a kill during the late step of `start()`) M3b' T3'; results part (results and leaderboard after a kill) still open: the rows in the raw dump M4 T4, the reads after every kill point M4' T5' |
+| FR-241, FR-243, FR-246 | storage M2b (done); scoring parts: pure M4 T2, in the step transaction M4 T4 |
+| FR-251 | halting M2b' T2'; scoring part (c) M4 T4; results of a halted match (d), (f) M4' T3' |
+| FR-271 to FR-278 (M4, M4'; section 20.10) | FR-274 M4 T2; FR-271, FR-272, FR-273 M4 T4; FR-275, FR-276, FR-277, FR-278 M4' T3' (HTTP M4' T4', goldens M4' T5') |
+| FR-287 (d), FR-269 (results) | the `results` event and the re-pinned sequences M4 T3; the empty phase's `results` event M4 T3, its readable empty result M4' T3' |
+| FR-279 (d), FR-281 (e) to (g) | wire shapes and cursors M4' T2'; service M4' T3'; HTTP M4' T4' |
 | FR-238 | memo storage, retention and purge at tick M2b (done); purge timer M2b' T3' |
 | FR-239, FR-244, FR-248 | pure rules M2a; shell step (advance, tick) M2b; timer loop, start-up detection and the 3 s retry M2b' T3' |
 | FR-249 | pure rule M2a; across restarts M2b' T4' |
@@ -175,6 +178,7 @@ Superseded by section 19.9 (2026-10-23). The first version used I = 120, L1 = 30
 - **M3b closing state** (T6): `DONE_008` holds 76 ids and `PENDING_008` 20, unchanged from M3a' (asserted explicitly in `traceability.test.ts`: the closing-state test is retitled to M3b and still pins the 33 ids closed since M2b plus the 3 M3a' ids as done and the 20 later ids as a literal list). M3b moved no id; it completed parts of done ids, with test titles naming the part: FR-257 (event encoders), FR-289 (stream framing), (d), (e), (f) (heartbeat), FR-290 (stream, hub), FR-281 (i), FR-286 (stream preflight, stream headers), FR-299 (stream limits) and (stream limits, HTTP), FR-285 (event stream), FR-280 (Server-Sent Events), FR-301 (order, stream route), FR-260 / FR-299 (b) (15 variables), NFR-51 (http modules), NFR-52 (network). Left for M3b': FR-287 (T2'; letter (d) `results` to M4) and NFR-49 (T4'); FR-288 / FR-290 / FR-294 / NFR-57 proofs over the stream (T2', T3').
 - **M3b' closing state** (T5'): `DONE_008` holds 78 ids and `PENDING_008` 18 (asserted explicitly in `traceability.test.ts`: the closing-state test is retitled to M3b' and pins the 33 ids closed since M2b, the 3 M3a' ids, and FR-287 and NFR-49 as done, and the 18 later ids as a literal list; 96-id sum). Closed in M3b' (2): FR-287 (T2'; its letter (d), the `results` event, is not produced before scoring and goes to M4, which also re-pins the stream sequences of `stream-order.test.ts` and `stream-late-join.test.ts` when it inserts `results` after `victim-revealed` and after `round-applied`), NFR-49 (T4'; the figures of the hand run are in section 13 and the PR). Parts completed in M3b' (ids already done): FR-288 (stream) and FR-290 (stream, storage failure: nothing but heartbeats, then the retry's events with their stored numbers), FR-257 and NFR-47 (a) (twins over the stream), NFR-47 (c) (stream bytes in the log scan and the twins test), FR-259 (secret only in `match-finished`), FR-302 (events carry a reported time that never decreases), FR-289 (stream, shutdown and restart), FR-294 (stream replay), NFR-57 (replay: a kill after `COMMIT` before publication; a kill during the late step of `start()`), NFR-52 (network). Left: FR-271 to FR-278 (M4), FR-303 to FR-311 and NFR-56 (M5).
 - **M1 closing state**: the M1 ids FR-252, FR-312, FR-313, NFR-47, NFR-48, NFR-51, NFR-53, NFR-55 (8 ids) are in `DONE_008`; `PENDING_008` holds exactly 88 ids (96 - 8; the test asserts both numbers). Of these, NFR-47 is only partly covered (part (e), the absorber uniformity) and NFR-48 only for seeds and records (round-seed goldens): the other parts of NFR-47 ((a) to (d), (f)) and the lifecycle and results parts of NFR-48 are completed by the milestones of the ledger above, and their test titles must name the part they cover (for example `NFR-47 (b) ...`), because the id can no longer be reported missing. NFR-55 stays partial in every milestone.
+- **M4 / M4' target** (section 20.10, approved by the user on 2026-10-23): M4 T2 moves FR-274 (79 / 17), T4 moves FR-271, FR-272, FR-273 (82 / 14), T5 pins the M4 closing state 82 / 14; M4' T3' moves FR-275, FR-276, FR-277, FR-278 (86 / 10), T6' pins 86 / 10. Left after M4': FR-303 to FR-311 and NFR-56 (M5). Titles: no M4 or M4' title names an FR-271 to FR-278 id before the task that closes it (`tasks-M4.md`, titles rule).
 - M5 removes the pending set (an empty list) and the spec goes to `implemented` after M5's acceptance.
 
 ## 12. Milestones (delivery)
@@ -188,7 +192,8 @@ Superseded by section 19.9 (2026-10-23). The first version used I = 120, L1 = 30
 | M3a' | `feat/008-m3a2-http-server` (from `rewrite` after M3a is merged) | The HTTP server (section 18, T1' to T5'): pipeline and command routes, read routes, CORS on the wire and map files, entry point, graceful shutdown, closed log, production re-assertions; closes FR-280, FR-285, FR-298 (76 / 20) | FR-280, FR-285, FR-298; HTTP parts of FR-237, FR-253, FR-254, FR-257, FR-258, FR-259, FR-262 to FR-267, FR-270, FR-281, FR-282, FR-301, FR-302; FR-292 (wire); FR-260, NFR-47(c), (f), NFR-52 (network), NFR-54 (logs) | M3a |
 | M3b | `feat/008-m3b-event-stream` (from `rewrite` at ebe5d79 or later) | Server-Sent Events (section 19, T1 to T6): event encoders and framing, stream settings and the open-stream gauge, the stream hub (replay, live, heartbeat, back-pressure), the stream route; no id moved (76 / 20) | FR-280 (SSE), FR-281 (i), FR-285 (stream), FR-286 (stream), FR-289 (stream), FR-290 (stream, hub), FR-299 (stream limits), FR-257 (event encoders); NFR-51, NFR-52 | M3a' |
 | M3b' | `feat/008-m3b2-stream-proofs-and-load` (from `rewrite` after M3b is merged) | Event content and order on the wire, shutdown and restart with streams, the NFR-49 procedure (section 19, T1' to T5'); closes FR-287 and NFR-49 (78 / 18) | FR-287 (not (d)); FR-288, FR-290, FR-257, FR-259, FR-294 (stream parts); NFR-47 (a), (c) over the stream; NFR-49; NFR-57 (replay) | M3b |
-| M4 | `feat/008-m4-scoring-and-results` | Scoring, results, leaderboard reads | FR-271 to FR-278, FR-281(e) to (g), scoring parts of FR-241, FR-243, FR-246, FR-251(c); NFR-48 (results), NFR-57 (results) | M2b, M3a' |
+| M4 | `feat/008-m4-scoring` (from `rewrite` at b0905b1 or later) | Pure scoring and ranking, the `results` event with the re-pinned sequences, scoring inside the step transaction (section 20, T1 to T5); closes FR-274, FR-271, FR-272, FR-273 (82 / 14) | FR-271 to FR-274; scoring parts of FR-241, FR-243, FR-246, FR-251 (c); FR-269 (results); FR-287 (d); NFR-47 (d) (results), NFR-48 (re-pin), NFR-57 (rows) | M3b' |
+| M4' | `feat/008-m4-2-results-reads` (from `rewrite` after M4 is merged) | Results wire shapes and cursors, the three reads through store and service, the routes over HTTP, results goldens and durability (section 20, T1' to T6'); closes FR-275 to FR-278 (86 / 10) | FR-275 to FR-278; FR-279 (d), FR-281 (e) to (g); NFR-48 (results), NFR-57 (results) | M4 |
 | M5 | `feat/008-m5-live-viewer` | Live viewer, address rules, map digest in the browser, web test client, production build check | FR-303 to FR-311; NFR-56 | M3b', M4 |
 
 ## 13. Recorded figures and checks
@@ -615,7 +620,7 @@ apps/server/test/helpers/sse-reader.ts (new)   hand-written reader over the `fet
 A stream on a finished or halted match opens like any other, replays, then gets heartbeats only and stays open until the client closes it (the M5 viewer closes it on `match-finished` or `match-halted`). Discarded: closing it after the replay (an `EventSource` reconnects about 3 s later, forever) and answering 204 to stop the reconnection (not in FR-289).
 
 ### 19.8 What an event stream carries (FR-287 order)
-The order inside one decision is the core's (`performStep`, PD7) and the hub writes the events of a decision in the order it receives them: phase-1 close `phase-closed`, `victim-revealed`, `schedule`; phase-2 close `phase-closed`, `schedule`; with L2 = 0 `phase-closed`, `round-applied`, `schedule`; application k < T `round-applied`, `schedule`; round T `round-applied`, `match-finished` (no `schedule`); a halt `match-halted` only. The `results` event of FR-287 (d) is not produced before M4 (scoring): M4 inserts it after `victim-revealed` and after `round-applied` and updates the sequences pinned by M3b' T2' (E6).
+The order inside one decision is the core's (`performStep`, PD7) and the hub writes the events of a decision in the order it receives them: phase-1 close `phase-closed`, `victim-revealed`, `schedule`; phase-2 close `phase-closed`, `schedule`; with L2 = 0 `phase-closed`, `round-applied`, `schedule`; application k < T `round-applied`, `schedule`; round T `round-applied`, `match-finished` (no `schedule`); a halt `match-halted` only. The `results` event of FR-287 (d) is not produced before M4 (scoring): M4 inserts it after `victim-revealed` and after `round-applied` and updates the sequences pinned by M3b' T2' (E6). [From M4 T3 this list is superseded by section 20.4.]
 
 ### 19.9 NFR-49 procedure (M3b' T4'; replaces section 10; E10)
 `apps/server/scripts/load.ts`, run by hand (`node --import tsx scripts/load.ts` from `apps/server`), alone, on the reference PC; the server is a child process of the real `main.ts` with a file database in a temporary folder and raised limits (FR-299 (f)): `MBRG_LIMIT_ANONYMOUS_STREAMS=1000`, `MBRG_LIMIT_ANONYMOUS`, `MBRG_LIMIT_READS`, `MBRG_LIMIT_COMMANDS`, `MBRG_LIMIT_SUBMISSIONS` at 1,000,000, `MBRG_MAX_RUNNING_MATCHES=110`, one `web` client.
@@ -676,3 +681,154 @@ The order inside one decision is the core's (`performStep`, PD7) and the hub wri
 | M3b' T4' NFR-49 procedure | 550 |
 | M3b' T5' close | 100 |
 | **M3b'** | **about 1,750 + docs 150** |
+
+## 20. M4 and M4' detail (scoring, results, leaderboard)
+**Status: approved by the user on 2026-10-23 (G1 to G10 of 20.14 and the spec clarification D29 of 20.11, recorded in the spec).** Tasks in `tasks-M4.md`. Branch `feat/008-m4-scoring` (M4); M4' is cut later.
+Split up front (G1, D24 spirit): **M4** on `feat/008-m4-scoring` from `rewrite` at b0905b1 or later (M3b' merged, PR #35), tasks T1 to T5, closes FR-274, FR-271, FR-272, FR-273 (82 / 14); **M4'** on `feat/008-m4-2-results-reads` from `rewrite` after M4 is merged, tasks T1' to T6', closes FR-275 to FR-278 (86 / 10). Reason: about 4,300 changed lines for one branch with the golden JSON (20.12), above the 3,500 ceiling; the cut puts everything that writes (scoring, the event, the re-pin) in M4 and everything that reads (shapes, cursors, routes, goldens over the reads) in M4'. **No new dependency, no schema change, no change to the map format, `MatchState`, `RoundRecord`, `CoreMatch`, `PublicMatch` or any event shape** (the `results` event exists since M3b): no "ask first" item is triggered (G7 states the persistence consequence).
+
+### 20.1 Files
+```
+apps/server/src/core/
+  scoring.ts (new, PURE)  ScoredPhase; scorePhase(phase, predictions) -> ResultRow[]; rankLeaderboard(totals) -> rows with
+                          rank; scoredPhaseCount(view) (the generation); isScored(view, k, phase); readResultsRound(view, k,
+                          phase) -> ok | round-not-applied (N) | invalid-request ['round']                 FR-271..FR-274, FR-277, FR-258, FR-279 (d)   (M4 T2)
+  steps.ts (edit)         `results` events (20.4) (M4 T3); StepOutcome.scored (M4 T4)                 FR-287 (d), FR-241, FR-243, FR-246
+apps/server/src/store/
+  store.ts, sqlite.ts, faults.ts (edit)  M4 T4: predictionsOfPhase(matchId, kind, round), putResults(matchId, rows) (refusals
+                          of 20.5); M4' T3': phaseResultsAfter, playerResultsAfter, playerTotal, leaderboardTotals      FR-291, FR-256
+apps/server/src/service/
+  matches.ts (edit)       persist writes the results rows (M4 T4); reads phaseResults, playerResults, leaderboard (M4' T3') FR-275..FR-277, FR-281 (e)..(g)
+packages/protocol/src/                                                                                    (M4' T2')
+  wire.ts (edit)          PhaseResult, PhaseResultsPage, PlayerResult, PlayerResultsPage, LeaderboardRow and their *_KEYS
+  encode.ts (edit)        encodePhaseResults, encodePlayerResults, encodeLeaderboardRow (pages through encodePage)  FR-257
+  page.ts (edit)          CURSOR_LISTS + 'phase-results', 'player-results', 'leaderboard' and their key shapes   FR-279
+  ids.ts (edit)           isPlayerId(value): `<namespace>:<local id>` (FR-283 namespace, FR-297 local id)        FR-278, FR-284
+apps/server/src/http/server.ts (edit)   three read routes (20.6)                                          (M4' T4')
+apps/server/test/golden/dev-results.json (new) + golden/generate-dev-results.ts (hand-run, independent)  NFR-48 (M4' T5')
+```
+`http/{status,cors,limits,identity}.ts`, `schema.ts`, `main.ts`: unchanged (the new routes are credential-free GET reads, already covered by the status table, the read CORS rule and the read limiter class).
+
+### 20.2 Where scoring happens (secrecy and determinism)
+- The core stays pure and never reads predictions: `performStep` returns, next to the rows and events, `scored: ScoredPhase[]`, built only from what the step makes public: at a phase-1 close `{ kind: 'victim', round: k, answer: victim, worth: living.length }` (n, FR-271); at an application `{ kind: 'absorber', round: k, answer: record.absorber, worth: victim.candidates.length }` (d, FR-272) and, when the match finishes, `{ kind: 'winner', answer: winner }` (FR-273, each prediction worth its stored `winnerCandidates`). A halt returns no `scored` and no `results` event (FR-251 (c)). The absorber enters `scored` only in the application, where `applied` already carries it (PD7 unchanged).
+- The shell, inside the decision's one transaction, for each scored phase: `rows = scorePhase(phase, store.predictionsOfPhase(matchId, kind, round))`, then `store.putResults(matchId, rows)`. Write order of a step (extends 17 / matches.ts header): `updateMatch`, `putRecord`, `putResults`, `putStep`, `appendEvents`; publication after the commit (FR-290). So the results are stored before their `results` event is published, a kill before the commit loses both, and the redo (late step after a restart) scores the same stored predictions again: same rows (FR-294, NFR-57).
+- Every stored prediction of the phase counts (PD29): FR-266 refuses a submission at or after its cutoff and FR-295 serialises it against the closing step, so every stored row was stored before the cutoff and before the step began; the scorer does not re-check instants.
+- Pseudocode:
+```
+scorePhase(phase, predictions):            // predictions ordered by player id
+  for (playerId, p) in predictions:
+    correct = p.choice == phase.answer
+    worth   = phase.kind == 'winner' ? p.winnerCandidates : phase.worth
+    row(playerId, phase.kind, phase.kind == 'winner' ? 0 : phase.round, p.choice, correct, correct ? worth : 0)
+rankLeaderboard(totals):                   // totals: playerId, total, correct per kind
+  sort by total desc, then playerId by code unit
+  rank(i) = i == 0 or total(i) < total(i-1) ? i + 1 : rank(i-1)      // competition ranking 1, 1, 3
+scoredPhaseCount(view) = 2 * N + (view.victim?.round == N + 1 ? 1 : 0)   // the generation (2T when finished)
+isScored(view, k, 1) = k >= 1 and (k <= N or view.victim?.round == k);  isScored(view, k, 2) = k >= 1 and k <= N
+```
+`isScored`, `scoredPhaseCount` and `readResultsRound` take only `appliedRounds`, `victim` and `stage` of the public view (NFR-47 (b) spirit: nothing unrevealed decides a read).
+
+### 20.3 Scoring rules (pure; FR-271 to FR-274, D12, P27)
+- Victim: correct iff it names the victim; worth n = the factions living at N (`PublicVictim.living.length`, victim included).
+- Absorber: correct iff it names the absorber; worth d = the absorption candidates of the victim in the state at k − 1 (`PublicVictim.candidates.length`); d = 1 gives 1.
+- Winner: correct iff it names the winner; worth the winner candidates stored at its last change (FR-267); a prediction for a faction eliminated later scores 0.
+- One row per prediction, correct or not (0 points): the leaderboard needs all-zero players (D23) and the phase results list every player that predicted (FR-275). No streak bonus, never negative (FR-274).
+- Leaderboard row: `rank`, `playerId`, `total`, `correctVictims`, `correctAbsorbers`, `correctWinner` (0 or 1); ranked by total, equal totals share a rank (1, 1, 3), then by player id (code-unit order, the SQLite BINARY order of these ASCII ids).
+
+### 20.4 Event sequences (replaces 19.8 from M4 T3; FR-287 order)
+| Decision | Events (in order) |
+|---|---|
+| creation | `schedule` |
+| phase-1 close | `phase-closed` (k, 1), `victim-revealed`, `results` (k, 1), `schedule` |
+| phase-2 close, L2 > 0 | `phase-closed` (k, 2), `schedule` |
+| phase-2 close, L2 = 0 | `phase-closed` (k, 2), `round-applied`, `results` (k, 2), `schedule` (round T: `match-finished` instead of `schedule`) |
+| application, k < T | `round-applied`, `results` (k, 2), `schedule` |
+| application of round T | `round-applied`, `results` (T, 2), `match-finished` |
+| halt (any step, any reason) | `match-halted` only |
+- A `results` event is sent for every scored phase, also when nobody predicted it (G2): the stream then depends only on the timeline, never on whether predictions exist (FR-270: no count leaks), and FR-269's empty result is readable. The winner scoring is announced by `match-finished` (same decision as `results` (T, 2)); there is no third `phase` value (G2).
+- The dev-map match stores 37 events instead of 29; the public data at phase 2 of round 1 has `lastSeq` 5 instead of 4. `stepRowsOf` needs no change: the `results` event follows the step's closing event and goes to the last step row of the decision.
+- Spec 009 and the M5 viewer get one more event type on the one `message` handler (E2); they ignore it.
+
+### 20.5 Storage, persistence and restarts (G7)
+- **No schema change**: v1 already has `results` with the needed columns and the primary key (`match_id`, `round`, `kind`, `player_id`), which serves the phase results (keyset on player id) directly; the player results and the leaderboard scan the match's rows (no index: an index would be a schema change, out of scope; risk 20.13). `SCHEMA_VERSION` stays 1; `results.correct` is 0 or 1; the winner row has round 0.
+- **Refusals of `putResults`** (`invalid-write`, read in the same transaction after `updateMatch`; defence in depth for FR-256 and FR-270, since a premature `correct` bit would reveal an outcome): an absorber row of a round above N; a victim row of a round above N + 1, or of N + 1 while the match row holds no victim; a winner row unless the stage is `finished`; a duplicate key (a phase is scored once).
+- **Databases written before M4**: phases closed by the earlier code have no rows, and nothing scores them later (no migration: spec "Out of scope: schema migrations"; FR-291 leaves migrations to later plans). Accepted because no database outside tests exists (every file database is a temporary test or load-script file). Discarded: `user_version` 2 refusing v1 files (deletes nothing useful, but changes a pinned startup rule); a scoring migration at open (a second scoring path).
+- **Restart and replay**: a restart after a scored step reads the rows from the store; the generation comes from the stored match, so a leaderboard cursor issued before a restart stays valid when nothing new was scored; events stored but not sent (a kill after `COMMIT`) are replayed with their numbers, the `results` event included (19.3).
+- **Storage anti-spoiler check** (`helpers/db-scan.ts` `storedFutureViolations`, NFR-47 (d)): the refusals above as scan rules, plus a `results` event of a round above N + 1, a `results` (N + 1, 1) event before the reveal and a `results` (k, 2) event with k above N.
+
+### 20.6 Routes, status, CORS, limits (M4' T4')
+| Method and path | Call | Errors (FR-301 order) |
+|---|---|---|
+| `GET /matches/{id}/results/{round}/{phase}` | `phaseResults` (paged) | 400 `invalid-request` (query; `['round']` for `0` or a non-round segment; `['phase']` unless `1` or `2`), 404 `unknown-match`, 404 `round-not-applied` (unscored, or a round past 2^53 − 1), 503 |
+| `GET /matches/{id}/players/{playerId}/results` | `playerResults` (paged) | 400 `invalid-request` (query), 400 `invalid-player-id ['playerId']` (not `isPlayerId`), 404 `unknown-match`, 503 |
+| `GET /matches/{id}/leaderboard` | `leaderboard` (paged) | 400 `invalid-request` (query), 404 `unknown-match`, 409 `stale-cursor`, 503 |
+- Credential-free reads (FR-285): CORS `*` without `Authorization`, the allowed-origin rule with it (18.4b); the read preflight; the read limiter class (120 per minute per anonymous address, 1,200 per client credential); `POST` 405 with `Allow: GET, OPTIONS`. Status table unchanged (`stale-cursor` is already 409).
+- The player id is the namespaced id in one path segment, matched literally (`:` is a valid segment character; the local id set has no `/`, `?`, `%`). A well-formed player id with no scored prediction gets 200 with no items and total 0 (G3: no `unknown-player` kind exists in FR-301, and an answer that told unscored predictions apart would break FR-270).
+- No reported time in these replies (FR-302: they carry no schedule and no match state; the M3a reading (f) for the match list and records).
+
+### 20.7 Wire shapes and cursors (M4' T2'; G4, G5)
+- `PhaseResultsPage`: `round`, `phase`, `victim` (phase 1) or `record` (phase 2, the `RecordReply` shape), `items` (`playerId`, `choice`, `correct`, `points`), `next?`.
+- `PlayerResultsPage`: `playerId`, `total` (every scored item of the player, as of this read), `items` (`kind`, `round?` absent for the winner, `choice`, `correct`, `points`), `next?`.
+- Leaderboard: `Page<LeaderboardRow>` (`rank`, `playerId`, `total`, `correctVictims`, `correctAbsorbers`, `correctWinner`).
+- Cursors (PD20 format, validated by tag and key shape): `phase-results [playerId]`; `player-results [round, kind]` (winner round 0; kind in text order, the own-predictions convention); `leaderboard [generation, rank, playerId]`. A leaderboard cursor whose generation is not the current `scoredPhaseCount` is `stale-cursor` (FR-279 (d)), a future generation included; the leaderboard is recomputed per page from `leaderboardTotals` and `rankLeaderboard` and sliced by the keyset (rank, player id) with `pageOf`.
+
+### 20.8 Goldens and determinism (M4' T5'; NFR-48 results, NFR-57 results, FR-315)
+- `golden/dev-results.json`: for the three secrets of `dev-secrets.json` and a fixed prediction set (seven players across two namespaces; every kind; a replaced prediction; a winner prediction changed after a reveal, so its worth differs from its first one; an all-zero player; a player absent from one round), the phase results of every round, every player's results and the whole leaderboard. Written only by `generate-dev-results.ts` (hand-run), which uses `dev-secrets.json`, the sim exports for n and d and its own arithmetic, never `src/core/scoring.ts`; a few totals are also literals in the test.
+- The same golden with timing `manual`; clock I = 120, L1 = 30, L2 = 10 and I = 90, L1 = 20, L2 = 0; a manual advance in every stage; late steps after a forward jump; a backward jump; a restart after every step (file database); in-memory and file databases; the predictions are sent at the same logical points (before C1, during phase 2) in every timeline.
+- NFR-57 (results): the durability script reads every phase result, every player result and the leaderboard at its end; after every kill point the restarted run equals the uninterrupted one (the raw dump already covers the rows from M4 T4).
+
+### 20.9 Earlier tests and goldens edited (meaning stated)
+- M4 T3 (sequences, meaning unchanged: the FR-287 order with letter (d) now produced): `helpers/{stream-run,core-timelines}.ts`, `stream-late-join.test.ts` (`lastSeq` 5), `core-steps`, `service-steps`, `service-restart`, `stream-restart`, `core-timeline-golden` tests as the grep finds them; goldens `core-timelines.json` and `service-timelines.json` re-pinned by their generators, the diff limited to numbering, digests and the added events.
+- M4 T4 (meaning changes by spec: scoring now exists): `service-predictions.test.ts` 'FR-269 a prediction for one phase only ... results table empty' becomes "only that phase has rows, the other phases none"; `service-halting.test.ts` (line 249) expects the one victim row of round 1 and no absorber or winner row (FR-251 (c)); `service-durability.test.ts` `WRITES` gains `putResults` (meaning unchanged: every write is a kill point); `traceability.test.ts` (bookkeeping; planted M4 id FR-271 -> FR-275).
+- M4' (meaning unchanged): `packages/protocol/test/page.test.ts` (`CURSOR_LISTS` six tags), `service-seam.test.ts` and `service-create.test.ts` (method lists gain `leaderboard`, `phaseResults`, `playerResults`), `server-log-scan.test.ts` (reads the results replies), `service-durability.test.ts` and `helpers/durability-script.ts` (final reads), `traceability.test.ts` (planted id FR-275 -> FR-310, retitled).
+
+### 20.10 Ids and ledger
+- **M4**: T2 closes FR-274 (79 / 17); T4 closes FR-271, FR-272, FR-273 (82 / 14). Parts completed: FR-241, FR-243, FR-246 (scoring), FR-251 (c) (scoring), FR-269 (results), FR-287 (d), FR-289 and FR-290 (results event), FR-256 and NFR-47 (d) (results storage), NFR-48 (lifecycle re-pin), NFR-51 (scoring and ranking), NFR-57 (results rows in the dump).
+- **M4'**: T3' closes FR-275, FR-276, FR-277, FR-278 (86 / 10). Parts completed: FR-279 (d) and the results lists, FR-281 (e) to (g), FR-258 (results), FR-270 (unscored hidden), FR-251 (d), (f), FR-257 (results encoders and twins), FR-286 (results reads), FR-301 (results routes), NFR-47 (c) (results replies), NFR-48 (results), NFR-57 (results), FR-315 (results), FR-294 (results replay), NFR-52 (network).
+- Left after M4': FR-303 to FR-311 and NFR-56 (M5).
+
+### 20.11 Decisions of this plan (planner, with the discarded alternative) and the spec clarification D29
+- PD29. The core returns `scored` descriptors and the shell scores the stored predictions inside the step transaction (20.2). Discarded: passing a predictions reader into `performStep` (I/O inside the core) and scoring after the commit (a kill between the two would publish a `results` event with no rows).
+- PD30. The leaderboard generation is `scoredPhaseCount` of the public view (20.2). Discarded: the number of the latest `results` event (a store read per page) and a stored counter column (a schema change).
+- PD31. The leaderboard is computed per read from one aggregate query and ranked in pure code. Discarded: a materialised leaderboard table (a schema change and a second source of truth) and SQL window functions (ranking would leave the pure, tested core, NFR-51).
+- PD32. Player-results order key (round, kind in text order), the winner as round 0, as the own predictions. Discarded: phase order (victim before absorber), which needs a `CASE` in the keyset.
+- **Spec clarification D29 (approved by the user on 2026-10-23; recorded in the spec by M4 T1)**: NFR-52 asks for event streams read "with a small hand-written reader over the platform's `fetch`", but since M3b the reader (`test/helpers/sse-reader.ts`) and the JSON test client (`test/helpers/http-client.ts`) are written over the platform's built-in `node:http` client (plan 19.1 and 13 mark the `fetch` text superseded; section 9 still says `fetch`). Proposed text for the spec's Decisions: "D29 (2026-10-23, user-approved). **Test HTTP client**: NFR-52 is read as follows: the hand-written event-stream reader of the tests, like the JSON test client, is written over the platform's built-in HTTP client (`node:http`) instead of `fetch`, because the tests must send a header twice (two `Last-Event-ID` values), choose any `Origin`, open one connection per request with no pooled socket outliving a test, and keep the raw bytes of every frame for the byte-equality checks, which `fetch` (its `Headers` merge repeated values) cannot do. Still no event-source, HTTP-client or mocking library; no id, other part of NFR-52 or approved status changes. Discarded: rewriting the reader over `fetch` (loses the repeated-header test) and keeping two readers." If approved, M4 T1 records it in the spec (status line and Decisions) and marks section 9's `fetch` wording superseded by D29.
+
+### 20.12 Size estimates (changed lines, src + tests; golden JSON and docs apart)
+| Task | Estimate |
+|---|---|
+| M4 T1 bookkeeping | 40 |
+| M4 T2 pure scoring and ranking | 350 |
+| M4 T3 results event, re-pin | 250 (+ golden JSON 400 to 800) |
+| M4 T4 scoring in the step transaction | 600 |
+| M4 T5 close | 80 |
+| **M4** | **about 1,300 + JSON 600 + docs 300 (about 2,200)** |
+| M4' T1' bookkeeping | 30 |
+| M4' T2' wire shapes, encoders, cursors | 400 |
+| M4' T3' reads through store and service | 600 |
+| M4' T4' routes over HTTP | 550 |
+| M4' T5' goldens and durability | 450 (+ golden JSON 300) |
+| M4' T6' close | 100 |
+| **M4'** | **about 2,100 + JSON 300 + docs 150 (about 2,550)** |
+One branch would be about 4,300 to 4,750: above the 3,500 ceiling (G1).
+
+### 20.13 Risks
+- **Re-pin size and review** (M4 T3): the goldens' digests change wherever a sequence number is inside; the diff must show nothing else. Checkpoint after T3 (stop at about 2,500 lines).
+- **Leaderboard cost**: each page aggregates the match's results and sorts every player (O(P log P)); fine for the dev map and bot-sized matches (thousands of players); a large public match may need the materialised table later (a schema change, back to the user). Not part of NFR-49 (reads are not measured there).
+- **Player results scan**: no index on (match, player id); the primary key prefix (match id) bounds the scan to one match.
+- **Old database files**: phases closed before M4 stay unscored (20.5); only test files exist today.
+- **NFR-49 figures** were measured without the `results` event (two more events per round, about 0.3 ms per step); not re-measured; a re-run is cheap if the user wants it.
+- **Titles rule**: four closing tasks in two branches; the planted-id test moves twice (FR-271 -> FR-275 -> FR-310).
+- **Spec 009** pins nothing about the event after `victim-revealed`; its viewer must ignore `results` (one `message` handler, E2).
+
+### 20.14 Decisions needing the user's approval (G1 to G10; recommendation first)
+- **G1. Split M4 / M4' up front** (20, 20.12). Alternative: one branch with a checkpoint after T4 (about 4,300 lines expected).
+- **G2. One `results` event per scored phase, also an empty one; none for the winner (announced by `match-finished`); none at a halt.** Alternatives: an event only when the phase had predictions (the stream would depend on predictions); a third `phase` value `winner` (changes the M3b event shape and its encoder).
+- **G3. Paths and errors of 20.6**: `/matches/{id}/results/{round}/{phase}` with `phase` `1` or `2`, `/matches/{id}/players/{playerId}/results` with the namespaced id, `/matches/{id}/leaderboard`; round `0` 400; a malformed player id `invalid-player-id`; an unknown well-formed player id 200 empty. Alternatives: query parameters (`?round=&phase=`, `?playerId=`); 404 for a player with no row.
+- **G4. Wire shapes of 20.7** (flat correct counts; `total` per page as of the read; no reported time). Alternative: a nested `correct: { victim, absorber, winner }` object.
+- **G5. Cursors of 20.7**, the generation in the leaderboard cursor, `stale-cursor` for any other generation. Alternatives: PD30's discarded ones; signed cursors (PD20 discarded).
+- **G6. Scoring every stored prediction of the phase, one row per prediction, store refusals of premature rows** (20.2, 20.5). Alternatives: re-checking stored instants against the cutoff; storing correct rows only (FR-277 needs all-zero players).
+- **G7. No schema change, no index, `user_version` stays 1; databases written before M4 keep their closed phases unscored** (20.5). Alternatives: `user_version` 2 refusing v1 files; a scoring migration.
+- **G8. The re-pin as its own task (M4 T3, one commit)**, its diff limited to numbering, digests and the added events.
+- **G9. FR-246 "publish the final leaderboard"** read as: readable through FR-277 from the commit of the finish, announced by `results` (T, 2) and `match-finished`; no leaderboard inside an event (FR-287 (f) lists the `match-finished` fields). Alternative: a leaderboard payload in `match-finished` (a change to FR-287 (f) and the event shape). If the user prefers it written down, a one-line clarification D30 with this reading.
+- **G10. The leaderboard computed per read** (PD31) and the player-results order (PD32).
+- **D29** (20.11): the spec clarification of NFR-52 for the `node:http` test client and reader.

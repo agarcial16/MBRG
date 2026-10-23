@@ -150,3 +150,11 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Run: typecheck clean; `CI=1 npm test`: 187 files, 3112 passed, 4 skipped. `git diff --shortstat rewrite` before this commit: 19 files, +1,510 / -33.
 - Not done (as instructed): push, PR, Linux CI run, squash. The PR must carry the NFR-49 figures (plan section 13) and list FR-287 and NFR-49 closed (78 / 18).
 - Next step: review and the user's OK for the PR; then detail M4.
+
+## Planned: M4 / M4' (2026-10-23; approved by the user the same day: G1 to G10 and D29)
+- Planner wrote plan section 20 and `tasks-M4.md` (M4 T1 to T5, M4' T1' to T6'), updated the plan ledger (sections 11, 12) and the `tasks.md` index.
+
+### M4 T1 - Branch, docs, bookkeeping targets
+- Changed (docs and comments only): DRAFT markers removed from `plan.md` (header, ledger rows, section 20), `tasks.md`, `tasks-M4.md`; D29 recorded in `spec.md` Decisions after D28 (status line and the "D1 to D29" numbering line updated; the plan's section 9 `fetch` note now cites D29 as approved); `traceability.test.ts` comments state the targets (M4 T2 79 / 17, T4 82 / 14; M4' T3' 86 / 10).
+- Tests: no logic; counts stay 78 / 18 (see the run in the commit entry below).
+- Next step: T2 (pure scoring and ranking).
