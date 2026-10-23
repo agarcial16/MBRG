@@ -15,7 +15,7 @@ Plan section 19. **Approved by the user on 2026-10-23**: E1 to E10 (plan 19.13) 
 
 ## M3b (`feat/008-m3b-event-stream`, T1 to T6; no id moved, 76 / 20)
 
-- [ ] **T1. Branch, docs, bookkeeping targets.** NFR-55
+- [x] **T1. Branch, docs, bookkeeping targets.** NFR-55
   - Depends on: M3a' merged (PR #33); plan section 19 and this file approved; D28 approved (E3).
   - Files: `specs/008-server-and-predictions/{spec,plan,tasks,tasks-M3b}.md` (D28 in the spec's Decisions, only if approved), `packages/sim/test/traceability.test.ts` (comments only).
   - Tests first: counts stay 76 / 20; comments state the targets (M3b T6 76 / 20; M3b' T2' 77 / 19, T4' 78 / 18).
@@ -24,7 +24,7 @@ Plan section 19. **Approved by the user on 2026-10-23**: E1 to E10 (plan 19.13) 
   - Done when: suite, typecheck and `CI=1` green; no id moved.
   - Size: S (about 40).
 
-- [ ] **T2. Event encoders, stream framing, the starting number and the stream preflight (pure).** FR-257 (event encoders); FR-289 (stream framing), FR-289 (d), (e) (number reading), FR-289 (f) (heartbeat frame); FR-286 (stream preflight); NFR-51 (http modules)
+- [x] **T2. Event encoders, stream framing, the starting number and the stream preflight (pure).** FR-257 (event encoders); FR-289 (stream framing), FR-289 (d), (e) (number reading), FR-289 (f) (heartbeat frame); FR-286 (stream preflight); NFR-51 (http modules)
   - Depends on: T1.
   - Files: `packages/protocol/src/{wire,encode,index}.ts`, `packages/protocol/test/encode-events.test.ts`, `apps/server/src/http/{sse,cors}.ts`, `apps/server/test/{http-sse,http-cors}.test.ts`, `apps/server/test/http-purity.test.ts` (`sse.ts` joins the pure set).
   - Tests first: `encodeEvent` writes each of the 7 types in its `EVENT_KEYS` order whatever the input order, omits an absent optional `schedule`, refuses an extra, inherited or `null` member and an unknown `type`; `JSON.parse(encodeEvent(e))` deep-equals `e` for every event a scripted dev-map match stores (manual and clock timing, a halt); `frameOf(41, json)` is exactly `id: 41\ndata: <json>\n\n` and refuses a json with CR or LF; `HEARTBEAT_FRAME` is `:\n\n` (no `id`, no `data`); `readStreamStart`: header only, parameter only, both (the header wins), `0`, `41`, 2^53 - 1, `9007199254740992` (beyond), and invalid `-1`, `01`, `1.5`, `1e3`, ``, ` 1`, two header values, each naming `Last-Event-ID` or `lastEventId`; CORS: a GET preflight listing `last-event-id` gets `*` and `Access-Control-Allow-Headers: last-event-id`; listing `last-event-id, authorization` follows the credentialed rule; the earlier preflight cases are unchanged.

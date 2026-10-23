@@ -66,3 +66,11 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Changed: plan section 19, `tasks.md` and `tasks-M3b.md` marked approved by the user (2026-10-23: E1 to E10 and D28); D28 recorded in `spec.md` Decisions (fixed 15 s wait for the open-stream limits, FR-299 (e)), Status line and numbering line updated to D28; comments in `traceability.test.ts` state the targets (M3b T6 76 / 20; M3b' T2' 77 / 19, T4' 78 / 18).
 - Tests: no logic; counts stay 76 / 20 (see the run below).
 - Next step: T2 (event encoders, stream framing, number reading, stream preflight).
+- T1 commits: 1783b8f (docs), a14b0c8 (bookkeeping comments). Suite 175 files, 2991 passed, 3 skipped; ledger 76 / 20.
+
+### M3b T2 - Event encoders, stream framing, starting number, stream preflight
+- Changed: `packages/protocol/src/{wire,encode,index}.ts` (`EVENT_KEYS` of the 7 types; `encodeEvent`: fixed key order, absent optional `schedule` omitted, refuses extra/inherited/null members, unknown type, bad values; `c2` and `a` of `victim-revealed` are the only nulls, both together, as in the stored event of a manual match; `write` got a `nullable` parameter); `apps/server/src/http/sse.ts` (pure: `frameOf`, `HEARTBEAT_FRAME`, `HEARTBEAT_MS` 14,000, `STREAM_RETRY_SECONDS` 15, `STREAM_BUFFER_LIMIT`, `readStreamStart` with BigInt for the 2^53 - 1 bound); `cors.ts` (a credential-free GET preflight listing `last-event-id` gets `Access-Control-Allow-Headers: last-event-id`).
+- Tests: `packages/protocol/test/encode-events.test.ts` (9), `apps/server/test/http-sse.test.ts` (12, including the round trip of every event stored by the six core scenarios plus one halted match, helper `helpers/stream-events.ts`), `http-cors.test.ts` (+2; one earlier assertion edited: the preflight listing `last-event-id` is no longer expected to lack `Allow-Headers`, it now lists `content-type`), `http-purity.test.ts` (`sse.ts` in the pure set).
+- Run: typecheck clean; `npm test` x2 (also `CI=1`): 177 files, 3015 passed, 3 skipped. Mutations (full suite, all caught): two keys of `victim-revealed` swapped, extra member accepted, blank line dropped from the frame, parameter preferred to header, leading zero accepted, `Allow-Headers` missing.
+- Untested: nothing on the wire yet (T5).
+- Next step: T3 (stream limit settings, open-stream gauge).

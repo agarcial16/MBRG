@@ -3,6 +3,7 @@ export {
   encodeAdvance,
   encodeCreation,
   encodeError,
+  encodeEvent,
   encodeMatchSummary,
   encodeOwnPrediction,
   encodePage,
@@ -45,7 +46,7 @@ export type { AdvanceBody, CreationBody, PredictionKind, StepKind, SubmissionBod
 export { MAP_FILE_NAMES, REQUEST_ID_KEY, canonicalBody, mapDigestBytes, stateText } from './canonical';
 export type { MapFileName } from './canonical';
 export { encodePublicMatch } from './public';
-export { HALT_REASONS, PUBLIC_MATCH_KEYS, PUBLIC_VICTIM_KEYS, STAGES, STEP_CAUSES } from './wire';
+export { EVENT_KEYS, HALT_REASONS, PUBLIC_MATCH_KEYS, PUBLIC_VICTIM_KEYS, STAGES, STEP_CAUSES } from './wire';
 export type {
   AdvanceReply,
   CreationReply,

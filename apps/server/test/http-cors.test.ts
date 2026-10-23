@@ -59,9 +59,31 @@ describe('http cors', () => {
     expect(PREFLIGHT_MAX_AGE).toBe(600);
     for (const origin of [OTHER, ...ALLOWED]) {
       expect(corsHeaders(req({ method: 'OPTIONS', origin, requestMethod: 'GET' }), ALLOWED), origin).toStrictEqual(PREFLIGHT_READ);
-      expect(corsHeaders(req({ method: 'OPTIONS', origin, requestMethod: 'GET', requestHeaders: 'last-event-id' }), ALLOWED), origin).toStrictEqual(PREFLIGHT_READ);
+      expect(corsHeaders(req({ method: 'OPTIONS', origin, requestMethod: 'GET', requestHeaders: 'content-type' }), ALLOWED), origin).toStrictEqual(PREFLIGHT_READ);
       expect(corsHeaders(req({ method: 'OPTIONS', origin }), ALLOWED), origin).toStrictEqual(PREFLIGHT_READ);
     }
+  });
+
+  it('FR-286 (stream preflight) a credential-free GET preflight listing last-event-id also allows that header, for any origin', () => {
+    const PREFLIGHT_STREAM = { ...PREFLIGHT_READ, 'access-control-allow-headers': 'last-event-id' };
+    for (const origin of [OTHER, ...ALLOWED]) {
+      for (const requestHeaders of ['last-event-id', 'Last-Event-ID', ' LAST-EVENT-ID ', 'last-event-id,last-event-id']) {
+        expect(corsHeaders(req({ method: 'OPTIONS', origin, requestMethod: 'GET', requestHeaders }), ALLOWED), `${origin} ${requestHeaders}`).toStrictEqual(PREFLIGHT_STREAM);
+      }
+      expect(corsHeaders(req({ method: 'OPTIONS', origin, requestHeaders: 'last-event-id' }), ALLOWED), origin).toStrictEqual(PREFLIGHT_STREAM);
+    }
+    // Other names in the list do not make it an allowed header, and a name that only contains the text does not count.
+    expect(corsHeaders(req({ method: 'OPTIONS', origin: OTHER, requestMethod: 'GET', requestHeaders: 'last-event-id-x' }), ALLOWED)).toStrictEqual(PREFLIGHT_READ);
+    expect(corsHeaders(req({ method: 'OPTIONS', origin: OTHER, requestMethod: 'GET', requestHeaders: 'x-last-event-id' }), ALLOWED)).toStrictEqual(PREFLIGHT_READ);
+  });
+
+  it('FR-286 (stream preflight) listing last-event-id together with authorization follows the credentialed rule', () => {
+    for (const requestHeaders of ['last-event-id, authorization', 'authorization,last-event-id']) {
+      expect(corsHeaders(req({ method: 'OPTIONS', origin: ALLOWED[0], requestMethod: 'GET', requestHeaders }), ALLOWED), requestHeaders).toStrictEqual(preflightCredentialed(ALLOWED[0] as string));
+      expect(corsHeaders(req({ method: 'OPTIONS', origin: OTHER, requestMethod: 'GET', requestHeaders }), ALLOWED), requestHeaders).toStrictEqual({});
+    }
+    // A POST preflight never gets the credential-free answer, even when it lists last-event-id.
+    expect(corsHeaders(req({ method: 'OPTIONS', origin: OTHER, requestMethod: 'POST', requestHeaders: 'last-event-id' }), ALLOWED)).toStrictEqual({});
   });
 
   it('FR-286 (policy) the preflight listing authorization, or of a POST, is answered only for an allowed origin', () => {
