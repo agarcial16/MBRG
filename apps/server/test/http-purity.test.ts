@@ -10,7 +10,7 @@ const server = import.meta.glob('../src/**/*.ts', { query: '?raw', import: 'defa
 /** The pure decision modules of plan 18.1 (each marked "pure"). */
 const PURE = ['http/cors.ts', 'http/identity.ts', 'http/limits.ts', 'http/sse.ts', 'http/status.ts'];
 /** The other HTTP files plan 18.1 lists (later tasks); they may use the platform. */
-const PLATFORM = ['http/body.ts', 'http/client-error.ts', 'http/log.ts', 'http/respond.ts', 'http/router.ts', 'http/server.ts', 'http/shutdown.ts'];
+const PLATFORM = ['http/body.ts', 'http/client-error.ts', 'http/log.ts', 'http/respond.ts', 'http/router.ts', 'http/server.ts', 'http/shutdown.ts', 'http/streams.ts'];
 /** What a pure module may import: the other pure modules, the digest helpers, the settings types and the protocol. */
 const ALLOWED_IMPORTS = new Set(['./cors', './identity', './limits', './sse', './status', '../service/ids', '../service/settings', '@mbrg/protocol']);
 
