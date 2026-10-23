@@ -497,6 +497,80 @@ function livingFactionsOfView(state: { owners: readonly (readonly [number, numbe
   return [...owners][0]!;
 }
 
+describe('the phases a decision scores', () => {
+  const SHORT0: Timing = { i: 3, l1: 1, l2: 0 };
+
+  it('a phase-1 close scores the victim phase: the victim as answer and the factions living at N as worth', () => {
+    const d = coreDriver({ timing: CLOCK });
+    for (let k = 1; k <= 4; k++) {
+      const livingBefore = new Set(d.view.state.owners.map(([, f]) => f)).size;
+      const out = d.run('phase-1-close');
+      const victim = out.view.victim!;
+      expect(out.scored, `round ${k}`).toStrictEqual([{ kind: 'victim', round: k, answer: victim.victim, worth: victim.living.length }]);
+      expect(victim.living).toHaveLength(livingBefore);
+      d.run('phase-2-close');
+      d.run('application');
+    }
+  });
+
+  it('a phase-2 close with L2 above 0 scores nothing', () => {
+    const d = coreDriver({ timing: CLOCK });
+    d.run('phase-1-close');
+    expect(d.run('phase-2-close').scored).toBeUndefined();
+  });
+
+  it('an application scores the absorber phase with the candidates of the victim, and the winner too at round T', () => {
+    const d = coreDriver({ timing: CLOCK });
+    for (let k = 1; k <= 4; k++) {
+      d.run('phase-1-close');
+      const candidates = d.view.victim!.candidates.length;
+      d.run('phase-2-close');
+      const out = d.run('application');
+      const absorber = { kind: 'absorber', round: k, answer: out.applied!.record.absorber, worth: candidates };
+      if (k < 4) expect(out.scored, `round ${k}`).toStrictEqual([absorber]);
+      else expect(out.scored).toStrictEqual([absorber, { kind: 'winner', answer: d.view.winner }]);
+    }
+    expect(d.view.stage).toBe('finished');
+  });
+
+  it('with L2 = 0 the merged decision scores what the application scores', () => {
+    const plain = coreDriver({ timing: CLOCK });
+    plain.run('phase-1-close');
+    plain.run('phase-2-close');
+    const expected = plain.run('application').scored;
+    expect(expected).toHaveLength(1);
+    const d = coreDriver({ timing: SHORT0 });
+    d.clock.set(T0 + 2000);
+    d.tick();
+    d.clock.set(T0 + 3000);
+    const out = d.tick()!;
+    expect(out.steps.map((s) => s.kind)).toStrictEqual(['phase-2-close', 'application']);
+    expect(out.scored).toStrictEqual(expected);
+  });
+
+  it('a halt scores nothing: map-changed at a phase-1 close, victim-mismatch at an application and in a merged decision', () => {
+    const changed = coreDriver();
+    changed.deps = { ...changed.deps, map: null };
+    expect(changed.run('phase-1-close').scored).toBeUndefined();
+    const [s1, s2] = differentVictims();
+    let calls = 0;
+    const mismatch = coreDriver({ seedOf: () => (calls++ === 0 ? s1 : s2) });
+    mismatch.run('phase-1-close');
+    mismatch.run('phase-2-close');
+    const out = mismatch.run('application');
+    expect(out.view.haltReason).toBe('victim-mismatch');
+    expect(out.scored).toBeUndefined();
+    let chainedCalls = 0;
+    const chained = coreDriver({ timing: SHORT0, seedOf: () => (chainedCalls++ === 0 ? s1 : s2) });
+    chained.clock.set(T0 + 2000);
+    chained.tick();
+    chained.clock.set(T0 + 3000);
+    const merged = chained.tick()!;
+    expect(merged.view.haltReason).toBe('victim-mismatch');
+    expect(merged.scored).toBeUndefined();
+  });
+});
+
 describe('the results event of a decision', () => {
   const SHORT0: Timing = { i: 3, l1: 1, l2: 0 };
   const typesOf = (events: readonly MatchEvent[]): string[] => events.map((e) => e.type);
