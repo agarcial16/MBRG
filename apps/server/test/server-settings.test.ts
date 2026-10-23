@@ -108,7 +108,8 @@ describe('server settings: variables and defaults', () => {
 
 describe('server settings: credentials', () => {
   it('FR-283 (credential set and length) 22 to 256 characters of A-Z a-z 0-9 _ - are accepted for the operator credential', () => {
-    for (const credential of ['a'.repeat(22), 'Z'.repeat(256), 'Ab0_-Ab0_-Ab0_-Ab0_-Ab', '0123456789abcdef0123456789abcdef']) {
+    // 'g' (not 'a'): a credential made only of hexadecimal digits needs 32 characters (FR-283 (hex credentials)).
+    for (const credential of ['g'.repeat(22), 'Z'.repeat(256), 'Ab0_-Ab0_-Ab0_-Ab0_-Ab', '0123456789abcdef0123456789abcdef']) {
       expect(readSettings({ ...base, MBRG_OPERATOR_CREDENTIAL: credential }).ok, credential).toBe(true);
     }
   });
@@ -119,6 +120,21 @@ describe('server settings: credentials', () => {
     }
     expect('PLANTED' + 'x'.repeat(14)).toHaveLength(21);
     expect('PLANTED' + 'x'.repeat(250)).toHaveLength(257);
+  });
+
+  it('FR-283 (hex credentials) a credential made only of hexadecimal digits needs at least 32 characters (128 bits), any case', () => {
+    const HEX = '0123456789abcdef0123456789ABCDEF';
+    for (const length of [22, 23, 30, 31]) {
+      for (const value of [HEX.slice(0, length), HEX.slice(0, length).toUpperCase(), 'f'.repeat(length), '7'.repeat(length)]) {
+        expect(problemsOf({ MBRG_OPERATOR_CREDENTIAL: value }), value).toStrictEqual(['MBRG_OPERATOR_CREDENTIAL']);
+        expect(problemsOf({ MBRG_CLIENTS: clients([{ namespace: 'web', credential: value }]) }), value).toStrictEqual(['MBRG_CLIENTS']);
+      }
+    }
+    // 32 hexadecimal characters carry 128 bits; one character outside the hexadecimal digits makes it a base64url credential.
+    for (const value of [HEX, HEX.toLowerCase(), HEX + 'a', `${HEX.slice(0, 21)}g`, `${HEX.slice(0, 21)}-`, `_${HEX.slice(0, 21)}`]) {
+      expect(readSettings({ ...base, MBRG_OPERATOR_CREDENTIAL: value }).ok, value).toBe(true);
+      expect(settingsOf({ MBRG_CLIENTS: clients([{ namespace: 'web', credential: value }]) }).clients, value).toHaveLength(1);
+    }
   });
 
   it('FR-283 (namespaces) clients are read from a JSON array of { namespace, credential }, in order', () => {

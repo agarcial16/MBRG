@@ -105,7 +105,18 @@ const mapsOf = (text: string | undefined): Record<string, string> | undefined =>
   return Object.keys(out).length === 0 ? undefined : out;
 };
 
-const isCredential = (value: unknown): value is string => typeof value === 'string' && CREDENTIAL.test(value);
+/** A text made only of hexadecimal digits, either case. */
+const HEX_ONLY = /^[0-9A-Fa-f]+$/;
+/** Hexadecimal digits carry 4 bits each: an all-hex credential needs 32 characters for 128 bits (FR-283). */
+const MIN_HEX_CREDENTIAL = 32;
+
+/**
+ * The credential rule of FR-283: the character set and length, and at least 128 bits. A credential made only of hexadecimal
+ * digits is read as hexadecimal (coordinator decision, M3a: a random base64url text of 22 or more characters is all hex
+ * with negligible probability), so it needs at least 32 characters.
+ */
+const isCredential = (value: unknown): value is string =>
+  typeof value === 'string' && CREDENTIAL.test(value) && !(HEX_ONLY.test(value) && value.length < MIN_HEX_CREDENTIAL);
 
 /** The clients of `MBRG_CLIENTS` (absent or empty: none), or undefined when refused. */
 const clientsOf = (text: string | undefined, operator: string | undefined): ClientSetting[] | undefined => {
