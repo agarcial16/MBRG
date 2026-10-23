@@ -110,3 +110,10 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 ### M3b review nits (docs and test titles only)
 - Changed: size figures in this file aligned to plan section 13 (T2 489, T3 195, T4 829, T5 749); plan 19.1 notes that the `fetch` reader and the `createShutdown` dependency are superseded; plan 13 notes the defensive publish gap; three test titles and a fake-response comment reworded to what they test; `streams.ts` header order fixed (register before writes). No behaviour change.
 - Next step: review and PR for M3b, then M3b' T1'.
+
+## Active: M3b' (`feat/008-m3b2-stream-proofs-and-load`, T1' to T5'; 76 / 20 now, target 78 / 18)
+
+### M3b' T1' - Branch and bookkeeping targets
+- Changed: comments in `packages/sim/test/traceability.test.ts` state the M3b' targets (T2' 77 / 19, T4' 78 / 18). No logic.
+- Run: typecheck clean; `npm test`: 181 files, 3081 passed, 3 skipped; ledger 76 / 20.
+- Next step: T2' (event content and order on the wire).

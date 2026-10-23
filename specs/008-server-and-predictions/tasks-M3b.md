@@ -70,7 +70,7 @@ Plan section 19. **Approved by the user on 2026-10-23**: E1 to E10 (plan 19.13) 
 
 ## M3b' (`feat/008-m3b2-stream-proofs-and-load`, from `rewrite` after M3b is merged; T1' to T5'; 78 / 18)
 
-- [ ] **T1'. Branch and bookkeeping targets.** NFR-55
+- [x] **T1'. Branch and bookkeeping targets.** NFR-55
   - Depends on: M3b merged.
   - Files: `packages/sim/test/traceability.test.ts` (comments: T2' 77 / 19, T4' 78 / 18).
   - Commit: `test: prepare the spec 008 bookkeeping for M3b'`.
