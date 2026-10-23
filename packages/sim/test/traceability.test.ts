@@ -211,9 +211,9 @@ describe('traceability', () => {
     for (const id of PENDING_008) expect(expected, id).toContain(id);
   });
 
-  it("NFR-55 M3a' T3' state, 76 ids done and 20 pending: the M2b, M2b', M3a and M3a' ids done, the later ids pending", () => {
-    // M3a closing state (plan sections 11 and 13) plus M3a' T2': asserted explicitly. M3a moved six ids
-    // (T2: FR-279; T3: FR-283, FR-299; T5: FR-281; T6: FR-284, FR-286); M3a' T2' moves FR-280 and FR-298; T3' moves FR-285.
+  it("NFR-55 M3a' closing state, 76 ids done and 20 pending: the M2b, M2b', M3a and M3a' ids done, the later ids pending", () => {
+    // M3a' closing state (plan sections 11 and 13): asserted explicitly. M3a moved six ids
+    // (T2: FR-279; T3: FR-283, FR-299; T5: FR-281; T6: FR-284, FR-286); M3a' T2' moved FR-280 and FR-298; T3' moved FR-285.
     expect(DONE_008).toHaveLength(76);
     expect(PENDING_008).toHaveLength(20);
     expect(DONE_008.length + PENDING_008.length).toBe(96);
@@ -242,10 +242,16 @@ describe('traceability', () => {
     expect(DONE_008.filter((id) => !closedSinceM2b.has(id))).toHaveLength(43);
     // M3a' closed three ids: T2' FR-280 and FR-298, T3' FR-285.
     const closedByM3a2 = ['FR-280', 'FR-285', 'FR-298'];
+    expect(new Set(closedByM3a2).size).toBe(3);
     for (const id of closedByM3a2) {
       expect(DONE_008, id).toContain(id);
       expect(PENDING_008, id).not.toContain(id);
+      expect(closedSinceM2b.has(id), id).toBe(false);
     }
+    // The 6 M3a ids and the 3 M3a' ids are the 9 ids of the HTTP milestones: all done, none pending.
+    const closedByHttp = [...closedByM3a, ...closedByM3a2];
+    expect(new Set(closedByHttp).size).toBe(9);
+    for (const id of closedByHttp) expect(PENDING_008, id).not.toContain(id);
     // M3b, M4 and M5: still pending (a literal list of every one of the 20).
     const laterIds = [
       'FR-271', 'FR-272', 'FR-273', 'FR-274', 'FR-275', 'FR-276', 'FR-277', 'FR-278',

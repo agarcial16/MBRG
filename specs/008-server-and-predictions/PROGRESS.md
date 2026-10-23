@@ -15,7 +15,7 @@ Entry format:
 - M3a PR #32, ledger 73/23 (split from M3a' on 2026-10-23 under C8 at +4,580/-121): ErrorReply unification + `encode.ts` + `page.ts`; `ServerSettings` (13 `MBRG_*`); store reads + `classifyStoreError` by errcode (CI Node 24.21 errcode unchecked; sqlite codes 7, 9, 15, 22 -> store-failure); service reads (outcome unions, `unknown-match` not memoised, D26); pure `http/{limits,identity,cors,status}.ts`. D27: hex-only credentials < 32 refused (proposed, not in spec). CORS `*` for credential-free GET (spec FR-286 wins over a "never *" brief). Map-validation kept 422. Closing commits 458dc3f, f1399f4, 25b229d, b5f735d.
 - Digests: 006 D11 23c90b67d52cbcfa, 005 box 5f8e31fd50523b09, 007 0b3472aa148ea55e.
 
-## Active: M3a' (`feat/008-m3a2-http-server`, T1' done)
+## Active: M3a' (`feat/008-m3a2-http-server`, T1' to T5' done; ledger 76 / 20; PR not opened, waits for the review and the user)
 - **T1'** (feat/008-m3a2-http-server, commit: see git log "test: prepare the spec 008 bookkeeping for M3a'"), 2026-10-23.
   - Changed: `traceability.test.ts` comment only (targets T2' 75/21, T3' 76/20, T5' 76/20 already present from M3a; added that T5' pins the 3 M3a' ids done). Counts stay 73/23; the closing-state test already holds the 3 M3a' ids as a literal list (asserted pending). `tasks-M3a2.md` T1' ticked. Plan/tasks docs already committed in d3b7af1, so no separate docs commit.
   - Tests run: `npm test` 161 files, 2836 passed, 2 skipped (82 s); `npm run typecheck` clean. `CI=1` run not separately done.
@@ -47,3 +47,8 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
   - Decisions (plan 18.7 deviations): `errstr` and stack frames are NOT logged (the SQLite number identifies the text; a message can forge a frame line); `step-failed` carries `matchId` only when it is a plain id (match ids are public). No stderr output in the happy path.
   - Untested / open: the real SIGTERM test did not run on this machine (Windows, skipped by design; Linux CI runs it); a persistent purge-timer failure is retried silently (not part of `onFailure`); `--check` unchanged.
   - Next step: T5' (close M3a': ledger 76 / 20 stays, plan 11 and 13 summary, PR).
+- **T5'** (feat/008-m3a2-http-server, commit: see git log "test: pin the spec 008 pending set after M3a'"), 2026-10-23. Closes M3a'.
+  - Changed: `traceability.test.ts` closing-state test retitled to the M3a' closing state and now also pins the 9 HTTP ids (6 M3a + 3 M3a') as done/not pending and the 3 M3a' ids as outside the M3a set (76 / 20, 96-id sum, the 20 later ids as a literal list). Plan sections 11 (M3a' closing state and the ledger of every open part per milestone) and 13 (M3a' closing summary: figures, C1 status table, C1..C8 as applied, 18.7 deviation, rate rule, process checks, decisions) written. `tasks-M3a2.md` T5' ticked. D27 is approved by the user and in `spec.md`.
+  - Tests run: `npm test` x2: 173 files, 2975 passed, 3 skipped, 75.0 s and 73.2 s; `CI=1 npm test` 73.9 s, same counts; `npm run typecheck` clean; `npm ci --dry-run` ok. No flaky test. Process checks all green (goldens clean, no package/lockfile/.nvmrc change, scans).
+  - Untested / open: listed in plan section 11 (M3a' closing state). PR not opened.
+  - Next step: review, then push and PR with the user's OK; then M3b detail.

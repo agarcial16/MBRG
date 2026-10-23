@@ -45,7 +45,7 @@
   - Commit: `feat(server): run the server with graceful shutdown and a closed log`.
   - Done when: tests green; mutations proved (the log carries `error.message`, a seed variable honoured, shutdown without `service.close()`, `describeError` adding the cause message); no new id moved (partial parts only, titles name them); `rg` finds `NFR-47 (c)`, `NFR-47 (f)`, `FR-260`.
 
-- [ ] **T5'. Close M3a': ledger, process checks, PR.** NFR-55
+- [x] **T5'. Close M3a': ledger, process checks, PR.** NFR-55
   - Depends on: T1' to T4'.
   - Files: `packages/sim/test/traceability.test.ts` (assert 76 / 20; the closing-state test pins the 6 M3a ids and the 3 M3a' ids (FR-280, FR-285, FR-298) done and the 20 later ids, as a literal list, pending), `specs/008-server-and-predictions/plan.md` (sections 11 and 13: M3a' closing summary, ledger and open parts), `MEMORY.md` (local).
   - Steps: `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server/test/golden` clean (no golden re-pinned); `git diff --stat rewrite` lists only planned files; `package-lock.json`, root `package.json`, `.nvmrc` and `packages/protocol/package.json` unchanged; scans green (`node:http` only under `http/` and `main.ts`, `node:sqlite` only in `store/sqlite.ts`, timers only in `scheduler.ts`, no logging outside `main.ts` and the log sink); the PR body lists the ledger of plan 18.10, the status table (C1), the figures (tests, time) and C1 to C8. Push, PR, CI green, squash only with the user's OK.
