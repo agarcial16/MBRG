@@ -8,6 +8,7 @@
 //   5 authorize    the route's credential rule                                                         -> forbidden
 //   6 player limit `ticket.extend`: a refusal cancels the ticket of stage 1, so it is counted nowhere   -> rate-limited
 //   7 decide       the route calls the service; the outcome is mapped by `status.ts`
+//   (an event-stream route also takes a place in the open-stream gauge at stage 1 and hands it to the hub at stage 7)
 //   8 unexpected   any exception: ONE `request-failed` event (name and stage only), then 500 `{"kind":"unavailable"}`
 // The command and read routes are tables of `Route` (router.ts): `productionRoutes` holds the three command routes and the
 // read routes (list, match, states, records, own predictions, map files); `routes` is the injection point of the pipeline tests
@@ -44,14 +45,16 @@ import { answerClientError } from './client-error';
 import { discardBody, readBody, tooLargeByLength, unreadLargeBody } from './body';
 import { credentialTable, hostIdentity, identify, playerIdFor, readBearer, requireClient } from './identity';
 import type { Identity } from './identity';
-import { createLimiter, limitKeys, playerKey } from './limits';
-import type { RequestClass } from './limits';
+import { createGauge, createLimiter, limitKeys, playerKey, streamKeys } from './limits';
+import type { RequestClass, StreamLease } from './limits';
 import { requestFailed } from './log';
 import type { FailureStage, LogSink } from './log';
-import { corsRequestOf, sendError, sendFile, sendPreflight, sendSuccess, sendUnexpected } from './respond';
+import { corsRequestOf, sendError, sendFile, sendPreflight, sendSuccess, sendUnexpected, streamHeaders } from './respond';
 import type { ReplyTarget } from './respond';
 import { createRouter, parseRoundSegment } from './router';
 import type { Reply, Route, RouteContext } from './router';
+import { STREAM_RETRY_SECONDS, readStreamStart } from './sse';
+import type { StreamHub } from './streams';
 
 export interface ServerOptions {
   /** The built lifecycle service (PD18: no seed source can be passed through here). */
@@ -59,12 +62,14 @@ export interface ServerOptions {
   readonly settings: ServerSettings;
   readonly clock: Clock;
   readonly log: LogSink;
+  /** The event stream hub (plan 19.1, PD27): built by the entry point, which also closes it at shutdown. */
+  readonly streams: StreamHub;
   /** The route table; omitted: the production table. The pipeline tests inject their own. */
   readonly routes?: readonly Route[];
 }
 
 /** The option keys of `createServer`, pinned by a test: nothing here can name a seed or a seed source (FR-260). */
-export const SERVER_OPTION_KEYS = ['clock', 'log', 'routes', 'service', 'settings'] as const satisfies readonly (keyof ServerOptions)[];
+export const SERVER_OPTION_KEYS = ['clock', 'log', 'routes', 'service', 'settings', 'streams'] as const satisfies readonly (keyof ServerOptions)[];
 type UnlistedOptionKey = Exclude<keyof ServerOptions, (typeof SERVER_OPTION_KEYS)[number]>;
 const ALL_OPTION_KEYS_LISTED: [UnlistedOptionKey] extends [never] ? true : false = true;
 void ALL_OPTION_KEYS_LISTED;
@@ -95,6 +100,23 @@ const roundShape = (ctx: RouteContext): ErrorReply | undefined =>
 const roundOf = (ctx: RouteContext): number => {
   const round = parseRoundSegment(ctx.params.round as string);
   return round.kind === 'round' ? round.value : Number.MAX_SAFE_INTEGER;
+};
+
+/** The query of the stream route: only `lastEventId` is a parameter; the first other name, in sorted order, is named. */
+const streamQuery = (ctx: RouteContext): ErrorReply | undefined => {
+  const first = pairsOf(ctx.query)
+    .map(([name]) => name)
+    .filter((name) => name !== 'lastEventId')
+    .sort()[0];
+  return first === undefined ? undefined : errorReply('invalid-request', [first]);
+};
+
+/** Where the stream starts (FR-289 (d), (e)): the header wins; a repeated `lastEventId` parameter is invalid. */
+const startOf = (ctx: RouteContext) => {
+  const values = pairsOf(ctx.query)
+    .filter(([name]) => name === 'lastEventId')
+    .map(([, value]) => value);
+  return readStreamStart(ctx.lastEventId, values.length === 0 ? undefined : values.length === 1 ? (values[0] as string) : '');
 };
 
 const MAP_FILE_TYPES = Object.freeze({ 'map.json': 'application/json', 'presentation.json': 'application/json', 'ids.png': 'image/png' } as const);
@@ -213,6 +235,23 @@ export const productionRoutes = (service: MatchService, settings: ServerSettings
   },
   {
     method: 'GET',
+    path: '/matches/:id/events',
+    body: 'none',
+    stream: true,
+    checkQuery: streamQuery,
+    shape: (ctx) => {
+      const start = startOf(ctx);
+      return start.kind === 'invalid' ? errorReply('invalid-request', [start.field]) : undefined;
+    },
+    decide: (ctx) => {
+      const start = startOf(ctx);
+      // `beyond` (past 2^53 - 1): no event will ever be later, so the largest safe number filters everything.
+      const after = start.kind === 'after' ? start.after : start.kind === 'beyond' ? Number.MAX_SAFE_INTEGER : undefined;
+      return { kind: 'stream', matchId: ctx.params.id as string, after };
+    },
+  },
+  {
+    method: 'GET',
     path: '/maps/:mapId/:file',
     body: 'none',
     checkQuery: noQuery,
@@ -279,10 +318,11 @@ export function addressOf(remoteAddress: string | undefined, ordinal: number): s
 const classOf = (method: string): RequestClass => (method === 'POST' ? 'command' : 'read');
 
 export function createServer(options: ServerOptions): Server {
-  const { service, settings, clock, log } = options;
+  const { service, settings, clock, log, streams } = options;
   const router = createRouter(options.routes ?? productionRoutes(service, settings));
   const table = credentialTable(settings);
   const limiter = createLimiter();
+  const gauge = createGauge();
   const sockets = new WeakMap<object, number>();
   let socketCount = 0;
   const ordinalOf = (socket: object): number => {
@@ -296,7 +336,7 @@ export function createServer(options: ServerOptions): Server {
   };
 
   /** The pipeline of one request; it answers through `target` exactly once, or throws. */
-  const run = async (req: IncomingMessage, target: ReplyTarget, at: { stage: FailureStage }): Promise<void> => {
+  const run = async (req: IncomingMessage, target: ReplyTarget, at: { stage: FailureStage; lease: StreamLease | undefined }): Promise<void> => {
     const method = req.method ?? 'GET';
     const now = clock.now();
 
@@ -315,6 +355,17 @@ export function createServer(options: ServerOptions): Server {
     identity = hostIdentity(identity, hostMatch);
     const address = addressOf(req.socket.remoteAddress, ordinalOf(req.socket));
     const admission = limiter.admit(limitKeys(identity, classOf(method), address, settings.limits), now);
+    if (resolution.kind === 'found' && resolution.route.stream === true) {
+      // An event stream is one read of the per-minute limit AND a place in the open-stream gauge (FR-299 (b), plan 19.4); a
+      // refusal of either counts nowhere. The wait is the largest over the refused limits (D28: 15 s for the gauge).
+      const opened = gauge.open(streamKeys(identity, address, settings.limits));
+      if (!admission.ok || !opened.ok) {
+        if (opened.ok) opened.lease.release();
+        if (admission.ok) admission.ticket.cancel();
+        return sendError(target, rateLimited(Math.max(admission.ok ? 0 : admission.retryAfter, opened.ok ? 0 : STREAM_RETRY_SECONDS)));
+      }
+      at.lease = opened.lease;
+    }
     if (!admission.ok) return sendError(target, rateLimited(admission.retryAfter));
 
     // 2. Route.
@@ -340,7 +391,7 @@ export function createServer(options: ServerOptions): Server {
       if (read.kind === 'aborted') return;
       if (read.kind === 'error') return sendError(target, read.error);
     }
-    const ctx: RouteContext = { params, query, body, token, identity, now };
+    const ctx: RouteContext = { params, query, body, token, lastEventId: req.headersDistinct['last-event-id'], identity, now };
     const queryError = route.checkQuery?.(ctx);
     if (queryError !== undefined) return sendError(target, queryError);
 
@@ -364,6 +415,14 @@ export function createServer(options: ServerOptions): Server {
     at.stage = 'decide';
     const reply: Reply = await route.decide(ctx);
     at.stage = 'reply';
+    if (reply.kind === 'stream') {
+      // The client is already gone (nothing would close this response again): the place goes back at the end of the request.
+      if (req.socket.destroyed || target.res.destroyed) return;
+      const opened = streams.open({ matchId: reply.matchId, after: reply.after, response: target.res, headers: streamHeaders(target), lease: at.lease as StreamLease });
+      if (!opened.ok) return sendError(target, opened.error);
+      at.lease = undefined; // the hub owns the response and the place now
+      return;
+    }
     if (reply.kind === 'success') return sendSuccess(target, reply.status, reply.body);
     if (reply.kind === 'file') return sendFile(target, reply.contentType, reply.body);
     return sendError(target, reply.error);
@@ -372,7 +431,7 @@ export function createServer(options: ServerOptions): Server {
   const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     // Any reply sent while a body over the limit is unread closes the connection (FR-298): nothing is drained.
     const target: ReplyTarget = { res, cors: corsRequestOf(req), allowedOrigins: settings.allowedOrigins, closeAfter: () => unreadLargeBody(req) };
-    const at = { stage: 'admit' as FailureStage };
+    const at: { stage: FailureStage; lease: StreamLease | undefined } = { stage: 'admit', lease: undefined };
     try {
       await run(req, target, at);
     } catch (error) {
@@ -387,6 +446,9 @@ export function createServer(options: ServerOptions): Server {
       } catch {
         res.destroy();
       }
+    } finally {
+      // A request that ends without a stream gives its open-stream place back (every 4xx and 5xx, a client gone mid-request).
+      at.lease?.release();
     }
   };
 

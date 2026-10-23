@@ -8,6 +8,7 @@ import { systemClock } from './clock';
 import { createServer } from './http/server';
 import { createFailureReporter, createLineLog, describeError, listenFailed, startReportEvent } from './http/log';
 import { createShutdown, wireProcess } from './http/shutdown';
+import { createStreamHub } from './http/streams';
 import { createMapCatalog } from './service/maps';
 import { createMatchService } from './service/matches';
 import { createScheduler } from './service/scheduler';
@@ -65,7 +66,8 @@ const start = async (): Promise<void> => {
   const scheduler = createScheduler(clock);
   const onFailure = createFailureReporter(log, clock);
   const service = createMatchService({ store, clock, maps: createMapCatalog(settings.maps), settings, scheduler, onFailure });
-  const server = createServer({ service, settings, clock, log });
+  const streams = createStreamHub({ service, scheduler, clock });
+  const server = createServer({ service, settings, clock, log, streams });
   const shutdown = createShutdown({ server, service, scheduler, clock, log, exit: exitFlushed, graceMs: SHUTDOWN_GRACE_MS });
   wireProcess(process, shutdown, log);
   server.on('error', (error) => {
