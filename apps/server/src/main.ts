@@ -68,7 +68,7 @@ const start = async (): Promise<void> => {
   const service = createMatchService({ store, clock, maps: createMapCatalog(settings.maps), settings, scheduler, onFailure });
   const streams = createStreamHub({ service, scheduler, clock });
   const server = createServer({ service, settings, clock, log, streams });
-  const shutdown = createShutdown({ server, service, scheduler, clock, log, exit: exitFlushed, graceMs: SHUTDOWN_GRACE_MS });
+  const shutdown = createShutdown({ server, service, scheduler, clock, log, exit: exitFlushed, graceMs: SHUTDOWN_GRACE_MS, streams });
   wireProcess(process, shutdown, log);
   server.on('error', (error) => {
     if (server.listening) {

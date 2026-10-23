@@ -13,8 +13,11 @@ import { fakeScheduler } from './helpers/fake-scheduler';
 import { request } from './helpers/http-client';
 import { closeAllServers, startServer } from './helpers/server-harness';
 import type { ServerHarness } from './helpers/server-harness';
-import { withTempDirAsync } from './helpers/http-reads-kit';
+import { makeMatch, withTempDirAsync } from './helpers/http-reads-kit';
 import { OPERATOR, creationBody } from './helpers/service-harness';
+import { openStream } from './helpers/sse-reader';
+import type { SseReader } from './helpers/sse-reader';
+import { productionRoutes } from '../src/http/server';
 
 // NFR-54 (logs) and FR-239 (wired): the graceful shutdown, in process, with a real listener and fakes for the scheduler, the
 // clock, `exit` and the process emitter. The real-signal test (a child process) is in server-main.test.ts, POSIX only.
@@ -290,4 +293,104 @@ describe('process wiring', () => {
     expect(r.closeCalls.count).toBe(1);
     r.release();
   });
+});
+
+describe('graceful shutdown with open event streams', () => {
+  const readers: SseReader[] = [];
+  afterEach(() => {
+    for (const reader of readers.splice(0, readers.length)) reader.close();
+  });
+
+  /** A listener with the production routes plus a slow route (held until `release`), and a shutdown wired to the stream hub. */
+  async function streamRig(): Promise<Rig & { id: string }> {
+    const gate = deferred();
+    const entered = deferred();
+    const slow: Route = {
+      method: 'GET',
+      path: '/slow',
+      body: 'none',
+      decide: async () => {
+        entered.resolve();
+        await gate.promise;
+        return { kind: 'success', status: 200, body: '{"ok":true}' };
+      },
+    };
+    const h = await startServer({ routes: (service, settings) => [...productionRoutes(service, settings), slow], service: { scheduler: true }, limits: { anonymous: 100_000, reads: 100_000 } });
+    const scheduler = h.base.scheduler!;
+    const exits: number[] = [];
+    const events: LogEvent[] = [];
+    const closeCalls = { count: 0 };
+    const service = { close: () => (closeCalls.count += 1, h.service.close()) };
+    const shutdown = createShutdown({ server: h.server, service, scheduler, clock: h.clock, log: (e) => void events.push(e), exit: (code) => void exits.push(code), graceMs: SHUTDOWN_GRACE_MS, streams: h.streams });
+    return { h, scheduler, shutdown, exits, events, closeCalls, entered: entered.promise, release: gate.resolve, id: makeMatch(h).id };
+  }
+
+  const openThree = async (r: Rig & { id: string }): Promise<SseReader[]> => {
+    const three: SseReader[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      const reader = await openStream({ port: r.h.port, path: `/matches/${r.id}/events?lastEventId=0` });
+      readers.push(reader);
+      three.push(reader);
+      expect(reader.status).toBe(200);
+    }
+    return three;
+  };
+
+  /** Rejects when the promise does not settle within `ms` of real time (a shutdown that waits for the grace). */
+  const within = <T>(promise: Promise<T>, ms: number, what: string): Promise<T> =>
+    Promise.race([promise, new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`timed out: ${what}`)), ms))]);
+
+  it('FR-289 (stream, shutdown and restart) NFR-52 (network) three open streams and no request in flight: the shutdown ends them, finishes before the grace without forcing, and cancels the heartbeat', async () => {
+    const r = await streamRig();
+    const three = await openThree(r);
+    expect(r.h.streams.openCount()).toBe(3);
+    expect(r.h.scheduler.pending()).toHaveLength(1);
+    r.shutdown.begin('SIGTERM', 0);
+    await within(Promise.all(three.map((reader) => reader.ended)), 3000, 'the streams to end');
+    await within(new Promise<void>((resolve) => { const t = setInterval(() => { if (r.exits.length > 0) { clearInterval(t); resolve(); } }, 10); }), 3000, 'the exit');
+    expect(r.events).toStrictEqual([{ event: 'shutdown-start', reason: 'SIGTERM' }, { event: 'shutdown-done', forced: false }]);
+    expect(r.exits).toStrictEqual([0]);
+    expect(r.closeCalls.count).toBe(1);
+    expect(r.h.scheduler.pending()).toStrictEqual([]);
+    expect(r.h.streams.openCount()).toBe(0);
+    // The grace period was never reached and the readers saw a clean end: the frame they got is the creation event only.
+    for (const reader of three) {
+      expect(reader.raw().startsWith('id: 1\ndata: {"type":"schedule"')).toBe(true);
+      expect(reader.raw().match(/\n\n/g)).toHaveLength(1);
+    }
+    expect(await refused(r.h.port)).toBe(true);
+  }, 30_000);
+
+  it('FR-289 (stream, shutdown and restart) a stream opened on a kept-alive connection while the shutdown runs is a 503 unavailable, and a request in flight still gets its grace', async () => {
+    const r = await streamRig();
+    const one = await openStream({ port: r.h.port, path: `/matches/${r.id}/events` });
+    readers.push(one);
+    // A slow request in flight on a raw connection, then the shutdown, then a stream request on the SAME connection.
+    const socket = connect({ host: '127.0.0.1', port: r.h.port });
+    let text = '';
+    socket.on('error', () => undefined);
+    socket.on('data', (chunk: Buffer) => (text += chunk.toString('latin1')));
+    const closed = new Promise<void>((resolve) => socket.once('close', () => resolve()));
+    await new Promise<void>((resolve) => socket.once('connect', () => resolve()));
+    socket.write('GET /slow HTTP/1.1\r\nHost: localhost\r\nConnection: keep-alive\r\n\r\n');
+    await r.entered;
+    r.shutdown.begin('SIGTERM', 0);
+    await within(one.ended, 3000, 'the open stream to end');
+    socket.write(`GET /matches/${r.id}/events HTTP/1.1\r\nHost: localhost\r\nConnection: keep-alive\r\n\r\n`);
+    await flush();
+    // The slow request keeps the shutdown waiting (grace armed through the scheduler), nothing exits yet.
+    expect(r.exits).toStrictEqual([]);
+    expect(r.shutdown.phase()).toBe('closing');
+    expect(r.scheduler.pending()).toContain(r.h.clock.now() + SHUTDOWN_GRACE_MS);
+    r.release();
+    await within(closed, 3000, 'the connection to close');
+    await flush();
+    const statuses = [...text.matchAll(/HTTP\/1\.1 (\d+)/g)].map((m) => Number(m[1]));
+    expect(statuses).toStrictEqual([200, 503]);
+    expect(text).toContain('{"kind":"unavailable"}');
+    expect(text).not.toContain('text/event-stream');
+    expect(r.h.streams.openCount()).toBe(0);
+    expect(r.exits).toStrictEqual([0]);
+    expect(r.events.at(-1)).toStrictEqual({ event: 'shutdown-done', forced: false });
+  }, 30_000);
 });

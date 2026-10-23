@@ -70,14 +70,14 @@ Plan section 19. **Approved by the user on 2026-10-23**: E1 to E10 (plan 19.13) 
 
 ## M3b' (`feat/008-m3b2-stream-proofs-and-load`, from `rewrite` after M3b is merged; T1' to T5'; 78 / 18)
 
-- [ ] **T1'. Branch and bookkeeping targets.** NFR-55
+- [x] **T1'. Branch and bookkeeping targets.** NFR-55
   - Depends on: M3b merged.
   - Files: `packages/sim/test/traceability.test.ts` (comments: T2' 77 / 19, T4' 78 / 18).
   - Commit: `test: prepare the spec 008 bookkeeping for M3b'`.
   - Done when: suite, typecheck, `CI=1` green; no id moved.
   - Size: S (about 30).
 
-- [ ] **T2'. Event content and order on the wire.** FR-287 (close; letter (d) is M4); FR-288 (stream); FR-290 (stream); FR-257, NFR-47 (a) (stream twins); NFR-47 (c) (stream bytes); FR-259 (stream); FR-302 (events)
+- [x] **T2'. Event content and order on the wire.** FR-287 (close; letter (d) is M4); FR-288 (stream); FR-290 (stream); FR-257, NFR-47 (a) (stream twins); NFR-47 (c) (stream bytes); FR-259 (stream); FR-302 (events)
   - Depends on: T1'.
   - Files: `apps/server/test/{stream-order,stream-twins,stream-late-join}.test.ts`, `apps/server/test/server-log-scan.test.ts` (the scan also reads the stream bytes), `packages/sim/test/traceability.test.ts` (FR-287 out of `PENDING_008`, 77 / 19; the planted pending-id test switches from `FR-287` to `FR-303`).
   - Tests first: one stream from `lastEventId=0` over full dev-map matches through HTTP: manual timing (three advances per round), clock timing with L2 > 0 and with L2 = 0, a manual advance in every stage, a late step after a forward jump; for every decision the exact type sequence of plan 19.8 (no `schedule` after round T, `match-finished` last; a map change gives `match-halted` only), sequence numbers contiguous and equal to the stored ones, each `data` byte-equal to `encodeEvent` of the stored event; `victim-revealed` carries every FR-288 field and equals the public data's `victim` of the same moment; a late joiner (public data at `phase-2`, then a stream with its `lastSeq`) gets exactly the later events; a phase-1 close whose transaction fails (fault seam) sends nothing but heartbeats, and the retry 3 s later sends the events with the stored numbers; twins (test-only seed source, same public data, different victim before C1, then same victim and different absorber before A): byte-identical stream bytes up to each reveal; the stream bytes before the finish contain no secret or round seed in any of the NFR-47 (c) encodings, and the secret appears first in `match-finished`; every `schedule`, `victim-revealed`, `match-finished`, `match-halted` event carries a reported time that never decreases.
@@ -86,7 +86,7 @@ Plan section 19. **Approved by the user on 2026-10-23**: E1 to E10 (plan 19.13) 
   - Done when: tests green; mutations caught; FR-287 moved (77 / 19); `rg` finds FR-287.
   - Size: L (about 550).
 
-- [ ] **T3'. Shutdown, restart and kills with open streams.** FR-289 (stream, shutdown and restart); FR-294 (stream replay); NFR-57 (replay); NFR-52 (network)
+- [x] **T3'. Shutdown, restart and kills with open streams.** FR-289 (stream, shutdown and restart); FR-294 (stream replay); NFR-57 (replay); NFR-52 (network)
   - Depends on: T2'.
   - Files: `apps/server/src/http/shutdown.ts` (`streams` dependency), `apps/server/src/main.ts`, `apps/server/test/{server-shutdown,stream-restart}.test.ts`, `apps/server/test/fixtures/kill-child.ts` (a blocking listener registered before the hub, so the kill falls after `COMMIT` and before publication), `apps/server/test/helpers/main-child.ts`.
   - Tests first: shutdown with three open streams and no request in flight ends before the grace, logs `shutdown-done` with `forced: false`, the readers see the end of their streams, `service.close()` runs once, the heartbeat is cancelled; a stream opened on a kept-alive connection during the shutdown is 503 `unavailable`; a slow request in flight still gets its grace; a file database: events committed with no stream open, restart, a stream with `Last-Event-ID` of the last event seen gets the rest with their original numbers, no duplicate; a child killed after `COMMIT` and before publication of a phase-1 close: after restart the replay holds `phase-closed`, `victim-revealed`, `schedule` once, and the step is not performed again; a child killed during the late step of `start()` (blocking listener at its publication): the next restart performs nothing again and the replay is complete.
@@ -95,7 +95,7 @@ Plan section 19. **Approved by the user on 2026-10-23**: E1 to E10 (plan 19.13) 
   - Done when: tests green, the kill tests run on Windows and Linux CI; mutations caught; no id moved.
   - Size: L (about 500).
 
-- [ ] **T4'. The NFR-49 procedure.** NFR-49 (close: pure part and smoke run)
+- [x] **T4'. The NFR-49 procedure.** NFR-49 (close: pure part and smoke run)
   - Depends on: T3'.
   - Files: `apps/server/scripts/{load,load-stats}.ts`, `apps/server/test/{load-stats,load-smoke}.test.ts`, `packages/sim/test/traceability.test.ts` (NFR-49 out of `PENDING_008`, 78 / 18).
   - Tests first: `load-stats`: p95 by nearest rank on known lists (including 1 and 20 items, non-round values), the delay of a step is measured to the LAST stream's receipt of its last event, a missing receipt, an early close and a non-200 reply each count as failures, the summary keys; smoke: `node --import tsx scripts/load.ts --smoke` in a child exits 0 and prints one summary JSON line with no failure (explicit `{ timeout: 60_000 }`, no target asserted).
@@ -105,7 +105,7 @@ Plan section 19. **Approved by the user on 2026-10-23**: E1 to E10 (plan 19.13) 
   - Done when: tests green; figures recorded; NFR-49 moved (78 / 18); `rg` finds NFR-49.
   - Size: L (about 550).
 
-- [ ] **T5'. Close M3b': ledger, process checks, PR.** NFR-55
+- [x] **T5'. Close M3b': ledger, process checks, PR.** NFR-55
   - Depends on: T1' to T4'.
   - Files: `packages/sim/test/traceability.test.ts` (closing-state test: 78 / 18, FR-287 and NFR-49 pinned done, the 18 later ids as a literal list), `plan.md` (sections 11 and 13: M3b' closing summary, the FR-287 (d) hand-off to M4), `PROGRESS.md`, `MEMORY.md` (local).
   - Steps: as M3b T6; the PR carries the NFR-49 figures.

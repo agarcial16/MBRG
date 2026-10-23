@@ -14,6 +14,8 @@ import { head, raw, request } from './helpers/http-client';
 import type { ClientReply } from './helpers/http-client';
 import { bearer, living, makeMatch, publicOf, startReads, withTempDirAsync } from './helpers/http-reads-kit';
 import { CHILD_OPERATOR, baseEnv, eventsOf, withMain } from './helpers/main-child';
+import { openStream } from './helpers/sse-reader';
+import type { Frame } from './helpers/sse-reader';
 import { CLIENT_CREDENTIAL, closeAllServers } from './helpers/server-harness';
 import type { ServerHarness } from './helpers/server-harness';
 import { OPERATOR, START_MS, creationBody } from './helpers/service-harness';
@@ -73,6 +75,9 @@ describe('the log scan', () => {
     const replay = await post('/matches', creationBody('scan-1', { timing: 'manual' }), OPERATOR);
     expect(replay.json()).toStrictEqual(created.json());
     session.hostTokens.push(hostToken);
+    // An event stream from the start of the match: its bytes are scanned like every reply (split at match-finished).
+    const feed = await openStream({ port: A.port, path: `/matches/${id}/events?lastEventId=0` });
+    expect(feed.status).toBe(200);
     const [a] = living(A, id);
 
     // Successful reads and commands before the finish.
@@ -104,6 +109,13 @@ describe('the log scan', () => {
       expect((await post(`/matches/${id}/advance`, { round: shown.appliedRounds + 1, step }, hostToken, id)).status).toBe(200);
     }
     expect((await call(A, { path: `/matches/${id}` }, id)).text).toContain(SECRET_HEX);
+    // The stream bytes: everything before the match-finished frame goes to `before`, that frame to `after`.
+    const streamed: Frame[] = [];
+    do streamed.push(await feed.next(10_000)); while (!(streamed[streamed.length - 1] as Frame).raw.includes('"type":"match-finished"'));
+    feed.close();
+    expect(streamed.length).toBeGreaterThan(10);
+    session.before.push(entryOf(200, feed.headers, streamed.slice(0, -1).map((f) => f.raw).join('')));
+    session.after.push(entryOf(200, feed.headers, (streamed[streamed.length - 1] as Frame).raw));
 
     // A shutdown at the end, over the same listener: its lines are logged too.
     const exits: number[] = [];

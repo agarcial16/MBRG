@@ -26,6 +26,11 @@ export interface ShutdownDeps {
   readonly exit: (code: number) => void;
   /** How long a shutdown waits for requests in flight (SHUTDOWN_GRACE_MS). */
   readonly graceMs: number;
+  /**
+   * The event stream hub (plan 19.6): `closeAll` ends every open stream, cancels the heartbeat and makes later opens answer
+   * `unavailable`. Without it a shutdown with an open stream would wait the whole grace period for a reply that never ends.
+   */
+  readonly streams?: { closeAll(): void };
 }
 
 export interface Shutdown {
@@ -35,7 +40,7 @@ export interface Shutdown {
 }
 
 export function createShutdown(deps: ShutdownDeps): Shutdown {
-  const { server, service, scheduler, clock, log, exit, graceMs } = deps;
+  const { server, service, scheduler, clock, log, exit, graceMs, streams } = deps;
   let phase: 'running' | 'closing' | 'done' = 'running';
   let exitCode = 0;
   let grace: SchedulerHandle | undefined;
@@ -91,6 +96,9 @@ export function createShutdown(deps: ShutdownDeps): Shutdown {
       phase = 'closing';
       exitCode = code;
       log({ event: 'shutdown-start', reason });
+      // Streams end first: their connections go idle (the `res` 'close' hook above closes them) and any stream request that
+      // arrives later, even on a kept-alive connection, is answered 503 by the closed hub.
+      streams?.closeAll();
       grace = scheduler.at(clock.now() + graceMs, () => {
         grace = undefined;
         server.closeAllConnections();
