@@ -7,7 +7,7 @@ import { DEV_DIR } from './helpers/digests';
 import { raw, head, request } from './helpers/http-client';
 import { advanceSteps, bearer, get, kindOf, living, makeMatch, publicOf, startReads, withTempDirAsync } from './helpers/http-reads-kit';
 import { CLIENT_CREDENTIAL, closeAllServers, errorBody } from './helpers/server-harness';
-import { OPERATOR, START_MS, writeMapPackage } from './helpers/service-harness';
+import { OPERATOR, START_MS, creationBody, writeMapPackage } from './helpers/service-harness';
 
 // The read routes over a real listener (M3a' T3'), through the production route table, the real service, an in-memory
 // store and the fake clock. CORS on the wire is in http-cors-wire.test.ts, the map files in http-maps.test.ts, the twin
@@ -255,7 +255,32 @@ describe('http reads: rounds', () => {
     expect((await get(h, '/matches/nope/states/1')).status).toBe(404);
   });
 
-  it('FR-258 (over HTTP) FR-302 (HTTP) a round above N is the same round-not-applied reply for N + 1, N + 2, T + 5 and 20 digits, at every stage', async () => {
+  it('FR-302 (HTTP) the creation, advance, match and state replies carry the reported time of the fake clock, and it never decreases', async () => {
+    const h = await startReads();
+    const post = (path: string, body: unknown): ReturnType<typeof request> => request(h.port, { method: 'POST', path, body, headers: bearer(OPERATOR) });
+    const created = await post('/matches', creationBody('wire-rt'));
+    expect(created.status).toBe(201);
+    const id = (created.json() as { matchId: string }).matchId;
+    expect((created.json() as { match: { reportedTime: number } }).match.reportedTime).toBe(START_MS);
+    h.clock.advance(7_000);
+    const shown = await get(h, `/matches/${id}`);
+    expect((shown.json() as { reportedTime: number }).reportedTime).toBe(START_MS + 7_000);
+    expect((await get(h, `/matches/${id}/states/0`)).json()).toMatchObject({ round: 0, reportedTime: START_MS + 7_000 });
+    const advanced = await post(`/matches/${id}/advance`, { round: 1, step: 'phase-1-close' });
+    expect(advanced.status).toBe(200);
+    expect((advanced.json() as { match: { reportedTime: number } }).match.reportedTime).toBe(START_MS + 7_000);
+    // A late read (far past the schedule) reports the clock reading, not an older value.
+    h.clock.advance(500_000);
+    const late = await get(h, `/matches/${id}`);
+    expect((late.json() as { reportedTime: number }).reportedTime).toBe(START_MS + 507_000);
+    expect((await get(h, `/matches/${id}/states/0`)).json()).toMatchObject({ reportedTime: START_MS + 507_000 });
+    // A clock set backwards never lowers it.
+    h.clock.set(START_MS);
+    expect((await get(h, `/matches/${id}`)).json()).toMatchObject({ reportedTime: START_MS + 507_000 });
+    expect((await get(h, `/matches/${id}/states/0`)).json()).toMatchObject({ reportedTime: START_MS + 507_000 });
+  });
+
+  it('FR-258 (over HTTP) a round above N is the same round-not-applied reply for N + 1, N + 2, T + 5 and 20 digits, at every stage', async () => {
     const h = await startReads();
     const m = makeMatch(h);
     const total = publicOf(h, m.id).totalRounds;
