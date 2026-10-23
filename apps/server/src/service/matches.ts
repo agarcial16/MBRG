@@ -209,6 +209,12 @@ export interface ServiceOptions {
   readonly scheduler?: Scheduler;
   /** TEST-ONLY (FR-260). Production passes none. */
   readonly testSeedSource?: TestSeedSource;
+  /**
+   * Told of every clock step that failed (FR-292, NFR-54), once per failed step, with the ORIGINAL cause (a native SQLite
+   * error included) and nothing else: this service logs nothing itself; the entry point passes the log. A callback that
+   * throws changes nothing (the retry is armed first).
+   */
+  readonly onFailure?: (failure: StepFailure, cause: unknown) => void;
 }
 
 export interface MatchService {
@@ -296,7 +302,7 @@ interface TickDone {
 }
 
 export function createMatchService(options: ServiceOptions): MatchService {
-  const { store, clock, maps, settings, random, scheduler } = options;
+  const { store, clock, maps, settings, random, scheduler, onFailure } = options;
   if (options.testSeedSource !== undefined && typeof options.testSeedSource !== 'function') throw new TypeError('the test seed source is a function');
   const seedsOf = roundSeeds(options.testSeedSource);
   const operatorDigest = credentialDigest(settings.operatorCredential);
@@ -472,7 +478,13 @@ export function createMatchService(options: ServiceOptions): MatchService {
       return { done: tickMatch(matchId, checkMap) };
     } catch (error) {
       armRetry(matchId, checkMap);
-      return { failure: { matchId, kind: isStorageFailure(error) ? 'unavailable' : 'error' } };
+      const failure: StepFailure = { matchId, kind: isStorageFailure(error) ? 'unavailable' : 'error' };
+      try {
+        onFailure?.(failure, error);
+      } catch {
+        // Ignored on purpose: a failing report must not stop the retry or the other matches.
+      }
+      return { failure };
     }
   }
 

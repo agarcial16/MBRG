@@ -8,7 +8,11 @@ import { createMapCatalog } from '../src/service/maps';
 import { openStore } from '../src/store/sqlite';
 import { fakeClock } from './helpers/fake-clock';
 import { DEV_DIR } from './helpers/digests';
-import { OPERATOR, creationBody, serviceHarness } from './helpers/service-harness';
+import { OPERATOR, START_MS, creationBody, serviceHarness } from './helpers/service-harness';
+import { baseEnv, eventsOf, withMain } from './helpers/main-child';
+import { StoreError } from '../src/store/store';
+import type { Store } from '../src/store/store';
+import type { StepFailure } from '../src/service/matches';
 
 // FR-260: the test-only round-seed source is a parameter of the in-process service construction and of nothing else.
 // NFR-47 (f): the production entry point offers no way to set it. NFR-54 (logs): the service and the entry point log
@@ -107,7 +111,8 @@ describe('the production entry point', () => {
     expect(main).toContain('readSettings(process.env)');
     const call = /createMatchService\(\{([^}]*)\}\)/.exec(main);
     expect(call).not.toBeNull();
-    expect(call![1]!.split(',').map((part) => part.trim().split(':')[0]!.trim())).toStrictEqual(['store', 'clock', 'maps', 'settings']);
+    // The service gets its store, clock, maps, settings, the scheduler and the failure report (T4'): nothing seed-like.
+    expect(call![1]!.split(',').map((part) => part.trim().split(':')[0]!.trim())).toStrictEqual(['store', 'clock', 'maps', 'settings', 'scheduler', 'onFailure']);
     // The settings module reads the thirteen listed variables and never anything seed-like.
     expect(SEED_WORDS.test(settings)).toBe(false);
     expect([...new Set([...settings.matchAll(/env\.([A-Z_]+)/g)].map((m) => m[1]))].sort()).toStrictEqual(
@@ -118,14 +123,15 @@ describe('the production entry point', () => {
     );
   });
 
-  it('NFR-47 (f) a started production entry point is unchanged by environment variables named like a seed source', () => {
-    const env = { MBRG_OPERATOR_CREDENTIAL: OPERATOR, MBRG_MAPS: JSON.stringify({ dev: DEV_DIR.replace(/[\\/]$/, '') }), MBRG_DATABASE: ':memory:' };
-    const plain = runMain(env);
-    const noisy = runMain({ ...env, MBRG_TEST_SEED_SOURCE: '1', MBRG_SEED_SOURCE: 'fixed', MBRG_ROUND_SEED: '5', TEST_SEED_SOURCE: '1' });
-    expect(plain.code).toBe(0);
-    expect(plain.stdout.trim()).toBe('service ready; no listener yet');
+  it('NFR-47 (f) a started production entry point is unchanged by environment variables named like a seed source', async () => {
+    // The entry point now listens (T4'): both children print the same lifecycle lines (the port differs), then are killed.
+    const run = (extra: Record<string, string>): Promise<string[]> =>
+      withMain(baseEnv(extra), async (child) => eventsOf(child.stdout()).map((e) => JSON.stringify({ ...e, port: e.event === 'listening' ? 0 : undefined })));
+    const plain = await run({});
+    const noisy = await run({ MBRG_TEST_SEED_SOURCE: '1', MBRG_SEED_SOURCE: 'fixed', MBRG_ROUND_SEED: '5', TEST_SEED_SOURCE: '1' });
+    expect(plain.map((l) => (JSON.parse(l) as { event: string }).event)).toStrictEqual(['start-report', 'listening']);
     expect(noisy).toStrictEqual(plain);
-  });
+  }, 60_000);
 
   it('NFR-54 (logs) the entry point logs only fixed texts and the names of invalid settings, never a value', () => {
     const r = runMain({ MBRG_OPERATOR_CREDENTIAL: OPERATOR, MBRG_MAPS: '{', MBRG_MAX_RUNNING_MATCHES: '0' });
@@ -143,5 +149,134 @@ describe('the production entry point', () => {
     const lines = main.split(/\r?\n/).filter((l) => /\bconsole\./.test(l));
     expect(lines.length).toBeGreaterThan(0);
     for (const line of lines) expect(/credential|secret|token|player|choice|settings\.|\.operator/i.test(line.replace(/invalid settings/, ''))).toBe(false);
+  });
+
+  it('NFR-54 (logs) only main.ts touches the process output: the log sink takes writers, and no other source logs', () => {
+    const OUTPUT = /\bconsole\b|\bprocess\s*\.\s*std(?:out|err)\b|\bemitWarning\b/;
+    const touching = Object.entries(sources)
+      .filter(([, raw]) => OUTPUT.test(stripComments(raw)))
+      .map(([f]) => short(f))
+      .sort();
+    // warnings.ts is the platform warning filter (NFR-53), not a log.
+    expect(touching).toStrictEqual(['main.ts', 'warnings.ts']);
+  });
+});
+
+// FR-292 (step failures logged), NFR-54 (logs): `onFailure(failure, cause)` is called once per failed clock step with the
+// original cause, and for nothing else; the service itself logs nothing.
+describe('the failure report of clock steps', () => {
+  const PLANTED = 'planted-secret-value-7f3a9c';
+  type Mode = 'ok' | 'storage' | 'error';
+  const rig = (): { h: ReturnType<typeof serviceHarness>; mode: { value: Mode }; thrown: unknown[]; calls: { failure: StepFailure; cause: unknown }[]; id: string } => {
+    const mode = { value: 'ok' as Mode };
+    const thrown: unknown[] = [];
+    const calls: { failure: StepFailure; cause: unknown }[] = [];
+    const base = openStore(':memory:');
+    const store: Store = {
+      ...base,
+      updateMatch(match) {
+        if (mode.value !== 'ok') {
+          const error = mode.value === 'storage' ? new StoreError('store-failure', 'a failure', { cause: new Error(PLANTED), sqliteCode: 10 }) : new TypeError(`bad ${PLANTED}`);
+          thrown.push(error);
+          throw error;
+        }
+        base.updateMatch(match);
+      },
+    };
+    const h = serviceHarness({ store, scheduler: true, onFailure: (failure, cause) => void calls.push({ failure, cause }) });
+    const made = h.service.create({ credential: OPERATOR, body: creationBody('c-1') });
+    if (!made.ok) throw new Error('creation failed');
+    return { h, mode, thrown, calls, id: made.reply.matchId };
+  };
+
+  it('FR-292 (step failures logged) a failed clock step reaches onFailure once, with the failure and the original cause (a store failure, then a TypeError)', () => {
+    const { h, mode, thrown, calls, id } = rig();
+    try {
+      h.clock.set(START_MS + 80_000);
+      mode.value = 'storage';
+      expect(h.service.tick().failed).toStrictEqual([{ matchId: id, kind: 'unavailable' }]);
+      expect(calls).toHaveLength(1);
+      expect(calls[0]!.failure).toStrictEqual({ matchId: id, kind: 'unavailable' });
+      expect(calls[0]!.cause).toBe(thrown[0]);
+      expect((calls[0]!.cause as StoreError).sqliteCode).toBe(10);
+      mode.value = 'error';
+      expect(h.service.tick().failed).toStrictEqual([{ matchId: id, kind: 'error' }]);
+      expect(calls).toHaveLength(2);
+      expect(calls[1]!.failure.kind).toBe('error');
+      expect(calls[1]!.cause).toBe(thrown[1]);
+      expect(calls[1]!.cause).toBeInstanceOf(TypeError);
+    } finally {
+      h.close();
+    }
+  });
+
+  it('FR-292 (step failures logged) nothing else is reported: a good tick, an empty tick, reads and a command that fails on storage', () => {
+    const { h, mode, calls, id } = rig();
+    try {
+      h.service.tick();
+      h.clock.set(START_MS + 80_000);
+      expect(h.service.tick().performed).toHaveLength(1);
+      h.service.readPublicMatch(id);
+      mode.value = 'storage';
+      const advanced = h.service.advance({ credential: OPERATOR, matchId: id, body: { round: 1, step: 'phase-2-close' } });
+      expect(advanced).toStrictEqual({ ok: false, error: { kind: 'unavailable' } });
+      expect(calls).toStrictEqual([]);
+    } finally {
+      h.close();
+    }
+  });
+
+  it('FR-292 (step failures logged) a step that keeps failing is reported on every retry (3 s apart) and not after it succeeds', () => {
+    const { h, mode, thrown, calls } = rig();
+    try {
+      mode.value = 'error';
+      h.scheduler!.runTo(START_MS + 80_000);
+      expect(calls).toHaveLength(1);
+      h.scheduler!.runTo(START_MS + 89_000);
+      expect(calls).toHaveLength(4);
+      expect(calls.map((c) => c.cause)).toStrictEqual(thrown);
+      mode.value = 'ok';
+      h.scheduler!.runTo(START_MS + 92_000);
+      expect(calls).toHaveLength(4);
+    } finally {
+      h.close();
+    }
+  });
+
+  it('FR-292 (step failures logged) a step that fails at server start is reported too', () => {
+    const { h, mode, calls, id } = rig();
+    try {
+      h.clock.set(START_MS + 80_000);
+      mode.value = 'error';
+      const report = h.service.start();
+      expect(report.failed).toStrictEqual([{ matchId: id, kind: 'error' }]);
+      expect(calls).toHaveLength(1);
+    } finally {
+      h.close();
+    }
+  });
+
+  it('FR-292 (step failures logged) a report callback that throws changes nothing: the retry is armed and the tick answers as before', () => {
+    const mode = { value: 'error' as Mode };
+    const base = openStore(':memory:');
+    const store: Store = { ...base, updateMatch: (match) => (mode.value === 'ok' ? base.updateMatch(match) : (() => { throw new TypeError(PLANTED); })()) };
+    mode.value = 'ok';
+    const h = serviceHarness({
+      store,
+      scheduler: true,
+      onFailure: () => {
+        throw new Error('the sink broke');
+      },
+    });
+    try {
+      const made = h.service.create({ credential: OPERATOR, body: creationBody('c-1') });
+      if (!made.ok) throw new Error('creation failed');
+      h.clock.set(START_MS + 80_000);
+      mode.value = 'error';
+      expect(h.service.tick().failed).toStrictEqual([{ matchId: made.reply.matchId, kind: 'error' }]);
+      expect(h.scheduler!.pending()).toStrictEqual([START_MS + 83_000]);
+    } finally {
+      h.close();
+    }
   });
 });

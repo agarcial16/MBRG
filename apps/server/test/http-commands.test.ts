@@ -346,7 +346,8 @@ describe('http commands: unexpected exceptions', () => {
     const created = await post(h, '/matches', creationBody('r-1'), OPERATOR);
     expect(created.status).toBe(500);
     expect(created.text).toBe('{"kind":"unavailable"}');
-    expect(h.logs).toStrictEqual([{ event: 'request-failed', stage: 'decide', error: { name: 'StoreError' } }]);
+    // T4': the event describes the error with the closed fields of `describeError` (name, store code, cause name), no message.
+    expect(h.logs).toStrictEqual([{ event: 'request-failed', stage: 'decide', error: { name: 'StoreError', code: 'invalid-write', cause: { name: 'Error' } } }]);
     const advanced = await post(h, '/matches/some/advance', { round: 1, step: 'phase-1-close' }, OPERATOR);
     expect(advanced.status).toBe(500);
     expect(h.logs).toHaveLength(2);

@@ -5,7 +5,7 @@ import type { Store } from '../../src/store/store';
 import { openStore } from '../../src/store/sqlite';
 import { createMapCatalog } from '../../src/service/maps';
 import { createMatchService } from '../../src/service/matches';
-import type { MatchService, TestSeedSource } from '../../src/service/matches';
+import type { MatchService, ServiceOptions, TestSeedSource } from '../../src/service/matches';
 import type { Settings } from '../../src/service/settings';
 import { fakeClock } from './fake-clock';
 import type { FakeClock } from './fake-clock';
@@ -42,6 +42,8 @@ export interface HarnessOptions {
   readonly secret?: Uint8Array;
   /** Build a fake scheduler on the fake clock and give it to the service. */
   readonly scheduler?: boolean;
+  /** The service's `onFailure` option (clock steps that failed, with their original cause). */
+  readonly onFailure?: ServiceOptions['onFailure'];
 }
 
 export interface Draw {
@@ -86,6 +88,7 @@ export function serviceHarness(options: HarnessOptions = {}): Harness {
     },
     ...(options.testSeedSource === undefined ? {} : { testSeedSource: options.testSeedSource }),
     ...(scheduler === undefined ? {} : { scheduler }),
+    ...(options.onFailure === undefined ? {} : { onFailure: options.onFailure }),
   });
   return { store, service, clock, scheduler, settings, draws, close: () => store.close() };
 }
