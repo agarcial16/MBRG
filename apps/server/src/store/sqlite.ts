@@ -1,41 +1,105 @@
 // The SQLite adapter (spec 008 FR-291, FR-292; plan PD9, PD10): the only module that imports `node:sqlite`.
 // It does not depend on the ExperimentalWarning being printed: warnings.ts only hides it where Node prints it.
 import { DatabaseSync } from 'node:sqlite';
-import type { MatchEvent, PublicState, PublicVictim, Timing } from '@mbrg/protocol';
+import { isLocalId, isNamespace, NAMESPACE_SEPARATOR } from '@mbrg/protocol';
+import type { MatchEvent, MatchSummary, PublicState, PublicVictim, Timing } from '@mbrg/protocol';
 import { MEMO_RETENTION_MS, type MemoScope } from '../core/memo';
 import type { StoredPrediction } from '../core/predictions';
 import type { Anchors } from '../core/time';
 import type { CoreMatch } from '../core/view';
 import { SCHEMA_V1, SCHEMA_VERSION, TABLES } from './schema';
-import { StoreError, type Store, type StoredMatch, type StoredMemo, type StoredRecord, type StoredState, type StoredStep, type StoreSettings } from './store';
+import {
+  StoreError,
+  type MatchListKey,
+  type NamespacePrediction,
+  type PredictionKey,
+  type Store,
+  type StoredMatch,
+  type StoredMemo,
+  type StoredRecord,
+  type StoredState,
+  type StoredStep,
+  type StoreErrorCode,
+  type StoreErrorDetails,
+  type StoreSettings,
+} from './store';
 
 const SYNCHRONOUS = ['off', 'normal', 'full', 'extra'] as const;
 
 const isLockedError = (error: unknown): boolean => error instanceof Error && /\b(locked|busy)\b/i.test(error.message);
 
-const asStoreError = (error: unknown, path: string): Error => {
-  if (error instanceof StoreError) return error;
-  if (isLockedError(error)) return new StoreError('database-locked', `the database ${path} is locked by another connection or process`);
-  return error instanceof Error ? error : new Error(String(error));
+/** Primary result codes (the low byte of `errcode`) that are storage failures (FR-292, plan 18.1). */
+const LOCKED_CODES: ReadonlySet<number> = new Set([5, 6]); // BUSY, LOCKED
+const FAILURE_CODES: ReadonlySet<number> = new Set([8, 10, 11, 13, 14, 26]); // READONLY, IOERR, CORRUPT, FULL, CANTOPEN, NOTADB
+
+/**
+ * The texts SQLite gives those codes (sqlite3_errstr) and its constraint, logic and misuse messages: the class of a native
+ * error that carries no `errcode` (a platform that does not attach it). An unrecognised text keeps the earlier rule (a
+ * storage failure).
+ */
+const LOCKED_TEXT = /\b(locked|busy)\b/i;
+const FAILURE_TEXT = /disk I\/O error|database or disk is full|readonly database|unable to open database|malformed|not a database/i;
+const PROGRAMMING_TEXT = /constraint failed|syntax error|no such (table|column|index)|within a transaction|out of range|misuse|datatype mismatch|has no column|values for \d+ columns/i;
+
+type Classified = Exclude<StoreErrorCode, 'unknown-schema-version'>;
+
+const classOfCode = (errcode: number): Classified => {
+  const primary = errcode & 0xff;
+  if (LOCKED_CODES.has(primary)) return 'database-locked';
+  if (FAILURE_CODES.has(primary)) return 'store-failure';
+  return 'invalid-write';
+};
+
+const classOfText = (message: string): Classified => {
+  if (LOCKED_TEXT.test(message)) return 'database-locked';
+  if (FAILURE_TEXT.test(message)) return 'store-failure';
+  if (PROGRAMMING_TEXT.test(message)) return 'invalid-write';
+  return 'store-failure';
+};
+
+const MESSAGES: Readonly<Record<Classified, string>> = {
+  'database-locked': 'another connection holds the database',
+  'store-failure': 'storage failure',
+  'invalid-write': 'the database refused the statement',
 };
 
 /**
- * A native SQLite error (`ERR_SQLITE_ERROR`: I/O, full disk, busy, constraint) or a use of the closed connection
- * (`ERR_INVALID_STATE`) is a storage failure, which the service answers `unavailable` (FR-292); every other error (a
- * refused write, a programming error) is kept as it is.
+ * FR-292 (error classification), NFR-54. A native SQLite error (`ERR_SQLITE_ERROR`) is classified by its primary result
+ * code when the platform attaches `errcode`, otherwise by its message: busy and locked are `database-locked`; I/O, full,
+ * read-only, cannot-open, corrupt and not-a-database are `store-failure` (storage failures: `unavailable`, retried); a
+ * constraint violation, a misuse, a range or a logic error is `invalid-write` (a programming error, rethrown). A use of the
+ * closed connection (`ERR_INVALID_STATE`) is `store-failure`. The StoreError keeps the native error as `cause` and the
+ * result code and its generic text; its message never quotes the native message. Anything else is returned unchanged.
  */
-const asFailure = (error: unknown): unknown => {
+export const classifyStoreError = (error: unknown): unknown => {
   if (error instanceof StoreError || !(error instanceof Error)) return error;
-  const code = (error as { code?: unknown }).code;
-  if (code !== 'ERR_SQLITE_ERROR' && code !== 'ERR_INVALID_STATE') return error;
-  return new StoreError(isLockedError(error) ? 'database-locked' : 'store-failure', `storage failure: ${error.message}`);
+  const native = error as Error & { code?: unknown; errcode?: unknown; errstr?: unknown };
+  if (native.code === 'ERR_INVALID_STATE') return new StoreError('store-failure', 'the database connection is not open', { cause: error });
+  if (native.code !== 'ERR_SQLITE_ERROR') return error;
+  const errcode = typeof native.errcode === 'number' && Number.isSafeInteger(native.errcode) ? native.errcode : undefined;
+  const code = errcode === undefined ? classOfText(native.message) : classOfCode(errcode);
+  const details: StoreErrorDetails = {
+    cause: error,
+    ...(errcode === undefined ? {} : { sqliteCode: errcode }),
+    ...(errcode !== undefined && typeof native.errstr === 'string' ? { sqliteText: native.errstr } : {}),
+  };
+  return new StoreError(code, errcode === undefined ? MESSAGES[code] : `${MESSAGES[code]} (result code ${errcode})`, details);
+};
+
+/** An error of the open step: a locked file is `database-locked` (with its cause); any other error is kept as it is. */
+const asStoreError = (error: unknown, path: string): Error => {
+  if (error instanceof StoreError) return error;
+  const classified = classifyStoreError(error);
+  if (classified instanceof StoreError && classified.code === 'database-locked') return classified;
+  if (isLockedError(error)) return new StoreError('database-locked', `the database ${path} is locked by another connection or process`, { cause: error });
+  return error instanceof Error ? error : new Error(String(error));
 };
 
 const guard = <T>(action: () => T): T => {
   try {
     return action();
   } catch (error) {
-    throw asFailure(error);
+    throw classifyStoreError(error);
   }
 };
 
@@ -81,6 +145,42 @@ const scopeText = (scope: MemoScope): string => {
 };
 
 const timingText = (timing: Timing): string => JSON.stringify(timing);
+
+/**
+ * The statements of the keyset reads (FR-279, FR-270, FR-300), exported so a test can scan their text. Keysets compare
+ * row values strictly (`>`), in the order of the ORDER BY; texts compare by SQLite's BINARY order (byte order, equal to
+ * the code unit order of protocol page.ts for the ASCII ids these lists hold). The match list selects the summary
+ * columns only.
+ */
+export const READ_SQL = {
+  listMatches: 'SELECT id, map_id, stage, n, t, created_ms FROM matches WHERE (created_ms, id) > (?, ?) ORDER BY created_ms, id LIMIT ?',
+  recordsAfter: 'SELECT round, eliminated, absorber, transferred_json FROM records WHERE match_id = ? AND round > ? ORDER BY round LIMIT ?',
+  // The namespace is a range of player ids [`<ns>:`, `<ns>;`) (';' follows ':'), never a LIKE pattern; one local id is an
+  // equality. The winner has round 0, so (player id, round, kind) is the order key of protocol page.ts.
+  predictionsInNamespace: `SELECT player_id, kind, round, choice, version, stored_ms, winner_candidates FROM predictions
+    WHERE match_id = ? AND player_id >= ? AND player_id < ? AND (? IS NULL OR player_id = ?) AND (player_id, round, kind) > (?, ?, ?)
+    ORDER BY player_id, round, kind LIMIT ?`,
+  hostTokenDigest: 'SELECT host_token_digest FROM matches WHERE id = ?',
+} as const;
+
+const checkLimit = (limit: number): void => {
+  if (!Number.isSafeInteger(limit) || limit < 1) throw new RangeError('a read limit is a whole number of at least 1');
+};
+
+const recordOf = (r: Row): StoredRecord => ({
+  round: num(r, 'round'),
+  eliminated: num(r, 'eliminated'),
+  absorber: num(r, 'absorber'),
+  transferred: JSON.parse(str(r, 'transferred_json')) as number[],
+});
+
+const STAGES: readonly string[] = ['phase-1', 'phase-2', 'locked', 'halted', 'finished'];
+
+const predictionOf = (r: Row): StoredPrediction => {
+  const kind = str(r, 'kind') as StoredPrediction['kind'];
+  const base = { kind, round: num(r, 'round'), choice: num(r, 'choice'), version: num(r, 'version'), storedMs: num(r, 'stored_ms') };
+  return kind === 'winner' ? { ...base, winnerCandidates: num(r, 'winner_candidates') } : base;
+};
 
 /** The fields that never change after creation (FR-235). */
 const sameFixedFields = (a: CoreMatch, b: CoreMatch): boolean =>
@@ -305,12 +405,7 @@ export const openStore = (path: string): Store => {
       run('INSERT INTO records (match_id, round, eliminated, absorber, transferred_json) VALUES (?, ?, ?, ?, ?)', matchId, record.round, record.eliminated, record.absorber, JSON.stringify(record.transferred));
     },
     records(matchId: string): StoredRecord[] {
-      return all('SELECT round, eliminated, absorber, transferred_json FROM records WHERE match_id = ? ORDER BY round', matchId).map((r) => ({
-        round: num(r, 'round'),
-        eliminated: num(r, 'eliminated'),
-        absorber: num(r, 'absorber'),
-        transferred: JSON.parse(str(r, 'transferred_json')) as number[],
-      }));
+      return all('SELECT round, eliminated, absorber, transferred_json FROM records WHERE match_id = ? ORDER BY round', matchId).map(recordOf);
     },
     putStep(matchId: string, step: StoredStep): void {
       requireTransaction();
@@ -337,11 +432,40 @@ export const openStore = (path: string): Store => {
       );
     },
     predictionsOf(matchId: string, playerId: string): StoredPrediction[] {
-      return all('SELECT kind, round, choice, version, stored_ms, winner_candidates FROM predictions WHERE match_id = ? AND player_id = ? ORDER BY kind, round', matchId, playerId).map((r) => {
-        const kind = str(r, 'kind') as StoredPrediction['kind'];
-        const base = { kind, round: num(r, 'round'), choice: num(r, 'choice'), version: num(r, 'version'), storedMs: num(r, 'stored_ms') };
-        return kind === 'winner' ? { ...base, winnerCandidates: num(r, 'winner_candidates') } : base;
+      return all('SELECT kind, round, choice, version, stored_ms, winner_candidates FROM predictions WHERE match_id = ? AND player_id = ? ORDER BY kind, round', matchId, playerId).map(predictionOf);
+    },
+    predictionsInNamespace(matchId: string, namespace: string, after: PredictionKey | undefined, limit: number, localId?: string): NamespacePrediction[] {
+      if (!isNamespace(namespace)) throw new RangeError('a namespace is 1 to 16 characters of a-z 0-9');
+      if (localId !== undefined && !isLocalId(localId)) throw new RangeError('a local player id is 1 to 64 characters of A-Z a-z 0-9 _ - .');
+      if (after !== undefined && (!isLocalId(after[0]) || !Number.isSafeInteger(after[1]) || typeof after[2] !== 'string')) throw new RangeError('not a key of the predictions list');
+      checkLimit(limit);
+      const prefix = `${namespace}${NAMESPACE_SEPARATOR}`;
+      const end = `${namespace}${String.fromCharCode(NAMESPACE_SEPARATOR.charCodeAt(0) + 1)}`;
+      const only = localId === undefined ? null : prefix + localId;
+      const [afterPlayer, afterRound, afterKind] = after === undefined ? [prefix, -1, ''] : [prefix + after[0], after[1], after[2]];
+      return all(READ_SQL.predictionsInNamespace, matchId, prefix, end, only, only, afterPlayer, afterRound, afterKind, limit).map((r) => {
+        const playerId = str(r, 'player_id');
+        if (!playerId.startsWith(prefix)) throw corrupt('a player id outside the namespace range');
+        return { localId: playerId.slice(prefix.length), prediction: predictionOf(r) };
       });
+    },
+    listMatches(after: MatchListKey | undefined, limit: number): MatchSummary[] {
+      checkLimit(limit);
+      const [afterMs, afterId] = after === undefined ? [-1, ''] : after;
+      return all(READ_SQL.listMatches, afterMs, afterId, limit).map((r) => {
+        const stage = str(r, 'stage');
+        if (!STAGES.includes(stage)) throw corrupt(`unknown stage ${stage}`);
+        return { matchId: str(r, 'id'), mapId: str(r, 'map_id'), stage: stage as MatchSummary['stage'], appliedRounds: num(r, 'n'), totalRounds: num(r, 't'), createdAt: num(r, 'created_ms') };
+      });
+    },
+    recordsAfter(matchId: string, round: number, limit: number): StoredRecord[] {
+      if (!Number.isSafeInteger(round) || round < 0) throw new RangeError('a record keyset is a round of at least 0');
+      checkLimit(limit);
+      return all(READ_SQL.recordsAfter, matchId, round, limit).map(recordOf);
+    },
+    hostTokenDigest(matchId: string): string | undefined {
+      const row = one(READ_SQL.hostTokenDigest, matchId);
+      return row === undefined ? undefined : str(row, 'host_token_digest');
     },
     appendEvents(matchId: string, events: readonly MatchEvent[]): void {
       requireTransaction();
