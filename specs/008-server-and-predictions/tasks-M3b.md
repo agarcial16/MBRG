@@ -60,7 +60,7 @@ Plan section 19. **Approved by the user on 2026-10-23**: E1 to E10 (plan 19.13) 
   - Done when: tests green; mutations caught; no id moved; `rg` finds `FR-281 (i)`, `FR-299 (stream limits, HTTP)`. Checkpoint: if the branch passes about 3,000 changed lines here, the limit wire tests move to M3b' T2' (plan 19.12).
   - Size: L (about 650).
 
-- [ ] **T6. Close M3b: ledger, process checks, PR.** NFR-55
+- [x] **T6. Close M3b: ledger, process checks, PR.** NFR-55
   - Depends on: T1 to T5.
   - Files: `packages/sim/test/traceability.test.ts` (closing-state test retitled to M3b: still 76 / 20, the 20 later ids as a literal list), `specs/008-server-and-predictions/plan.md` (sections 11 and 13: M3b closing summary, figures, open parts), `PROGRESS.md`, `MEMORY.md` (local).
   - Steps: `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server/test/golden` clean; `git diff --stat rewrite` only planned files; no `package.json`, lockfile or `.nvmrc` change; scans: `node:http` only under `src/http`, timers only in `scheduler.ts`, no logging outside `main.ts` and the log sink, no production import of `store/faults.ts`; the PR lists E1 to E10 as decided, D28, the ledger and the figures. Push, PR, CI green, squash only with the user's OK.

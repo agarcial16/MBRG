@@ -99,3 +99,10 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Decisions beyond the plan: the stream reply is a request to open (`matchId`, `after`) and the pipeline calls the hub with the response, so `decide` needs no response; a repeated `lastEventId` parameter is 400 naming `lastEventId`; `shutdown.ts` is untouched (T3' of M3b' wires `closeAll`), so an open stream still waits the grace at shutdown for now.
 - Size: about 840 changed lines against about 650 estimated (1.3x).
 - Next step: T6 (ledger, process checks, plan sections 11 and 13).
+- T5 commit: 98905fb (749 changed lines of src + tests against about 650 estimated).
+
+### M3b T6 - Close M3b: ledger, process checks
+- Changed: `packages/sim/test/traceability.test.ts` (closing-state test retitled to M3b: still 76 / 20, the 20 later ids as a literal list); `plan.md` sections 11 (M3b closing state) and 13 (M3b closing summary: delivered parts, figures, earlier tests edited, decisions the plan did not fix, open for M3b'); `MEMORY.md` (local).
+- Process checks: `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server/test/golden` clean (goldens and digests unchanged); no `package.json`, lockfile or `.nvmrc` change; `npm ci --dry-run` ok; scans as in plan 13.
+- Not done by this agent (as instructed): push, PR, CI run on Linux, squash. The PR must list E1 to E10 as decided, D28, the ledger and the figures of plan section 13.
+- Next step: review and the user's OK for the PR; then M3b' (T1' to T5').
