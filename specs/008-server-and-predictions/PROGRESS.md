@@ -203,3 +203,12 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Changed (comment only): `traceability.test.ts` M4' target comment now lists T2' (none), T3' (FR-275 to FR-278: 86 / 10), T4', T5' (none), T6' (closing state); `tasks-M4.md` T1' ticked. Branch `feat/008-m4-2-results-reads` cut from `rewrite` at db6a6d9 (M4 merged, PR #36).
 - Tests: typecheck clean; `CI=1 npm test` 190 files, 3172 passed, 4 skipped (the count differs from M4 T5's 3167 by earlier-merged follow-up tests). Counts stay 82 / 14.
 - Next step: T2' (wire shapes, encoders and cursors).
+
+### M4' T2' - Wire shapes, encoders and cursors of the results reads (pure)
+- Changed: `packages/protocol/src/wire.ts` (`PhaseResult`, `PhaseResultsPage`, `PlayerResult`, `PlayerResultsPage`, `LeaderboardRow` and their `*_KEYS`), `encode.ts` (`encodePhaseResults`, `encodePlayerResults`, `encodeLeaderboardRow`; leaderboard pages go through `encodePage`), `page.ts` (`CURSOR_LISTS` gains `phase-results`, `player-results`, `leaderboard` with their key shapes), `ids.ts` (`isPlayerId`), `index.ts` (exports). Tests: new `encode-results.test.ts` (9), `page.test.ts` edited (six tags in the cross-list and round-trip tests, meaning unchanged; two new tests: results key shapes, cursor length).
+- Decisions beyond the plan: the encoders also refuse inherited members of the key list (like the event encoder), `points` other than 0 for `correct: false`, a phase record whose round is not the page round, a `correctWinner` other than 0 or 1, and a player id that is not `isPlayerId`. `victim` is the faction number.
+- Tests: typecheck clean; `CI=1 npm test` 191 files, 3184 passed, 4 skipped (one run under load showed one failure that passed on the immediate rerun; not reproduced). Title scan: the only FR-275..278 hit is the planted dummy string of the traceability test. Red step: tests and code were written together (the 4 mutants stand for it).
+- Mutation proofs (full suite, one at a time, sources restored): two leaderboard-row keys swapped; `record` accepted on a phase-1 page; a leaderboard cursor accepted on the phase-results list (tag check widened and the shape widened together, because the tag check alone already refuses it); `isPlayerId` accepting two separators: all 4 caught.
+- Size: about 455 changed lines (src about 235, tests about 220) against about 400 estimated (1.1x).
+- Untested: the items are only encoded here; the store and service reads come in T3'.
+- Next step: T3' (the three reads through the store and the service).

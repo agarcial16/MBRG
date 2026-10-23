@@ -1,14 +1,19 @@
 import { ERROR_ORDER, ERROR_REPLY_KEYS, listsSeveral, type ErrorReply } from './errors';
-import { isLocalId, isMapId } from './ids';
+import { isLocalId, isMapId, isPlayerId } from './ids';
 import { encodePublicMatch } from './public';
 import {
   ADVANCE_REPLY_KEYS,
   CREATION_REPLY_KEYS,
   EVENT_KEYS,
   HALT_REASONS,
+  LEADERBOARD_ROW_KEYS,
   MATCH_SUMMARY_KEYS,
   OWN_PREDICTION_KEYS,
   PAGE_KEYS,
+  PHASE_RESULTS_PAGE_KEYS,
+  PHASE_RESULT_KEYS,
+  PLAYER_RESULTS_PAGE_KEYS,
+  PLAYER_RESULT_KEYS,
   PREDICTION_KINDS,
   PREDICTION_REPLY_KEYS,
   RECORD_REPLY_KEYS,
@@ -19,10 +24,13 @@ import {
   STEP_KINDS,
   type AdvanceReply,
   type CreationReply,
+  type LeaderboardRow,
   type MatchEvent,
   type MatchSummary,
   type OwnPrediction,
   type Page,
+  type PhaseResultsPage,
+  type PlayerResultsPage,
   type PredictionReply,
   type RecordReply,
   type StateReply,
@@ -221,7 +229,119 @@ export function encodePage<T>(page: Page<T>, encodeItem: (item: T) => string): s
   );
 }
 
-const RUNNING_STAGES = ['phase-1', 'phase-2', 'locked'] as const;
+const bool = (what: string) => (v: unknown): string => (typeof v === 'boolean' ? String(v) : bad(`${what} is not a boolean`));
+const playerId = (what: string) => text(what, isPlayerId);
+const phaseOf = (v: unknown): string => (v === 1 || v === 2 ? String(v) : bad('phase is not 1 or 2'));
+
+/** Refuses an inherited member of the key list (the writers read own members only, so an inherited one would be dropped silently). */
+function noInherited(o: Raw, what: string, keys: readonly string[]): void {
+  for (const k of keys) if (k in o && !own(o, k)) bad(`${what}.${k} is inherited`);
+}
+
+/** A wrong prediction is worth nothing: `points` must be 0 when `correct` is false. */
+function checkPoints(o: Raw, what: string): void {
+  if (o.correct === false && o.points !== 0) bad(`${what}.points is not 0 for a wrong choice`);
+}
+
+const encodeListOf = (what: string, encodeItem: (item: unknown) => string) => (v: unknown): string =>
+  Array.isArray(v) ? `[${(v as unknown[]).map((item) => encodeItem(item)).join(',')}]` : bad(`${what}.items is not a list`);
+
+function encodePhaseResult(v: unknown): string {
+  const o = objectOf(v, 'phase result', PHASE_RESULT_KEYS);
+  noInherited(o, 'phase result', PHASE_RESULT_KEYS);
+  checkPoints(o, 'phase result');
+  return write(o, 'phase result', PHASE_RESULT_KEYS, {
+    playerId: playerId('phase result.playerId'),
+    choice: int('phase result.choice', 1),
+    correct: bool('phase result.correct'),
+    points: int('phase result.points', 0),
+  });
+}
+
+/**
+ * One page of the results of a scored phase (plan 20.7, FR-257 (results encoders)): `round`, `phase`, `victim` exactly for
+ * phase 1, `record` (the record of that round) exactly for phase 2, `items`, then `next` when present.
+ */
+export function encodePhaseResults(page: PhaseResultsPage): string {
+  const o = objectOf(page, 'phase results', PHASE_RESULTS_PAGE_KEYS);
+  noInherited(o, 'phase results', PHASE_RESULTS_PAGE_KEYS);
+  if (o.phase !== 1 && o.phase !== 2) bad('phase results.phase is not 1 or 2');
+  if ((o.phase === 1) !== present(o, 'victim')) bad('phase results.victim is present exactly for phase 1');
+  if ((o.phase === 2) !== present(o, 'record')) bad('phase results.record is present exactly for phase 2');
+  return write(
+    o,
+    'phase results',
+    PHASE_RESULTS_PAGE_KEYS,
+    {
+      round: int('phase results.round', 1),
+      phase: phaseOf,
+      victim: int('phase results.victim', 1),
+      record: (v) => {
+        const encoded = encodeRecord(v as RecordReply);
+        if ((v as RecordReply).round !== o.round) bad('phase results.record is not the record of the page round');
+        return encoded;
+      },
+      items: encodeListOf('phase results', encodePhaseResult),
+      next: text('phase results.next'),
+    },
+    ['victim', 'record', 'next'],
+  );
+}
+
+function encodePlayerResult(v: unknown): string {
+  const o = objectOf(v, 'player result', PLAYER_RESULT_KEYS);
+  noInherited(o, 'player result', PLAYER_RESULT_KEYS);
+  if (!oneOf(PREDICTION_KINDS, o.kind) || !own(o, 'kind')) bad('player result.kind is not a prediction kind');
+  if ((o.kind === 'winner') === present(o, 'round')) bad('player result.round is present exactly for victim and absorber');
+  checkPoints(o, 'player result');
+  return write(
+    o,
+    'player result',
+    PLAYER_RESULT_KEYS,
+    {
+      kind: member('player result.kind', PREDICTION_KINDS),
+      round: int('player result.round', 1),
+      choice: int('player result.choice', 1),
+      correct: bool('player result.correct'),
+      points: int('player result.points', 0),
+    },
+    ['round'],
+  );
+}
+
+/** One page of a player's scored predictions (plan 20.7): `playerId`, `total`, `items`, then `next` when present. */
+export function encodePlayerResults(page: PlayerResultsPage): string {
+  const o = objectOf(page, 'player results', PLAYER_RESULTS_PAGE_KEYS);
+  noInherited(o, 'player results', PLAYER_RESULTS_PAGE_KEYS);
+  return write(
+    o,
+    'player results',
+    PLAYER_RESULTS_PAGE_KEYS,
+    {
+      playerId: playerId('player results.playerId'),
+      total: int('player results.total', 0),
+      items: encodeListOf('player results', encodePlayerResult),
+      next: text('player results.next'),
+    },
+    ['next'],
+  );
+}
+
+/** One leaderboard row (plan 20.7); a page of rows goes through `encodePage`. */
+export function encodeLeaderboardRow(row: LeaderboardRow): string {
+  const o = objectOf(row, 'leaderboard row', LEADERBOARD_ROW_KEYS);
+  noInherited(o, 'leaderboard row', LEADERBOARD_ROW_KEYS);
+  return write(o, 'leaderboard row', LEADERBOARD_ROW_KEYS, {
+    rank: int('leaderboard row.rank', 1),
+    playerId: playerId('leaderboard row.playerId'),
+    total: int('leaderboard row.total', 0),
+    correctVictims: int('leaderboard row.correctVictims', 0),
+    correctAbsorbers: int('leaderboard row.correctAbsorbers', 0),
+    correctWinner: (v) => (v === 0 || v === 1 ? String(v) : bad('leaderboard row.correctWinner is not 0 or 1')),
+  });
+}
+
+const RUNNING_STAGES =['phase-1', 'phase-2', 'locked'] as const;
 const nullOrInt = (what: string, min: number) => (v: unknown): string => (v === null ? 'null' : int(what, min)(v));
 const schedule = (v: unknown): string => {
   const o = objectOf(v, 'event.schedule', ['c1', 'c2', 'a']);

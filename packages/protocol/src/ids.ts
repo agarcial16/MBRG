@@ -21,6 +21,16 @@ export function isNamespace(value: unknown): value is string {
   return typeof value === 'string' && NAMESPACE.test(value);
 }
 
+/**
+ * A namespaced player id as stored and served: `<namespace>:<local id>` with exactly one separator (FR-283 namespace,
+ * FR-297 local id; neither part may hold the separator).
+ */
+export function isPlayerId(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const at = value.indexOf(NAMESPACE_SEPARATOR);
+  return at > 0 && isNamespace(value.slice(0, at)) && isLocalId(value.slice(at + 1));
+}
+
 /** The player id of a credential's namespace and an already checked local id (FR-284). */
 export function playerIdOf(namespace: string, localId: string): string {
   if (!isNamespace(namespace)) throw new RangeError('invalid namespace');

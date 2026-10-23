@@ -71,7 +71,7 @@ Plan section 20. The rules of `tasks.md` apply; sizes are changed lines (src + t
   - Done when: suite, typecheck, `CI=1` green; no id moved.
   - Size: S (about 30).
 
-- [ ] **T2'. Wire shapes, encoders and cursors of the results reads (pure).** FR-257 (results encoders); FR-279 (results lists); NFR-51 (protocol)
+- [x] **T2'. Wire shapes, encoders and cursors of the results reads (pure).** FR-257 (results encoders); FR-279 (results lists); NFR-51 (protocol)
   - Depends on: T1'.
   - Files: `packages/protocol/src/{wire,encode,page,ids,index}.ts`, `packages/protocol/test/{encode-results,page}.test.ts` (`page.test.ts` is an earlier test: `CURSOR_LISTS` gains three tags, meaning unchanged).
   - Tests first (plan 20.6, 20.7): `encodePhaseResults`, `encodePlayerResults`, `encodeLeaderboardRow` write their fixed key order whatever the input order, `victim` exactly for phase 1 and `record` exactly for phase 2, `round` absent exactly for a winner item, `next` exactly when present; refuse an extra, inherited or `null` member, a `correct` that is not a boolean, negative points, a rank below 1; `isPlayerId`: `web:a`, `discord:A.b-c_9` yes, `web`, `:a`, `web:`, `web:a:b`, `Web:a`, a 17-character namespace, a 65-character local id no; cursors: `phase-results [playerId]`, `player-results [round, kind]` (winner exactly with round 0), `leaderboard [generation, rank, playerId]` (generation >= 0, rank >= 1) round-trip; a cursor of one list is `invalid-request ['cursor']` on every other list (the existing cross-list test, now six tags); a leaderboard cursor without the generation is refused; the longest keys stay under 256 characters.

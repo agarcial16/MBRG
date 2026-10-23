@@ -75,10 +75,13 @@ describe('cursors per list (FR-279 (b), (e))', () => {
     matches: [[0, 'a'], [1_000_001, 'Mx7_q-1AbCdEfGh'], [Number.MAX_SAFE_INTEGER, 'z-_9']],
     records: [[1], [42], [999_999]],
     predictions: [['p1', 0, 'winner'], ['bot.7_x-y', 3, 'victim'], ['p1', 12, 'absorber']],
+    'phase-results': [['web:p1'], ['discord:A.b-c_9'], ['web:B']],
+    'player-results': [[0, 'winner'], [1, 'victim'], [Number.MAX_SAFE_INTEGER, 'absorber']],
+    leaderboard: [[0, 1, 'web:p1'], [12, 3, 'discord:A.b-c_9'], [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 'web:p1']],
   };
 
-  it('FR-279 (b) the list tags are matches, records and predictions, and each key round-trips through its cursor', () => {
-    expect([...CURSOR_LISTS]).toStrictEqual(['matches', 'records', 'predictions']);
+  it('FR-279 (b) the list tags are the three of M3a and the three results lists, and each key round-trips through its cursor', () => {
+    expect([...CURSOR_LISTS]).toStrictEqual(['matches', 'records', 'predictions', 'phase-results', 'player-results', 'leaderboard']);
     for (const list of CURSOR_LISTS) {
       for (const key of samples[list]) {
         const text = encodeCursor(list, key as never);
@@ -134,6 +137,50 @@ describe('cursors per list (FR-279 (b), (e))', () => {
     const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
     const twin = issued.slice(0, -1) + abc[abc.indexOf(last) + 1]!;
     expect(decodeCursor('records', twin)).toStrictEqual(invalid('cursor'));
+  });
+
+  it('FR-279 (results lists) the results cursors are accepted only with their key shape: the player id, the round and kind, the generation', () => {
+    const b64 = (s: string): string => {
+      const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+      let out = '';
+      for (let i = 0; i < s.length; i += 3) {
+        const n = (s.charCodeAt(i) << 16) | ((s.charCodeAt(i + 1) || 0) << 8) | (s.charCodeAt(i + 2) || 0);
+        const len = Math.min(3, s.length - i);
+        out += abc[(n >> 18) & 63]! + abc[(n >> 12) & 63]! + (len > 1 ? abc[(n >> 6) & 63]! : '') + (len > 2 ? abc[n & 63]! : '');
+      }
+      return out;
+    };
+    expect(b64('["records",3]')).toBe(encodeCursor('records', [3]));
+    const refused = (list: 'phase-results' | 'player-results' | 'leaderboard', raws: string[]): void => {
+      for (const raw of raws) expect(decodeCursor(list, b64(raw)), raw).toStrictEqual(invalid('cursor'));
+    };
+    refused('phase-results', [
+      '["phase-results"]', '["phase-results","p1"]', '["phase-results","web:"]', '["phase-results",":a"]', '["phase-results","web:a:b"]',
+      '["phase-results","Web:a"]', '["phase-results",3]', '["phase-results","web:a","web:b"]', `["phase-results","web:${'x'.repeat(65)}"]`,
+    ]);
+    refused('player-results', [
+      '["player-results"]', '["player-results",0]', '["player-results",0,"victim"]', '["player-results",1,"winner"]', '["player-results",-1,"victim"]',
+      '["player-results",1.5,"victim"]', '["player-results","1","victim"]', '["player-results",1,"loser"]', '["player-results","victim",1]',
+      '["player-results",1,"victim","web:a"]',
+    ]);
+    // A leaderboard cursor without the generation (or with a generation below 0 or a rank below 1) is refused.
+    refused('leaderboard', [
+      '["leaderboard",1,"web:a"]', '["leaderboard","web:a"]', '["leaderboard",-1,1,"web:a"]', '["leaderboard",0,0,"web:a"]', '["leaderboard",0,-2,"web:a"]',
+      '["leaderboard",0,1.5,"web:a"]', '["leaderboard",0,1,"p1"]', '["leaderboard","0",1,"web:a"]', '["leaderboard",0,1,"web:a",4]',
+    ]);
+    expect(decodeCursor('leaderboard', b64('["leaderboard",0,1,"web:a"]'))).toStrictEqual({ ok: true, value: [0, 1, 'web:a'] });
+    expect(decodeCursor('player-results', b64('["player-results",0,"winner"]'))).toStrictEqual({ ok: true, value: [0, 'winner'] });
+    for (const [list, key] of [['phase-results', ['web:a:b']], ['player-results', [0, 'victim']], ['leaderboard', [0, 0, 'web:a']], ['leaderboard', [1, 'web:a']]] as const) {
+      expect(() => encodeCursor(list, key as never), `${list} ${JSON.stringify(key)}`).toThrow(RangeError);
+    }
+  });
+
+  it('NFR-51 (protocol) the results cursors of every list stay under the cursor limit', () => {
+    const longest = `${'a'.repeat(16)}:${'Z'.repeat(64)}`;
+    const big = Number.MAX_SAFE_INTEGER;
+    for (const text of [encodeCursor('phase-results', [longest]), encodeCursor('leaderboard', [big, big, longest]), encodeCursor('player-results', [big, 'absorber'])]) {
+      expect(text.length).toBeLessThanOrEqual(CURSOR_MAX_LENGTH);
+    }
   });
 
   it('FR-279 (e) encodeCursor refuses a key of the wrong shape (the server never issues one)', () => {

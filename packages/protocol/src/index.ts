@@ -4,9 +4,12 @@ export {
   encodeCreation,
   encodeError,
   encodeEvent,
+  encodeLeaderboardRow,
   encodeMatchSummary,
   encodeOwnPrediction,
   encodePage,
+  encodePhaseResults,
+  encodePlayerResults,
   encodePrediction,
   encodeRecord,
   encodeState,
@@ -26,17 +29,33 @@ export type { CursorKey, CursorKeys, CursorList, PageQuery } from './page';
 export {
   ADVANCE_REPLY_KEYS,
   CREATION_REPLY_KEYS,
+  LEADERBOARD_ROW_KEYS,
   MATCH_SUMMARY_KEYS,
   OWN_PREDICTION_KEYS,
   PAGE_KEYS,
+  PHASE_RESULTS_PAGE_KEYS,
+  PHASE_RESULT_KEYS,
+  PLAYER_RESULTS_PAGE_KEYS,
+  PLAYER_RESULT_KEYS,
   PREDICTION_REPLY_KEYS,
   RECORD_REPLY_KEYS,
   STATE_REPLY_KEYS,
   STEP_INFO_KEYS,
 } from './wire';
-export type { MatchSummary, OwnPrediction, Page, RecordReply, StateReply } from './wire';
+export type {
+  LeaderboardRow,
+  MatchSummary,
+  OwnPrediction,
+  Page,
+  PhaseResult,
+  PhaseResultsPage,
+  PlayerResult,
+  PlayerResultsPage,
+  RecordReply,
+  StateReply,
+} from './wire';
 export type { ErrorKind, ErrorReply } from './errors';
-export { NAMESPACE_SEPARATOR, isLocalId, isMapId, isNamespace, playerIdOf } from './ids';
+export { NAMESPACE_SEPARATOR, isLocalId, isMapId, isNamespace, isPlayerId, playerIdOf } from './ids';
 export { MAX_INTERVAL_SECONDS, readTiming, readTimingShape, timingRuleFailures } from './timing';
 export type { TimingResult, TimingRule } from './timing';
 export { readAdvance, readCreation, readSubmission } from './read';
