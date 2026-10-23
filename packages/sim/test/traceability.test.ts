@@ -208,7 +208,8 @@ describe('traceability', () => {
     // letter (d) results event goes to M4); T3' moves none; T4' adds NFR-49 (78 / 18); T5' pins both as done.
     // M4 target (T5): 82 done / 14 pending (plan section 20.10). T1 starts at 78 / 18; T2 adds FR-274 (79 / 17); T3 moves none;
     // T4 adds FR-271, FR-272, FR-273 (82 / 14); T5 pins the closing state.
-    // M4' target (T6'): 86 done / 10 pending. T1' starts at 82 / 14; T3' adds four ids (86 / 10); T6' pins the closing state.
+    // M4' target (T6'): 86 done / 10 pending. T1' starts at 82 / 14; T2' moves none; T3' adds four ids (86 / 10);
+    // T4' and T5' move none; T6' pins the closing state.
     expect(DONE_008).toHaveLength(82);
     expect(PENDING_008).toHaveLength(14);
     expect(new Set([...PENDING_008, ...DONE_008]).size).toBe(96);

@@ -64,7 +64,7 @@ Plan section 20. The rules of `tasks.md` apply; sizes are changed lines (src + t
 
 ## M4' (`feat/008-m4-2-results-reads`, from `rewrite` after M4 is merged; T1' to T6'; 82 / 14 -> 86 / 10)
 
-- [ ] **T1'. Branch and bookkeeping targets.** NFR-55
+- [x] **T1'. Branch and bookkeeping targets.** NFR-55
   - Depends on: M4 merged.
   - Files: `packages/sim/test/traceability.test.ts` (comments: T3' 86 / 10).
   - Commit: `test: prepare the spec 008 bookkeeping for M4'`.
