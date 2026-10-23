@@ -95,7 +95,7 @@ Plan section 19. **Approved by the user on 2026-10-23**: E1 to E10 (plan 19.13) 
   - Done when: tests green, the kill tests run on Windows and Linux CI; mutations caught; no id moved.
   - Size: L (about 500).
 
-- [ ] **T4'. The NFR-49 procedure.** NFR-49 (close: pure part and smoke run)
+- [x] **T4'. The NFR-49 procedure.** NFR-49 (close: pure part and smoke run)
   - Depends on: T3'.
   - Files: `apps/server/scripts/{load,load-stats}.ts`, `apps/server/test/{load-stats,load-smoke}.test.ts`, `packages/sim/test/traceability.test.ts` (NFR-49 out of `PENDING_008`, 78 / 18).
   - Tests first: `load-stats`: p95 by nearest rank on known lists (including 1 and 20 items, non-round values), the delay of a step is measured to the LAST stream's receipt of its last event, a missing receipt, an early close and a non-200 reply each count as failures, the summary keys; smoke: `node --import tsx scripts/load.ts --smoke` in a child exits 0 and prints one summary JSON line with no failure (explicit `{ timeout: 60_000 }`, no target asserted).

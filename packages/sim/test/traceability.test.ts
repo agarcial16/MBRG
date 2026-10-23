@@ -64,11 +64,11 @@ const PENDING_008: readonly string[] = [
   'FR-271', 'FR-272', 'FR-273', 'FR-274', 'FR-275', 'FR-276', 'FR-277', 'FR-278',
   'FR-303', 'FR-304', 'FR-305', 'FR-306', 'FR-307', 'FR-308', 'FR-309', 'FR-310',
   'FR-311',
-  'NFR-49', 'NFR-56',
+  'NFR-56',
 ];
 
-/** Ids of spec 008 already removed from PENDING_008 by the tasks that traced them (T2: FR-313; T3: NFR-51, NFR-55; T4: FR-312, NFR-48; T5: NFR-53; T7: FR-252; T2 of M2a: FR-301 (kinds and order); T3 of M2a: FR-233, FR-234, FR-296, FR-297; T4 of M2a: FR-253, FR-254, FR-257, FR-282 (NFR-47 part (b) also traced, part names in titles); T5 of M2a: FR-239, FR-249, FR-302, FR-314, NFR-50 (NFR-51 part server core also traced, part named in titles); T6 of M2a: FR-237, FR-240 (decision), FR-247, FR-255, FR-256, FR-258, FR-269 (FR-257 core part and NFR-48 core timeline also traced, parts named in titles); T7 of M2a: FR-244, FR-248 (letters a to c; the predictions-before-cutoff clause is traced by T8), FR-295 (letters b, c; letter a is traced by T8 in prediction titles); T8 of M2a: FR-261 to FR-268 (FR-295 letter a and the FR-248 cutoff clause also traced by T8 titles); T8: NFR-47 (part (e) only, the other parts stay open in later milestones: test titles of those milestones must say which part); M2b T2: FR-289 (part (c) only: the creation event; numbering by the store, replay, heartbeat and the stream stay open in later M2b/M3b tasks, whose titles must name the part) and FR-300 (part digests only: the memo key; the host token digest in the store and the constant-time comparison stay open in later tasks, whose titles must name the part); NFR-54 stays pending (its memo-key property is traced under FR-300 (digests)); M2b T3: FR-291 and FR-292 (part durability settings only: FR-292 (unavailable, retry) is completed in M2b' T3', whose titles must name the part); M2b T4: FR-270 (part storage only: the read over HTTP is M3a, whose titles must name the part) and FR-293 (the whole storage of recovery data; the use of it at restart is M2b' T4'); M2b T5: FR-231, FR-232, FR-235, FR-236, FR-238, FR-259 (commitment), FR-260 and NFR-54 (store; the logs part is M3a); M2b T6: FR-241, FR-242, FR-243, FR-245, FR-246, FR-288, FR-290, FR-315 and NFR-52 (parts: scoring of FR-241, FR-243 and FR-246 is M4; FR-288 and FR-290 streams are M3b; NFR-52 network is M3; FR-282 advance memo, FR-250, FR-251 and the timer recovery stay open in later tasks, whose titles must name the part); M2b' T2': FR-250 and FR-251 (the scoring part of FR-251 (c) is M4; the check at server start comes with start() in T3'; titles also name the ledger parts FR-241, FR-243, FR-245, FR-259, FR-266); M2b' T4': FR-294 (FR-249 across restarts, FR-315 restart after every step and NFR-48 lifecycle goldens also traced, parts named in titles); M2b' T6': NFR-57 (M2b part: states, records, steps, events, predictions and memo; the results part stays open to M4, whose titles must name the part); M3a T2: FR-279 (a), (b), (c), (e) (the leaderboard stale-cursor part (d) is M4 and the HTTP paging is M3a T8, whose titles must name the part); M3a T3: FR-283 (start refusal, namespaces, credential set and length; the Bearer reading is M3a T6, whose titles must name the part) and FR-299 (b) (values and defaults; the limiter parts (c) to (e) are M3a T6 and T7, the stream limits M3b, whose titles must name the part); M3a T5: FR-281 (a) to (d), (h), (j) through the service (the results reads (e) to (g) are M4, the stream (i) M3b and the HTTP routes M3a T7 and T8, whose titles must name the part); M3a T6: FR-284 (identity, namespace from the credential, player id) and FR-286 (policy; the headers on the wire are M3a T8, whose titles must name the part); M3a' T2': FR-280 and FR-298 (the command routes and the pipeline; the other ids they trace by part keep their open parts named in titles); M3a' T3': FR-285 (the public reads, the map files and CORS on the wire over HTTP; its event-stream part is M3b, whose titles must name the part); M3b' T2': FR-287 (the event order and content on the wire; its letter (d), the results event, is M4, whose titles must name the part). */
-const DONE_008: readonly string[] = ['FR-313', 'NFR-51', 'NFR-55', 'FR-312', 'NFR-48', 'NFR-53', 'FR-252', 'NFR-47', 'FR-301', 'FR-233', 'FR-234', 'FR-296', 'FR-297', 'FR-253', 'FR-254', 'FR-257', 'FR-282', 'FR-239', 'FR-249', 'FR-302', 'FR-314', 'NFR-50', 'FR-237', 'FR-240', 'FR-247', 'FR-255', 'FR-256', 'FR-258', 'FR-269', 'FR-244', 'FR-248', 'FR-295', 'FR-261', 'FR-262', 'FR-263', 'FR-264', 'FR-265', 'FR-266', 'FR-267', 'FR-268', 'FR-289', 'FR-300', 'FR-291', 'FR-292', 'FR-270', 'FR-293', 'FR-231', 'FR-232', 'FR-235', 'FR-236', 'FR-238', 'FR-259', 'FR-260', 'NFR-54', 'FR-241', 'FR-242', 'FR-243', 'FR-245', 'FR-246', 'FR-288', 'FR-290', 'FR-315', 'NFR-52', 'FR-250', 'FR-251', 'FR-294', 'NFR-57', 'FR-279', 'FR-283', 'FR-299', 'FR-281', 'FR-284', 'FR-286', 'FR-280', 'FR-298', 'FR-285', 'FR-287'];
+/** Ids of spec 008 already removed from PENDING_008 by the tasks that traced them (T2: FR-313; T3: NFR-51, NFR-55; T4: FR-312, NFR-48; T5: NFR-53; T7: FR-252; T2 of M2a: FR-301 (kinds and order); T3 of M2a: FR-233, FR-234, FR-296, FR-297; T4 of M2a: FR-253, FR-254, FR-257, FR-282 (NFR-47 part (b) also traced, part names in titles); T5 of M2a: FR-239, FR-249, FR-302, FR-314, NFR-50 (NFR-51 part server core also traced, part named in titles); T6 of M2a: FR-237, FR-240 (decision), FR-247, FR-255, FR-256, FR-258, FR-269 (FR-257 core part and NFR-48 core timeline also traced, parts named in titles); T7 of M2a: FR-244, FR-248 (letters a to c; the predictions-before-cutoff clause is traced by T8), FR-295 (letters b, c; letter a is traced by T8 in prediction titles); T8 of M2a: FR-261 to FR-268 (FR-295 letter a and the FR-248 cutoff clause also traced by T8 titles); T8: NFR-47 (part (e) only, the other parts stay open in later milestones: test titles of those milestones must say which part); M2b T2: FR-289 (part (c) only: the creation event; numbering by the store, replay, heartbeat and the stream stay open in later M2b/M3b tasks, whose titles must name the part) and FR-300 (part digests only: the memo key; the host token digest in the store and the constant-time comparison stay open in later tasks, whose titles must name the part); NFR-54 stays pending (its memo-key property is traced under FR-300 (digests)); M2b T3: FR-291 and FR-292 (part durability settings only: FR-292 (unavailable, retry) is completed in M2b' T3', whose titles must name the part); M2b T4: FR-270 (part storage only: the read over HTTP is M3a, whose titles must name the part) and FR-293 (the whole storage of recovery data; the use of it at restart is M2b' T4'); M2b T5: FR-231, FR-232, FR-235, FR-236, FR-238, FR-259 (commitment), FR-260 and NFR-54 (store; the logs part is M3a); M2b T6: FR-241, FR-242, FR-243, FR-245, FR-246, FR-288, FR-290, FR-315 and NFR-52 (parts: scoring of FR-241, FR-243 and FR-246 is M4; FR-288 and FR-290 streams are M3b; NFR-52 network is M3; FR-282 advance memo, FR-250, FR-251 and the timer recovery stay open in later tasks, whose titles must name the part); M2b' T2': FR-250 and FR-251 (the scoring part of FR-251 (c) is M4; the check at server start comes with start() in T3'; titles also name the ledger parts FR-241, FR-243, FR-245, FR-259, FR-266); M2b' T4': FR-294 (FR-249 across restarts, FR-315 restart after every step and NFR-48 lifecycle goldens also traced, parts named in titles); M2b' T6': NFR-57 (M2b part: states, records, steps, events, predictions and memo; the results part stays open to M4, whose titles must name the part); M3a T2: FR-279 (a), (b), (c), (e) (the leaderboard stale-cursor part (d) is M4 and the HTTP paging is M3a T8, whose titles must name the part); M3a T3: FR-283 (start refusal, namespaces, credential set and length; the Bearer reading is M3a T6, whose titles must name the part) and FR-299 (b) (values and defaults; the limiter parts (c) to (e) are M3a T6 and T7, the stream limits M3b, whose titles must name the part); M3a T5: FR-281 (a) to (d), (h), (j) through the service (the results reads (e) to (g) are M4, the stream (i) M3b and the HTTP routes M3a T7 and T8, whose titles must name the part); M3a T6: FR-284 (identity, namespace from the credential, player id) and FR-286 (policy; the headers on the wire are M3a T8, whose titles must name the part); M3a' T2': FR-280 and FR-298 (the command routes and the pipeline; the other ids they trace by part keep their open parts named in titles); M3a' T3': FR-285 (the public reads, the map files and CORS on the wire over HTTP; its event-stream part is M3b, whose titles must name the part); M3b' T2': FR-287 (the event order and content on the wire; its letter (d), the results event, is M4, whose titles must name the part); M3b' T4': NFR-49 (the pure part and the smoke run of the load procedure; the figures of the hand run are in the pull request). */
+const DONE_008: readonly string[] = ['FR-313', 'NFR-51', 'NFR-55', 'FR-312', 'NFR-48', 'NFR-53', 'FR-252', 'NFR-47', 'FR-301', 'FR-233', 'FR-234', 'FR-296', 'FR-297', 'FR-253', 'FR-254', 'FR-257', 'FR-282', 'FR-239', 'FR-249', 'FR-302', 'FR-314', 'NFR-50', 'FR-237', 'FR-240', 'FR-247', 'FR-255', 'FR-256', 'FR-258', 'FR-269', 'FR-244', 'FR-248', 'FR-295', 'FR-261', 'FR-262', 'FR-263', 'FR-264', 'FR-265', 'FR-266', 'FR-267', 'FR-268', 'FR-289', 'FR-300', 'FR-291', 'FR-292', 'FR-270', 'FR-293', 'FR-231', 'FR-232', 'FR-235', 'FR-236', 'FR-238', 'FR-259', 'FR-260', 'NFR-54', 'FR-241', 'FR-242', 'FR-243', 'FR-245', 'FR-246', 'FR-288', 'FR-290', 'FR-315', 'NFR-52', 'FR-250', 'FR-251', 'FR-294', 'NFR-57', 'FR-279', 'FR-283', 'FR-299', 'FR-281', 'FR-284', 'FR-286', 'FR-280', 'FR-298', 'FR-285', 'FR-287', 'NFR-49'];
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -206,20 +206,20 @@ describe('traceability', () => {
     // M3b target (T6): 76 done / 20 pending (plan section 19.10): M3b moves no id (it completes parts of done ids).
     // M3b' target (T5'): 78 done / 18 pending (plan section 19.10). T1' starts at 76 / 20; T2' adds FR-287 (77 / 19, its
     // letter (d) results event goes to M4); T3' moves none; T4' adds NFR-49 (78 / 18); T5' pins both as done.
-    expect(DONE_008).toHaveLength(77);
-    expect(PENDING_008).toHaveLength(19);
+    expect(DONE_008).toHaveLength(78);
+    expect(PENDING_008).toHaveLength(18);
     expect(new Set([...PENDING_008, ...DONE_008]).size).toBe(96);
     expect([...PENDING_008, ...DONE_008].sort()).toStrictEqual([...literal].sort());
     for (const id of PENDING_008) expect(expected, id).toContain(id);
   });
 
-  it("NFR-55 ledger after M3b' T2', 77 ids done and 19 pending: the M2b to M3a' ids done, the event order done, the later ids pending", () => {
+  it("NFR-55 ledger after M3b' T4', 78 ids done and 18 pending: the M2b to M3a' ids done, the event order and the load procedure done, the later ids pending", () => {
     // Explicit state (plan sections 11 and 13). M3a moved six ids
     // (T2: FR-279; T3: FR-283, FR-299; T5: FR-281; T6: FR-284, FR-286); M3a' T2' moved FR-280 and FR-298; T3' moved FR-285.
     // M3b moved no id: it completed parts of done ids (event encoders, stream framing, stream limits, the replay read, the hub,
-    // the stream route). M3b' T2' moves FR-287 (letter (d), the results event, is M4); T4' will move NFR-49.
-    expect(DONE_008).toHaveLength(77);
-    expect(PENDING_008).toHaveLength(19);
+    // the stream route). M3b' T2' moves FR-287 (letter (d), the results event, is M4); T4' moves NFR-49.
+    expect(DONE_008).toHaveLength(78);
+    expect(PENDING_008).toHaveLength(18);
     expect(DONE_008.length + PENDING_008.length).toBe(96);
     // The ids M2b closed (plan section 17.3), a literal list independent of DONE_008.
     const closedByM2b = [
@@ -242,8 +242,8 @@ describe('traceability', () => {
     // Up to M3a: the 40 ids of M1 and M2a, 27 of M2b and M2b', 6 of M3a, all distinct and all done.
     const closedSinceM2b = new Set([...closedByM2b, ...closedByM2b2, ...closedByM3a]);
     expect(closedSinceM2b.size).toBe(33);
-    // (44 outside this set now: the 40 of M1 and M2a plus FR-280, FR-285 and FR-298 of M3a' and FR-287 of M3b', asserted below.)
-    expect(DONE_008.filter((id) => !closedSinceM2b.has(id))).toHaveLength(44);
+    // (45 outside this set now: the 40 of M1 and M2a plus FR-280, FR-285 and FR-298 of M3a', FR-287 and NFR-49 of M3b', asserted below.)
+    expect(DONE_008.filter((id) => !closedSinceM2b.has(id))).toHaveLength(45);
     // M3a' closed three ids: T2' FR-280 and FR-298, T3' FR-285.
     const closedByM3a2 = ['FR-280', 'FR-285', 'FR-298'];
     expect(new Set(closedByM3a2).size).toBe(3);
@@ -256,19 +256,21 @@ describe('traceability', () => {
     const closedByHttp = [...closedByM3a, ...closedByM3a2];
     expect(new Set(closedByHttp).size).toBe(9);
     for (const id of closedByHttp) expect(PENDING_008, id).not.toContain(id);
-    // M3b' T2' closed FR-287: done, not pending.
-    expect(DONE_008).toContain('FR-287');
-    expect(PENDING_008).not.toContain('FR-287');
-    // NFR-49 (M3b' T4'), M4 and M5: still pending (a literal list of every one of the 19).
+    // M3b' closed FR-287 (T2') and NFR-49 (T4'): done, not pending.
+    for (const id of ['FR-287', 'NFR-49']) {
+      expect(DONE_008, id).toContain(id);
+      expect(PENDING_008, id).not.toContain(id);
+    }
+    // M4 and M5: still pending (a literal list of every one of the 18).
     const laterIds = [
       'FR-271', 'FR-272', 'FR-273', 'FR-274', 'FR-275', 'FR-276', 'FR-277', 'FR-278',
       'FR-303', 'FR-304', 'FR-305', 'FR-306', 'FR-307', 'FR-308', 'FR-309', 'FR-310', 'FR-311',
-      'NFR-49', 'NFR-56',
+      'NFR-56',
     ];
-    expect(laterIds).toHaveLength(19);
+    expect(laterIds).toHaveLength(18);
     for (const id of laterIds) expect(DONE_008, id).not.toContain(id);
     // Exactly the later ids are pending, nothing else.
-    expect(new Set(laterIds).size).toBe(19);
+    expect(new Set(laterIds).size).toBe(18);
     expect([...PENDING_008].sort()).toStrictEqual([...laterIds].sort());
   });
 
