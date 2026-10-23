@@ -9,21 +9,23 @@
 //   6 player limit `ticket.extend`: a refusal cancels the ticket of stage 1, so it is counted nowhere   -> rate-limited
 //   7 decide       the route calls the service; the outcome is mapped by `status.ts`
 //   8 unexpected   any exception: ONE `request-failed` event (name and stage only), then 500 `{"kind":"unavailable"}`
-// The command and read routes are tables of `Route` (router.ts). T2'a ships the pipeline only: `productionRoutes` is empty
-// until T2'b/T3', and `routes` is the injection point of the pipeline tests (it cannot carry a seed source: PD18).
+// The command and read routes are tables of `Route` (router.ts). T2'a ships the pipeline only: `productionRoutes` holds the three
+// command routes (T2'b; the reads come in T3'), and `routes` is the injection point of the pipeline tests (it cannot carry a seed source: PD18).
 // Connection hardening is the platform's own (PD21): the four server options below; no custom socket timers.
 
 import { createServer as createHttpServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
-import { errorReply, rateLimited } from '@mbrg/protocol';
+import { encodeAdvance, encodeCreation, encodePrediction, errorReply, rateLimited, readSubmission } from '@mbrg/protocol';
+import type { ErrorReply } from '@mbrg/protocol';
 import type { Clock } from '../clock';
+import { CREATION_PATH } from '../service/matches';
 import type { MatchService } from '../service/matches';
 import { CONNECTION_OPTIONS } from '../service/settings';
 import type { ServerSettings } from '../service/settings';
 import { readBody, tooLargeByLength } from './body';
-import { credentialTable, hostIdentity, identify, readBearer } from './identity';
+import { credentialTable, hostIdentity, identify, playerIdFor, readBearer, requireClient } from './identity';
 import type { Identity } from './identity';
-import { createLimiter, limitKeys } from './limits';
+import { createLimiter, limitKeys, playerKey } from './limits';
 import type { RequestClass } from './limits';
 import { requestFailed } from './log';
 import type { FailureStage, LogSink } from './log';
@@ -48,8 +50,62 @@ type UnlistedOptionKey = Exclude<keyof ServerOptions, (typeof SERVER_OPTION_KEYS
 const ALL_OPTION_KEYS_LISTED: [UnlistedOptionKey] extends [never] ? true : false = true;
 void ALL_OPTION_KEYS_LISTED;
 
-/** The production routes: none in T2'a (the commands come in T2'b, the reads in T3'). */
-export const productionRoutes = (_service: MatchService, _settings: ServerSettings): readonly Route[] => [];
+/** A service outcome as a route reply: the success with its status and encoded body, or the error (memoised ones included). */
+const replyOf = <T>(outcome: { readonly ok: true; readonly reply: T } | { readonly ok: false; readonly error: ErrorReply }, status: 200 | 201, encode: (reply: T) => string): Reply =>
+  outcome.ok ? { kind: 'success', status, body: encode(outcome.reply) } : { kind: 'error', error: outcome.error };
+
+/**
+ * The production routes. The three commands (T2'b): creation (201), advance (200, the host token of the match or the operator
+ * credential; the service compares the credential itself, in the FR-301 order forbidden, request-id-reused, unknown-match)
+ * and submission (200; the client credential gives the namespace, the body only the local id). The reads come in T3'.
+ */
+export const productionRoutes = (service: MatchService, settings: ServerSettings): readonly Route[] => [
+  {
+    method: 'POST',
+    path: CREATION_PATH,
+    body: 'object',
+    decide: (ctx) => replyOf(service.create({ credential: ctx.token, body: ctx.body }), 201, encodeCreation),
+  },
+  {
+    method: 'POST',
+    path: '/matches/:id/advance',
+    body: 'object',
+    hostParam: 'id',
+    decide: (ctx) => replyOf(service.advance({ credential: ctx.token, matchId: ctx.params.id as string, body: ctx.body }), 200, encodeAdvance),
+  },
+  {
+    method: 'POST',
+    path: '/matches/:id/predictions',
+    body: 'object',
+    // Stage 4: the structure first (`invalid-request`), then only the `invalid-player-id` case of the local id (before `forbidden`).
+    shape: (ctx) => {
+      const read = readSubmission(ctx.body);
+      if (!read.ok) return read.error;
+      const id = playerIdFor(ctx.identity, read.value.playerId);
+      return id.ok || id.error.kind !== 'invalid-player-id' ? undefined : id.error;
+    },
+    authorize: (ctx) => {
+      const client = requireClient(ctx.identity);
+      return client.ok ? undefined : client.error;
+    },
+    playerLimit: (ctx) => {
+      const read = readSubmission(ctx.body);
+      if (!read.ok) return undefined;
+      const id = playerIdFor(ctx.identity, read.value.playerId);
+      return id.ok ? [{ key: playerKey(ctx.params.id as string, id.playerId), limit: settings.limits.submissions }] : undefined;
+    },
+    decide: (ctx) => {
+      const client = requireClient(ctx.identity);
+      if (!client.ok) return { kind: 'error', error: client.error };
+      if (ctx.token === undefined) return { kind: 'error', error: errorReply('forbidden') };
+      return replyOf(
+        service.submit({ client: { credential: ctx.token, namespace: client.client.namespace }, matchId: ctx.params.id as string, body: ctx.body }),
+        200,
+        encodePrediction,
+      );
+    },
+  },
+];
 
 /**
  * The limiter key of the TCP peer. A socket whose `remoteAddress` is undefined (already destroyed) must not share one
