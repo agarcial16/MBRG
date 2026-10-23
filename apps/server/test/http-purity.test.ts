@@ -67,6 +67,12 @@ describe('http purity', () => {
     for (const file of PURE) expect(names, file).toContain(file);
   });
 
+  it('NFR-51 (http modules) the platform files exist as the tasks deliver them (shutdown.ts is delivered by T4’ and tolerated until then)', () => {
+    const names = Object.keys(server).map(shortName);
+    for (const file of PLATFORM.filter((f) => f !== 'http/shutdown.ts')) expect(names, file).toContain(file);
+    // T4' removes this exception: then all six platform files must exist.
+  });
+
   it('NFR-51 (http modules) every file under src/http is classified: one of the pure modules or a platform file of plan 18.1', () => {
     const http = Object.keys(server).map(shortName).filter((f) => f.startsWith('http/'));
     for (const file of http) expect([...PURE, ...PLATFORM], file).toContain(file);
