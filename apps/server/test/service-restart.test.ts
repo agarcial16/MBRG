@@ -183,7 +183,7 @@ describe('FR-294 resuming at the stored stage, round and anchors', () => {
       expect(rowsOf(server.store, other)).toStrictEqual([[1, 'phase-1-close', t, 'late']]);
       // Armed after the late step, at the shifted C2 (t + L1); nothing for the halted match.
       expect(server.scheduler.pending()).toStrictEqual([t + 30 * S, START_MS + 24 * 3_600 * S + 1]);
-      expect(server.published.map((e) => e.type)).toStrictEqual(['match-halted', 'phase-closed', 'victim-revealed', 'schedule']);
+      expect(server.published.map((e) => e.type)).toStrictEqual(['match-halted', 'phase-closed', 'victim-revealed', 'results', 'schedule']);
       server.service.close();
     });
   });
@@ -232,7 +232,7 @@ describe('FR-294 FR-292 (retry) a start whose enumeration of the running matches
       expect(rowsOf(server.store, id)).toStrictEqual([]);
       expect(rowsOf(server.store, other)).toStrictEqual([[1, 'phase-1-close', at, 'late']]);
       expect(server.scheduler.pending()).toStrictEqual([at + 30 * S, START_MS + 24 * 3_600 * S + 1]);
-      expect(server.published.map((e) => e.type)).toStrictEqual(['match-halted', 'phase-closed', 'victim-revealed', 'schedule']);
+      expect(server.published.map((e) => e.type)).toStrictEqual(['match-halted', 'phase-closed', 'victim-revealed', 'results', 'schedule']);
       server.service.close();
     });
   });

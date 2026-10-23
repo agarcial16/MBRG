@@ -127,7 +127,7 @@ describe('http event stream: the starting number', () => {
     const h = await startReads();
     const { id } = makeMatch(h);
     const last = stored(h, id).length;
-    const above = await stream(h, id, `?lastEventId=${last + 3}`);
+    const above = await stream(h, id, `?lastEventId=${last + 4}`);
     const beyond = await stream(h, id, '?lastEventId=9007199254740992');
     const huge = await stream(h, id, '', { 'last-event-id': '9'.repeat(40) });
     expect([above.status, beyond.status, huge.status]).toStrictEqual([200, 200, 200]);

@@ -114,10 +114,12 @@ function closePhase1(view: CoreMatch, input: StepInput, instant: number, map: Ma
   };
   seq += 1;
   const revealed: MatchEvent = { type: 'victim-revealed', ...victim, reportedTime: input.reportedTime };
+  // The results of phase 1 are announced with the reveal (plan 20.4), also when nobody predicted (G2).
+  const results: MatchEvent = { type: 'results', seq: ++seq, round: k, phase: 1 };
   return {
     view: { ...view, stage: 'phase-2', anchors, victim, lastStepMs: instant, lastSeq: seq },
     steps: [{ round: k, kind: 'phase-1-close', instant, cause: input.cause }],
-    events: [closed, revealed],
+    events: [closed, revealed, results],
   };
 }
 
@@ -148,6 +150,8 @@ function apply(view: CoreMatch, input: StepInput, instant: number, map: MapData,
   const anchors = finished ? null : anchorsAfterStep(view.anchors, 'application', instant, input.cause, view.timing);
   const { victim: _revealed, ...rest } = view;
   const seq = view.lastSeq + 1;
+  // The results of phase 2 follow the application; the winner scoring is announced by `match-finished` (plan 20.4).
+  const resultsSeq = seq + 1;
   const next: CoreMatch = {
     ...rest,
     stage: finished ? 'finished' : 'phase-1',
@@ -156,13 +160,16 @@ function apply(view: CoreMatch, input: StepInput, instant: number, map: MapData,
     stateDigest,
     anchors,
     lastStepMs: instant,
-    lastSeq: seq,
+    lastSeq: resultsSeq,
     ...(finished ? { winner: must(livingFactions(map, state), 'living factions')[0] } : {}),
   };
   return {
     view: next,
     steps: [{ round: k, kind: 'application', instant, cause: input.cause }],
-    events: [{ type: 'round-applied', seq, round: k, record: { round: record.round, eliminated: record.eliminated, absorber: record.absorber, transferred: [...record.transferred] }, stateDigest, appliedAt: instant }],
+    events: [
+      { type: 'round-applied', seq, round: k, record: { round: record.round, eliminated: record.eliminated, absorber: record.absorber, transferred: [...record.transferred] }, stateDigest, appliedAt: instant },
+      { type: 'results', seq: resultsSeq, round: k, phase: 2 },
+    ],
     applied: { record, state, stateDigest },
   };
 }
@@ -183,7 +190,9 @@ function stepOnce(view: CoreMatch, input: StepInput, deps: StepDeps): StepOutcom
  * Performs the next step of the match at `input.instant` (FR-247: exactly the next step, never again, never early; any
  * other step is a RangeError, the caller having decided by FR-295 first). With L2 = 0 the application falls due at the
  * instant of the phase-2 close and follows it in the same decision, phase-2 close first, with the same instant (FR-240).
- * The result lists the rows and events in the order to store and publish them.
+ * The result lists the rows and events in the order to store and publish them (plan 20.4: a
+ * phase-1 close gives `phase-closed`, `victim-revealed`, `results`; an application `round-applied`, `results`; a halt only
+ * `match-halted`; the `schedule` event comes last while the match runs).
  */
 export function performStep(view: CoreMatch, input: StepInput, deps: StepDeps): StepOutcome {
   const first = stepOnce(view, input, deps);

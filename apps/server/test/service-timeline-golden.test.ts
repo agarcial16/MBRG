@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { SCENARIOS, T0, runScenario } from './helpers/core-timelines';
+import { SCENARIOS, T0, handEventTypes, runScenario } from './helpers/core-timelines';
 import type { ActionSummary, CreationSummary } from './helpers/core-timelines';
 import { runServiceScenario } from './helpers/service-timelines';
 import type { Restarts, ServiceActionSummary, ServiceCreationSummary, ServiceRun } from './helpers/service-timelines';
@@ -71,6 +71,8 @@ describe('service timeline goldens (NFR-48 lifecycle)', () => {
           expect(got.rows, label).toStrictEqual(a.expect.rows.map(([round, kind, offset, cause]) => [round, kind, T0 + offset, cause]));
           expect(got.anchors, label).toStrictEqual(a.expect.anchors === null ? null : a.expect.anchors.map((o) => T0 + o));
           expect(got.stage, label).toBe(a.expect.stage);
+          // FR-287 (d): the stored event types of the decision, derived by hand from plan 20.4 (match-finished added by the shell).
+          expect(got.events, label).toStrictEqual(handEventTypes(a.expect.rows.map((r) => r[1]), a.expect.stage === 'finished', true));
         });
       });
 

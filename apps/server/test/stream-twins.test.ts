@@ -104,16 +104,16 @@ describe('twin matches over the event stream', () => {
       runTo(a, offset);
       runTo(b, offset);
     }
-    await a.reader.takeEvents(1 + 3 + 2);
-    await b.reader.takeEvents(1 + 3 + 2);
+    await a.reader.takeEvents(1 + 4 + 2);
+    await b.reader.takeEvents(1 + 4 + 2);
     expect(a.reader.raw().length).toBeGreaterThan(300);
     expect(a.reader.raw()).toBe(b.reader.raw());
     expect(publicOf(a.h, a.id).stage).toBe('locked');
     // The application reveals the outcome: the bytes differ at the round-applied event.
     runTo(a, 120);
     runTo(b, 120);
-    const ga = await a.reader.takeEvents(2);
-    const gb = await b.reader.takeEvents(2);
+    const ga = await a.reader.takeEvents(3);
+    const gb = await b.reader.takeEvents(3);
     expect(ga[0]?.raw).not.toBe(gb[0]?.raw);
     expect(JSON.parse(ga[0]!.data).record.absorber).toBe(recordOf(ABSORBER_PAIR[0]).absorber);
     expect(JSON.parse(gb[0]!.data).record.absorber).toBe(recordOf(ABSORBER_PAIR[1]).absorber);

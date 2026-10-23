@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { SCENARIOS, T0, runScenario } from './helpers/core-timelines';
+import { SCENARIOS, T0, handEventTypes, runScenario } from './helpers/core-timelines';
 import type { ActionSummary, CreationSummary, Scenario } from './helpers/core-timelines';
 
 // NFR-48 (core timelines) and NFR-50 (fake clock, logic part): six scripted dev-map matches driven through the pure core
@@ -54,6 +54,8 @@ describe('core timeline goldens (NFR-48 core timelines)', () => {
           expect(got.rows, label).toStrictEqual(a.expect.rows.map(([round, kind, offset, cause]) => [round, kind, T0 + offset, cause]));
           expect(got.anchors, label).toStrictEqual(a.expect.anchors === null ? null : a.expect.anchors.map((o) => T0 + o));
           expect(got.stage, label).toBe(a.expect.stage);
+          // FR-287 (d): the event types of the decision, derived by hand from plan 20.4 (one `results` event per scored phase).
+          expect(got.events, label).toStrictEqual(handEventTypes(a.expect.rows.map((r) => r[1]), a.expect.stage === 'finished'));
         });
       });
 
@@ -120,7 +122,7 @@ describe('core timeline goldens (NFR-48 core timelines)', () => {
       expect(c.rows[0]![3]).toBe('clock');
       expect(c.rows[1]![3]).toBe('clock');
       // phase-closed (2), round-applied, then the schedule event of the next round (none after the last round).
-      expect(c.events.slice(0, 2)).toStrictEqual(['phase-closed', 'round-applied']);
+      expect(c.events.slice(0, 3)).toStrictEqual(['phase-closed', 'round-applied', 'results']);
     }
   });
 
@@ -144,6 +146,6 @@ describe('core timeline goldens (NFR-48 core timelines)', () => {
     expect(afterP2.anchors).toStrictEqual([T0 + 80_000, T0 + 40_000, T0 + 30_000]);
     expect(afterP1.publicDigest).toMatch(/^[0-9a-f]{64}$/);
     expect(afterP2.publicDigest).toMatch(/^[0-9a-f]{64}$/);
-    expect(afterP1.events).toStrictEqual(['phase-closed', 'victim-revealed', 'schedule']);
+    expect(afterP1.events).toStrictEqual(['phase-closed', 'victim-revealed', 'results', 'schedule']);
   });
 });

@@ -327,7 +327,7 @@ describe('step order', () => {
     d.clock.set(T0 + 10_000_000);
     expect(d.tick()).toBeNull();
     expect(d.view.anchors).toBeNull();
-    expect(d.events.at(-1)!.type).toBe('round-applied');
+    expect(d.events.slice(-2).map((e) => e.type)).toStrictEqual(['round-applied', 'results']);
   });
 
   it('FR-269 a phase that has nothing to close still closes: the stage sequence is phase-1, phase-2, locked, phase-1 with no input but time', () => {
@@ -360,10 +360,11 @@ describe('L2 = 0', () => {
     expect(out.view.anchors).toStrictEqual({ t0: T0 + 3000, c1: T0 + 5000, c2: T0 + 6000, a: T0 + 6000 });
     expect(out.view.lastStepMs).toBe(T0 + 3000);
     // Events in the same order: phase-closed (2), then round-applied; no intermediate `locked` schedule.
-    expect(out.events.map((e) => e.type)).toStrictEqual(['phase-closed', 'round-applied', 'schedule']);
+    expect(out.events.map((e) => e.type)).toStrictEqual(['phase-closed', 'round-applied', 'results', 'schedule']);
     expect(out.events[0]).toMatchObject({ phase: 2, round: 1, at: T0 + 3000 });
+    expect(out.events[2]).toMatchObject({ type: 'results', round: 1, phase: 2 });
     const seqs = out.events.map((e) => e.seq);
-    expect(seqs).toStrictEqual([seqs[0]!, seqs[0]! + 1, seqs[0]! + 2]);
+    expect(seqs).toStrictEqual([seqs[0]!, seqs[0]! + 1, seqs[0]! + 2, seqs[0]! + 3]);
     expect(d.seedCalls).toStrictEqual([1, 1]);
   });
 
@@ -375,7 +376,8 @@ describe('L2 = 0', () => {
     const out = d.tick()!;
     expect(out.steps.map((s) => s.kind)).toStrictEqual(['phase-2-close', 'application']);
     expect(out.view.stage).toBe('finished');
-    expect(out.events.map((e) => e.type)).toStrictEqual(['phase-closed', 'round-applied']);
+    expect(out.events.map((e) => e.type)).toStrictEqual(['phase-closed', 'round-applied', 'results']);
+    expect(out.view.lastSeq).toBe(out.events[2]!.seq);
   });
 
   it('FR-240 a manual phase-2 close with L2 = 0 also stores both rows at its instant, the second one due by its own anchor', () => {
@@ -494,3 +496,84 @@ function livingFactionsOfView(state: { owners: readonly (readonly [number, numbe
   expect(owners.size).toBe(1);
   return [...owners][0]!;
 }
+
+describe('the results event of a decision', () => {
+  const SHORT0: Timing = { i: 3, l1: 1, l2: 0 };
+  const typesOf = (events: readonly MatchEvent[]): string[] => events.map((e) => e.type);
+
+  it('FR-287 (d) FR-290 (results event) a phase-1 close announces the results of (k, 1) right after the reveal and before the schedule', () => {
+    const d = coreDriver({ timing: CLOCK });
+    for (let k = 1; k <= 4; k++) {
+      const out = d.run('phase-1-close');
+      expect(typesOf(out.events), `round ${k}`).toStrictEqual(['phase-closed', 'victim-revealed', 'results', 'schedule']);
+      const [closed, revealed, results, schedule] = out.events as [MatchEvent, MatchEvent, MatchEvent, MatchEvent];
+      expect(results).toStrictEqual({ type: 'results', seq: revealed.seq + 1, round: k, phase: 1 });
+      expect(schedule.seq).toBe(results.seq + 1);
+      expect(revealed.seq).toBe(closed.seq + 1);
+      expect(out.view.lastSeq).toBe(schedule.seq);
+      d.run('phase-2-close');
+      d.run('application');
+    }
+  });
+
+  it('FR-287 (d) FR-290 (results event) a phase-2 close with L2 above 0 announces no results; the application announces (k, 2) before the schedule', () => {
+    const d = coreDriver({ timing: CLOCK });
+    d.run('phase-1-close');
+    expect(typesOf(d.run('phase-2-close').events)).toStrictEqual(['phase-closed', 'schedule']);
+    const out = d.run('application');
+    expect(typesOf(out.events)).toStrictEqual(['round-applied', 'results', 'schedule']);
+    expect(out.events[1]).toStrictEqual({ type: 'results', seq: out.events[0]!.seq + 1, round: 1, phase: 2 });
+    expect(out.events[2]!.seq).toBe(out.events[1]!.seq + 1);
+    expect(out.view.lastSeq).toBe(out.events[2]!.seq);
+  });
+
+  it('FR-287 (d) FR-289 (results event numbering) the application of round T announces (T, 2) and leaves the number for match-finished, with no schedule', () => {
+    const d = coreDriver({ timing: CLOCK });
+    let last: ReturnType<typeof d.run> | undefined;
+    for (let k = 1; k <= 4; k++) for (const kind of ['phase-1-close', 'phase-2-close', 'application'] as const) last = d.run(kind);
+    expect(typesOf(last!.events)).toStrictEqual(['round-applied', 'results']);
+    expect(last!.events[1]).toStrictEqual({ type: 'results', seq: last!.events[0]!.seq + 1, round: 4, phase: 2 });
+    expect(last!.view.stage).toBe('finished');
+    expect(last!.view.lastSeq).toBe(last!.events[1]!.seq);
+  });
+
+  it('FR-287 (d) FR-289 (results event numbering) the numbers of a whole match are contiguous from 1 and the results events name their round and phase in order', () => {
+    const d = coreDriver({ timing: CLOCK });
+    for (let k = 1; k <= 4; k++) for (const kind of ['phase-1-close', 'phase-2-close', 'application'] as const) d.run(kind);
+    expect(d.events.map((e) => e.seq)).toStrictEqual(d.events.map((_, i) => i + 1));
+    expect(d.events.filter((e) => e.type === 'results').map((e) => [(e as { round: number }).round, (e as { phase: number }).phase])).toStrictEqual([
+      [1, 1], [1, 2], [2, 1], [2, 2], [3, 1], [3, 2], [4, 1], [4, 2],
+    ]);
+    // creation + 4 x (phase-closed, victim-revealed, results, schedule, phase-closed, schedule, round-applied, results, schedule) minus the last schedule.
+    expect(d.events).toHaveLength(1 + 4 * 9 - 1);
+  });
+
+  it('FR-287 (d) FR-290 (results event) with L2 = 0 the phase-2 close and the application are one decision: close, applied, results (k, 2), then the schedule', () => {
+    const d = coreDriver({ timing: SHORT0 });
+    d.clock.set(T0 + 2000);
+    d.tick();
+    d.clock.set(T0 + 3000);
+    const out = d.tick()!;
+    expect(typesOf(out.events)).toStrictEqual(['phase-closed', 'round-applied', 'results', 'schedule']);
+    expect(out.events[2]).toMatchObject({ type: 'results', round: 1, phase: 2 });
+  });
+
+  it('FR-287 (d) FR-290 (results event) a halt announces no results: a victim-mismatch halt after the reveal, an L2 = 0 halt at the application, and a map-changed halt', () => {
+    const [s1, s2] = differentVictims();
+    const mismatch = coreDriver({ seedOf: (() => { let calls = 0; return () => (calls++ === 0 ? s1 : s2); })() });
+    mismatch.run('phase-1-close');
+    mismatch.run('phase-2-close');
+    expect(typesOf(mismatch.run('application').events)).toStrictEqual(['match-halted']);
+    let calls = 0;
+    const chained = coreDriver({ timing: SHORT0, seedOf: () => (calls++ === 0 ? s1 : s2) });
+    chained.clock.set(T0 + 2000);
+    chained.tick();
+    chained.clock.set(T0 + 3000);
+    const out = chained.tick()!;
+    expect(out.view.haltReason).toBe('victim-mismatch');
+    expect(typesOf(out.events)).toStrictEqual(['phase-closed', 'match-halted']);
+    const changed = coreDriver();
+    changed.deps = { ...changed.deps, map: null };
+    expect(typesOf(changed.run('phase-1-close').events)).toStrictEqual(['match-halted']);
+  });
+});

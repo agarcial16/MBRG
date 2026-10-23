@@ -127,7 +127,7 @@ describe('stream hub: opening and replay', () => {
     const res = open(r, id, last + 2);
     step(r, id, 1, 'phase-1-close');
     const added = stored(r, id, last);
-    expect(added.map((e) => e.seq)).toStrictEqual([last + 1, last + 2, last + 3]);
+    expect(added.map((e) => e.seq)).toStrictEqual([last + 1, last + 2, last + 3, last + 4]);
     expect(res.chunks).toStrictEqual([frames(added.slice(2))]);
   });
 

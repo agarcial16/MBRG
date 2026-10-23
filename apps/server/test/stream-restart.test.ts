@@ -61,7 +61,7 @@ describe('the event stream across restarts', () => {
       advanceSteps(first, id, 2);
       const all = first.base.store.eventsAfter(id, 0);
       expect(all.map((e) => e.seq)).toStrictEqual(Array.from({ length: all.length }, (_, i) => i + 1));
-      expect(all.map((e) => e.type)).toStrictEqual(['schedule', 'phase-closed', 'victim-revealed', 'schedule', 'phase-closed', 'schedule', 'round-applied', 'schedule']);
+      expect(all.map((e) => e.type)).toStrictEqual(['schedule', 'phase-closed', 'victim-revealed', 'results', 'schedule', 'phase-closed', 'schedule', 'round-applied', 'results', 'schedule']);
       await first.close();
 
       const second = await serverOn(file);
@@ -99,17 +99,17 @@ describe('the event stream across restarts', () => {
       const { id, second } = await killedThenRestarted(dir, 'after-commit', C1);
       const store = second.base.store;
       // The decision was committed and never sent: the database holds it, whole.
-      expect(store.eventsAfter(id, 0).map((e) => [e.seq, e.type])).toStrictEqual([[1, 'schedule'], [2, 'phase-closed'], [3, 'victim-revealed'], [4, 'schedule']]);
+      expect(store.eventsAfter(id, 0).map((e) => [e.seq, e.type])).toStrictEqual([[1, 'schedule'], [2, 'phase-closed'], [3, 'victim-revealed'], [4, 'results'], [5, 'schedule']]);
       expect(store.steps(id).map((s) => [s.round, s.kind, s.instant, s.cause])).toStrictEqual([[1, 'phase-1-close', C1, 'clock']]);
       expect(second.service.start().performed).toStrictEqual([]);
       const reader = await streamOf(second, id, '', { 'last-event-id': '1' });
-      const got = await reader.takeEvents(3);
-      expect(got.map((f) => f.id)).toStrictEqual([2, 3, 4]);
-      expect(got.map((f) => JSON.parse(f.data).type)).toStrictEqual(['phase-closed', 'victim-revealed', 'schedule']);
+      const got = await reader.takeEvents(4);
+      expect(got.map((f) => f.id)).toStrictEqual([2, 3, 4, 5]);
+      expect(got.map((f) => JSON.parse(f.data).type)).toStrictEqual(['phase-closed', 'victim-revealed', 'results', 'schedule']);
       expect(got.map((f) => f.data)).toStrictEqual(store.eventsAfter(id, 1).map((e) => encodeEvent(e)));
       // The clock goes on past the old instant: the step is done, nothing is performed twice and nothing new is sent.
       second.base.scheduler!.runTo(C1 + 5 * S);
-      expect(store.eventsAfter(id, 0)).toHaveLength(4);
+      expect(store.eventsAfter(id, 0)).toHaveLength(5);
       expect(store.steps(id)).toHaveLength(1);
       expect(reader.raw()).toBe(got.map((f) => f.raw).join(''));
     });
@@ -123,11 +123,11 @@ describe('the event stream across restarts', () => {
       expect(store.steps(id).map((s) => [s.round, s.kind, s.instant, s.cause])).toStrictEqual([[1, 'phase-1-close', late, 'late']]);
       expect(second.service.start().performed).toStrictEqual([]);
       const reader = await streamOf(second, id, '?lastEventId=0');
-      const got = await reader.takeEvents(4);
-      expect(got.map((f) => f.id)).toStrictEqual([1, 2, 3, 4]);
-      expect(got.map((f) => JSON.parse(f.data).type)).toStrictEqual(['schedule', 'phase-closed', 'victim-revealed', 'schedule']);
+      const got = await reader.takeEvents(5);
+      expect(got.map((f) => f.id)).toStrictEqual([1, 2, 3, 4, 5]);
+      expect(got.map((f) => JSON.parse(f.data).type)).toStrictEqual(['schedule', 'phase-closed', 'victim-revealed', 'results', 'schedule']);
       expect(got.map((f) => f.data)).toStrictEqual(store.eventsAfter(id, 0).map((e) => encodeEvent(e)));
-      expect(store.eventsAfter(id, 0)).toHaveLength(4);
+      expect(store.eventsAfter(id, 0)).toHaveLength(5);
       expect(reader.raw()).toBe(got.map((f) => f.raw).join(''));
     });
   }, 120_000);

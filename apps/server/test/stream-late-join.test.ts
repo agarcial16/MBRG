@@ -22,14 +22,14 @@ describe('the event stream: late join from the public data', () => {
     const shown = publicOf(h, id);
     expect(shown.stage).toBe('phase-2');
     expect(shown.victim?.seq).toBe(3);
-    expect(shown.lastSeq).toBe(4);
+    expect(shown.lastSeq).toBe(5);
     const late = await openStream({ port: h.port, path: `/matches/${id}/events?lastEventId=${shown.lastSeq}` });
     readers.push(late);
     expect(late.status).toBe(200);
     // Nothing is replayed: the victim-revealed event (seq 3) is in the public data already.
     expect(late.raw()).toBe('');
     advanceSteps(h, id, 11);
-    const stored = h.base.store.eventsAfter(id, 4);
+    const stored = h.base.store.eventsAfter(id, 5);
     expect(stored[0]?.type).toBe('phase-closed');
     const got = await late.takeEvents(stored.length);
     expect(got.map((f) => f.id)).toStrictEqual(stored.map((e) => e.seq));

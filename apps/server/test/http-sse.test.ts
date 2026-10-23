@@ -38,7 +38,7 @@ describe('http sse: framing', () => {
   it('FR-257 (event encoders) every event a scripted dev-map match stores is framed and reads back equal', () => {
     const events = scriptedMatchEvents();
     expect(events.length).toBeGreaterThan(30);
-    expect(new Set(events.map((e) => e.type))).toStrictEqual(new Set(['phase-closed', 'victim-revealed', 'round-applied', 'schedule', 'match-finished', 'match-halted']));
+    expect(new Set(events.map((e) => e.type))).toStrictEqual(new Set(['phase-closed', 'victim-revealed', 'round-applied', 'results', 'schedule', 'match-finished', 'match-halted']));
     for (const event of events) {
       const json = encodeEvent(event);
       expect(JSON.parse(json), `${event.type} ${event.seq}`).toStrictEqual(event);
