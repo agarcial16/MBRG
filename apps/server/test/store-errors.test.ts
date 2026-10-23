@@ -28,7 +28,7 @@ const withTempDir = <T>(body: (dir: string) => T): T => {
   try {
     return body(dir);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 };
 
@@ -204,6 +204,24 @@ describe('FR-292 (error classification) by result code and by message', () => {
       expect((out as StoreError).code, String(code)).toBe(expected);
       expect((out as StoreError).sqliteCode, String(code)).toBe(code);
       expect((out as StoreError).sqliteText, String(code)).toBe('generic text');
+    }
+  });
+
+  it('FR-292 (error classification) transient and environmental codes (out of memory, interrupted, locking protocol, no large files) are storage failures, retried, never invalid-write', () => {
+    const cases: [number, string][] = [
+      [7, 'out of memory'], // NOMEM
+      [9, 'interrupted'], // INTERRUPT
+      [15, 'locking protocol'], // PROTOCOL
+      [22, 'large file support is disabled'], // NOLFS
+    ];
+    for (const [code, text] of cases) {
+      const coded = classifyStoreError(synthetic('UNIQUE constraint failed: t.k', code, text)) as StoreError;
+      expect(coded.code, String(code)).toBe('store-failure');
+      expect(isStorageFailure(coded), String(code)).toBe(true);
+      // An extended code with the same primary code gets the same class.
+      expect(classOf(synthetic('x', code | (1 << 8), text)), `${code} extended`).toBe('store-failure');
+      // Without a code, the generic text of that code is a storage failure as well.
+      expect(classOf(synthetic(text)), text).toBe('store-failure');
     }
   });
 

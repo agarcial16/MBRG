@@ -30,7 +30,8 @@ const isLockedError = (error: unknown): boolean => error instanceof Error && /\b
 
 /** Primary result codes (the low byte of `errcode`) that are storage failures (FR-292, plan 18.1). */
 const LOCKED_CODES: ReadonlySet<number> = new Set([5, 6]); // BUSY, LOCKED
-const FAILURE_CODES: ReadonlySet<number> = new Set([8, 10, 11, 13, 14, 26]); // READONLY, IOERR, CORRUPT, FULL, CANTOPEN, NOTADB
+// NOMEM, READONLY, INTERRUPT, IOERR, CORRUPT, FULL, CANTOPEN, PROTOCOL, NOLFS, NOTADB: transient or environmental.
+const FAILURE_CODES: ReadonlySet<number> = new Set([7, 8, 9, 10, 11, 13, 14, 15, 22, 26]);
 
 /**
  * The texts SQLite gives those codes (sqlite3_errstr) and its constraint, logic and misuse messages: the class of a native
@@ -38,7 +39,7 @@ const FAILURE_CODES: ReadonlySet<number> = new Set([8, 10, 11, 13, 14, 26]); // 
  * storage failure).
  */
 const LOCKED_TEXT = /\b(locked|busy)\b/i;
-const FAILURE_TEXT = /disk I\/O error|database or disk is full|readonly database|unable to open database|malformed|not a database/i;
+const FAILURE_TEXT = /disk I\/O error|database or disk is full|readonly database|unable to open database|malformed|not a database|out of memory|interrupted|locking protocol|large file support/i;
 const PROGRAMMING_TEXT = /constraint failed|syntax error|no such (table|column|index)|within a transaction|out of range|misuse|datatype mismatch|has no column|values for \d+ columns/i;
 
 type Classified = Exclude<StoreErrorCode, 'unknown-schema-version'>;
@@ -66,7 +67,8 @@ const MESSAGES: Readonly<Record<Classified, string>> = {
 /**
  * FR-292 (error classification), NFR-54. A native SQLite error (`ERR_SQLITE_ERROR`) is classified by its primary result
  * code when the platform attaches `errcode`, otherwise by its message: busy and locked are `database-locked`; I/O, full,
- * read-only, cannot-open, corrupt and not-a-database are `store-failure` (storage failures: `unavailable`, retried); a
+ * read-only, cannot-open, corrupt, not-a-database, out-of-memory, interrupted, locking-protocol and no-large-file
+ * support are `store-failure` (storage failures: `unavailable`, retried); a
  * constraint violation, a misuse, a range or a logic error is `invalid-write` (a programming error, rethrown). A use of the
  * closed connection (`ERR_INVALID_STATE`) is `store-failure`. The StoreError keeps the native error as `cause` and the
  * result code and its generic text; its message never quotes the native message. Anything else is returned unchanged.
