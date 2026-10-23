@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { errorReply } from '@mbrg/protocol';
+import { errorReply, roundNotApplied } from '@mbrg/protocol';
 import { readRound } from '../src/core/reads';
 import { coreDriver } from './helpers/core-driver';
 
@@ -10,12 +10,12 @@ describe('round reads of the core', () => {
     const check = (): void => {
       stages.push(d.view.stage);
       const n = d.view.appliedRounds;
-      const expected = { ok: false, error: errorReply('round-not-applied', [String(n)]) };
+      const expected = { ok: false, error: roundNotApplied(n) };
       for (const j of [n + 1, n + 2, d.view.totalRounds + 5]) {
         if (j <= n) continue;
         expect(readRound(d.view, j)).toStrictEqual(expected);
       }
-      expect(JSON.stringify(expected)).toBe(JSON.stringify({ ok: false, error: { kind: 'round-not-applied', items: [String(n)] } }));
+      expect(JSON.stringify(expected)).toBe(JSON.stringify({ ok: false, error: { kind: 'round-not-applied', appliedRounds: n } }));
     };
     check();
     for (let r = 0; r < 4; r++) {
@@ -48,7 +48,7 @@ describe('round reads of the core', () => {
     d.run('phase-2-close');
     d.run('application');
     expect(readRound(d.view, 1)).toStrictEqual({ ok: true, round: 1 });
-    expect(readRound(d.view, 2)).toStrictEqual({ ok: false, error: errorReply('round-not-applied', ['1']) });
+    expect(readRound(d.view, 2)).toStrictEqual({ ok: false, error: roundNotApplied(1) });
     for (const bad of [-1, 1.5, Number.NaN, Infinity, '1' as unknown as number]) {
       expect(readRound(d.view, bad)).toStrictEqual({ ok: false, error: errorReply('invalid-request', ['round']) });
     }

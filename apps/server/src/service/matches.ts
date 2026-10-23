@@ -28,15 +28,35 @@
 // for any reason, is isolated from the other matches and retried RETRY_MS later. A storage failure of the enumeration of
 // the running matches at `start` arms a retry of the whole start check RETRY_MS later, until it succeeds (FR-294); a
 // programming error there is rethrown by `start`. `close` cancels every wake-up.
+//
+// Reads (FR-281 (a) to (d), (h), (j), FR-258, FR-302; M3a T5): outcomes with an `ErrorReply`, no transaction and no write
+// (only the in-memory reported time); a storage failure is `unavailable`; keyset pages with the cursors of the protocol.
 
-import { canonicalBody, encodePublicMatch, errorReply, isLocalId, isNamespace, playerIdOf, readAdvance, readCreation, readSubmission } from '@mbrg/protocol';
-import type { AdvanceReply, CreationReply, ErrorReply, MatchEvent, PredictionReply, PublicMatch, StepKind, StepMismatchReply, Timing } from '@mbrg/protocol';
+import { PAGE_LIMIT_MAX, canonicalBody, encodeCursor, encodePublicMatch, errorReply, isLocalId, isNamespace, playerIdOf, readAdvance, readCreation, readSubmission } from '@mbrg/protocol';
+import type {
+  AdvanceReply,
+  CreationReply,
+  CursorKey,
+  CursorList,
+  ErrorReply,
+  MatchEvent,
+  MatchSummary,
+  OwnPrediction,
+  Page,
+  PredictionReply,
+  PublicMatch,
+  RecordReply,
+  StateReply,
+  StepKind,
+  Timing,
+} from '@mbrg/protocol';
 import type { Clock } from '../clock';
 import { decideAdvance } from '../core/advance';
 import { createMatch, creationEvents } from '../core/create';
 import { MEMO_RETENTION_MS, decideMemo, isMemoisable } from '../core/memo';
 import type { MemoScope } from '../core/memo';
 import { decideSubmission } from '../core/predictions';
+import { readRound } from '../core/reads';
 import type { StoredPrediction, Submission } from '../core/predictions';
 import { haltMatch, runDue } from '../core/steps';
 import type { StepDeps, StepOutcome } from '../core/steps';
@@ -47,10 +67,10 @@ import { DERIVATION_RULE, commitment as commitmentOf, newSecret, secretHex } fro
 import type { RandomBytes } from '../secret';
 import { seedOfSecret } from '../seeds';
 import { StoreError } from '../store/store';
-import type { Store, StoredMatch, StoredStep } from '../store/store';
+import type { Store, StoredMatch, StoredRecord, StoredStep } from '../store/store';
 import { credentialDigest, newHostToken, newMatchId, sameDigest, sha256Ascii } from './ids';
-import { mapForStep } from './maps';
-import type { MapCatalog } from './maps';
+import { isMapFileName, mapForStep } from './maps';
+import type { MapCatalog, MapFile } from './maps';
 import type { Scheduler, SchedulerHandle } from './scheduler';
 import type { Settings } from './settings';
 
@@ -67,8 +87,8 @@ export interface CreateRequest {
   readonly body: unknown;
 }
 
-/** The reply of an advance: the reply of FR-295 (b), or the error (`step-mismatch` has its own shape until M3a unifies them). */
-export type AdvanceOutcome = { readonly ok: true; readonly reply: AdvanceReply } | { readonly ok: false; readonly error: ErrorReply | StepMismatchReply };
+/** The reply of an advance: the reply of FR-295 (b), or the error (`step-mismatch` carries the stage and N, C6). */
+export type AdvanceOutcome = { readonly ok: true; readonly reply: AdvanceReply } | { readonly ok: false; readonly error: ErrorReply };
 
 export interface AdvanceRequest {
   /** The credential the caller presented: the operator credential or the match's host token (FR-244, FR-245). Reading it from a request is M3a. */
@@ -111,6 +131,27 @@ export interface OwnPredictionsRequest {
 }
 
 export type OwnPredictionsOutcome = { readonly ok: true; readonly predictions: readonly PredictionReply[] } | { readonly ok: false; readonly error: ErrorReply };
+
+/** The outcome of a read (FR-281): the reply, or the error (`unavailable` for a storage failure, FR-292). Reads write nothing. */
+export type ReadOutcome<T> = { readonly ok: true; readonly reply: T } | { readonly ok: false; readonly error: ErrorReply };
+
+/**
+ * One page request of a list read (FR-279): the page size (1 to 500, as `readPageQuery` gives it; anything else is a
+ * programming error of the caller) and the key the previous page ended on (decoded from its cursor), absent for the first.
+ */
+export interface PageRequest<L extends CursorList> {
+  readonly limit: number;
+  readonly after?: CursorKey<L>;
+}
+
+/** The own predictions of a client (FR-270, FR-281 (h), C3): every player of its namespace, or one local id when given. */
+export interface OwnPredictionsPageRequest extends PageRequest<'predictions'> {
+  /** The namespace of the client credential (resolved by the HTTP layer); never taken from the request. */
+  readonly namespace: string;
+  readonly matchId: string;
+  /** An optional local player id (the namespace is added here, never taken from the caller's text). */
+  readonly playerId?: string;
+}
 
 /**
  * A clock step that could not run (FR-292): `unavailable` for a storage failure, `error` for anything else (a programming
@@ -183,6 +224,25 @@ export interface MatchService {
   tick(): TickReport;
   /** The public data of a match now (FR-288 victim fields in `phase-2` and `locked`; the secret only once finished, FR-246), or undefined. */
   publicMatch(matchId: string): PublicMatch | undefined;
+  /** FR-281 (b): `publicMatch` as a read outcome: `unknown-match`, or `unavailable` on a storage failure. */
+  readPublicMatch(matchId: string): ReadOutcome<PublicMatch>;
+  /** FR-281 (a), FR-279: the match list by creation instant then match id, one keyset page. */
+  listMatches(request: PageRequest<'matches'>): ReadOutcome<Page<MatchSummary>>;
+  /**
+   * FR-281 (c), FR-258, FR-302: the state at an applied round j <= N with its digest and the reported time; a round above
+   * N is `round-not-applied` naming only N; a round that is not a whole number >= 0 is `invalid-request ['round']`.
+   */
+  stateAt(matchId: string, round: number): ReadOutcome<StateReply>;
+  /** FR-281 (c), FR-258: the record of an applied round 1 <= j <= N; round 0 is `invalid-request ['round']`. */
+  recordAt(matchId: string, round: number): ReadOutcome<RecordReply>;
+  /** FR-281 (d), FR-279: the records 1..N in round order, one keyset page. */
+  records(matchId: string, request: PageRequest<'records'>): ReadOutcome<Page<RecordReply>>;
+  /** FR-281 (h), FR-270 (read), C3: the stored predictions of the caller's namespace (or one local id), one keyset page. */
+  ownPredictionsPage(request: OwnPredictionsPageRequest): ReadOutcome<Page<OwnPrediction>>;
+  /** FR-300 (host-token check): whether the credential is the host token of the match, by digest comparison; false for an unknown match. */
+  hostTokenMatches(matchId: string, credential: string): ReadOutcome<boolean>;
+  /** FR-281 (j): one of the three files of a listed map package; `unknown-map`, `unknown-path` (another name), `unavailable` (unreadable). */
+  mapFile(mapId: string, name: string): ReadOutcome<MapFile>;
   /** Registers a subscriber of every event stored after this call (FR-290); returns the function that removes it. */
   subscribe(listener: MatchListener): () => void;
   /** Deletes the memo entries past the 24 h retention, host tokens in plain form included (FR-238); returns how many. */
@@ -556,6 +616,37 @@ export function createMatchService(options: ServiceOptions): MatchService {
     });
   }
 
+  // --- Reads (FR-281, M3a T5): no transaction, no write; the reported time is kept in memory only (FR-302). ---
+
+  /** A read whose storage fails replies `unavailable` (FR-292); any other error is a programming error and is rethrown. */
+  const read = <T>(run: () => ReadOutcome<T>): ReadOutcome<T> => orUnavailable(run, (): ReadOutcome<T> => ({ ok: false, error: errorReply('unavailable') }));
+  const unknownMatch = (): { ok: false; error: ErrorReply } => ({ ok: false, error: errorReply('unknown-match') });
+  const invalidRound = (): { ok: false; error: ErrorReply } => ({ ok: false, error: errorReply('invalid-request', ['round']) });
+  const isRound = (round: unknown, min: number): boolean => typeof round === 'number' && Number.isSafeInteger(round) && round >= min;
+  /** The stored match of an id; a match id that is not a text is no match (`unknown-match`). */
+  const storedMatch = (matchId: unknown): StoredMatch | undefined => (typeof matchId === 'string' ? store.getMatch(matchId) : undefined);
+  /** The public data of a stored match now, remembering the reported time sent (FR-302). */
+  const publicNow = (stored: StoredMatch): PublicMatch => {
+    const { reported } = timesOf(stored.match);
+    remember(stored.match.matchId, reported);
+    return publicOf(stored.match, reported, stored.match.stage === 'finished' ? secretHex(stored.secret) : undefined);
+  };
+  /** A page size outside 1 to 500 never comes from `readPageQuery`: a programming error of the caller. */
+  const checkPageSize = (limit: number): void => {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > PAGE_LIMIT_MAX) throw new RangeError('the page size is a whole number from 1 to 500');
+  };
+  /**
+   * One keyset page (FR-279): `rows` were read with `limit + 1`, so a row beyond the page tells that more follow; `next` is
+   * then the cursor of the last item kept, and absent on the last page.
+   */
+  const pageFrom = <R, T, L extends CursorList>(list: L, rows: readonly R[], limit: number, item: (row: R) => T, keyOf: (row: R) => CursorKey<L>): Page<T> => {
+    const kept = rows.slice(0, limit);
+    const last = kept[kept.length - 1];
+    const items = kept.map(item);
+    return rows.length > limit && last !== undefined ? { items, next: encodeCursor(list, keyOf(last)) } : { items };
+  };
+  const recordReply = (r: StoredRecord): RecordReply => ({ round: r.round, eliminated: r.eliminated, absorber: r.absorber, transferred: [...r.transferred] });
+
   /** Everything after the shape, credential and memo checks; runs inside the transaction and writes only on success. */
   const decide = (mapId: string, timing: Timing, timingError: ErrorReply | undefined, now: number, made: (m: Committed & { reported: number }) => void): CreateOutcome => {
     const loaded = maps.load(mapId);
@@ -795,11 +886,106 @@ export function createMatchService(options: ServiceOptions): MatchService {
     },
 
     publicMatch(matchId: string): PublicMatch | undefined {
-      const stored = typeof matchId === 'string' ? store.getMatch(matchId) : undefined;
-      if (stored === undefined) return undefined;
-      const { reported } = timesOf(stored.match);
-      remember(matchId, reported);
-      return publicOf(stored.match, reported, stored.match.stage === 'finished' ? secretHex(stored.secret) : undefined);
+      const stored = storedMatch(matchId);
+      return stored === undefined ? undefined : publicNow(stored);
+    },
+
+    readPublicMatch(matchId: string): ReadOutcome<PublicMatch> {
+      return read(() => {
+        const stored = storedMatch(matchId);
+        return stored === undefined ? unknownMatch() : { ok: true, reply: publicNow(stored) };
+      });
+    },
+
+    listMatches(request: PageRequest<'matches'>): ReadOutcome<Page<MatchSummary>> {
+      const { limit, after } = request;
+      checkPageSize(limit);
+      // Only the summary fields are copied, whatever else a row could hold (no secret, digest or state, FR-281 (a)).
+      const summary = (s: MatchSummary): MatchSummary => ({ matchId: s.matchId, mapId: s.mapId, stage: s.stage, appliedRounds: s.appliedRounds, totalRounds: s.totalRounds, createdAt: s.createdAt });
+      return read(() => ({ ok: true, reply: pageFrom('matches', store.listMatches(after, limit + 1), limit, summary, (s) => [s.createdAt, s.matchId]) }));
+    },
+
+    stateAt(matchId: string, round: number): ReadOutcome<StateReply> {
+      if (!isRound(round, 0)) return invalidRound();
+      return read(() => {
+        const stored = storedMatch(matchId);
+        if (stored === undefined) return unknownMatch();
+        // A round above N gets the same reply whatever the round and the stage, naming only N (FR-258).
+        const readable = readRound(stored.match, round);
+        if (!readable.ok) return readable;
+        const state = store.getState(stored.match.matchId, round);
+        if (state === undefined) throw new RangeError('inconsistent stored data: no state at an applied round');
+        const { reported } = timesOf(stored.match);
+        remember(stored.match.matchId, reported);
+        return { ok: true, reply: { round, owners: state.state.owners, stateDigest: state.stateDigest, reportedTime: reported } };
+      });
+    },
+
+    recordAt(matchId: string, round: number): ReadOutcome<RecordReply> {
+      // A record exists from round 1 (round 0 is the creation state): `records/0` is a bad round segment (FR-281 (c)).
+      if (!isRound(round, 1)) return invalidRound();
+      return read(() => {
+        const stored = storedMatch(matchId);
+        if (stored === undefined) return unknownMatch();
+        const readable = readRound(stored.match, round);
+        if (!readable.ok) return readable;
+        const record = store.recordsAfter(stored.match.matchId, round - 1, 1)[0];
+        if (record === undefined || record.round !== round) throw new RangeError('inconsistent stored data: no record of an applied round');
+        return { ok: true, reply: recordReply(record) };
+      });
+    },
+
+    records(matchId: string, request: PageRequest<'records'>): ReadOutcome<Page<RecordReply>> {
+      const { limit, after } = request;
+      checkPageSize(limit);
+      return read(() => {
+        const stored = storedMatch(matchId);
+        if (stored === undefined) return unknownMatch();
+        const rows = store.recordsAfter(stored.match.matchId, after === undefined ? 0 : after[0], limit + 1);
+        return { ok: true, reply: pageFrom('records', rows, limit, recordReply, (r) => [r.round]) };
+      });
+    },
+
+    ownPredictionsPage(request: OwnPredictionsPageRequest): ReadOutcome<Page<OwnPrediction>> {
+      const { namespace, matchId, playerId, limit, after } = request;
+      // The namespace comes from the configured credential (FR-284): one outside its set is a programming error of the caller.
+      if (!isNamespace(namespace)) throw new TypeError('the caller identity is a namespace');
+      // Checked before the store sees it (the store refuses it as a RangeError): a namespace cannot be sent (FR-270).
+      if (playerId !== undefined && !isLocalId(playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+      checkPageSize(limit);
+      return read(() => {
+        const stored = storedMatch(matchId);
+        if (stored === undefined) return unknownMatch();
+        const rows = store.predictionsInNamespace(stored.match.matchId, namespace, after, limit + 1, playerId);
+        const own = ({ localId, prediction: p }: { localId: string; prediction: StoredPrediction }): OwnPrediction => ({
+          playerId: localId,
+          kind: p.kind,
+          ...(p.kind === 'winner' ? {} : { round: p.round }),
+          choice: p.choice,
+          version: p.version,
+        });
+        return { ok: true, reply: pageFrom('predictions', rows, limit, own, (r) => [r.localId, r.prediction.round, r.prediction.kind]) };
+      });
+    },
+
+    hostTokenMatches(matchId: string, credential: string): ReadOutcome<boolean> {
+      const presented = typeof credential === 'string' ? credentialDigest(credential) : undefined;
+      if (typeof matchId !== 'string') return { ok: true, reply: false };
+      return read(() => {
+        const digest = store.hostTokenDigest(matchId);
+        // Compared as digests in time independent of the token (FR-300); an unknown match has no host token.
+        return { ok: true, reply: presented !== undefined && digest !== undefined && sameDigest(presented, digest) };
+      });
+    },
+
+    mapFile(mapId: string, name: string): ReadOutcome<MapFile> {
+      // Only the three fixed names exist (FR-281 (j)): any other text is not a path of the server, whatever it contains.
+      if (!isMapFileName(name)) return { ok: false, error: errorReply('unknown-path') };
+      const file = maps.file?.(mapId, name);
+      if (file === undefined) return { ok: false, error: errorReply('unknown-map') };
+      // A listed package whose file cannot be read now: the server cannot serve it (retry later).
+      if (file === null) return { ok: false, error: errorReply('unavailable') };
+      return { ok: true, reply: file };
     },
 
     subscribe(listener: MatchListener): () => void {

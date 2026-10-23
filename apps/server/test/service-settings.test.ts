@@ -108,13 +108,23 @@ describe('map list', () => {
 });
 
 describe('settings', () => {
-  const env = { MBRG_OPERATOR_CREDENTIAL: 'secret-operator-value', MBRG_MAPS: '{"dev":"maps/dev","big":"maps/big"}' };
+  const env = { MBRG_OPERATOR_CREDENTIAL: 'secret-operator-value0', MBRG_MAPS: '{"dev":"maps/dev","big":"maps/big"}' };
 
   it('FR-232 (running-match limit) the limit defaults to 20 and the settings carry the credential, the map list and the database path', () => {
     const read = readSettings(env);
     expect(read).toStrictEqual({
       ok: true,
-      settings: { operatorCredential: 'secret-operator-value', maps: { dev: 'maps/dev', big: 'maps/big' }, runningMatchLimit: 20, databasePath: 'mbrg.sqlite' },
+      settings: {
+        operatorCredential: 'secret-operator-value0',
+        maps: { dev: 'maps/dev', big: 'maps/big' },
+        runningMatchLimit: 20,
+        databasePath: 'mbrg.sqlite',
+        clients: [],
+        allowedOrigins: [],
+        host: '127.0.0.1',
+        port: 8787,
+        limits: { commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120 },
+      },
     });
     expect(DEFAULT_RUNNING_MATCH_LIMIT).toBe(20);
     expect(readSettings({ ...env, MBRG_MAX_RUNNING_MATCHES: '3', MBRG_DATABASE: ':memory:' })).toMatchObject({ ok: true, settings: { runningMatchLimit: 3, databasePath: ':memory:' } });
@@ -136,14 +146,18 @@ describe('settings', () => {
       expect(read.ok, name).toBe(false);
       if (!read.ok) {
         expect(read.problems).toStrictEqual([name]);
-        expect(JSON.stringify(read)).not.toContain('secret-operator-value');
+        expect(JSON.stringify(read)).not.toContain('secret-operator-value0');
       }
     }
     expect(readSettings({})).toStrictEqual({ ok: false, problems: ['MBRG_OPERATOR_CREDENTIAL', 'MBRG_MAPS'] });
   });
 
   it('FR-260 the settings read only the listed variables and have no field for a round-seed source', () => {
-    expect(SETTING_VARIABLES).toStrictEqual(['MBRG_OPERATOR_CREDENTIAL', 'MBRG_MAPS', 'MBRG_MAX_RUNNING_MATCHES', 'MBRG_DATABASE']);
+    expect(SETTING_VARIABLES).toStrictEqual([
+      'MBRG_OPERATOR_CREDENTIAL', 'MBRG_MAPS', 'MBRG_MAX_RUNNING_MATCHES', 'MBRG_DATABASE', 'MBRG_CLIENTS',
+      'MBRG_ALLOWED_ORIGINS', 'MBRG_HOST', 'MBRG_PORT', 'MBRG_LIMIT_COMMANDS', 'MBRG_LIMIT_READS',
+      'MBRG_LIMIT_SUBMISSIONS', 'MBRG_LIMIT_ADVANCES', 'MBRG_LIMIT_ANONYMOUS',
+    ]);
     const plain = readSettings(env);
     const noisy = readSettings({
       ...env,

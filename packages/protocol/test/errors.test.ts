@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { ERROR_ORDER, ERROR_REPLY_KEYS, errorReply, firstError, listsSeveral, type ErrorKind } from '../src/index';
+import {
+  ERROR_ORDER,
+  ERROR_REPLY_KEYS,
+  STAGES,
+  errorReply,
+  firstError,
+  listsSeveral,
+  rateLimited,
+  roundNotApplied,
+  stepMismatch,
+  type ErrorKind,
+  type ErrorReply,
+} from '../src/index';
 
 // FR-301 literally, in order (P33). `map-validation` stands for the map validation errors (001 order).
 const FR_301 = [
@@ -53,9 +65,52 @@ describe('error kinds', () => {
   });
 
   it('FR-301 the error shape has no field able to carry a secret, credential, token or seed', () => {
-    expect([...ERROR_REPLY_KEYS]).toStrictEqual(['kind', 'items']);
+    expect([...ERROR_REPLY_KEYS]).toStrictEqual(['kind', 'items', 'stage', 'appliedRounds', 'retryAfter']);
     expect(Object.keys(errorReply('forbidden'))).toStrictEqual(['kind']);
     expect(Object.keys(errorReply('invalid-timing', ['a']))).toStrictEqual(['kind', 'items']);
     for (const key of ERROR_REPLY_KEYS) expect(key).not.toMatch(/secret|token|credential|seed|key|password/i);
+  });
+});
+
+describe('the unified error replies (C6)', () => {
+  it('FR-301 (reply shapes) type level: the ErrorReply keys are exactly the pinned key list', () => {
+    // A key added to ErrorReply without ERROR_REPLY_KEYS (or the reverse) breaks the typecheck here.
+    const all: Record<keyof ErrorReply, true> = { kind: true, items: true, stage: true, appliedRounds: true, retryAfter: true };
+    type Listed = (typeof ERROR_REPLY_KEYS)[number];
+    const same: [Listed] extends [keyof ErrorReply] ? ([keyof ErrorReply] extends [Listed] ? true : false) : false = true;
+    expect(same).toBe(true);
+    expect(Object.keys(all)).toStrictEqual([...ERROR_REPLY_KEYS]);
+  });
+
+  it('FR-301 (reply shapes) stepMismatch(stage, n) has exactly the shape M2b stored, so older memo entries decode unchanged', () => {
+    // The literal M2b shape (service-steps, core-advance): kind, stage, appliedRounds in this order.
+    const stored = JSON.parse('{"kind":"step-mismatch","stage":"phase-2","appliedRounds":3}') as ErrorReply;
+    expect(stepMismatch('phase-2', 3)).toStrictEqual(stored);
+    expect(JSON.stringify(stepMismatch('phase-2', 3))).toBe('{"kind":"step-mismatch","stage":"phase-2","appliedRounds":3}');
+    for (const stage of STAGES) expect(stepMismatch(stage, 0)).toStrictEqual({ kind: 'step-mismatch', stage, appliedRounds: 0 });
+    for (const bad of [-1, 1.5, Number.NaN, Infinity]) expect(() => stepMismatch('phase-1', bad)).toThrow(RangeError);
+    expect(() => stepMismatch('playing' as never, 0)).toThrow(RangeError);
+  });
+
+  it('FR-258 (reply shape) roundNotApplied(n) names only N, in appliedRounds, with no items', () => {
+    expect(roundNotApplied(7)).toStrictEqual({ kind: 'round-not-applied', appliedRounds: 7 });
+    expect(Object.keys(roundNotApplied(0))).toStrictEqual(['kind', 'appliedRounds']);
+    expect(roundNotApplied(2)).not.toHaveProperty('items');
+    for (const bad of [-1, 2.5, Number.NaN]) expect(() => roundNotApplied(bad)).toThrow(RangeError);
+  });
+
+  it('FR-301 (reply shapes) rateLimited(s) carries retryAfter as a whole number of seconds of at least 1, rounded up', () => {
+    expect(rateLimited(17)).toStrictEqual({ kind: 'rate-limited', retryAfter: 17 });
+    expect(rateLimited(16.2)).toStrictEqual({ kind: 'rate-limited', retryAfter: 17 });
+    expect(rateLimited(0.3)).toStrictEqual({ kind: 'rate-limited', retryAfter: 1 });
+    expect(rateLimited(0)).toStrictEqual({ kind: 'rate-limited', retryAfter: 1 });
+    expect(rateLimited(59.001).retryAfter).toBe(60);
+    for (const bad of [-1, Number.NaN, Infinity]) expect(() => rateLimited(bad)).toThrow(RangeError);
+  });
+
+  it('FR-301 (reply shapes) every constructor writes only pinned keys, none able to hold a secret', () => {
+    for (const reply of [stepMismatch('locked', 1), roundNotApplied(1), rateLimited(3), errorReply('invalid-timing', ['a', 'b'])]) {
+      for (const key of Object.keys(reply)) expect(ERROR_REPLY_KEYS as readonly string[]).toContain(key);
+    }
   });
 });

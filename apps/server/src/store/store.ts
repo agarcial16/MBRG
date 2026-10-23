@@ -2,23 +2,41 @@
 // goes through this interface, so a change in `node:sqlite` touches `sqlite.ts` only. Reads run anywhere; every
 // write runs inside `transaction` (a write outside one throws). No operation takes or returns an absorber outside a
 // record of an applied round, a pending state or a credential text (PD11, PD12).
-import type { MatchEvent, PublicState } from '@mbrg/protocol';
+import type { MatchEvent, MatchSummary, PredictionKind, PublicState } from '@mbrg/protocol';
 import type { MemoScope } from '../core/memo';
 import type { StoredPrediction } from '../core/predictions';
 import type { CoreMatch, StepRow } from '../core/view';
 
 /**
  * Why a store could not be opened or used. `store-failure` and `database-locked` are storage failures (the service replies
- * `unavailable` and retries a clock step, FR-292); `invalid-write` and `unknown-schema-version` are not.
+ * `unavailable` and retries a clock step, FR-292); `invalid-write` (a refused write, a constraint violation, a misuse or
+ * a logic error of SQLite) and `unknown-schema-version` are not.
  */
 export type StoreErrorCode = 'unknown-schema-version' | 'database-locked' | 'store-failure' | 'invalid-write';
 
+/** What a StoreError keeps of the error it classifies (NFR-54: for the log of T9, never stored or sent). */
+export interface StoreErrorDetails {
+  /** The original error (a native SQLite error). Not an enumerable field: serialising the StoreError leaves it out. */
+  readonly cause?: unknown;
+  /** The SQLite result code (`errcode`, extended codes included), when the platform attaches it. */
+  readonly sqliteCode?: number;
+  /** The generic text of that result code (`errstr`, no value), when the platform attaches it. */
+  readonly sqliteText?: string;
+}
+
 export class StoreError extends Error {
   readonly code: StoreErrorCode;
-  constructor(code: StoreErrorCode, message: string) {
-    super(message);
+  readonly sqliteCode?: number;
+  readonly sqliteText?: string;
+  /**
+   * The message never quotes the native message (it may hold values, NFR-54); the native error is the cause.
+   */
+  constructor(code: StoreErrorCode, message: string, details: StoreErrorDetails = {}) {
+    super(message, 'cause' in details ? { cause: details.cause } : undefined);
     this.name = 'StoreError';
     this.code = code;
+    if (details.sqliteCode !== undefined) this.sqliteCode = details.sqliteCode;
+    if (details.sqliteText !== undefined) this.sqliteText = details.sqliteText;
   }
 }
 
@@ -56,6 +74,17 @@ export interface StoredRecord {
   readonly absorber: number;
   readonly transferred: readonly number[];
 }
+
+/** A stored prediction of a namespace's player, with the local part of its player id (FR-270, C3). */
+export interface NamespacePrediction {
+  readonly localId: string;
+  readonly prediction: StoredPrediction;
+}
+
+/** The keyset of the match list (FR-279 (b)): creation instant, then match id. */
+export type MatchListKey = readonly [createdAt: number, matchId: string];
+/** The keyset of the own predictions (FR-279 (b)): local player id, round (0 for the winner), kind. */
+export type PredictionKey = readonly [localId: string, round: number, kind: PredictionKind];
 
 /** A memo entry: the digest of the canonical content, the reply as given and the first-use instant (FR-282, PD12). */
 export interface StoredMemo {
@@ -97,6 +126,21 @@ export interface Store {
   putRecord(matchId: string, record: StoredRecord): void;
   /** The records 1..N in round order. */
   records(matchId: string): StoredRecord[];
+  /**
+   * The match list after `after` (exclusive; from the start when absent), at most `limit` summaries ordered by creation
+   * instant then match id (code unit order). Selects the summary columns only: no secret, host-token digest or owners.
+   */
+  listMatches(after: MatchListKey | undefined, limit: number): MatchSummary[];
+  /** The records of the rounds above `round`, in round order, at most `limit` (FR-279). */
+  recordsAfter(matchId: string, round: number, limit: number): StoredRecord[];
+  /**
+   * The stored predictions of every player id `<namespace>:<local id>` of a match (only `localId` when given), after
+   * `after` (exclusive), at most `limit`, ordered by local id, round (0 for the winner), kind (FR-270, FR-279, C3). The
+   * namespace is matched exactly, never as a pattern; a namespace or local id outside its character set is a RangeError.
+   */
+  predictionsInNamespace(matchId: string, namespace: string, after: PredictionKey | undefined, limit: number, localId?: string): NamespacePrediction[];
+  /** The stored digest of a match's host token, or undefined for an unknown match (FR-300, PD16). */
+  hostTokenDigest(matchId: string): string | undefined;
   /** Stores a step row (FR-240, FR-293); two rows of one transaction keep their insertion order. */
   putStep(matchId: string, step: StoredStep): void;
   /** The step rows in the order they were stored. */

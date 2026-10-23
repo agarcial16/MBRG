@@ -307,8 +307,9 @@ describe('states, records and steps', () => {
       const rows = [step(1, 'phase-1-close', 1_700_000_080_123, 2, 3, 'clock'), step(1, 'phase-2-close', 1_700_000_090_999, 4, 4, 'manual'), step(1, 'application', 1_700_000_100_001, 5, 6, 'late')];
       store.transaction(() => rows.forEach((row) => store.putStep(base.matchId, row)));
       expect(store.steps(base.matchId)).toStrictEqual(rows);
-      expect(() => store.transaction(() => store.putStep(base.matchId, rows[0]!))).toThrow();
-      expect(() => store.transaction(() => store.putStep('missing', rows[0]!))).toThrow();
+      // A raw constraint violation (primary key, foreign key) is a refused write, not a storage failure (T4).
+      expect(codeOf(() => store.transaction(() => store.putStep(base.matchId, rows[0]!)))).toBe('invalid-write');
+      expect(codeOf(() => store.transaction(() => store.putStep('missing', rows[0]!)))).toBe('invalid-write');
       expect(store.steps('missing')).toStrictEqual([]);
     });
   });

@@ -83,7 +83,7 @@ describe('the test-only round-seed source', () => {
   it('FR-260 once built, the service offers no way to set or read a seed source', () => {
     const h = serviceHarness({ testSeedSource: () => (k) => k });
     try {
-      expect(Object.keys(h.service).sort()).toStrictEqual(['advance', 'close', 'create', 'ownPredictions', 'publicMatch', 'purgeMemos', 'start', 'submit', 'subscribe', 'tick']);
+      expect(Object.keys(h.service).sort()).toStrictEqual(['advance', 'close', 'create', 'hostTokenMatches', 'listMatches', 'mapFile', 'ownPredictions', 'ownPredictionsPage', 'publicMatch', 'purgeMemos', 'readPublicMatch', 'recordAt', 'records', 'start', 'stateAt', 'submit', 'subscribe', 'tick']);
       expect(Object.keys(h.settings).filter((k) => SEED_WORDS.test(k))).toStrictEqual([]);
     } finally {
       h.close();
@@ -108,9 +108,14 @@ describe('the production entry point', () => {
     const call = /createMatchService\(\{([^}]*)\}\)/.exec(main);
     expect(call).not.toBeNull();
     expect(call![1]!.split(',').map((part) => part.trim().split(':')[0]!.trim())).toStrictEqual(['store', 'clock', 'maps', 'settings']);
-    // The settings module reads the four listed variables and never anything seed-like.
+    // The settings module reads the thirteen listed variables and never anything seed-like.
     expect(SEED_WORDS.test(settings)).toBe(false);
-    expect([...new Set([...settings.matchAll(/env\.([A-Z_]+)/g)].map((m) => m[1]))].sort()).toStrictEqual(['MBRG_DATABASE', 'MBRG_MAPS', 'MBRG_MAX_RUNNING_MATCHES', 'MBRG_OPERATOR_CREDENTIAL'].sort());
+    expect([...new Set([...settings.matchAll(/env\.([A-Z_]+)/g)].map((m) => m[1]))].sort()).toStrictEqual(
+      [
+        'MBRG_DATABASE', 'MBRG_MAPS', 'MBRG_MAX_RUNNING_MATCHES', 'MBRG_OPERATOR_CREDENTIAL', 'MBRG_CLIENTS', 'MBRG_ALLOWED_ORIGINS',
+        'MBRG_HOST', 'MBRG_PORT', 'MBRG_LIMIT_COMMANDS', 'MBRG_LIMIT_READS', 'MBRG_LIMIT_SUBMISSIONS', 'MBRG_LIMIT_ADVANCES', 'MBRG_LIMIT_ANONYMOUS',
+      ].sort(),
+    );
   });
 
   it('NFR-47 (f) a started production entry point is unchanged by environment variables named like a seed source', () => {
