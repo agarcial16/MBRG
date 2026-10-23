@@ -201,9 +201,10 @@ describe('traceability', () => {
     // M2a target (T10): 40 done / 56 pending; each M2a task moves its ids in its own commit.
     // M2b target (T8): 63 done / 33 pending. M2b' target (T7'): 67 done / 29 pending (plan section 17).
     // M2b' T1' starts at 63 / 33; T2' adds FR-250, FR-251 (65 / 31); T4' adds FR-294 (66 / 30); T6' adds NFR-57 (67 / 29).
-    // M3a target (T10): 76 done / 20 pending (plan section 18.10). M3a T1 starts at 67 / 29; T2 adds FR-279 (68 / 28);
-    // T3 adds FR-283, FR-299 (70 / 26); T4 moves none; T5 adds FR-281 (71 / 25); T6 adds FR-284, FR-286 (73 / 23);
-    // T7 adds FR-280, FR-298 (75 / 21); T8 adds FR-285 (76 / 20); T9 moves none.
+    // M3a target (T7, after the C8 split): 73 done / 23 pending (plan section 18.10). M3a T1 starts at 67 / 29; T2 adds FR-279 (68 / 28);
+    // T3 adds FR-283, FR-299 (70 / 26); T4 moves none; T5 adds FR-281 (71 / 25); T6 adds FR-284, FR-286 (73 / 23); T7 moves none.
+    // M3a' target (T5'): 76 done / 20 pending. T1' starts at 73 / 23; T2' adds FR-280, FR-298 (75 / 21); T3' adds FR-285 (76 / 20);
+    // T4' moves none.
     expect(DONE_008).toHaveLength(73);
     expect(PENDING_008).toHaveLength(23);
     expect(new Set([...PENDING_008, ...DONE_008]).size).toBe(96);
@@ -211,8 +212,9 @@ describe('traceability', () => {
     for (const id of PENDING_008) expect(expected, id).toContain(id);
   });
 
-  it("NFR-55 M2b' closing state, now 73 ids done and 23 pending: the M2b and M2b' ids done, the M3a ids done or pending, later ids pending", () => {
-    // M2b' closing state (T7', plan sections 11 and 13): asserted explicitly, with the M3a ids moved so far (T2: FR-279; T3: FR-283, FR-299; T5: FR-281; T6: FR-284, FR-286).
+  it("NFR-55 M3a closing state, 73 ids done and 23 pending: the M2b, M2b' and M3a ids done, the M3a' and later ids pending", () => {
+    // M3a closing state (T7, after the C8 split; plan sections 11 and 13): asserted explicitly. M3a moved six ids
+    // (T2: FR-279; T3: FR-283, FR-299; T5: FR-281; T6: FR-284, FR-286); M3a' moves the other three (FR-280, FR-298, FR-285).
     expect(DONE_008).toHaveLength(73);
     expect(PENDING_008).toHaveLength(23);
     expect(DONE_008.length + PENDING_008.length).toBe(96);
@@ -230,20 +232,33 @@ describe('traceability', () => {
     for (const id of closedByM2b2) expect(DONE_008, id).toContain(id);
     // M2b and M2b' together closed 27 ids on top of the 40 of M1 and M2a.
     expect(new Set([...closedByM2b, ...closedByM2b2]).size).toBe(27);
-    // M3a, M3b, M4 and M5: still pending (a literal list of every one of the 23).
+    // M3a closed six ids (plan section 18.10, after the C8 split), a literal list independent of DONE_008.
+    const closedByM3a = ['FR-279', 'FR-281', 'FR-283', 'FR-284', 'FR-286', 'FR-299'];
+    expect(new Set(closedByM3a).size).toBe(6);
+    for (const id of closedByM3a) expect(DONE_008, id).toContain(id);
+    // Up to M3a: the 40 ids of M1 and M2a, 27 of M2b and M2b', 6 of M3a, all distinct and all done.
+    const closedSinceM2b = new Set([...closedByM2b, ...closedByM2b2, ...closedByM3a]);
+    expect(closedSinceM2b.size).toBe(33);
+    expect(DONE_008.filter((id) => !closedSinceM2b.has(id))).toHaveLength(40);
+    // M3a' closes three ids (T2': FR-280, FR-298; T3': FR-285): still pending.
+    const closedByM3a2 = ['FR-280', 'FR-285', 'FR-298'];
+    for (const id of closedByM3a2) {
+      expect(PENDING_008, id).toContain(id);
+      expect(DONE_008, id).not.toContain(id);
+    }
+    // M3b, M4 and M5: still pending (a literal list of every one of the 20).
     const laterIds = [
-      'FR-271', 'FR-272', 'FR-273', 'FR-274', 'FR-275', 'FR-276', 'FR-277', 'FR-278', 'FR-280',
-      'FR-285', 'FR-287', 'FR-298',
+      'FR-271', 'FR-272', 'FR-273', 'FR-274', 'FR-275', 'FR-276', 'FR-277', 'FR-278',
+      'FR-287',
       'FR-303', 'FR-304', 'FR-305', 'FR-306', 'FR-307', 'FR-308', 'FR-309', 'FR-310', 'FR-311',
       'NFR-49', 'NFR-56',
     ];
-    expect(laterIds).toHaveLength(23);
-    expect([...PENDING_008].sort()).toStrictEqual([...laterIds].sort());
+    expect(laterIds).toHaveLength(20);
     for (const id of laterIds) expect(DONE_008, id).not.toContain(id);
-    // The 9 ids M3a closes (plan section 18.10), a literal list; each one is still pending (in laterIds) or already moved (in DONE_008); all asserted done only at M3a T10 (76 / 20).
-    const closedByM3a = ['FR-279', 'FR-280', 'FR-281', 'FR-283', 'FR-284', 'FR-285', 'FR-286', 'FR-298', 'FR-299'];
-    expect(new Set(closedByM3a).size).toBe(9);
-    for (const id of closedByM3a) expect(laterIds.includes(id) || DONE_008.includes(id), id).toBe(true);  });
+    // Exactly the M3a' ids and the later ids are pending, nothing else.
+    expect(new Set([...closedByM3a2, ...laterIds]).size).toBe(23);
+    expect([...PENDING_008].sort()).toStrictEqual([...closedByM3a2, ...laterIds].sort());
+  });
 
   it('NFR-55 no pending id of spec 008 is already traced by a test title', () => {
     const used = tracedIds(testSources);
