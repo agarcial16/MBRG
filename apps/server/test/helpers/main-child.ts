@@ -141,3 +141,45 @@ export async function runToExit(env: Record<string, string>, args: readonly stri
     await child.kill();
   }
 }
+
+const KILL_CHILD = fileURLToPath(new URL('../fixtures/kill-child.ts', import.meta.url));
+
+export interface KillResult {
+  /** Whether the fixture printed the awaited line (and was killed there by its PID). */
+  readonly reached: boolean;
+  readonly code: number | null;
+  readonly signal: NodeJS.Signals | null;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+/**
+ * Runs `fixtures/kill-child.ts` with `args` (the database file first) and kills it by PID as soon as it prints `line`: the
+ * fixture blocks right there, so the kill falls at a controlled point (M3b' T3'). `process.execPath` and `--import tsx`
+ * only, no POSIX tool: the same on Windows and Linux. Gives up (kills) after `timeoutMs`.
+ */
+export function killFixtureAt(args: readonly string[], line: string, timeoutMs = 60_000): Promise<KillResult> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['--import', 'tsx', KILL_CHILD, ...args], { cwd: SERVER_DIR, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    let stdout = '';
+    let stderr = '';
+    let reached = false;
+    const guard = setTimeout(() => child.kill('SIGKILL'), timeoutMs);
+    child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
+      stdout += chunk;
+      if (!reached && stdout.split('\n').some((l) => l.startsWith(line))) {
+        reached = true;
+        child.kill('SIGKILL');
+      }
+    });
+    child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr += chunk));
+    child.on('error', (error) => {
+      clearTimeout(guard);
+      reject(error);
+    });
+    child.on('close', (code, signal) => {
+      clearTimeout(guard);
+      resolve({ reached, code, signal, stdout, stderr });
+    });
+  });
+}

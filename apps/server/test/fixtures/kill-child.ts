@@ -11,14 +11,10 @@ import { openStore } from '../../src/store/sqlite';
 import type { Store } from '../../src/store/store';
 import { perform, scriptCursor, serviceOn } from '../helpers/durability-script';
 import { fakeClock } from '../helpers/fake-clock';
-import { START_MS } from '../helpers/service-harness';
+import { CLOCK_TIMING, OPERATOR, START_MS, creationBody } from '../helpers/service-harness';
 
 const [file, mode, at] = process.argv.slice(2);
 const k = Number(at);
-if (file === undefined || (mode !== 'between' && mode !== 'inside') || !Number.isInteger(k)) {
-  writeSync(2, 'usage: kill-child <file> between|inside <action>\n');
-  process.exit(2);
-}
 
 /** Prints the line and blocks the only thread until the parent kills the process. */
 const hold = (line: string): never => {
@@ -27,6 +23,44 @@ const hold = (line: string): never => {
   writeSync(1, 'not killed\n');
   process.exit(3);
 };
+
+/** The clock reading of the restarted server in `late-start`: long after the first anchor (C1 = +80 s) of the match. */
+const LATE_START_OFFSET_MS = 500_000;
+
+/**
+ * M3b' T3': a kill after the COMMIT of a decision and before its publication reaches anyone (a stream hub subscribes after
+ * the listener registered here, and listeners run in registration order). Prints `created <matchId>` first.
+ * - `after-commit`: the phase-1 close of a clock match at C1 (the clock tick of a running server);
+ * - `late-start`: a server restarted long after C1; the late phase-1 close is performed by `start()`.
+ */
+function holdAtPublication(path: string, kind: 'after-commit' | 'late-start'): never {
+  const clock = fakeClock(START_MS);
+  let service = serviceOn(openStore(path), clock, path);
+  const created = service.create({ credential: OPERATOR, body: creationBody('c-1', { timing: { ...CLOCK_TIMING } }) });
+  if (!created.ok) {
+    writeSync(2, 'creation failed\n');
+    process.exit(2);
+  }
+  writeSync(1, `created ${created.reply.matchId}\n`);
+  if (kind === 'late-start') {
+    service.close();
+    clock.set(START_MS + LATE_START_OFFSET_MS);
+    service = serviceOn(openStore(path), clock, path);
+  } else {
+    clock.set(START_MS + 80_000);
+  }
+  service.subscribe((_matchId, events) => hold(`published ${events.map((e) => e.seq).join(',')}`));
+  if (kind === 'after-commit') service.tick();
+  else service.start();
+  writeSync(1, 'not held\n');
+  process.exit(4);
+}
+
+if (file !== undefined && (mode === 'after-commit' || mode === 'late-start')) holdAtPublication(file, mode);
+if (file === undefined || (mode !== 'between' && mode !== 'inside') || !Number.isInteger(k)) {
+  writeSync(2, 'usage: kill-child <file> between|inside <action> | after-commit | late-start\n');
+  process.exit(2);
+}
 
 const base = openStore(file);
 const state = { action: -1 };
