@@ -74,7 +74,7 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Run: typecheck clean; `npm test` x2 (also `CI=1`): 177 files, 3015 passed, 3 skipped. Mutations (full suite, all caught): two keys of `victim-revealed` swapped, extra member accepted, blank line dropped from the frame, parameter preferred to header, leading zero accepted, `Allow-Headers` missing.
 - Untested: nothing on the wire yet (T5).
 - Next step: T3 (stream limit settings, open-stream gauge).
-- T2 commit: 6b0142b (about 600 changed lines of src + tests against about 450 estimated).
+- T2 commit: 6b0142b (489 changed lines of src + tests against about 450 estimated).
 
 ### M3b T3 - Stream limit settings and the open-stream gauge
 - Changed: `service/settings.ts` (`Limits.streams` 50 and `anonymousStreams` 5; `MBRG_LIMIT_STREAMS` and `MBRG_LIMIT_ANONYMOUS_STREAMS`, 1 to 1,000,000, 15 names in `SETTING_VARIABLES`, problems in variable order); `http/limits.ts` (`createGauge`: `open(keys)` -> `{ ok, lease }` or `{ ok: false }`, idempotent `release`, `count`, `keyCount`; `streamKeys`: operator and client at `streams:<digest>`, every other role at `streams-address:<address>`); `helpers/main-child.ts` raises both limits for child tests.
@@ -82,7 +82,7 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Run: typecheck clean; `npm test` and `CI=1 npm test`: 177 files, 3022 passed, 3 skipped. Mutations (full suite, all caught): default 5 -> 6, `release` not idempotent, host counted under a credential key, a refused open still counting (the first draft of the refused-open test missed it: added a count assertion on the full key).
 - Untested: the gauge is not wired to any route yet (T4/T5).
 - Next step: T4 (replay read `eventsAfter`, stream hub).
-- T3 commit: 01d40ed (about 180 changed lines of src + tests against about 300 estimated).
+- T3 commit: 01d40ed (195 changed lines of src + tests against about 300 estimated).
 
 ### M3b T4 - The replay read and the stream hub
 - Changed: `service/matches.ts` (`eventsAfter(matchId, after | undefined)` -> `ReadOutcome<{ lastSeq, events }>`: no events without a number or when `after >= lastSeq` (no store read, keeps a huge number out of SQL), `unknown-match`, `unavailable`, writes nothing; a number that is not a whole number from 0 is a RangeError of the caller); `http/streams.ts` (new, platform): `createStreamHub({ service, scheduler, clock, bufferLimit?, heartbeatMs? })` with `open({ matchId, after, response, headers, lease })`, `openCount`, `closeAll`. `open` is one synchronous turn (read, register, headers + flush, replay as one write); one service subscriber frames a decision once and writes the same bytes as one write per stream; per stream `last` filter; heartbeat via `Scheduler.at` (armed with the first stream, cadence `due + 14,000`, cancelled with the last); a stream over the buffer limit or whose write throws is dropped (destroy, lease released once); `closeAll` ends the streams, releases leases, cancels the heartbeat, unsubscribes, later opens are `unavailable`. On a failed open the lease stays with the caller. A response that throws during the headers or replay is dropped and `open` still answers ok (the connection is gone).
@@ -90,14 +90,14 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Run: typecheck clean; `npm test` and `CI=1 npm test`: 179 files, 3054 passed, 3 skipped. Mutations (full suite, all caught): registration deferred by a microtask, seq filter removed, heartbeat interval 15,001, heartbeat frame with an id, buffer limit ignored, `closeAll` without unsubscribing.
 - Decision beyond the plan: `after` for a number past 2^53 - 1 (`beyond`) is passed by the route (T5) as `Number.MAX_SAFE_INTEGER`; the hub has no separate beyond mode.
 - Next step: T5 (the route, `streams` option, hand-written reader, wire tests).
-- T4 commit: 6f5399b (about 800 changed lines of src + tests against about 650 estimated).
+- T4 commit: 6f5399b (829 changed lines of src + tests against about 650 estimated).
 
 ### M3b T5 - The event-stream route over HTTP and the hand-written reader
 - Changed: `http/router.ts` (`Route.stream`, `RouteContext.lastEventId`, `Reply` kind `stream`); `http/server.ts` (route `GET /matches/:id/events`: `checkQuery` allows only `lastEventId`, `shape` reads the starting number, `decide` returns the stream reply, `beyond` becomes `Number.MAX_SAFE_INTEGER`; stage 1 takes a gauge place with the per-minute admission and a refusal of either is 429 with the larger wait (15 s for the gauge, D28) and the ticket cancelled; the place is released in `finally` unless the hub took it; a client already gone is not opened; option `streams`, `SERVER_OPTION_KEYS` gains it); `http/respond.ts` (`streamHeaders`); `main.ts` builds `createStreamHub` and passes it. Test helpers: `helpers/sse-reader.ts` (over `node:http`, not `fetch`: custom headers such as `Origin` and `Last-Event-ID`, and the raw bytes), `server-harness.ts` (builds a hub on the fake clock and scheduler, exposes `streams` and `scheduler`).
 - Tests: `http-stream.test.ts` (17, including a child process of `main.ts` that reads the first event of a real stream), `http-stream-limits.test.ts` (10), `http-pipeline.test.ts` option keys (6 now).
 - Run: typecheck clean; `npm test` and `CI=1 npm test`: 181 files, 3081 passed, 3 skipped. Mutations (full suite, all caught): gauge refusal moved after the shape stage, lease kept after a 404, read ticket not cancelled on a gauge refusal, header ignored, `*` sent whatever the credential, Retry-After from the per-minute wait only.
 - Decisions beyond the plan: the stream reply is a request to open (`matchId`, `after`) and the pipeline calls the hub with the response, so `decide` needs no response; a repeated `lastEventId` parameter is 400 naming `lastEventId`; `shutdown.ts` is untouched (T3' of M3b' wires `closeAll`), so an open stream still waits the grace at shutdown for now.
-- Size: about 840 changed lines against about 650 estimated (1.3x).
+- Size: 749 changed lines against about 650 estimated (1.15x).
 - Next step: T6 (ledger, process checks, plan sections 11 and 13).
 - T5 commit: 98905fb (749 changed lines of src + tests against about 650 estimated).
 
@@ -106,3 +106,7 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Process checks: `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server/test/golden` clean (goldens and digests unchanged); no `package.json`, lockfile or `.nvmrc` change; `npm ci --dry-run` ok; scans as in plan 13.
 - Not done by this agent (as instructed): push, PR, CI run on Linux, squash. The PR must list E1 to E10 as decided, D28, the ledger and the figures of plan section 13.
 - Next step: review and the user's OK for the PR; then M3b' (T1' to T5').
+
+### M3b review nits (docs and test titles only)
+- Changed: size figures in this file aligned to plan section 13 (T2 489, T3 195, T4 829, T5 749); plan 19.1 notes that the `fetch` reader and the `createShutdown` dependency are superseded; plan 13 notes the defensive publish gap; three test titles and a fake-response comment reworded to what they test; `streams.ts` header order fixed (register before writes). No behaviour change.
+- Next step: review and PR for M3b, then M3b' T1'.

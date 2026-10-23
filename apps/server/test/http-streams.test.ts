@@ -163,7 +163,7 @@ describe('stream hub: opening and replay', () => {
     expect(res.chunks).toStrictEqual([frames([newer])]);
   });
 
-  it('FR-290 (stream, hub) a failed open (unknown match, storage failure) answers the error, writes nothing and keeps the lease with the caller', () => {
+  it('FR-290 (stream, hub) a failed open (unknown match) answers the error, writes nothing and keeps the lease with the caller', () => {
     const r = rig();
     const res = new FakeResponse(r.h.clock);
     const lease: StreamLease = { release: () => void r.released.push(1) };
@@ -271,7 +271,7 @@ describe('stream hub: heartbeat', () => {
     expect(r.hub.openCount()).toBe(0);
   });
 
-  it('FR-289 (f) (heartbeat) a stream opened later does not move the wake-up; a new first stream arms it again', () => {
+  it('FR-289 (f) (heartbeat) a stream opened later does not move the wake-up', () => {
     const r = rig();
     const id = create(r, 'c-1');
     const first = open(r, id, undefined);
@@ -403,7 +403,7 @@ describe('stream hub: slow clients, failures and closing', () => {
     expect(r.hub.openCount()).toBe(0);
   });
 
-  it('FR-290 (stream, hub) a response that fails while the headers are written is closed at once and its lease released', () => {
+  it('FR-290 (stream, hub) a response whose replay write fails is closed at once and its lease released', () => {
     const r = rig();
     const id = create(r, 'c-1');
     const res = new FakeResponse(r.h.clock);

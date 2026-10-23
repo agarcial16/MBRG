@@ -1,8 +1,8 @@
 // The event stream hub (spec 008 FR-289 (d), (e), (f), FR-290; plan 19.3, 19.5, PD22 to PD26). Platform file: it writes to
 // responses and arms the heartbeat through the Scheduler interface (the only timer module stays `scheduler.ts`).
 // - `open` runs in ONE synchronous turn: read the stored events after n, write the headers and the replay as one write,
-//   register the stream. The service publishes right after a commit, synchronously, so no decision can fall between the read
-//   and the registration (nothing missed, nothing sent twice). Each stream also keeps the number of the last event it was
+//   (registered before the writes so a failing write finds it and drops it). The service publishes right after a commit,
+//   synchronously, so no decision can fall between the read and the registration (nothing missed, nothing sent twice). Each stream also keeps the number of the last event it was
 //   sent and writes only a later one (a defensive filter, and the rule for a number above the latest, E5).
 // - One service subscriber for all streams: a decision's events are framed once and the same bytes go to every stream of
 //   the match, as one write per stream (PD23). Only stored events are framed (they are built from the public view, FR-290).

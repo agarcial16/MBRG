@@ -10,7 +10,7 @@ export class FakeResponse implements StreamTarget {
   ended = 0;
   destroyed = 0;
   writableLength = 0;
-  /** When set, `write` throws this after the call count below. */
+  /** When set, `write` throws this instead of recording the chunk. */
   throwOnWrite: Error | undefined;
   private readonly handlers = new Map<string, (() => void)[]>();
 
