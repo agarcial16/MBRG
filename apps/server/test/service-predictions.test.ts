@@ -404,7 +404,7 @@ describe('no result rows for an empty phase (FR-269 results-empty part) and what
     });
   });
 
-  it('FR-269 a prediction for one phase only still leaves the other phases and the results table empty', () => {
+  it('FR-269 a prediction for one phase only gets rows for that phase alone: the other phases of every round have none', () => {
     withTempDir((dir) => {
       const file = join(dir, 'm.sqlite');
       const m = start(openStore(file), true);
@@ -414,7 +414,7 @@ describe('no result rows for an empty phase (FR-269 results-empty part) and what
       expect(m.h.store.getMatch(m.id)!.match.stage).toBe('finished');
       m.h.close();
       withRawDb(file, (db) => {
-        expect(Number(db.prepare('SELECT COUNT(*) AS n FROM results').get()!.n)).toBe(0);
+        expect(db.prepare('SELECT round, kind, player_id, choice FROM results ORDER BY rowid').all().map((r) => ({ ...r }))).toStrictEqual([{ round: 1, kind: 'victim', player_id: 'web:p1', choice: a }]);
         expect(Number(db.prepare('SELECT COUNT(*) AS n FROM predictions').get()!.n)).toBe(1);
       });
     });

@@ -37,7 +37,7 @@ import { START_MS, withTempDir } from './helpers/service-harness';
 const SERVER_DIR = fileURLToPath(new URL('..', import.meta.url));
 const KILL_CHILD = fileURLToPath(new URL('./fixtures/kill-child.ts', import.meta.url));
 
-const WRITES = new Set(['insertMatch', 'updateMatch', 'putRecord', 'putStep', 'putPrediction', 'appendEvents', 'memoPut', 'memoPurge']);
+const WRITES = new Set(['insertMatch', 'updateMatch', 'putRecord', 'putResults', 'putStep', 'putPrediction', 'appendEvents', 'memoPut', 'memoPurge']);
 
 /** One transaction of a run: the action it belongs to (index in the script) and the store writes it made, in order. */
 interface Tx {
@@ -326,13 +326,13 @@ describe('NFR-57 (durability, M2b part) a real process kill validates the fault 
       try {
         const reference = runScript(join(dir, 'reference.sqlite'));
         // The stop point: the application of round 1 by a clock tick (a purge transaction, then the step transaction
-        // with the match row, the record, the step row and then the events).
+        // with the match row, the record, the results of the scripted absorber predictions, the step row and then the events).
         const k = reference.specs.findIndex((s) => s.kind === 'tick' && s.label === 'tick application r1');
         expect(k).toBeGreaterThan(0);
         const stepTx = reference.txs.findIndex((t) => t.action === k && t.writes.includes('appendEvents'));
         const firstTx = reference.txs.findIndex((t) => t.action === k);
-        expect(reference.txs[stepTx]!.writes).toStrictEqual(['updateMatch', 'putRecord', 'putStep', 'appendEvents']);
-        const plan: FaultPlan = mode === 'between' ? { abortTransaction: firstTx + 1 } : { abortWrite: { transaction: stepTx + 1, afterWrites: 3 } };
+        expect(reference.txs[stepTx]!.writes).toStrictEqual(['updateMatch', 'putRecord', 'putResults', 'putStep', 'appendEvents']);
+        const plan: FaultPlan = mode === 'between' ? { abortTransaction: firstTx + 1 } : { abortWrite: { transaction: stepTx + 1, afterWrites: 4 } };
         const seam = runScript(join(dir, 'seam.sqlite'), plan);
         expect(seam.kill?.action).toBe(k);
 

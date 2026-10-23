@@ -57,6 +57,7 @@ import { MEMO_RETENTION_MS, decideMemo, isMemoisable } from '../core/memo';
 import type { MemoScope } from '../core/memo';
 import { decideSubmission } from '../core/predictions';
 import { readRound } from '../core/reads';
+import { scorePhase } from '../core/scoring';
 import type { StoredPrediction, Submission } from '../core/predictions';
 import { haltMatch, runDue } from '../core/steps';
 import type { StepDeps, StepOutcome } from '../core/steps';
@@ -532,12 +533,21 @@ export function createMatchService(options: ServiceOptions): MatchService {
     });
   };
 
-  /** Writes one decision, inside the caller's transaction, in the order of the plan: match (N + 1 and its state), record, step rows, events. */
+  /**
+   * Writes one decision, inside the caller's transaction, in the order of the plan (20.2): match (N + 1 and its state), record,
+   * results, step rows, events. The results of each scored phase are the stored predictions of that phase scored against what
+   * the decision made public; a phase nobody predicted writes no row (FR-269). A kill or a failure before the commit loses the
+   * step, the rows and the events together, and the redo scores the same stored predictions again (FR-294).
+   */
   const persist = (matchId: string, outcome: StepOutcome): void => {
     store.updateMatch(outcome.view);
     if (outcome.applied !== undefined) {
       const { record } = outcome.applied;
       store.putRecord(matchId, { round: record.round, eliminated: record.eliminated, absorber: record.absorber, transferred: [...record.transferred] });
+    }
+    for (const phase of outcome.scored ?? []) {
+      const rows = scorePhase(phase, store.predictionsOfPhase(matchId, phase.kind, phase.kind === 'winner' ? 0 : phase.round));
+      if (rows.length > 0) store.putResults(matchId, rows);
     }
     for (const row of stepRowsOf(outcome)) store.putStep(matchId, row);
     store.appendEvents(matchId, outcome.events);

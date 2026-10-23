@@ -216,7 +216,7 @@ function differingSeeds(state: MatchState): [number, number] {
 }
 
 describe('FR-251 a halted match', () => {
-  it('FR-243 FR-251 halt with victim-mismatch: a forced victim difference halts the application, keeps the victim fields and the stored predictions, and writes no record or result', () => {
+  it('FR-243 FR-251 halt with victim-mismatch: a forced victim difference halts the application, keeps the victim fields and the stored predictions, and keeps the victim result row and writes no record, absorber or winner row', () => {
     withTempDir((dir) => {
       const file = join(dir, 'halt.sqlite');
       const flip = flippingSource();
@@ -242,11 +242,12 @@ describe('FR-251 a halted match', () => {
       expect(m.h.store.steps(m.id).map((s) => s.kind)).toStrictEqual(['phase-1-close', 'phase-2-close']);
       expect(view(m).victim).toStrictEqual(revealed);
       expect(m.h.service.publicMatch(m.id)!.victim).toStrictEqual(revealed);
-      // FR-251 (c), storage part (scoring is M4): the stored predictions stay as they were and no result row exists.
+      // FR-251 (c): the stored predictions stay as they were; the victim phase was scored at the phase-1 close and keeps its row.
       expect(m.h.store.predictionsOf(m.id, 'web:p1')).toStrictEqual(before);
       m.h.close();
       withRawDb(file, (db) => {
-        expect(db.prepare('SELECT COUNT(*) AS n FROM results').get()!.n).toBe(0);
+        const rows = db.prepare('SELECT round, kind, player_id, choice, correct, points FROM results ORDER BY rowid').all().map((r) => ({ ...r }));
+        expect(rows).toStrictEqual([{ round: 1, kind: 'victim', player_id: 'web:p1', choice: a, correct: revealed.victim === a ? 1 : 0, points: revealed.victim === a ? revealed.living.length : 0 }]);
         expect(db.prepare('SELECT COUNT(*) AS n FROM records').get()!.n).toBe(0);
       });
     });
