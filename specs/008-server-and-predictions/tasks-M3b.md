@@ -105,7 +105,7 @@ Plan section 19. **Approved by the user on 2026-10-23**: E1 to E10 (plan 19.13) 
   - Done when: tests green; figures recorded; NFR-49 moved (78 / 18); `rg` finds NFR-49.
   - Size: L (about 550).
 
-- [ ] **T5'. Close M3b': ledger, process checks, PR.** NFR-55
+- [x] **T5'. Close M3b': ledger, process checks, PR.** NFR-55
   - Depends on: T1' to T4'.
   - Files: `packages/sim/test/traceability.test.ts` (closing-state test: 78 / 18, FR-287 and NFR-49 pinned done, the 18 later ids as a literal list), `plan.md` (sections 11 and 13: M3b' closing summary, the FR-287 (d) hand-off to M4), `PROGRESS.md`, `MEMORY.md` (local).
   - Steps: as M3b T6; the PR carries the NFR-49 figures.

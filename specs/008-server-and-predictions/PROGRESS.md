@@ -143,3 +143,10 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Size: about 760 changed lines (src of the script + tests) against about 550 estimated (1.4x, below the 1.5x stop).
 - Untested: the hand run is not repeatable in CI; a second run was not made (one measurement as instructed).
 - Next step: T5' (close M3b': ledger, process checks).
+
+### M3b' T5' - Close M3b': ledger, process checks
+- Changed: `traceability.test.ts` (closing-state test retitled to M3b': 78 / 18, FR-287 and NFR-49 pinned done, the 18 later ids as a literal list; the pinning itself was made in T2' and T4'), `plan.md` sections 11 (M3b' closing state) and 13 (M3b' closing summary, FR-287 (d) hand-off to M4), `MEMORY.md` (local, 49 lines).
+- Process checks: `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server/test/golden` clean (goldens and digests unchanged); no `package.json`, lockfile or `.nvmrc` change; scans: timers only in `service/scheduler.ts`, `node:http` as a value only in `http/server.ts`, output only in `main.ts` (and the log sink `http/log.ts` receives the writers from it), no production import of `store/faults.ts`.
+- Run: typecheck clean; `CI=1 npm test`: 187 files, 3112 passed, 4 skipped. `git diff --shortstat rewrite` before this commit: 19 files, +1,510 / -33.
+- Not done (as instructed): push, PR, Linux CI run, squash. The PR must carry the NFR-49 figures (plan section 13) and list FR-287 and NFR-49 closed (78 / 18).
+- Next step: review and the user's OK for the PR; then detail M4.
