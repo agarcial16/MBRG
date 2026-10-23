@@ -59,3 +59,10 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
   - Tests run: `npm test` x2 and typecheck clean before the commits: 175 files, 2991 passed, 3 skipped (73.3 s). Mutations (full suite, one at a time, all caught): `unreadLargeBody` always false (2 body-wire tests), `discardBody` not counting (2), state reply `reportedTime: 0` (the new wire test + 2 service tests), `publicOf` `reportedTime: 0` (39 tests, the wire test among them), no `clientError` handler (2), log sink call unguarded (the new sink test + unhandled rejection).
   - Untested / open: a real 408 (30 s timeout); real kernel-level check that no drain happens (only the closed connection is asserted); Linux CI run of the real SIGTERM test.
   - Next step: review, then push and PR with the user's OK (mention d3b7af1 folding); `.gitignore` entry for `.vitest/` needs its own task.
+
+## Active: M3b (`feat/008-m3b-event-stream`, T1 to T6; ledger stays 76 / 20)
+
+### M3b T1 - Branch, docs, bookkeeping targets
+- Changed: plan section 19, `tasks.md` and `tasks-M3b.md` marked approved by the user (2026-10-23: E1 to E10 and D28); D28 recorded in `spec.md` Decisions (fixed 15 s wait for the open-stream limits, FR-299 (e)), Status line and numbering line updated to D28; comments in `traceability.test.ts` state the targets (M3b T6 76 / 20; M3b' T2' 77 / 19, T4' 78 / 18).
+- Tests: no logic; counts stay 76 / 20 (see the run below).
+- Next step: T2 (event encoders, stream framing, number reading, stream preflight).
