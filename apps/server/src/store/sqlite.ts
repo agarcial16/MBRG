@@ -5,7 +5,7 @@ import { isLocalId, isNamespace, NAMESPACE_SEPARATOR, PREDICTION_KINDS } from '@
 import type { MatchEvent, MatchSummary, PredictionKind, PublicState, PublicVictim, Timing } from '@mbrg/protocol';
 import { MEMO_RETENTION_MS, type MemoScope } from '../core/memo';
 import type { StoredPrediction } from '../core/predictions';
-import type { ResultRow, ScorablePrediction } from '../core/scoring';
+import type { PlayerTotals, ResultRow, ScorablePrediction } from '../core/scoring';
 import type { Anchors } from '../core/time';
 import type { CoreMatch } from '../core/view';
 import { SCHEMA_V1, SCHEMA_VERSION, TABLES } from './schema';
@@ -13,10 +13,13 @@ import {
   StoreError,
   type MatchListKey,
   type NamespacePrediction,
+  type PlayerResultKey,
   type PredictionKey,
   type Store,
   type StoredMatch,
   type StoredMemo,
+  type StoredPhaseResult,
+  type StoredPlayerResult,
   type StoredRecord,
   type StoredState,
   type StoredStep,
@@ -166,6 +169,16 @@ export const READ_SQL = {
   hostTokenDigest: 'SELECT host_token_digest FROM matches WHERE id = ?',
   // The scorer's input: one phase of one match, by player id (BINARY order, the code unit order of the ASCII ids).
   predictionsOfPhase: 'SELECT player_id, choice, winner_candidates FROM predictions WHERE match_id = ? AND kind = ? AND round = ? ORDER BY player_id',
+  // The results reads (M4'): a keyset on the primary key (match, round, kind, player id) for a phase; a player's rows and the
+  // leaderboard scan the rows of one match (no index: the schema is unchanged).
+  phaseResultsAfter: 'SELECT player_id, choice, correct, points FROM results WHERE match_id = ? AND round = ? AND kind = ? AND player_id > ? ORDER BY player_id LIMIT ?',
+  playerResultsAfter: 'SELECT kind, round, choice, correct, points FROM results WHERE match_id = ? AND player_id = ? AND (round, kind) > (?, ?) ORDER BY round, kind LIMIT ?',
+  playerTotal: 'SELECT COALESCE(SUM(points), 0) AS total FROM results WHERE match_id = ? AND player_id = ?',
+  leaderboardTotals: `SELECT player_id, SUM(points) AS total,
+    SUM(CASE WHEN kind = 'victim' AND correct = 1 THEN 1 ELSE 0 END) AS correct_victims,
+    SUM(CASE WHEN kind = 'absorber' AND correct = 1 THEN 1 ELSE 0 END) AS correct_absorbers,
+    SUM(CASE WHEN kind = 'winner' AND correct = 1 THEN 1 ELSE 0 END) AS correct_winner
+    FROM results WHERE match_id = ? GROUP BY player_id ORDER BY player_id`,
 } as const;
 
 const checkLimit = (limit: number): void => {
@@ -504,6 +517,47 @@ export const openStore = (path: string): Store => {
         }
         run('INSERT INTO results (match_id, round, kind, player_id, choice, correct, points) VALUES (?, ?, ?, ?, ?, ?, ?)', matchId, r.round, r.kind, r.playerId, r.choice, r.correct ? 1 : 0, r.points);
       }
+    },
+    phaseResultsAfter(matchId: string, kind: 'victim' | 'absorber', round: number, after: string | undefined, limit: number): StoredPhaseResult[] {
+      if (kind !== 'victim' && kind !== 'absorber') throw new RangeError('a phase result list is the victim or the absorber phase');
+      if (!Number.isSafeInteger(round) || round < 1) throw new RangeError('a phase result list is a round of at least 1');
+      if (after !== undefined && typeof after !== 'string') throw new RangeError('not a key of the phase results list');
+      checkLimit(limit);
+      return all(READ_SQL.phaseResultsAfter, matchId, round, kind, after ?? '', limit).map((r) => ({
+        playerId: str(r, 'player_id'),
+        choice: num(r, 'choice'),
+        correct: num(r, 'correct') === 1,
+        points: num(r, 'points'),
+      }));
+    },
+    playerResultsAfter(matchId: string, playerId: string, after: PlayerResultKey | undefined, limit: number): StoredPlayerResult[] {
+      if (after !== undefined && (!Number.isSafeInteger(after[0]) || after[0] < 0 || !PREDICTION_KINDS.includes(after[1]))) throw new RangeError('not a key of the player results list');
+      checkLimit(limit);
+      const [afterRound, afterKind] = after === undefined ? [-1, ''] : after;
+      return all(READ_SQL.playerResultsAfter, matchId, playerId, afterRound, afterKind, limit).map((r) => ({
+        kind: str(r, 'kind') as PredictionKind,
+        round: num(r, 'round'),
+        choice: num(r, 'choice'),
+        correct: num(r, 'correct') === 1,
+        points: num(r, 'points'),
+      }));
+    },
+    playerTotal(matchId: string, playerId: string): number {
+      const row = one(READ_SQL.playerTotal, matchId, playerId);
+      return row === undefined ? 0 : num(row, 'total');
+    },
+    leaderboardTotals(matchId: string): PlayerTotals[] {
+      return all(READ_SQL.leaderboardTotals, matchId).map((r) => {
+        const winner = num(r, 'correct_winner');
+        if (winner !== 0 && winner !== 1) throw corrupt('a player has more than one winner result');
+        return {
+          playerId: str(r, 'player_id'),
+          total: num(r, 'total'),
+          correctVictims: num(r, 'correct_victims'),
+          correctAbsorbers: num(r, 'correct_absorbers'),
+          correctWinner: winner,
+        };
+      });
     },
     appendEvents(matchId: string, events: readonly MatchEvent[]): void {
       requireTransaction();
