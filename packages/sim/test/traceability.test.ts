@@ -204,7 +204,7 @@ describe('traceability', () => {
     // M3a target (T7, after the C8 split): 73 done / 23 pending (plan section 18.10). M3a T1 starts at 67 / 29; T2 adds FR-279 (68 / 28);
     // T3 adds FR-283, FR-299 (70 / 26); T4 moves none; T5 adds FR-281 (71 / 25); T6 adds FR-284, FR-286 (73 / 23); T7 moves none.
     // M3a' target (T5'): 76 done / 20 pending. T1' starts at 73 / 23; T2' adds FR-280, FR-298 (75 / 21); T3' adds FR-285 (76 / 20);
-    // T4' moves none.
+    // T4' moves none; T5' pins the 3 M3a' ids (FR-280, FR-285, FR-298) as done in the closing-state test.
     expect(DONE_008).toHaveLength(73);
     expect(PENDING_008).toHaveLength(23);
     expect(new Set([...PENDING_008, ...DONE_008]).size).toBe(96);

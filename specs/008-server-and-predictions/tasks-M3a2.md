@@ -12,7 +12,7 @@
 - To confirm in the M3a PR: the coordinator decision on all-hex credentials (refused below 32 characters, `FR-283 (hex credentials)`, plan 18.5), stricter than the letter of FR-283 (proposed spec clarification D27 for the user, plan section 13); `map-validation` kept as the wire kind (422, the 001 kinds as `items`).
 - Risks (plan section 13, M3a review): a persistent `invalid-write` in a timer callback is retried every 3 s forever and reported only once T4' adds `onFailure` and the log; `remoteAddress` may be `undefined` (T2'); `mapFile` TOCTOU (T3'); round segments past the safe range and with leading zeros are router decisions (T3'); cursors are unsigned (PD20: tag and key shape only); optional: `encodeError` kind-to-field ties, IPv6 /64 rotation; M3b updates the pinned list of 13 variables for the stream limits.
 
-- [ ] **T1'. Branch, commit plan / tasks; bookkeeping targets.** NFR-55
+- [x] **T1'. Branch, commit plan / tasks; bookkeeping targets.** NFR-55
   - Depends on: M3a merged.
   - Files: `specs/008-server-and-predictions/{plan,tasks}.md`, `packages/sim/test/traceability.test.ts`.
   - Tests first: counts 73 / 23 still, with the targets in comments (T2' 75 / 21, T3' 76 / 20, T5' 76 / 20); the closing-state test keeps the 3 M3a' ids as a literal list (asserted done only at T5').
