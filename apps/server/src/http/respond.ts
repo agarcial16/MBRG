@@ -57,6 +57,19 @@ export function sendSuccess(target: ReplyTarget, status: 200 | 201, body: string
   write(target, status, body, {});
 }
 
+/** A map file: 200 with its bytes exactly as read, `Content-Length` their count, the content type of the file (the other headers as every reply). */
+export function sendFile(target: ReplyTarget, contentType: string, body: Uint8Array): void {
+  const headers: Record<string, string | number> = {
+    'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
+    'content-type': contentType,
+    'content-length': body.length,
+    ...corsHeaders(target.cors, target.allowedOrigins),
+  };
+  target.res.writeHead(200, headers);
+  target.res.end(body);
+}
+
 /** An error reply: the status of its kind, its extra header, the encoded body. `allow` is the router's list for a 405. */
 export function sendError(target: ReplyTarget, reply: ErrorReply, allow?: readonly string[]): void {
   write(target, statusOf(reply.kind), encodeError(reply), errorHeaders(reply, allow));

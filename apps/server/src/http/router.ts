@@ -34,7 +34,11 @@ export interface RouteContext {
 }
 
 /** What a route decides: an encoded success, or an error reply (status by `status.ts`, body by the protocol encoder). */
-export type Reply = { readonly kind: 'success'; readonly status: 200 | 201; readonly body: string } | { readonly kind: 'error'; readonly error: ErrorReply };
+export type Reply =
+  | { readonly kind: 'success'; readonly status: 200 | 201; readonly body: string }
+  // The bytes of a map file, read once for this request: the length sent is the length of these bytes (never a size read earlier).
+  | { readonly kind: 'file'; readonly contentType: string; readonly body: Uint8Array }
+  | { readonly kind: 'error'; readonly error: ErrorReply };
 
 /**
  * A route. The pipeline runs the hooks in the FR-301 order, the first that answers an error wins:
@@ -53,7 +57,7 @@ export interface Route {
   shape?(ctx: RouteContext): ErrorReply | undefined;
   authorize?(ctx: RouteContext): ErrorReply | undefined;
   playerLimit?(ctx: RouteContext): readonly LimitKey[] | undefined;
-  decide(ctx: RouteContext): Reply;
+  decide(ctx: RouteContext): Reply | Promise<Reply>;
 }
 
 export type Resolution<R extends Route = Route> =

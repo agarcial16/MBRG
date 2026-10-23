@@ -9,17 +9,35 @@
 //   6 player limit `ticket.extend`: a refusal cancels the ticket of stage 1, so it is counted nowhere   -> rate-limited
 //   7 decide       the route calls the service; the outcome is mapped by `status.ts`
 //   8 unexpected   any exception: ONE `request-failed` event (name and stage only), then 500 `{"kind":"unavailable"}`
-// The command and read routes are tables of `Route` (router.ts). T2'a ships the pipeline only: `productionRoutes` holds the three
-// command routes (T2'b; the reads come in T3'), and `routes` is the injection point of the pipeline tests (it cannot carry a seed source: PD18).
+// The command and read routes are tables of `Route` (router.ts): `productionRoutes` holds the three command routes and the
+// read routes (list, match, states, records, own predictions, map files); `routes` is the injection point of the pipeline tests
+// (it cannot carry a seed source: PD18). A route's `decide` may be asynchronous (a map file is read once per request).
 // Connection hardening is the platform's own (PD21): the four server options below; no custom socket timers.
 
 import { createServer as createHttpServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
-import { encodeAdvance, encodeCreation, encodePrediction, errorReply, rateLimited, readSubmission } from '@mbrg/protocol';
+import type { Readable } from 'node:stream';
+import {
+  encodeAdvance,
+  encodeCreation,
+  encodeMatchSummary,
+  encodeOwnPrediction,
+  encodePage,
+  encodePrediction,
+  encodePublicMatch,
+  encodeRecord,
+  encodeState,
+  errorReply,
+  isLocalId,
+  rateLimited,
+  readPageQuery,
+  readSubmission,
+} from '@mbrg/protocol';
 import type { ErrorReply } from '@mbrg/protocol';
 import type { Clock } from '../clock';
 import { CREATION_PATH } from '../service/matches';
 import type { MatchService } from '../service/matches';
+import type { MapFile } from '../service/maps';
 import { CONNECTION_OPTIONS } from '../service/settings';
 import type { ServerSettings } from '../service/settings';
 import { readBody, tooLargeByLength } from './body';
@@ -29,9 +47,9 @@ import { createLimiter, limitKeys, playerKey } from './limits';
 import type { RequestClass } from './limits';
 import { requestFailed } from './log';
 import type { FailureStage, LogSink } from './log';
-import { corsRequestOf, sendError, sendPreflight, sendSuccess, sendUnexpected } from './respond';
+import { corsRequestOf, sendError, sendFile, sendPreflight, sendSuccess, sendUnexpected } from './respond';
 import type { ReplyTarget } from './respond';
-import { createRouter } from './router';
+import { createRouter, parseRoundSegment } from './router';
 import type { Reply, Route, RouteContext } from './router';
 
 export interface ServerOptions {
@@ -54,12 +72,154 @@ void ALL_OPTION_KEYS_LISTED;
 const replyOf = <T>(outcome: { readonly ok: true; readonly reply: T } | { readonly ok: false; readonly error: ErrorReply }, status: 200 | 201, encode: (reply: T) => string): Reply =>
   outcome.ok ? { kind: 'success', status, body: encode(outcome.reply) } : { kind: 'error', error: outcome.error };
 
+/** The query as name/value pairs (percent-decoded like a browser's `URLSearchParams`); empty text gives none. */
+const pairsOf = (query: string): [string, string][] => [...new URLSearchParams(query)];
+
+/** A route without query parameters: any parameter is unknown, the first in sorted order is named (as `readPageQuery` does). */
+const noQuery = (ctx: RouteContext): ErrorReply | undefined => {
+  const first = pairsOf(ctx.query)
+    .map(([name]) => name)
+    .sort()[0];
+  return first === undefined ? undefined : errorReply('invalid-request', [first]);
+};
+
+/** Stage 4 of a round route: a round segment that is not `0` or a number without a leading zero is `invalid-request ['round']`. */
+const roundShape = (ctx: RouteContext): ErrorReply | undefined =>
+  parseRoundSegment(ctx.params.round as string).kind === 'invalid' ? errorReply('invalid-request', ['round']) : undefined;
+
+/**
+ * The round to ask the service for. A segment past the safe-integer range is `beyond`: the largest safe round is asked, which
+ * gets the same `round-not-applied` (naming only N) as any round above N (FR-258), whatever the match and its stage.
+ */
+const roundOf = (ctx: RouteContext): number => {
+  const round = parseRoundSegment(ctx.params.round as string);
+  return round.kind === 'round' ? round.value : Number.MAX_SAFE_INTEGER;
+};
+
+const MAP_FILE_TYPES = Object.freeze({ 'map.json': 'application/json', 'presentation.json': 'application/json', 'ids.png': 'image/png' } as const);
+
+/** The bytes of a map file read once for this request: a file replaced since its size was read still gets a matching `Content-Length`. */
+async function readFileBytes(stream: Readable): Promise<Uint8Array> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  return Buffer.concat(chunks);
+}
+
+async function fileReply(file: MapFile): Promise<Reply> {
+  try {
+    return { kind: 'file', contentType: MAP_FILE_TYPES[file.name], body: await readFileBytes(file.open()) };
+  } catch {
+    // The file vanished or cannot be read between the listing and the read: the server cannot serve it now (nothing was sent).
+    return { kind: 'error', error: errorReply('unavailable') };
+  }
+}
+
 /**
  * The production routes. The three commands (T2'b): creation (201), advance (200, the host token of the match or the operator
  * credential; the service compares the credential itself, in the FR-301 order forbidden, request-id-reused, unknown-match)
- * and submission (200; the client credential gives the namespace, the body only the local id). The reads come in T3'.
+ * and submission (200; the client credential gives the namespace, the body only the local id). The reads (T3'): the match
+ * list, a match, its states and records, the caller's own predictions (client credential) and the three map files; all
+ * credential-free except the own predictions. A list read takes `limit` and `cursor` (and `playerId` for the own predictions).
  */
 export const productionRoutes = (service: MatchService, settings: ServerSettings): readonly Route[] => [
+  {
+    method: 'GET',
+    path: '/matches',
+    body: 'none',
+    checkQuery: (ctx) => {
+      const query = readPageQuery('matches', pairsOf(ctx.query));
+      return query.ok ? undefined : query.error;
+    },
+    decide: (ctx) => {
+      const query = readPageQuery('matches', pairsOf(ctx.query));
+      if (!query.ok) return { kind: 'error', error: query.error };
+      const { limit, after } = query.value;
+      return replyOf(service.listMatches(after === undefined ? { limit } : { limit, after }), 200, (page) => encodePage(page, encodeMatchSummary));
+    },
+  },
+  {
+    method: 'GET',
+    path: '/matches/:id',
+    body: 'none',
+    checkQuery: noQuery,
+    decide: (ctx) => replyOf(service.readPublicMatch(ctx.params.id as string), 200, encodePublicMatch),
+  },
+  {
+    method: 'GET',
+    path: '/matches/:id/states/:round',
+    body: 'none',
+    checkQuery: noQuery,
+    shape: roundShape,
+    decide: (ctx) => replyOf(service.stateAt(ctx.params.id as string, roundOf(ctx)), 200, encodeState),
+  },
+  {
+    method: 'GET',
+    path: '/matches/:id/records',
+    body: 'none',
+    checkQuery: (ctx) => {
+      const query = readPageQuery('records', pairsOf(ctx.query));
+      return query.ok ? undefined : query.error;
+    },
+    decide: (ctx) => {
+      const query = readPageQuery('records', pairsOf(ctx.query));
+      if (!query.ok) return { kind: 'error', error: query.error };
+      const { limit, after } = query.value;
+      return replyOf(service.records(ctx.params.id as string, after === undefined ? { limit } : { limit, after }), 200, (page) => encodePage(page, encodeRecord));
+    },
+  },
+  {
+    method: 'GET',
+    path: '/matches/:id/records/:round',
+    body: 'none',
+    checkQuery: noQuery,
+    shape: roundShape,
+    decide: (ctx) => replyOf(service.recordAt(ctx.params.id as string, roundOf(ctx)), 200, encodeRecord),
+  },
+  {
+    method: 'GET',
+    path: '/matches/:id/predictions',
+    body: 'none',
+    checkQuery: (ctx) => {
+      const query = readPageQuery('predictions', pairsOf(ctx.query), ['playerId']);
+      return query.ok ? undefined : query.error;
+    },
+    // A local id with a separator or a character outside FR-297 is `invalid-player-id`, before `forbidden` (FR-301 order).
+    shape: (ctx) => {
+      const playerId = readPageQuery('predictions', pairsOf(ctx.query), ['playerId']);
+      const local = playerId.ok ? playerId.value.extra.playerId : undefined;
+      return local === undefined || isLocalId(local) ? undefined : errorReply('invalid-player-id', ['playerId']);
+    },
+    authorize: (ctx) => {
+      const client = requireClient(ctx.identity);
+      return client.ok ? undefined : client.error;
+    },
+    decide: (ctx) => {
+      const client = requireClient(ctx.identity);
+      if (!client.ok) return { kind: 'error', error: client.error };
+      const query = readPageQuery('predictions', pairsOf(ctx.query), ['playerId']);
+      if (!query.ok) return { kind: 'error', error: query.error };
+      const { limit, after, extra } = query.value;
+      // The namespace is the one of the credential; no query text can name another (FR-270).
+      const request = {
+        namespace: client.client.namespace,
+        matchId: ctx.params.id as string,
+        limit,
+        ...(after === undefined ? {} : { after }),
+        ...(extra.playerId === undefined ? {} : { playerId: extra.playerId }),
+      };
+      return replyOf(service.ownPredictionsPage(request), 200, (page) => encodePage(page, encodeOwnPrediction));
+    },
+  },
+  {
+    method: 'GET',
+    path: '/maps/:mapId/:file',
+    body: 'none',
+    checkQuery: noQuery,
+    decide: async (ctx) => {
+      const found = service.mapFile(ctx.params.mapId as string, ctx.params.file as string);
+      return found.ok ? fileReply(found.reply) : { kind: 'error', error: found.error };
+    },
+  },
   {
     method: 'POST',
     path: CREATION_PATH,
@@ -196,9 +356,10 @@ export function createServer(options: ServerOptions): Server {
 
     // 7. Decision.
     at.stage = 'decide';
-    const reply: Reply = route.decide(ctx);
+    const reply: Reply = await route.decide(ctx);
     at.stage = 'reply';
     if (reply.kind === 'success') return sendSuccess(target, reply.status, reply.body);
+    if (reply.kind === 'file') return sendFile(target, reply.contentType, reply.body);
     return sendError(target, reply.error);
   };
 

@@ -12,9 +12,10 @@ import type { Limits, ServerSettings } from '../../src/service/settings';
 import { withFaults } from '../../src/store/faults';
 import type { FaultPlan } from '../../src/store/faults';
 import { openStore } from '../../src/store/sqlite';
+import type { Store } from '../../src/store/store';
 import type { FakeClock } from './fake-clock';
 import { serviceHarness } from './service-harness';
-import type { Harness } from './service-harness';
+import type { Harness, HarnessOptions } from './service-harness';
 
 // The HTTP test harness: the real service over an in-memory store (optionally behind the fault seam), the fake clock, a log
 // that records every event, and `createServer` listening on port 0 of 127.0.0.1. Every harness registers itself so that
@@ -33,6 +34,12 @@ export interface ServerHarnessOptions {
   readonly stub?: Partial<MatchService>;
   readonly faults?: FaultPlan;
   readonly allowedOrigins?: readonly string[];
+  /** Client credentials (default: one, namespace `web`). */
+  readonly clients?: ServerSettings['clients'];
+  /** Wraps the store (after the fault seam): a read that throws a storage failure, for example. */
+  readonly wrapStore?: (store: Store) => Store;
+  /** Options of the underlying service harness (map folders, fake random seed, test-only round-seed source, secret). */
+  readonly service?: Omit<HarnessOptions, 'store'>;
 }
 
 export interface ServerHarness {
@@ -131,12 +138,13 @@ export function testRoutes(service: MatchService, settings: ServerSettings): rea
 }
 
 export async function startServer(options: ServerHarnessOptions = {}): Promise<ServerHarness> {
-  const store = options.faults === undefined ? openStore(':memory:') : withFaults(openStore(':memory:'), options.faults);
-  const base = serviceHarness({ store });
+  const inner = options.faults === undefined ? openStore(':memory:') : withFaults(openStore(':memory:'), options.faults);
+  const store = options.wrapStore === undefined ? inner : options.wrapStore(inner);
+  const base = serviceHarness({ ...(options.service ?? {}), store });
   const service: MatchService = options.stub === undefined ? base.service : { ...base.service, ...options.stub };
   const settings: ServerSettings = {
     ...base.settings,
-    clients: [{ namespace: CLIENT_NAMESPACE, credential: CLIENT_CREDENTIAL }],
+    clients: options.clients ?? [{ namespace: CLIENT_NAMESPACE, credential: CLIENT_CREDENTIAL }],
     allowedOrigins: options.allowedOrigins ?? ['https://app.example'],
     host: '127.0.0.1',
     port: 0,
