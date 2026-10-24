@@ -248,3 +248,12 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Run: typecheck clean; `CI=1 npm test` 197 files, 3257 passed, 4 skipped. `git diff --shortstat rewrite` before this commit: 32 files, +3,186 / -45 (of which golden JSON 584, docs about 90, so about 2,500 of source and tests).
 - Not done (as instructed): push, PR, Linux CI run, squash. The PR must list the ledger (86 / 10), the T3' size overrun accepted by the user, the new golden and the earlier tests edited (plan 20.9: `page.test.ts`, `service-seam`, `service-create`, `server-log-scan`, `service-durability`, `durability-script`, `traceability`).
 - Next step: review and the user's OK for the PR; then detail M5.
+
+### M5 T1 - Branch, docs, bookkeeping targets
+- Context: branch `feat/008-m5-live-core` from `rewrite` 56481b9 (M4' merged, PR #37). The user approved plan section 21 (H1 to H12, with the internal workspace dependency `@mbrg/protocol` of H4 as the accepted exception to "ask first: new dependency") and the spec clarifications D30, D31, D32 on 2026-10-24.
+- Changed: `plan.md`, `tasks.md`, `tasks-M5.md` (DRAFT and "not approved" markers replaced by the approval; the proposed marker of D30 to D32 in plan 21.19 replaced by "user-approved"), `spec.md` (Decisions D30, D31, D32 after D29 with the wording of plan 21.19; status line and "Decisions D1 to D32" numbering line), `packages/sim/test/traceability.test.ts` (comments only: M5 and M5' ledger targets).
+- Tests: typecheck clean; `npm test` and `CI=1 npm test` 197 files, 3257 passed, 4 skipped (counts unchanged, 86 / 10, no id moved).
+- Mutation proofs: none (no logic).
+- Size: about 5 changed lines of test comments (docs apart).
+- Untested: nothing.
+- Next step: T2 (protocol readers).

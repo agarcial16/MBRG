@@ -1,7 +1,7 @@
 # Plan 008 — Server and predictions
 Spec: `specs/008-server-and-predictions/spec.md` (approved by the user on 2026-10-21, D25). Covers FR-231 to FR-315 and NFR-47 to NFR-57 (96 ids). Delivery in milestones (spec D18, D24): M1, M2a, M2b, M3a, M3b, M4, M5, each with its own branch cut from an up-to-date `rewrite`, its own PR into `rewrite`, squash merge with the user's OK and CI green. GitHub issues: one per milestone only if the user wants them (spec "Splitting").
 
-This plan is at overview level for the whole spec and detailed for **M1** (branch `feat/008-m1-secret-and-sim-exports`), **M2a** (section 16), **M2b** and **M2b'** (section 17), **M3a** and **M3a'** (section 18) and **M3b** and **M3b'** (section 19, approved by the user on 2026-10-23: E1 to E10 and the spec clarification D28). M4 and M4' are detailed in section 20 and `tasks-M4.md` (approved by the user on 2026-10-23: G1 to G10 and the spec clarification D29). M5 gets its detailed section and tasks in a later revision of this plan, approved before its first task.
+This plan is at overview level for the whole spec and detailed for **M1** (branch `feat/008-m1-secret-and-sim-exports`), **M2a** (section 16), **M2b** and **M2b'** (section 17), **M3a** and **M3a'** (section 18) and **M3b** and **M3b'** (section 19, approved by the user on 2026-10-23: E1 to E10 and the spec clarification D28). M4 and M4' are detailed in section 20 and `tasks-M4.md` (approved by the user on 2026-10-23: G1 to G10 and the spec clarification D29). M5 and M5' are detailed in section 21 and `tasks-M5.md` (approved by the user on 2026-10-24: H1 to H12 and the spec clarifications D30 to D32).
 
 **Gate.** This plan and `tasks.md` were approved by the user for M1 and M2a, and for M2b and M2b' on 2026-10-22, and for M3a on 2026-10-22 (section 18 with C1 to C8 as recommended, `tasks.md`; C2 recorded in the spec as D26). The items of section 1 were answered by the user on 2026-10-21/22 (U1 to U5, now decisions).
 
@@ -182,6 +182,7 @@ Superseded by section 19.9 (2026-10-23). The first version used I = 120, L1 = 30
 - **M4' closing state** (T6'): `DONE_008` holds 86 ids and `PENDING_008` 10 (asserted explicitly in `traceability.test.ts`: the closing-state test is retitled to M4' and pins the 33 ids closed since M2b, the 3 M3a' ids, FR-287, NFR-49 and FR-271 to FR-278 as done, and the 10 M5 ids as a literal list; 96-id sum). Closed in M4' (4): FR-275, FR-276, FR-277, FR-278 (T3'). Parts completed in M4' (ids already done): FR-257 (results encoders and twins over HTTP), FR-279 (d) (results lists, leaderboard generation), FR-281 (e) to (g) (service and HTTP), FR-258 (results) and FR-270 (unscored hidden), FR-251 (d), (f) (results of a halted match), FR-286 / FR-301 / NFR-47 (c) / NFR-52 (results routes), NFR-48 (results), NFR-57 (results), FR-315 (results), FR-294 (results replay). Left after M4': FR-303 to FR-311 and NFR-56 (M5).
 - **M4 / M4' target** (section 20.10, approved by the user on 2026-10-23): M4 T2 moves FR-274 (79 / 17), T4 moves FR-271, FR-272, FR-273 (82 / 14), T5 pins the M4 closing state 82 / 14; M4' T3' moves FR-275, FR-276, FR-277, FR-278 (86 / 10), T6' pins 86 / 10. Left after M4': FR-303 to FR-311 and NFR-56 (M5). Titles: no M4 or M4' title names an FR-271 to FR-278 id before the task that closes it (`tasks-M4.md`, titles rule).
 - M5 removes the pending set (an empty list) and the spec goes to `implemented` after M5's acceptance.
+- **M5 / M5' target** (section 21.16, approved by the user on 2026-10-24): M5 T3 moves FR-305, FR-306, NFR-56 (89 / 7), T4 moves FR-303, FR-304 (91 / 5), T5 moves FR-307 (92 / 4), T6 moves FR-308 (93 / 3), T7 pins the M5 closing state 93 / 3; M5' T4' moves FR-309, FR-311 (95 / 1), T5' moves FR-310 (96 / 0), T7' pins the empty pending set. Parts completed on the way: FR-287 and FR-288 (readers), FR-289 (d), (e) (client), FR-302 (client estimate), FR-254 (client requests), NFR-51 (protocol readers) in M5; FR-303, FR-304, FR-305 (shell), FR-306 (production build), FR-307 and FR-308 (real server), NFR-56 (web test client), NFR-55 (viewer scans, D30) in M5'. Planted pending ids: FR-303 -> FR-309 in M5 T4, FR-309 -> FR-310 in M5' T4', both planted tests replaced in M5' T5' by an empty-set test and a synthetic-list detection test. Titles: no M5 or M5' title names a pending id before the task that closes it.
 
 ## 12. Milestones (delivery)
 | Milestone | Branch | Content | Ids | Depends on |
@@ -196,7 +197,8 @@ Superseded by section 19.9 (2026-10-23). The first version used I = 120, L1 = 30
 | M3b' | `feat/008-m3b2-stream-proofs-and-load` (from `rewrite` after M3b is merged) | Event content and order on the wire, shutdown and restart with streams, the NFR-49 procedure (section 19, T1' to T5'); closes FR-287 and NFR-49 (78 / 18) | FR-287 (not (d)); FR-288, FR-290, FR-257, FR-259, FR-294 (stream parts); NFR-47 (a), (c) over the stream; NFR-49; NFR-57 (replay) | M3b |
 | M4 | `feat/008-m4-scoring` (from `rewrite` at b0905b1 or later) | Pure scoring and ranking, the `results` event with the re-pinned sequences, scoring inside the step transaction (section 20, T1 to T5); closes FR-274, FR-271, FR-272, FR-273 (82 / 14) | FR-271 to FR-274; scoring parts of FR-241, FR-243, FR-246, FR-251 (c); FR-269 (results); FR-287 (d); NFR-47 (d) (results), NFR-48 (re-pin), NFR-57 (rows) | M3b' |
 | M4' | `feat/008-m4-2-results-reads` (from `rewrite` after M4 is merged) | Results wire shapes and cursors, the three reads through store and service, the routes over HTTP, results goldens and durability (section 20, T1' to T6'); closes FR-275 to FR-278 (86 / 10) | FR-275 to FR-278; FR-279 (d), FR-281 (e) to (g); NFR-48 (results), NFR-57 (results) | M4 |
-| M5 | `feat/008-m5-live-viewer` | Live viewer, address rules, map digest in the browser, web test client, production build check | FR-303 to FR-311; NFR-56 | M3b', M4 |
+| M5 | `feat/008-m5-live-core` (from `rewrite` after M4' is merged, PR #37) | Headless live client (section 21, T1 to T7): protocol readers, address and scene choice, panel texts, the pure live model (rounds, events, requests), the connection policy, the frame parser and the `fetch` transport with the map digest; closes FR-305, FR-306, NFR-56, FR-303, FR-304, FR-307, FR-308 (93 / 3) | FR-303 to FR-308, NFR-56; FR-287, FR-288, FR-289 (client parts), NFR-51 (protocol readers) | M4' |
+| M5' | `feat/008-m5-2-live-viewer` (from `rewrite` after M5 is merged) | Browser shell and proofs (section 21, T1' to T7'): map-view extraction, live shell and entry, production build check, web test client, real-server proofs and the local-run fixture, screenshots; closes FR-309, FR-311, FR-310 (96 / 0) | FR-309 to FR-311; FR-303 to FR-308 (shell, production build, real server), NFR-56 (web test client) | M5 |
 
 ## 13. Recorded figures and checks
 **M1 closing summary**: delivers the three sim exports with state/faction checks (FR-312, FR-313), the `apps/server` skeleton with the tsx runner and warning filter, the secret/commitment/round-seed derivation (FR-252), the D7 checks (NFR-53), the dev-map seed goldens, the absorber uniformity (NFR-47(e), worst 0.2227 pp) and the traceability pending set (NFR-55). Earlier tests edited (only as the plan allows): `packages/sim/test/{candidates,match,traceability}.test.ts`, `packages/shared/test/no-regression.test.ts`, `apps/web/test/{shaped-deps,labels-render}.test.ts` (lockfile-entry pins now ignore `apps/server`). Lockfile diff = the workspace entry and link only. New dependencies: `tsx` 4.23.15 and `@types/node` 24.19.2, dev dependencies of `apps/server` (approved U2). Node `v24.0.0` (local), `node:sqlite` prints an `ExperimentalWarning` (filtered by the server). **Version dependence (noted after the merge, PR #28, 061119b):** CI runs Node `v24.21.0`, which no longer prints that warning; the M1 runner test was made version tolerant (it records whether the warning appears and checks the filter only drops that one). The filter stays harmless where the warning is absent. Map digest of `maps/dev`: `4d1698a310b46a6507fd128dad87f20873065d44a71b2ee5a78c062eb5c1e679`.
@@ -838,3 +840,223 @@ One branch would be about 4,300 to 4,750: above the 3,500 ceiling (G1).
 - **G9. FR-246 "publish the final leaderboard"** read as: readable through FR-277 from the commit of the finish, announced by `results` (T, 2) and `match-finished`; no leaderboard inside an event (FR-287 (f) lists the `match-finished` fields). Alternative: a leaderboard payload in `match-finished` (a change to FR-287 (f) and the event shape). If the user prefers it written down, a one-line clarification D30 with this reading.
 - **G10. The leaderboard computed per read** (PD31) and the player-results order (PD32).
 - **D29** (20.11): the spec clarification of NFR-52 for the `node:http` test client and reader.
+
+## 21. M5 and M5' detail (live viewer, web test client)
+**Status: approved by the user on 2026-10-24** (H1 to H12 and the spec clarifications D30 to D32 of 21.19, recorded in the spec). Tasks in `tasks-M5.md`.
+Split up front (H1, D24 spirit): **M5** on `feat/008-m5-live-core` from `rewrite` after M4' is merged (PR #37, 56481b9 or later), tasks T1 to T7, headless: protocol readers, the pure live core, the transport over `fetch`, closes FR-305, FR-306, NFR-56, FR-303, FR-304, FR-307, FR-308 (93 / 3); **M5'** on `feat/008-m5-2-live-viewer` from `rewrite` after M5 is merged, tasks T1' to T7': the browser shell, the debug-scene exclusion, the web test client, the real-server proofs and the screenshots, closes FR-309, FR-311, FR-310 (96 / 0). Reason: about 5,500 changed lines in one branch (21.20), above the 3,500 ceiling; the cut puts everything testable without a browser in M5 and everything that draws, builds or runs against the real server in M5'. **No new third-party dependency, no change to the map format, the presentation data, the id image, `MatchState`, `RoundRecord`, the server, the store schema or any wire shape**: no "ask first" item is triggered except the internal workspace dependency of H4 and the repository line of H9.
+
+### 21.1 Starting point (facts read from the code on 2026-10-24)
+- `apps/web/index.html` loads `/src/ui/main.ts`, the debug scene shell (377 lines): load, checks, colours, labels, renderer, playback, panel, input, address sync. It imports the sim (`getRounds`, `getState`, `ownerOf`, `totalRounds`) and is the only module besides `core/scene.ts` that names `@mbrg/sim` (pinned by `anti-spoiler.test.ts` line 83).
+- `ui/load.ts` bundles the dev map package through three Vite `?url` imports of `maps/dev` and reads `map.json` / `presentation.json` as text (`response.text()`), so a digest over the raw bytes (FR-308) needs a loader that reads bytes first. `parsePackage(files, inflate)` and `checkPackage` are pure and reusable.
+- `core/scene.ts` `Scene` carries `seed`; the debug panel (`ui/panel.ts`) prints it. The live viewer gets its own scene and panel types, with no seed.
+- `core/playback.ts` (`startPlayback`, `request`, `frame`, `motionChanged`) and `core/step.ts` `StepData` (`earlier`, `later`, `eliminated`, `absorber`, `transferred`: no seed, round or record) are reusable as they are for the live viewer (FR-304: the rendering part gets the 004 FR-159 / 005 FR-188 data only).
+- **Earlier viewer scans that block live code** (each needs the explicit exception of D30): `anti-spoiler.test.ts` FR-161 (`fetch(` only in `ui/load.ts`, no `EventSource`, line 108), FR-155 (`setTimeout` / `setInterval` banned in every source, line 172; the word `transition` only in four files; the words `animation`, `animate` banned); `purity.test.ts` NFR-25 (`crypto`, `performance`, `Date` only in `ui/clock.ts`, line 45); `labels-purity.test.ts` NFR-33 (only `ui/main.ts` and `ui/frame-loop.ts` import the clock module, line 82); `strings-language.test.ts` NFR-28 (pinned placeholder list line 34, `INTERNAL_KINDS` line 9, `index.html` only); `shaped-deps.test.ts` NFR-42 and `labels-render.test.ts` NFR-36 (the viewer manifest and its lockfile entry pinned to `@mbrg/shared`, `@mbrg/sim`, `three`). `libraries.test.ts` NFR-26 filters `@mbrg/*` and needs no edit.
+- `packages/protocol` has encoders only (`encodePublicMatch`, `encodeEvent`, the reply encoders), the canonical forms (`mapDigestBytes`, `stateText`) and the id predicates (`isMatchId` does not exist; match ids are 16 base64url characters, `service/ids.ts`). No reader of a reply or an event exists: the client and the bot (step 4) need them.
+- Server facts the client relies on (sections 18, 19, 20): routes `GET /matches/{id}`, `/states/{round}`, `/records/{round}`, `/records`, `/events`, `/maps/{mapId}/{file}`, `/matches/{id}/predictions` (GET own with a client credential, POST submit), `/results/{round}/{phase}`, `/players/{playerId}/results`, `/leaderboard`; path segments matched literally, no percent-decoding (`web%3Aa` is `invalid-player-id`); credential-free GETs answered with `Access-Control-Allow-Origin: *`, credentialed requests only for `MBRG_ALLOWED_ORIGINS`; the stream is one `id:` + `data:` frame per event (no `event:`, no `retry:` line), heartbeat comment every 14,000 ms, `Last-Event-ID` header wins over `lastEventId`, a credential-free preflight asking for `last-event-id` is allowed (E8); streams of finished and halted matches stay open with heartbeats (E4: the viewer closes them); the `results` event exists since M4 (the viewer ignores it, 20.4); the listener logs `{"event":"listening","port":n}`.
+
+### 21.2 Files
+```
+packages/protocol/src/
+  decode.ts (new, PURE)      readers of untrusted JSON (own-property rule, exact key sets, fixed field order of the
+                             first failing field): readPublicMatch, readEvent (known | unknown type with a seq | invalid),
+                             readStateReply, readRecordReply, readErrorReply, readPredictionReply, readOwnPredictionsPage,
+                             readPlayerResultsPage, readLeaderboardPage                                (M5 T2)
+  index.ts (edit)            exports
+apps/web/src/core/                                         (all PURE: the NFR-25 core scan applies)
+  live-address.ts (new)      chooseScene(search, dev) (FR-306), readLiveAddress (match, round, x, y, zoom), formatLiveAddress  (M5 T3)
+  live-text.ts (new)         stage line, countdown text, victim / winner / halt lines, notices and errors (Spanish via STRINGS) (M5 T3)
+  strings.ts (edit)          the new Spanish texts (live viewer M5 T3; web test client M5' T5')
+  live-rounds.ts (new)       ownersOf(pairs), applyRecord(owners, record) -> owners | mismatch, stepDataOf, canRequest(model, j) (M5 T4)
+  live-model.ts (new)        LiveModel, LiveInput, LiveEffect, reduce(model, input) -> { model, effects }, estimateAt   (M5 T4, T5)
+  live-retry.ts (new)        retry schedule 1, 2, 4, 8, 16, then 30 s; Retry-After; reply classification; watchdog constant (M5 T5)
+  live-sse.ts (new)          incremental event-stream frame parser (id, data, comments, CR / LF / CRLF, split chunks)  (M5 T6)
+  client-form.ts (new)       web test client: submission bodies, paths with the namespaced id unescaped, reply texts      (M5' T5')
+apps/web/src/ui/
+  live-net.ts (new)          createLiveNet({ base, fetch }): reads, map files as bytes, the stream over a fetch body; the
+                             ONLY network module besides ui/load.ts (D30); `credentials: 'omit'`, no Authorization       (M5 T6)
+  web-crypto.ts (new)        digestAvailable(), sha256Hex(bytes), requestId(); the ONLY crypto user (D30)                (M5 T6)
+  live-timer.ts (new)        after(ms, fn) -> cancel; the ONLY timer user (D30)                                          (M5' T3')
+  live-config.ts (new)       the server origin: `import.meta.env.VITE_MBRG_SERVER`, default `http://127.0.0.1:8787` in
+                             development and the page origin in production (H8)                                         (M5' T3')
+  live-runner.ts (new)       runs the effects of `reduce` with injected net, timers, digest and clock; no DOM             (M5' T3')
+  map-view.ts (new)          the drawing shell extracted from ui/main.ts (renderer, labels, front, playback frames,
+                             camera, resize); takes owner tables and StepData, never a seed, a round count or the sim (H5) (M5' T2')
+  main.ts (edit)             the debug scene uses map-view; behaviour unchanged (FR-309)                                (M5' T2')
+  live-panel.ts (new)        the live panel DOM (stage, countdown, victim, winner, halt, notices, controls, legend)       (M5' T3')
+  live-main.ts (new)         the live scene: loads, verifies, draws N, wires runner, panel, input, address               (M5' T3')
+  entry.ts (new)             page entry: chooseScene; the debug scene only behind `import.meta.env.DEV` (dynamic import),
+                             the live scene, or one Spanish message                                                     (M5' T3')
+  client-main.ts (new)       the web test client page (development only, H7)                                             (M5' T5')
+apps/web/index.html (edit)   script `/src/ui/entry.ts`                                                                  (M5' T3')
+apps/web/client.html (new)   the web test client page: no text nodes (NFR-28 rule); not a production build input         (M5' T5')
+apps/web/package.json (edit) + "@mbrg/protocol": "*" (H4); lockfile: the `apps/web` entry only                         (M5 T3)
+.gitignore (edit)            + `.env.local` (the development credential file, H9)                                       (M5' T5')
+apps/web/test/helpers/fake-server.ts (new)  a fake server over the protocol encoders, as an injected `fetch` (21.14)   (M5 T6)
+apps/server/test/viewer-live.test.ts, viewer-live-child.test.ts, client-live.test.ts (new)  real-server proofs (H6)    (M5' T6')
+apps/server/test/fixtures/dev-live-server.ts (new, hand-run)  local run with the fake clock and a fixed random seed     (M5' T6')
+```
+`apps/server/src`, `packages/shared`, `packages/sim`, the map package and every golden: unchanged.
+
+### 21.3 Client architecture (pure core, effectful shell)
+```
+ page address --chooseScene--> debug (dev only, ui/main.ts, unchanged) | message | live
+ live: inputs (public data read, state read, record read, map files verified, event frame, stream opened/dropped,
+        read failed, digest result, timer due, navigation)  --reduce(model, input)-->  { model, effects }
+       effects (read public, read state j, read record j, read map files, open stream { after, header }, close stream,
+        hash state text, arm timer, draw round, play step, show panel) --live-runner--> net / timers / web-crypto / map-view
+```
+- `reduce` is a pure function of (model, input) where every input carries the monotonic instant `at` read by the shell from `ui/clock.ts` (NFR-25): no DOM, no WebGL, no clock, no network; it is tested in Node with literal inputs. The shell runs effects and feeds their results back as inputs; it holds no match data of its own.
+- The model (`LiveModel`): `matchId`, `mapDigest`, `totalRounds`, `timing`, `stage`, `appliedRounds` N, `held` (owners of the received rounds j <= N and records 1..N received), `displayed` (the round on display) and `following` (displayed === N when the last change happened), `lastSeq`, `reported` `{ value, at }` (largest reported time received and the instant it arrived), `schedule`, `victim` (the FR-288 fields), `winner`, `haltReason`, `connection` (`connecting`, `open`, `waiting { attempt, until }`, `closed`), `fatal` (an error that ends the scene).
+- Reported-time estimate: `estimateAt(model, at) = reported.value + (at - reported.at)`, never decreasing (it is spec 009's definition, so 009 reuses it). Countdown = max(0, anchor - estimate), anchor C1 in `phase-1`, C2 in `phase-2`, A in `locked`; none with timing `manual` or when not running (FR-305).
+- Spec 009 seam: on a fresh `victim-revealed` the model shows the victim at once (D19, no animation in 008); on `round-applied` it emits the `play-step` effect with the received `StepData`. Spec 009 later inserts its tours between the event and those effects; M5 adds no tour hook, dim input or `reveal` parameter (not in this spec).
+
+### 21.4 Load and verification sequence (FR-303, FR-306, FR-308)
+```
+chooseScene(search, dev):
+  match and seed both present            -> message 'both'          (every build)
+  match present: malformed or repeated   -> message 'bad-match'     (no request is sent)
+  match present                          -> live { matchId, round?, camera? }
+  seed only / neither                    -> dev ? debug : message 'need-match'
+live start:
+  if !digestAvailable()                  -> fatal 'insecure-origin' (FR-308: fail closed, before any request)
+  readPublic(matchId)                    -> 404 unknown-match: fatal 'unknown-match' (no retry); network or 5xx: retry (21.7)
+  readMapFile(mapId, f) for the 3 files  -> raw bytes; sha256Hex(mapDigestBytes(files)) !== mapDigest: fatal 'digest-mismatch'
+  decode (TextDecoder utf-8, like response.text()), parsePackage, checkPackage, capabilities, colours (the debug path's checks)
+  held[N] = public.state; draw N (or the address round j <= N, read with its record, D31)
+  openStream(after = public.lastSeq, as the `lastEventId` parameter)           (FR-289 (b), FR-307 first connection)
+```
+No state, record or event is drawn before the map digest matched; a fatal error shows one Spanish message and no scene.
+
+### 21.5 Events (one `message` path, E2; FR-287, FR-289)
+| Frame | Handling |
+|---|---|
+| `seq <= lastSeq` | ignored (a replay overlap or a duplicate): no change, no effect |
+| `seq > lastSeq + 1` | gap (cannot happen with the server of 19.3; defensive): close the stream, read the public data again, rebuild the model, subscribe with its `lastSeq` |
+| unknown `type` with a whole `seq` | consumed: `lastSeq = seq`, nothing else (forward compatible, E2) |
+| known `type`, payload refused by `readEvent` | protocol fault: close, wait by the retry schedule, resync as for a gap |
+| `phase-closed` | `lastSeq`; the stage follows the next `schedule` (or `round-applied` with L2 = 0) |
+| `victim-revealed` | victim fields; panel shows the victim's name at once (FR-305, D19); reported time |
+| `round-applied` (k) | k must be N + 1 (else resync); `applyRecord(held[N], record)`, effect `hash-state`; on the matching digest: `held[k]`, record k, N = k; if `following`, effect `play-step` (k - 1 -> k) and displayed = k at once (FR-303); else controls only (D32); on a mismatch: effect `read-state k` and an instant change to it (FR-304) |
+| `results` | consumed; the viewer shows no results (FR-305); the web test client reloads its results (M5') |
+| `schedule` | stage, anchors, reported time |
+| `match-finished` | winner, stage `finished`, close the stream (E4) |
+| `match-halted` | reason, stage `halted`, the victim fields stay (FR-251 (e)), close the stream |
+Every reported time received raises `reported` only if larger (never decreases).
+
+### 21.6 Rounds held, requests and navigation (FR-303, FR-304)
+- `canRequest(model, j)` is true only for 0 <= j <= N (states) and 1 <= j <= N (records); every read effect is built through it, and a test over a whole match asserts that no request path ever names a round above the N of that moment (the client half of "future rounds never reach the client").
+- Stepping backwards over applied rounds stays allowed (FR-304): the controls cover 0..N (`navigate(displayed, N, action)`); a round not held is read (`/states/j`, `/records/j + 1` for the step data) and kept (public data). Nothing about round N + 1 is held except the FR-288 fields while revealed.
+- The state at N + 1 is built only from the received record (transfer of the listed territories to the absorber; a listed territory not owned by the eliminated faction in `held[N]` is a mismatch) and checked against the event's state digest (SHA-256 of `stateText`, the browser's crypto). No engine round step, no draw, no sim import in any live module (scan, FR-304).
+
+### 21.7 Connection policy (FR-307, FR-289 (d), (e))
+- Retry schedule after a failure (network error, 5xx, 429, an unreadable reply): 1, 2, 4, 8, 16 s, then every 30 s; a 429 waits max(schedule, `Retry-After`); a success resets it. While waiting, the last drawn state stays and the panel shows the Spanish notice with the time of the next attempt.
+- Stream drop (the body ends or errors, or no byte for 45,000 ms: three heartbeats of 14 s plus margin, H10): the first reconnection is immediate, later failures follow the schedule; the reconnection sends the `Last-Event-ID` header with the last sequence number received (FR-289 (d) letter: the address parameter is for the first connection only); the replay is applied through 21.5, so nothing is missed or applied twice.
+- `unknown-match` on any read: fatal, no retry. A non-200 stream reply follows the same classification. The viewer never opens a stream without a number (FR-289 (e) would lose events).
+- Finished or halted: the stream is closed by the viewer and not reopened.
+
+### 21.8 Panel (FR-305, NFR-56)
+Spanish texts, all in `core/strings.ts`: the title of the live scene, "Ronda N de T", the stage (five texts), the countdown in `H:MM:SS` / `M:SS` to the next scheduled step in every running stage (none with `manual`), the victim line during `phase-2`, `locked` and `halted` after a reveal, the winner when finished, the halted notice with one text per reason (`map-changed`, `isolated-faction`, `victim-mismatch` are data, mapped to Spanish), the connection notice, the legend (faction names and alive / eliminated, as the debug legend), the controls (first, previous, next, last, reset). No seed, no pointer readout, no timings, no results (not in FR-305). Error kinds stay English identifiers inside Spanish templates (NFR-28).
+
+### 21.9 Address (FR-306, P20, D31)
+`?match=<id>` with, as the debug scene (005 FR-186), `round` (the displayed round, at most N; a larger one shows N with a Spanish notice) and `x`, `y`, `zoom`; rewritten with `history.replaceState` on every displayed round or camera change; never a seed, a secret or a round above N. Without D31 (P20 read literally) the address is `?match=<id>` only and is never rewritten.
+
+### 21.10 Debug scene exclusion and production build (FR-306 (c), (d), FR-309, FR-311)
+- `ui/entry.ts`: `if (import.meta.env.DEV && choice.kind === 'debug') await import('./main')`; in a production build `import.meta.env.DEV` is the constant `false`, so the bundler drops the branch, `ui/main.ts`, `ui/load.ts`, the sim and the three `maps/dev` assets. The debug scene itself is unchanged (FR-309; the 009 `reveal` parameter is passed through untouched when 009 adds it).
+- Production build check (M5' T4'): a Vitest test runs the Vite build API (no new dependency: Vite is the viewer's bundler) into a temporary folder with `VITE_MBRG_WEB_CREDENTIAL` set to a planted value; the output holds no planted value, no copy of `map.json` / `ids.png` / `presentation.json`, none of the marker texts of the debug scene and of the web test client (`data-mbrg-scene` values set only by `ui/main.ts` and `ui/client-main.ts`), no `client.html`, and its entry chooses the live scene or the message for each FR-306 case. Explicit timeout (the build takes seconds).
+
+### 21.11 Web test client (FR-310, H7)
+- A separate development page `apps/web/client.html` (Vite serves any root page in development; the production build input is `index.html` only), no WebGL: a form with the local player id, the match id, the kind, the round and a faction select fed by the public data (living factions for `victim`, the victim's candidates for `absorber`, winner candidates for `winner`); the stage, countdown and revealed victim from the same live core (reads and stream); the stored predictions (`GET /matches/{id}/predictions?playerId=`, with the credential); the player's results and the first leaderboard page (credential-free), reloaded on each `results` event.
+- Credential (H9): `VITE_MBRG_WEB_CREDENTIAL` read only in `ui/client-main.ts`, from `apps/web/.env.local` (ignored by version control); the server's `MBRG_ALLOWED_ORIGINS` must list the development origin (`http://localhost:5173`); the page shows a Spanish message when the variable is missing.
+- Each submission draws a client request id (`web-crypto.ts`) reused on a retry of the same submission (FR-282).
+- Player id paths: `/matches/{id}/players/web:<local>/results` with the `:` written as is; local ids outside FR-297 are refused before any request (never percent-encoded, since the server does not decode).
+
+### 21.12 CORS and wire details on the client
+Viewer and credential-free client reads: `fetch(url, { credentials: 'omit' })` with no custom header, so a cross-origin GET is a simple request (no preflight) answered `*` (18.4b); the stream reconnection adds only `Last-Event-ID` (preflight allowed by E8). Credentialed requests (submission, own predictions) send `Authorization: Bearer` and `Content-Type: application/json` from an allowed origin. Bodies are read as text and parsed with `JSON.parse`, then by the protocol readers (untrusted input).
+
+### 21.13 Anti-spoiler on the client side (FR-254 client half, FR-303, FR-304, 004 FR-161)
+- No live module imports `@mbrg/sim` or the debug modules, and the debug modules (`ui/main.ts`, `ui/load.ts`, `core/scene.ts`, `core/step.ts` callers) import no live module (scan, M5 T6 / M5' T2').
+- Requests: only `canRequest` rounds (21.6), tested against the fake server's request log over whole matches and against the real server.
+- Holding: the model's type has no field for an absorber or a state of round N + 1; `held` gains round k only from a `round-applied` of round k or a read of k <= N.
+- The seed of the debug scene still goes nowhere: the live modules never see it (scan: no `seed` identifier in live modules).
+
+### 21.14 Test strategy (Vitest only, NFR-52)
+- **Pure (Node)**: protocol readers (round trip `read(encode(x))` equals x for every shape the server sends, refusals with the first failing field); `chooseScene` for every FR-306 case in both builds; panel texts; `reduce` over scripted inputs (a whole dev-map match, duplicates and overlaps, gaps, unknown types, malformed frames, halts, finished, reconnection, navigation backwards, following or not); `applyRecord`; the retry schedule; the frame parser over every chunk split of a recorded stream.
+- **Fake server** (`apps/web/test/helpers/fake-server.ts`): an injected `fetch` built over the protocol encoders (`encodePublicMatch`, `encodeEvent`, `encodeState`, `encodeRecord`, `encodeError`): routes by URL, serves the dev map files from `maps/dev`, streams frames through a `ReadableStream` the test pushes to, drops or errors the stream, answers any status, and records every request (URL, method, headers, credentials mode). Web standard types only (DOM lib), so it runs in the viewer's Node tests without `@types/node`.
+- **Real server, in process** (`apps/server/test/viewer-live.test.ts`, H6): the M3 server harness (fake clock, in-memory store, port 0) and the viewer's `live-net` + `reduce` + a headless runner with Node's `fetch`: manual and clock matches from round 0 to T, the model equals the server's states and records at every N, a stream ended by `streams.closeAll()` and a restart reconnect with `Last-Event-ID` without gaps or duplicates, a halted match, no round above N requested.
+- **Real server, child process** (`viewer-live-child.test.ts`): the production `main.ts` on a fixed free port with a file database; killed by PID mid-match and restarted on the same port; the viewer core reconnects and ends equal to an uninterrupted run (the M3b' kill lessons: `process.execPath`, kill in `finally`, close readers before removing files).
+- **Web test client against the server** (`client-live.test.ts`): submissions of the three kinds, a replay with the same request id, own predictions, player results with the raw `:` (a percent-encoding mutant gets 400), the leaderboard after a scored phase.
+- **Build output** (M5' T4', 21.10). **Scans**: the D30 exceptions and the new live / debug separation scans.
+- **Visual** (AGENTS.md; NFR-27 style): screenshots at 1920 x 1080, reviewed by the user, as before / after pairs where a view existed before: the debug scene at seed 1, rounds 0, 1, T before and after the map-view extraction (identical); the live viewer on the dev map from `test/fixtures/dev-live-server.ts` (fixed random seed, fake clock, manual timing for fixed rounds; one clock match for the countdown) at round 0, round 1 in phase 1, phase 2 and applied, round T (finished), a halted match (`map-changed` from an edited temporary map copy), the connection notice, the unknown-match and production `need-match` messages; the web test client with stored predictions and results.
+- **Browser performance** (H11): no new target (008 has none for the viewer); on the reference PC (004 NFR-24) the PR records the first drawn frame after the public data, the time from a `round-applied` frame to the first step frame, and the step frame median and 95th percentile, measured in the browser with the pane visible (MEMORY lesson), compared with the debug scene figures and the 007 NFR-43 round-change budget of 200 ms (D20).
+
+### 21.15 Earlier tests edited (meaning stated; D30)
+- `apps/web/test/anti-spoiler.test.ts`: FR-161 `fetch(` allowed in `ui/load.ts` and `ui/live-net.ts` only (every other network API still banned everywhere); FR-155 `setTimeout` allowed in `ui/live-timer.ts` only; the planted-violation tests keep flagging the same lines elsewhere. The FR-159 sim list stays `['core/scene.ts', 'ui/main.ts']` (no edit).
+- `apps/web/test/purity.test.ts`: NFR-25 `crypto` allowed in `ui/web-crypto.ts` only (clock reads still only in `ui/clock.ts`).
+- `apps/web/test/labels-purity.test.ts`: NFR-33 clock importers `['ui/frame-loop.ts', 'ui/live-main.ts', 'ui/live-runner.ts', 'ui/main.ts']` (exact list, M5' T3').
+- `apps/web/test/strings-language.test.ts`: placeholder list and `INTERNAL_KINDS` gain the new names (listed in the tasks); `client.html` checked like `index.html` (a new test).
+- `apps/web/test/shaped-deps.test.ts` NFR-42, `labels-render.test.ts` NFR-36: the viewer manifest and lockfile entry gain exactly `"@mbrg/protocol": "*"` (a spec 008 workspace, NFR-53); the third-party set and the 138 lockfile entries are unchanged.
+- `packages/sim/test/traceability.test.ts`: bookkeeping; the planted id FR-303 moves to FR-309 (M5 T4) and to FR-310 (M5' T4'); M5' T5' replaces both planted tests by "the pending set is empty" and a synthetic-list detection test.
+- `apps/web/src/ui/main.ts` (source, not a test): the extraction of H5, behaviour unchanged; every 004 to 007 test passes unedited.
+
+### 21.16 Ids and ledger
+- **M5**: T3 closes FR-305, FR-306, NFR-56 (89 / 7); T4 closes FR-303, FR-304 (91 / 5); T5 closes FR-307 (92 / 4); T6 closes FR-308 (93 / 3); T7 pins 93 / 3. Parts: FR-287 and FR-288 (readers), FR-289 (d), (e) (client), FR-302 (client estimate), FR-254 (client requests), 004 FR-161 (live modules), NFR-51 (protocol readers).
+- **M5'**: T4' closes FR-309 and FR-311 (95 / 1); T5' closes FR-310 (96 / 0); T7' pins the empty pending set. Parts: FR-303, FR-304, FR-305 (shell), FR-306 (production build), FR-307 and FR-308 (real server), NFR-56 (web test client), NFR-55 (viewer scans, D30).
+- Titles: no M5 or M5' task or test title names a pending id before the task that closes it (`tasks-M5.md`, titles rule).
+
+### 21.17 Decisions of this plan (planner, with the discarded alternative)
+- PD33. Pure reducer with effects as data (21.3). Discarded: a stateful client object calling `fetch` and the DOM (testable only in a browser).
+- PD34. The stream is read over `fetch` with a hand-written frame parser; the first connection uses `lastEventId`, reconnections the `Last-Event-ID` header (21.7). Discarded: `EventSource` (its own reconnection ignores the FR-307 schedule, it gives up on non-200 replies, it cannot be driven in the Node tests) and the parameter on every reconnection (the FR-289 (d) letter reserves it for the first connection).
+- PD35. Unknown event types are consumed by number; malformed known events resync (21.5). Discarded: refusing the stream on an unknown type (breaks forward compatibility, E2).
+- PD36. Readers in `packages/protocol` with exact key sets (21.2). Discarded: readers in the viewer (the bot of step 4 would duplicate them); tolerant readers ignoring extra keys (server and clients ship together; strictness catches drift).
+- PD37. A state built from a record is drawn only after its digest matched (21.5). Discarded: drawing first and correcting (would draw an unverified state).
+- PD38. Watchdog 45,000 ms without a byte (21.7, H10). Discarded: no watchdog (a silently dead connection would never be noticed).
+
+### 21.18 Risks
+- **Scan amendments need a spec decision** (D30): without it, `fetch` in a second module, timers and crypto violate the 004 / 005 scans; the alternative of placing live code outside `apps/web/src` would hide it from the language and purity scans (rejected).
+- **Bundler dead-code removal** (Vite 8, Rolldown): the debug branch must disappear from the production output; the build-output test proves it, and a failure means the entry must use a separate production input (decided then, no spec change).
+- **Strings module in production**: `core/strings.ts` is one object, so the production bundle may carry the debug and test-client texts (not their code). Accepted: FR-311 forbids the client and the credential, not texts; the build test uses code markers, not texts.
+- **Extraction of `ui/main.ts`** (H5): a behaviour change of the debug scene would break FR-309; guarded by every 004 to 007 test unedited and the before / after screenshots.
+- **Size**: the reducer (T4, T5) and the shell (T3') are the largest; checkpoint after M5 T5 at about 2,000 lines and after M5' T3' at about 1,300.
+- **Spec 009** amends the same scans (009 NFR-60) and the panel (the "revelando…" text); M5 adds no 009 hook, so 009's plan adds its tours between the event and the `play-step` effect (21.3) and extends the D30 lists.
+- **Windows**: the child-process restart on the same port; the M3b' lessons (kill by PID in `finally`, readers closed before temp files are removed, batches of sockets) apply.
+- **Map files are read whole per request** (M3a' note): fine for the dev map; real-size maps are a later measured change.
+
+### 21.19 Decisions needing the user's approval (recommendation first)
+- **H1. Split M5 / M5' up front** (21, 21.20). Alternative: one branch with a checkpoint (about 5,500 lines expected).
+- **H2. Client architecture and transport**: PD33 to PD38 (pure reducer, `fetch` stream with the parameter then the header, unknown types consumed, readers in protocol, digest before drawing, 45 s watchdog). Alternative: `EventSource`.
+- **H3. The live address (D31 below)**: match, displayed round, camera. Alternative: P20 literally (match only, never rewritten).
+- **H4. `apps/web` depends on the workspace `@mbrg/protocol`** (internal, no third party; two pinned manifest tests updated). Alternative: copying the wire types into the viewer (two definitions drift).
+- **H5. Extract the drawing shell of `ui/main.ts` into `ui/map-view.ts`**, reused by the live scene, the debug scene unchanged in behaviour (before / after screenshots). Alternative: duplicate about 200 lines in `ui/live-main.ts` (no change to `main.ts`).
+- **H6. Real-server tests in `apps/server/test`** importing the viewer's pure core and `ui/live-net.ts` by relative path (the harness, fake clock, `@types/node` and child helpers live there). Alternative: add `@types/node` to the viewer's test types (a viewer dependency change).
+- **H7. The web test client is a separate development page `client.html`** (outside the production input by construction), with stage, countdown, victim, stored predictions, the player's results and the first leaderboard page. Alternatives: an address parameter of `index.html` (a change to FR-306's cases); no leaderboard (FR-310 says "the results").
+- **H8. Server origin**: `VITE_MBRG_SERVER` at build time, default `http://127.0.0.1:8787` in development and the page origin in production. Alternatives: an address parameter (P20 forbids extra parameters); a Vite proxy in development only.
+- **H9. Development credential** in `VITE_MBRG_WEB_CREDENTIAL` (`apps/web/.env.local`, `.gitignore` gains `.env.local`), checked absent from the production output. Alternatives: the tester types it into the page each time; a Vite development proxy that adds the header (the credential never reaches the browser, but the Node tests could not drive the client against the real server the same way).
+- **H10. Reconnection details**: first reconnection immediate, then the FR-307 schedule; `Retry-After` honoured; 45 s watchdog; resync on a gap or a malformed event.
+- **H11. Browser performance**: figures recorded in the PR (21.14), no new target. Alternative: a new viewer budget (a spec change).
+- **H12. Local run for the screenshots**: a hand-run test fixture `apps/server/test/fixtures/dev-live-server.ts` (createServer with the fake clock driven from standard input, a fixed fake random seed, the real round-seed derivation, the halt by editing a temporary copy of the map); it is not a production entry point (FR-260, NFR-47 (f) unchanged). Alternative: the real `main.ts` with timing `manual` and advances by hand (no fixed match id or secret, no fake clock).
+- **Spec clarifications (user-approved 2026-10-24, recorded in the spec Decisions as D30 to D32)**:
+  - **D30 (2026-10-24, user-approved). Viewer scans**: "NFR-55 (viewer scans): the 004 to 006 viewer scan tests gain an explicit list of live-client files, with their rules unchanged for every other file: `fetch` also in `ui/live-net.ts` (004 FR-161), timers only in `ui/live-timer.ts` (004 FR-155, 005 NFR-35), the platform crypto only in `ui/web-crypto.ts` (004 NFR-25), the clock module also imported by `ui/live-main.ts` and `ui/live-runner.ts` (005 NFR-33), the new placeholders and kinds in the 004 NFR-28 lists, and the viewer manifest pins (005 NFR-36, 006 NFR-42) with the workspace `@mbrg/protocol`; a new scan keeps the debug scene and the live modules apart." Why: NFR-55 lists only the D21 export-list exceptions; these edits change what the 004 FR-161 and FR-155 tests assert ("no source uses a network API", "no timers"). Discarded: live code outside `apps/web/src`.
+  - **D31 (2026-10-24, user-approved). Live address**: "P20 / FR-303: the live viewer address holds the match id and, as the debug scene, the displayed round (at most N) and the camera; never a seed, a secret or a round above N; a larger round shows N with a Spanish notice." Why: P20 says "no seed, round or secret", while FR-303 (D20) and 009 FR-345 have the page address change with the displayed round. Discarded: P20 literally (FR-303's address clause then has nothing to change).
+  - **D32 (2026-10-24, user-approved). Applied round while browsing**: "FR-303: WHEN a `round-applied` event for N + 1 arrives while the displayed round is N, THE SYSTEM SHALL play the 005 round step to it; while the displayed round is below N, it SHALL keep the displayed round and update N, the panel and the controls." Why: FR-303 is unconditional, but a one-round step from j < N to N + 1 does not exist, and 009 FR-319 already treats an event arriving while the displayed round is not k − 1 as not fresh. Discarded: jumping back to the live round on every application (takes the view from a spectator who browses history).
+- Not needing a decision: the FR-289 (d) letter is followed (PD34); FR-305 shows the victim at once (no 009 animation yet, D19); `MatchState` and the map format are unchanged.
+
+### 21.20 Size estimates (changed lines, src + tests; docs apart)
+| Task | Estimate |
+|---|---|
+| M5 T1 branch, docs, bookkeeping | 40 |
+| M5 T2 protocol readers | 650 |
+| M5 T3 address, scene choice, panel texts, strings, protocol dependency | 450 |
+| M5 T4 live model: rounds, events, requests | 550 |
+| M5 T5 connection policy | 350 |
+| M5 T6 frame parser, transport, crypto, fake server, scans | 650 |
+| M5 T7 close | 80 |
+| **M5** | **about 2,770 + docs 350** |
+| M5' T1' branch, bookkeeping | 30 |
+| M5' T2' map-view extraction, debug scene unchanged | 550 |
+| M5' T3' live shell, entry, panel, timers, runner | 650 |
+| M5' T4' production build check | 250 |
+| M5' T5' web test client | 550 |
+| M5' T6' real-server proofs, local-run fixture | 650 |
+| M5' T7' screenshots, figures, close | 100 |
+| **M5'** | **about 2,780 + docs 150** |
+One branch would be about 5,500 lines: above the 3,500 ceiling (H1).

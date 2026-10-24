@@ -24,10 +24,11 @@ One file per milestone; read only the active one plus the rules above. Do not re
 | M3a | `tasks-M3a.md` | merged (PR #32) |
 | M3a' | `tasks-M3a2.md` | merged (PR #33) |
 | M3b, M3b' | `tasks-M3b.md` | merged (PR #34, #35) |
-| M4, M4' | `tasks-M4.md` | approved by the user (2026-10-23; plan section 20, G1 to G10, spec clarification D29); M4 merged (PR #36); M4' done (T1' to T6'), PR pending |
+| M4, M4' | `tasks-M4.md` | approved by the user (2026-10-23; plan section 20, G1 to G10, spec clarification D29); merged (PR #36, #37) |
+| M5, M5' | `tasks-M5.md` | approved by the user (2026-10-24; plan section 21, H1 to H12, spec clarifications D30 to D32) |
 
 Progress per task lives in `specs/008-server-and-predictions/PROGRESS.md`.
 ## Later milestones (headings only; detailed later, at most 10 tasks each)
 - **M3b / M3b'. Server-Sent Events, replay, heartbeat, stream limits, performance procedure.** Detailed in `tasks-M3b.md` (approved, plan section 19): M3b (T1 to T6) moves no id; M3b' (T1' to T5') closes FR-287 (letter (d) in M4) and NFR-49. Depends on M3a'.
 - **M4 / M4'. Scoring, results and leaderboard.** Detailed in `tasks-M4.md` (plan section 20, approved by the user on 2026-10-23): M4 (T1 to T5) closes FR-274, FR-271, FR-272, FR-273 (82 / 14) and adds the `results` event with the re-pinned sequences; M4' (T1' to T6') closes FR-275 to FR-278 (86 / 10) with the reads, routes, goldens and durability. Depends on M3b'.
-- **M5. Live viewer and web test client.** FR-303 to FR-311; NFR-56; screenshots reviewed by the user. Depends on M3b', M4. Closes the pending set; spec 008 becomes `implemented` after acceptance.
+- **M5 / M5'. Live viewer and web test client.** Detailed in `tasks-M5.md` (plan section 21, approved by the user on 2026-10-24): M5 (T1 to T7, headless live client) closes FR-305, FR-306, NFR-56, FR-303, FR-304, FR-307, FR-308 (93 / 3); M5' (T1' to T7', browser shell, production build check, web test client, real-server proofs, screenshots) closes FR-309, FR-311, FR-310 (96 / 0). Depends on M4'. Closes the pending set; spec 008 becomes `implemented` after acceptance.
