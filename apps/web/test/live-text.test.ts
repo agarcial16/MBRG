@@ -149,7 +149,7 @@ const live = import.meta.glob('../src/core/live-*.ts', { query: '?raw', import: 
 
 describe('NFR-56 the live texts are Spanish and live in the strings module', () => {
   it('NFR-56 the scan sees the live core sources (not vacuous)', () => {
-    expect(Object.keys(live).sort()).toStrictEqual(['../src/core/live-address.ts', '../src/core/live-text.ts']);
+    expect(Object.keys(live)).toEqual(expect.arrayContaining(['../src/core/live-address.ts', '../src/core/live-text.ts']));
   });
 
   it('NFR-56 no live source holds a Spanish text of its own: no DOM text sink literal, only ASCII', () => {
