@@ -81,6 +81,9 @@ export function openScript(options: HarnessOptions = {}): ScriptRig {
   return rig;
 }
 
+/** The script on a service that already holds the match `id` (an HTTP test server's service, created with manual timing and the script secret). */
+export const attachScript = (h: Harness, id: string): ScriptRig => ({ h, id, done: 0, submitted: [], alive: {}, candidates: {} });
+
 const livingNow = (r: ScriptRig): number[] => [...new Set(r.h.store.getMatch(r.id)!.match.state.owners.map(([, f]) => f))].sort((a, b) => a - b);
 
 function submit(r: ScriptRig, plan: Planned, body: Record<string, unknown>): void {
