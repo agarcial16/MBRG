@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mbrg/protocol": "*",
     "@mbrg/shared": "*",
     "@mbrg/sim": "*",
     "three": "0.186.1"

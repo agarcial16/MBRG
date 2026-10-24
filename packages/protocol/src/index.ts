@@ -87,3 +87,15 @@ export type {
   StepInfo,
   VictimRevealedEvent,
 } from './wire';
+export {
+  readErrorReply,
+  readEvent,
+  readLeaderboardPage,
+  readOwnPredictionsPage,
+  readPlayerResultsPage,
+  readPredictionReply,
+  readPublicMatch,
+  readRecordReply,
+  readStateReply,
+} from './decode';
+export type { Decoded, EventRead } from './decode';

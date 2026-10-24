@@ -25,8 +25,9 @@ import { DEV_MAP, DEV_PRESENTATION } from './helpers/dev-map';
 // and is compared with the reference renderer in the browser (task T7 report).
 
 // ---------------------------------------------------------------------------------------------------------------
-// NFR-36 (spec 005 adds no dependency). The set below is the 004 set (libraries.test.ts pins versions and licences).
-const RUNTIME = { '@mbrg/shared': '*', '@mbrg/sim': '*', three: '0.186.1' };
+// NFR-36 (spec 005 adds no dependency). The set below is the 004 set (libraries.test.ts pins versions and licences) plus the
+// internal workspace @mbrg/protocol of spec 008 (M5, H4 and D30; no third-party package).
+const RUNTIME = { '@mbrg/protocol': '*', '@mbrg/shared': '*', '@mbrg/sim': '*', three: '0.186.1' };
 const DEV = { '@types/three': '0.186.0', vite: '8.3.4' };
 /** Every spec 008 workspace entry and its link (A1): apps/server, packages/protocol and their node_modules/@mbrg links. */
 const SPEC_008_ENTRY = /^(?:apps\/server|packages\/protocol|node_modules\/@mbrg\/(?:server|protocol))$/;

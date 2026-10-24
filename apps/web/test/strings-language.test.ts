@@ -7,6 +7,8 @@ import { codeOnly, htmlText, htmlTextAttributes, languageViolations, stripCommen
 // NFR-28 (language). Literal lists copied from the plan (section 10), not imported from src.
 /** English identifiers shown inside Spanish messages as data (as in 001-003b). */
 const INTERNAL_KINDS = ['palette-exhausted', 'no-webgl2', 'texture-too-small', 'invalid-png', 'invalid-json', 'read-failed'];
+/** Live viewer scene kinds and error kinds (spec 008 M5, D30): English identifiers, never shown as such outside a Spanish template. */
+const LIVE_KINDS = ['debug', 'live', 'message', 'unknown-match', 'digest-mismatch', 'insecure-origin', 'both', 'need-match', 'bad-match'];
 const ADDRESS_REASONS = ['invalid', 'out-of-range', 'repeated'];
 const KEBAB = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
@@ -31,7 +33,7 @@ describe('NFR-28 UI strings module', () => {
       expect(typeof text, key).toBe('string');
       expect(text.trim().length, key).toBeGreaterThan(0);
       for (const m of text.matchAll(/\{(\w+)\}/g)) {
-        expect(['param', 'text', 'total', 'count', 'kind', 'size', 'required', 'faction', 'seed', 'round', 'living', 'id', 'name', 'state', 'eliminated', 'absorber', 'x', 'y', 'value', 'fill', 'owner', 'ms', 'median', 'p95'], `${key} placeholder ${m[1]}`).toContain(m[1]);
+        expect(['param', 'text', 'total', 'count', 'kind', 'size', 'required', 'faction', 'seed', 'round', 'living', 'id', 'name', 'state', 'eliminated', 'absorber', 'x', 'y', 'value', 'fill', 'owner', 'ms', 'median', 'p95', 'time'], `${key} placeholder ${m[1]}`).toContain(m[1]);
       }
     }
   });
@@ -102,11 +104,11 @@ describe('NFR-28 source scan', () => {
   });
 
   it('NFR-28 viewer-internal error kinds and address reasons are English identifiers, listed here', () => {
-    for (const kind of [...INTERNAL_KINDS, ...ADDRESS_REASONS]) expect(kind).toMatch(KEBAB);
+    for (const kind of [...INTERNAL_KINDS, ...LIVE_KINDS, ...ADDRESS_REASONS]) expect(kind).toMatch(KEBAB);
     // Every kind written in the sources is in the list (non-vacuous once later tasks add kinds).
     for (const [path, src] of others) {
       for (const m of stripComments(src).matchAll(/\bkind\s*:\s*(['"`])([^'"`]+)\1/g)) {
-        expect(INTERNAL_KINDS, `${path}: ${m[2]}`).toContain(m[2]);
+        expect([...INTERNAL_KINDS, ...LIVE_KINDS], `${path}: ${m[2]}`).toContain(m[2]);
       }
     }
     // Address reasons produced by the parser are exactly from the listed set.
