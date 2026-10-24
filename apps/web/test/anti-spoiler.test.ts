@@ -99,13 +99,16 @@ describe('FR-159 the rendering part takes no seed, round or sim', () => {
 const NETWORK_NAMES = /\b(XMLHttpRequest|WebSocket|EventSource|sendBeacon|importScripts|serviceWorker|SharedWorker|Worker|WebTransport|RTCPeerConnection)\b/;
 const NAVIGATION = /\b(?:location|window\s*\.\s*location)\s*\.\s*(?:assign|replace|reload|href\s*=(?!=)|search\s*=(?!=)|hash\s*=(?!=))|\bwindow\s*\.\s*open\b|\bnew\s+Image\b|\.\s*src\s*=(?!=)|\.\s*href\s*=(?!=)/;
 
-/** Network use in one source; `fetch(` is allowed only in `ui/load.ts`. */
+/** The only modules that may call `fetch(`: the debug loader and, by D30 of spec 008, the live transport. */
+const FETCH_FILES = ['ui/load.ts', 'ui/live-net.ts'];
+
+/** Network use in one source; `fetch(` is allowed only in `ui/load.ts` and `ui/live-net.ts`. */
 function networkViolations(path: string, src: string): string[] {
   const code = codeOnly(src);
   const found: string[] = [];
   const named = NETWORK_NAMES.exec(code);
   if (named) found.push(`network API ${named[1]}`);
-  if (/\bfetch\s*\(/.test(code) && path !== 'ui/load.ts') found.push('fetch outside ui/load.ts');
+  if (/\bfetch\s*\(/.test(code) && !FETCH_FILES.includes(path)) found.push('fetch outside ui/load.ts and ui/live-net.ts');
   if (NAVIGATION.test(code)) found.push('navigation or resource request');
   return found;
 }
@@ -117,10 +120,12 @@ describe('FR-161 the seed of the debug scene goes nowhere', () => {
     expect(nonRender.length).toBe(sources.length - render.length);
   });
 
-  it('FR-161 no source uses a network API; fetch( appears only in ui/load.ts', () => {
+  it('FR-161 no source uses a network API; fetch( appears only in ui/load.ts and ui/live-net.ts', () => {
     for (const [path, src] of sources) expect(networkViolations(path, src), path).toStrictEqual([]);
-    const loader = sources.find(([p]) => p === 'ui/load.ts')![1];
-    expect(/\bfetch\b/.test(codeOnly(loader))).toBe(true);
+    for (const file of FETCH_FILES) {
+      const source = sources.find(([p]) => p === file)![1];
+      expect(/\bfetch\b/.test(codeOnly(source)), file).toBe(true);
+    }
   });
 
   it('FR-161 the loader names no seed or round, so the package request cannot carry one', () => {
@@ -148,7 +153,12 @@ describe('FR-161 the seed of the debug scene goes nowhere', () => {
     ];
     for (const src of planted) expect(networkViolations('core/x.ts', src), src).not.toStrictEqual([]);
     expect(networkViolations('ui/load.ts', 'const r = await fetch(u);')).toStrictEqual([]);
-    expect(networkViolations('ui/main.ts', 'const r = await fetch(u);')).not.toStrictEqual([]);
+    expect(networkViolations('ui/live-net.ts', 'const r = await deps.fetch(u);')).toStrictEqual([]);
+    for (const path of ['ui/main.ts', 'ui/panel.ts', 'core/live-model.ts', 'ui/live-net-extra.ts', 'ui/web-crypto.ts']) {
+      expect(networkViolations(path, 'const r = await fetch(u);'), path).not.toStrictEqual([]);
+    }
+    // The other network APIs stay banned in the live transport too.
+    expect(networkViolations('ui/live-net.ts', "const e = new EventSource('/x');")).not.toStrictEqual([]);
   });
 
   it('FR-161 the scan lets plain code through', () => {
