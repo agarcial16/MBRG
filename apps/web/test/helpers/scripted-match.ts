@@ -121,6 +121,22 @@ export const eventsFrom = (s: Scripted, from: number, to: number): unknown[] =>
 export const requestRounds = (effects: readonly LiveEffect[]): number[] =>
   effects.flatMap((e) => (e.type === 'read-state' || e.type === 'read-record' ? [e.round] : []));
 
+/** The request an effect makes, as the `failed` input names it (undefined for an effect that asks nothing). */
+export function requestOf(effect: LiveEffect): Extract<LiveInput, { type: 'failed' }>['request'] | undefined {
+  switch (effect.type) {
+    case 'read-public':
+      return { type: 'public' };
+    case 'read-state':
+      return { type: 'state', round: effect.round };
+    case 'read-record':
+      return { type: 'record', round: effect.round };
+    case 'open-stream':
+      return { type: 'stream' };
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Runs a model like the shell does: effects of reads are answered from the scripted match, `hash-state` is answered with the
  * real digest of its text (or a wrong one with `corrupt`; held back until `resolve()` with `defer`). Every effect is logged
@@ -132,6 +148,15 @@ export class Driver {
   readonly log: { effect: LiveEffect; applied: number }[] = [];
   corrupt = false;
   defer = false;
+  /** When set, `read-public` is answered with the public data at this many applied rounds (a retry after a wait). */
+  publicN: number | undefined;
+  /** Scripted failures: each read or stream opening takes the next one (first in, first out) instead of succeeding. */
+  readonly failures: { outcome: 'retry' | 'unknown-match'; retryAfterMs?: number }[] = [];
+  /** The `until` of the last `arm-timer` effect. */
+  armed: number | undefined;
+  /** When true, `read-state` and `read-record` are held back until `release()` (a read still in flight). */
+  holdReads = false;
+  private held: LiveEffect[] = [];
   private waiting: string[] = [];
 
   constructor(
@@ -156,7 +181,21 @@ export class Driver {
 
   private async answer(effect: LiveEffect): Promise<void> {
     this.at += 5;
-    if (effect.type === 'hash-state' && this.defer) {
+    if (effect.type === 'arm-timer') {
+      this.armed = effect.until;
+      return;
+    }
+    if (this.holdReads && (effect.type === 'read-state' || effect.type === 'read-record')) {
+      this.held.push(effect);
+      return;
+    }
+    const request = requestOf(effect);
+    const failure = request !== undefined && (effect.type !== 'read-public' || this.publicN !== undefined) ? this.failures.shift() : undefined;
+    if (request !== undefined && failure !== undefined) {
+      await this.feed({ type: 'failed', at: this.at, request, ...failure });
+    } else if (effect.type === 'read-public' && this.publicN !== undefined) {
+      await this.feed({ type: 'public', at: this.at, match: publicAt(this.s, this.publicN) });
+    } else if (effect.type === 'hash-state' && this.defer) {
       this.waiting.push(effect.text);
     } else if (effect.type === 'hash-state') {
       await this.feed({ type: 'digest', at: this.at, digest: this.corrupt ? hex('0') : await sha256Hex(effect.text) });
@@ -165,6 +204,21 @@ export class Driver {
     } else if (effect.type === 'read-record') {
       await this.feed({ type: 'record', at: this.at, reply: recordReply(this.s, effect.round) });
     }
+  }
+
+  /** Answers the reads held back by `holdReads`, in order. */
+  async release(): Promise<void> {
+    this.holdReads = false;
+    for (const effect of this.held.splice(0)) await this.answer(effect);
+  }
+
+  /** The retry or watchdog timer comes due: a `tick` at the armed instant (or at `at`). */
+  async tick(at?: number): Promise<void> {
+    const due = at ?? this.armed;
+    if (due === undefined) throw new Error('no timer armed');
+    this.at = Math.max(this.at, due);
+    this.armed = undefined;
+    await this.feed({ type: 'tick', at: due });
   }
 
   /** Answers the oldest held-back `hash-state`. */

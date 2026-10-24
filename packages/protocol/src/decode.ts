@@ -159,14 +159,23 @@ function anchors(m: Members, manual: boolean | undefined): { c2: number | null; 
   return { c2, a };
 }
 
+/** The victim is among the living and every candidate is too (the neighbours it can be absorbed by are alive). */
+function withinLiving(m: Members, victim: number, candidates: readonly number[], living: readonly number[]): void {
+  if (!living.includes(victim)) refuse(m.path('victim'));
+  if (candidates.some((c) => !living.includes(c))) refuse(m.path('candidates'));
+}
+
+/** `round` is the round being decided, which must be the one after the applied rounds. */
 const victimOf =
-  (manual: boolean): Reader<PublicVictim> =>
+  (manual: boolean, applied: number): Reader<PublicVictim> =>
   (v, f) =>
     object(v, f, PUBLIC_VICTIM_KEYS, (m) => {
       const round = m.get('round', int(1));
+      if (round !== applied + 1) refuse(m.path('round'));
       const victim = m.get('victim', int(1));
       const candidates = m.get('candidates', ids);
       const living = m.get('living', ids);
+      withinLiving(m, victim, candidates, living);
       const revealedAt = m.get('revealedAt', int(0));
       const { c2, a } = anchors(m, manual);
       return { round, victim, candidates, living, revealedAt, c2, a, seq: m.get('seq', int(1)) };
@@ -187,6 +196,9 @@ export function readPublicMatch(input: unknown): Decoded<PublicMatch> {
       const commitment = m.get('commitment', hex);
       const stage = m.get('stage', oneOf(STAGES));
       const appliedRounds = m.get('appliedRounds', int(0));
+      // The applied rounds fit the stage: all of them when finished, fewer than the total while the match runs.
+      const allApplied = appliedRounds === totalRounds;
+      if (appliedRounds > totalRounds || (stage !== 'halted' && (stage === 'finished') !== allApplied)) refuse(m.path('appliedRounds'));
       const state = m.get('state', stateOf(appliedRounds));
       const stateDigest = m.get('stateDigest', hex);
       const lastSeq = m.get('lastSeq', int(1));
@@ -200,7 +212,7 @@ export function readPublicMatch(input: unknown): Decoded<PublicMatch> {
       const victimStage = stage === 'phase-2' || stage === 'locked';
       if (m.has('victim') || victimStage) {
         if (!victimStage && stage !== 'halted') refuse(m.path('victim'));
-        view.victim = m.get('victim', victimOf(clock === 'manual'));
+        view.victim = m.get('victim', victimOf(clock === 'manual', appliedRounds));
       }
       const winner = optional(m, 'winner', stage === 'finished', int(1));
       if (winner !== undefined) view.winner = winner;
@@ -336,6 +348,7 @@ const knownEvent = (type: MatchEvent['type'], input: unknown): MatchEvent =>
         const victim = m.get('victim', int(1));
         const candidates = m.get('candidates', ids);
         const living = m.get('living', ids);
+        withinLiving(m, victim, candidates, living);
         const revealedAt = m.get('revealedAt', int(0));
         const { c2, a } = anchors(m, undefined);
         return { type, seq, round, victim, candidates, living, revealedAt, c2, a, reportedTime: m.get('reportedTime', int(0)) };

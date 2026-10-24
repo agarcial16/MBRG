@@ -15,6 +15,7 @@ import {
   type StateReply,
   type Timing,
 } from '@mbrg/protocol';
+import { WATCHDOG_MS, retryDelay } from './live-retry';
 import { applyRecord, canRequest, digestTextOf, ownersOf, stepDataOf, type Owners } from './live-rounds';
 import { navigate, type NavAction } from './navigation';
 import type { StepData } from './step';
@@ -44,6 +45,25 @@ export interface Applying {
 
 export type LivePhase = 'loading' | 'live' | 'resyncing' | 'closed';
 
+/** A request the model may have to ask again after a wait (FR-307). */
+export type LiveRequest =
+  | { readonly type: 'public' }
+  | { readonly type: 'state'; readonly round: number }
+  | { readonly type: 'record'; readonly round: number }
+  | { readonly type: 'stream' };
+
+/** The event stream: asked for (`connecting`), delivering (`open`) or not wanted now (`closed`). */
+export type LiveConnection = 'connecting' | 'open' | 'closed';
+
+/** The wait before the next attempt: which consecutive failure it follows and the instant it ends (for the notice). */
+export interface LiveWait {
+  readonly attempt: number;
+  readonly until: number;
+}
+
+/** An error that ends the scene: the match does not exist. */
+export type LiveFatal = 'unknown-match';
+
 export interface LiveModel {
   readonly matchId: string;
   readonly mapDigest: string;
@@ -72,10 +92,31 @@ export interface LiveModel {
   /** Frames received while a round is being checked, in order. */
   readonly queue: readonly Frame[];
   readonly phase: LivePhase;
+  readonly connection: LiveConnection;
+  /** Set while the next attempt waits (the notice shows); the last drawn round stays on display. */
+  readonly wait: LiveWait | undefined;
+  /** What is asked again when the wait ends. */
+  readonly retry: readonly LiveRequest[];
+  /** Consecutive failures since the last success. */
+  readonly failures: number;
+  /** The last failure was a protocol fault (a resync): only an accepted frame counts as a success. */
+  readonly fault: boolean;
+  readonly fatal: LiveFatal | undefined;
+  /** The instant of the last byte on the open stream (the watchdog runs from it). */
+  readonly lastByteAt: number;
+  /** A stream has been open at least once: later openings use the header (FR-289 (d)). */
+  readonly streamed: boolean;
+  /** The displayed round is N (a spectator who follows the live round). */
+  readonly following: boolean;
 }
 
 export type LiveInput =
   | { readonly type: 'public'; readonly at: number; readonly match: PublicMatch; readonly round?: number }
+  | { readonly type: 'failed'; readonly at: number; readonly request: LiveRequest; readonly outcome: 'retry' | 'unknown-match'; readonly retryAfterMs?: number }
+  | { readonly type: 'opened'; readonly at: number }
+  | { readonly type: 'bytes'; readonly at: number }
+  | { readonly type: 'dropped'; readonly at: number }
+  | { readonly type: 'tick'; readonly at: number }
   | { readonly type: 'event'; readonly at: number; readonly data: unknown }
   | { readonly type: 'digest'; readonly at: number; readonly digest: string }
   | { readonly type: 'state'; readonly at: number; readonly reply: StateReply }
@@ -86,8 +127,9 @@ export type LiveEffect =
   | { readonly type: 'read-public' }
   | { readonly type: 'read-state'; readonly round: number }
   | { readonly type: 'read-record'; readonly round: number }
-  | { readonly type: 'open-stream'; readonly after: number }
+  | { readonly type: 'open-stream'; readonly after: number; readonly via: 'parameter' | 'header' }
   | { readonly type: 'close-stream' }
+  | { readonly type: 'arm-timer'; readonly until: number }
   | { readonly type: 'hash-state'; readonly text: string }
   | { readonly type: 'draw'; readonly round: number; readonly owners: Owners }
   | { readonly type: 'play-step'; readonly from: number; readonly to: number; readonly data: StepData };
@@ -125,15 +167,70 @@ export function startLive(matchId: string): LiveResult {
     applying: undefined,
     queue: [],
     phase: 'loading',
+    connection: 'closed',
+    wait: undefined,
+    retry: [],
+    failures: 0,
+    fault: false,
+    fatal: undefined,
+    lastByteAt: 0,
+    streamed: false,
+    following: true,
   };
   return { model, effects: [{ type: 'read-public' }] };
 }
 
 const result = (model: LiveModel, effects: readonly LiveEffect[] = []): LiveResult => ({ model, effects });
 
-/** A gap or a refused event: drop what is in flight, close the stream and read the public data again (21.5). */
-const resync = (model: LiveModel): LiveResult =>
-  result({ ...model, phase: 'resyncing', applying: undefined, queue: [], wanted: undefined }, [{ type: 'close-stream' }, { type: 'read-public' }]);
+/** The timer the shell must arm: the end of the wait or the watchdog of the open stream, whichever comes first. */
+function armFor(model: LiveModel): LiveEffect[] {
+  const dues = [...(model.wait === undefined ? [] : [model.wait.until]), ...(model.connection === 'open' ? [model.lastByteAt + WATCHDOG_MS] : [])];
+  return dues.length === 0 ? [] : [{ type: 'arm-timer', until: Math.min(...dues) }];
+}
+
+/** A read arrived: the schedule starts over, unless the last failure was a protocol fault (only an accepted frame ends that). */
+const succeeded = (model: LiveModel): LiveModel => (model.fault ? model : { ...model, failures: 0 });
+
+/** The last sequence number received, counting the frames that wait in the queue: a reconnection continues after it. */
+const receivedSeq = (model: LiveModel): number => (model.queue.length > 0 ? (model.queue[model.queue.length - 1] as Frame).seq : model.lastSeq);
+
+const openStream = (model: LiveModel): LiveEffect => ({ type: 'open-stream', after: receivedSeq(model), via: model.streamed ? 'header' : 'parameter' });
+
+const sameRequest = (a: LiveRequest, b: LiveRequest): boolean => JSON.stringify(a) === JSON.stringify(b);
+
+/** A failure that is retried by the schedule: the request is asked again when the wait ends (the larger of the schedule and `Retry-After`). */
+function waitFor(model: LiveModel, at: number, request: LiveRequest, retryAfter?: number): LiveResult {
+  const failures = model.failures + 1;
+  const until = Math.max(model.wait?.until ?? 0, at + retryDelay(failures, retryAfter));
+  const retry = model.retry.some((r) => sameRequest(r, request)) ? model.retry : [...model.retry, request];
+  const next: LiveModel = { ...model, failures, wait: { attempt: failures, until }, retry };
+  return result(next, armFor(next));
+}
+
+/** A gap, a refused event or a wrong round: drop what is in flight, close the stream and read the public data after a wait (21.5, 21.7). */
+function resync(model: LiveModel, at: number): LiveResult {
+  const failures = model.failures + 1;
+  const wait: LiveWait = { attempt: failures, until: at + retryDelay(failures) };
+  const next: LiveModel = {
+    ...model,
+    phase: 'resyncing',
+    applying: undefined,
+    queue: [],
+    wanted: undefined,
+    connection: 'closed',
+    failures,
+    fault: true,
+    wait,
+    retry: [{ type: 'public' }],
+  };
+  return result(next, [{ type: 'close-stream' }, ...armFor(next)]);
+}
+
+/** The match is over for the stream (finished or halted) or the scene ended: no stream is wanted any more. */
+const withoutStream = (model: LiveModel): LiveModel => {
+  const retry = model.retry.filter((r) => r.type !== 'stream');
+  return { ...model, connection: 'closed', retry, wait: retry.length === 0 ? undefined : model.wait };
+};
 
 /** What a browsing step to `target` needs: the owners, and for a step of one round the record of the later round. */
 function plan(model: LiveModel, target: number, step: boolean): { single: boolean; states: number[]; record: number | undefined } {
@@ -142,15 +239,20 @@ function plan(model: LiveModel, target: number, step: boolean): { single: boolea
   return { single, states: single ? [from, target] : [target], record: single ? Math.max(from, target) : undefined };
 }
 
-function missingReads(model: LiveModel, p: ReturnType<typeof plan>): LiveEffect[] {
+/** The reads a step needs: `needed` is true while something is missing; a state already being read is not asked twice. */
+function missingReads(model: LiveModel, p: ReturnType<typeof plan>): { reads: LiveEffect[]; needed: boolean } {
   const reads: LiveEffect[] = [];
+  let needed = false;
   for (const round of p.states) {
-    if (!model.held.has(round) && canRequest(model.applied, 'state', round)) reads.push({ type: 'read-state', round });
+    if (model.held.has(round) || !canRequest(model.applied, 'state', round)) continue;
+    needed = true;
+    if (!(model.applying?.step === 'read' && model.applying.round === round)) reads.push({ type: 'read-state', round });
   }
   if (p.record !== undefined && !model.records.has(p.record) && canRequest(model.applied, 'record', p.record)) {
+    needed = true;
     reads.push({ type: 'read-record', round: p.record });
   }
-  return reads;
+  return { reads, needed };
 }
 
 /** Shows `target` once everything it needs is held: a step of one round plays, any other change is instant. */
@@ -158,7 +260,7 @@ function show(model: LiveModel, target: number, p: ReturnType<typeof plan>): Liv
   const owners = model.held.get(target);
   const from = model.displayed;
   if (owners === undefined) return result(model);
-  const next = { ...model, displayed: target, wanted: undefined };
+  const next = { ...model, displayed: target, wanted: undefined, following: target === model.applied };
   if (p.single && from !== undefined && p.record !== undefined) {
     const record = model.records.get(p.record);
     const other = model.held.get(from);
@@ -174,8 +276,8 @@ function show(model: LiveModel, target: number, p: ReturnType<typeof plan>): Liv
 function goto(model: LiveModel, target: number, step: boolean): LiveResult {
   if (model.displayed === target) return model.wanted === undefined ? result(model) : result({ ...model, wanted: undefined });
   const p = plan(model, target, step);
-  const reads = missingReads(model, p);
-  if (reads.length === 0) return show(model, target, p);
+  const { reads, needed } = missingReads(model, p);
+  if (!needed) return show(model, target, p);
   return model.wanted === target ? result(model) : result({ ...model, wanted: target }, reads);
 }
 
@@ -183,7 +285,7 @@ function goto(model: LiveModel, target: number, step: boolean): LiveResult {
 function settle(model: LiveModel): LiveResult {
   if (model.wanted === undefined) return result(model);
   const p = plan(model, model.wanted, true);
-  return missingReads(model, p).length === 0 ? show(model, model.wanted, p) : result(model);
+  return missingReads(model, p).needed ? result(model) : show(model, model.wanted, p);
 }
 
 const join = (a: LiveResult, b: LiveResult): LiveResult => ({ model: b.model, effects: [...a.effects, ...b.effects] });
@@ -194,7 +296,6 @@ function fromPublic(prev: LiveModel, input: Extract<LiveInput, { type: 'public' 
   const owners = ownersOf(m.state.owners);
   const loading = prev.phase === 'loading';
   const finalStage = m.stage === 'finished' || m.stage === 'halted';
-  const following = prev.displayed === undefined || prev.displayed === prev.applied;
   const held = new Map(prev.held).set(m.appliedRounds, owners);
   const base: LiveModel = {
     ...prev,
@@ -214,11 +315,17 @@ function fromPublic(prev: LiveModel, input: Extract<LiveInput, { type: 'public' 
     queue: [],
     wanted: undefined,
     phase: finalStage ? 'closed' : 'live',
+    // A resync keeps counting until a frame is accepted (a protocol fault is not a success); the first public read starts at zero.
+    failures: loading ? 0 : prev.failures,
+    wait: undefined,
+    retry: [],
+    connection: finalStage ? 'closed' : 'connecting',
   };
   const asked = loading && input.round !== undefined && input.round <= m.appliedRounds ? input.round : undefined;
-  const target = asked ?? (following ? m.appliedRounds : (prev.displayed as number));
+  // A spectator who followed N keeps following it, also after a failed state read and a resync; one who browsed stays where they are.
+  const target = asked ?? (prev.following ? m.appliedRounds : (prev.displayed as number));
   const shown = goto(base, target, false);
-  return finalStage ? shown : join(shown, result(shown.model, [{ type: 'open-stream', after: m.lastSeq }]));
+  return finalStage ? shown : join(shown, result(shown.model, [openStream(base)]));
 }
 
 function commit(model: LiveModel, applying: Applying, at: number): LiveResult {
@@ -239,13 +346,15 @@ function commit(model: LiveModel, applying: Applying, at: number): LiveResult {
   return drain(result(next, step), at);
 }
 
-/** The digest differs (or the record does not fit): N is the announced round and its state is read from the server. */
+/**
+ * The digest differs (or the record does not fit): N is the announced round and its state is read from the server. The record
+ * is not kept (it did not fit what is held): a later step over this round reads it from the server.
+ */
 function readInstead(model: LiveModel, applying: Applying): LiveResult {
   return result(
     {
       ...model,
       applied: applying.round,
-      records: new Map(model.records).set(applying.round, applying.record),
       victim: undefined,
       applying: { ...applying, step: 'read' },
     },
@@ -265,7 +374,8 @@ function drain(out: LiveResult, at: number): LiveResult {
 
 /** One frame whose number is the next one: updates the fields it sets; `round-applied` starts the check of its round. */
 function consume(model: LiveModel, frame: Frame, at: number): LiveResult {
-  const m: LiveModel = { ...model, lastSeq: frame.seq };
+  // An accepted frame is a success: the schedule starts over.
+  const m: LiveModel = { ...model, lastSeq: frame.seq, failures: 0, fault: false };
   const e = frame.event;
   if (e === undefined) return result(m);
   switch (e.type) {
@@ -273,7 +383,7 @@ function consume(model: LiveModel, frame: Frame, at: number): LiveResult {
     case 'results':
       return result(m);
     case 'victim-revealed': {
-      if (e.round !== m.applied + 1) return resync(model);
+      if (e.round !== m.applied + 1) return resync(model, at);
       const victim: PublicVictim = {
         round: e.round, victim: e.victim, candidates: e.candidates, living: e.living, revealedAt: e.revealedAt, c2: e.c2, a: e.a, seq: e.seq,
       };
@@ -282,12 +392,12 @@ function consume(model: LiveModel, frame: Frame, at: number): LiveResult {
     case 'schedule':
       return result(raise({ ...m, stage: e.stage, schedule: e.schedule }, e.reportedTime, at));
     case 'match-finished':
-      return result(raise({ ...m, stage: 'finished', winner: e.winner, schedule: undefined, phase: 'closed' }, e.reportedTime, at), [{ type: 'close-stream' }]);
+      return result(raise(withoutStream({ ...m, stage: 'finished', winner: e.winner, schedule: undefined, phase: 'closed' }), e.reportedTime, at), [{ type: 'close-stream' }]);
     case 'match-halted':
-      return result(raise({ ...m, stage: 'halted', haltReason: e.reason, schedule: undefined, phase: 'closed' }, e.reportedTime, at), [{ type: 'close-stream' }]);
+      return result(raise(withoutStream({ ...m, stage: 'halted', haltReason: e.reason, schedule: undefined, phase: 'closed' }), e.reportedTime, at), [{ type: 'close-stream' }]);
     case 'round-applied': {
       const base = m.held.get(m.applied);
-      if (e.round !== m.applied + 1 || base === undefined) return resync(model);
+      if (e.round !== m.applied + 1 || base === undefined) return resync(model, at);
       const applying: Applying = { round: e.round, record: e.record, digest: e.stateDigest, step: 'hash' };
       const next = applyRecord(base, e.record);
       if (next === 'mismatch') return readInstead(m, applying);
@@ -299,11 +409,11 @@ function consume(model: LiveModel, frame: Frame, at: number): LiveResult {
 function onEvent(model: LiveModel, data: unknown, at: number): LiveResult {
   if (model.phase !== 'live') return result(model);
   const read = readEvent(data);
-  if (read.status === 'invalid') return resync(model);
+  if (read.status === 'invalid') return resync(model, at);
   const frame: Frame = read.status === 'unknown' ? { seq: read.seq, event: undefined } : { seq: read.event.seq, event: read.event };
-  const tail = model.queue.length > 0 ? (model.queue[model.queue.length - 1] as Frame).seq : model.lastSeq;
+  const tail = receivedSeq(model);
   if (frame.seq <= tail) return result(model);
-  if (frame.seq > tail + 1) return resync(model);
+  if (frame.seq > tail + 1) return resync(model, at);
   if (model.applying !== undefined) return result({ ...model, queue: [...model.queue, frame] });
   return consume(model, frame, at);
 }
@@ -311,23 +421,94 @@ function onEvent(model: LiveModel, data: unknown, at: number): LiveResult {
 function onState(model: LiveModel, reply: StateReply, at: number): LiveResult {
   const round = reply.round;
   if (round > model.applied || round < 0) return result(model);
+  const a = model.applying;
+  const reading = a !== undefined && a.step === 'read' && a.round === round;
+  // The state the server sends for the round it announced must carry the digest it announced.
+  if (reading && reply.stateDigest !== a.digest) return resync(model, at);
   const held = new Map(model.held).set(round, ownersOf(reply.owners));
   const next = { ...model, held };
-  const a = model.applying;
-  if (a !== undefined && a.step === 'read' && a.round === round) {
+  if (reading) {
     const follow = model.displayed === round - 1;
     const owners = held.get(round) as Owners;
-    const done: LiveModel = { ...next, applying: undefined, displayed: follow ? round : next.displayed };
-    return drain(result(done, follow ? [{ type: 'draw', round, owners }] : []), at);
+    const done: LiveModel = { ...next, applying: undefined, displayed: follow ? round : next.displayed, wanted: follow && next.wanted === round ? undefined : next.wanted };
+    return drain(follow ? result(done, [{ type: 'draw', round, owners }]) : settle(done), at);
   }
   return settle(next);
 }
 
+/** A failed request: `unknown-match` ends the scene, anything else waits by the schedule and is asked again (FR-307). */
+function onFailed(model: LiveModel, input: Extract<LiveInput, { type: 'failed' }>): LiveResult {
+  const { request, at } = input;
+  if (input.outcome === 'unknown-match') {
+    const stop: LiveEffect[] = model.connection === 'closed' ? [] : [{ type: 'close-stream' }];
+    return result({ ...model, fatal: 'unknown-match', phase: 'closed', connection: 'closed', wait: undefined, retry: [], queue: [], applying: undefined, wanted: undefined }, stop);
+  }
+  if (request.type === 'stream') return model.phase === 'live' ? waitFor({ ...model, connection: 'closed' }, at, request, input.retryAfterMs) : result(model);
+  if (request.type === 'public' && model.phase !== 'loading' && model.phase !== 'resyncing') return result(model);
+  return waitFor(model, at, request, input.retryAfterMs);
+}
+
+/** The open stream ended, failed or went silent: reconnect at once with the header, or by the schedule after earlier failures. */
+function onDropped(model: LiveModel, at: number): LiveResult {
+  if (model.connection !== 'open') return result(model);
+  const closed: LiveModel = { ...model, connection: 'closed' };
+  if (model.failures > 0) {
+    const waiting = waitFor(closed, at, { type: 'stream' });
+    return result(waiting.model, [{ type: 'close-stream' }, ...waiting.effects]);
+  }
+  return result({ ...closed, connection: 'connecting' }, [{ type: 'close-stream' }, openStream(closed)]);
+}
+
+/** The effect that asks a request again; undefined when it no longer applies. */
+function askAgain(model: LiveModel, request: LiveRequest): LiveEffect | undefined {
+  switch (request.type) {
+    case 'public':
+      return { type: 'read-public' };
+    case 'state':
+      return canRequest(model.applied, 'state', request.round) ? { type: 'read-state', round: request.round } : undefined;
+    case 'record':
+      return canRequest(model.applied, 'record', request.round) ? { type: 'read-record', round: request.round } : undefined;
+    case 'stream':
+      return model.phase === 'live' && model.connection !== 'open' ? openStream(model) : undefined;
+  }
+}
+
+/** A timer came due: the watchdog of the open stream, then the end of a wait. */
+function onTick(model: LiveModel, at: number): LiveResult {
+  let current = model;
+  const effects: LiveEffect[] = [];
+  if (current.connection === 'open' && at - current.lastByteAt >= WATCHDOG_MS) {
+    const dropped = onDropped(current, at);
+    current = dropped.model;
+    effects.push(...dropped.effects);
+  }
+  if (current.wait !== undefined && at >= current.wait.until) {
+    const asked = current.retry.flatMap((r) => askAgain(current, r) ?? []);
+    current = { ...current, wait: undefined, retry: [], connection: asked.some((e) => e.type === 'open-stream') ? 'connecting' : current.connection };
+    effects.push(...asked);
+  }
+  return result(current, [...effects, ...armFor(current)]);
+}
+
 /** The next model and the effects for one input. Total: an input that does not fit the model changes nothing. */
 export function reduce(model: LiveModel, input: LiveInput): LiveResult {
+  if (model.fatal !== undefined) return result(model);
   switch (input.type) {
     case 'public':
       return fromPublic(model, input);
+    case 'failed':
+      return onFailed(model, input);
+    case 'opened': {
+      if (model.connection !== 'connecting') return result(model);
+      const next: LiveModel = { ...model, connection: 'open', lastByteAt: input.at, streamed: true };
+      return result(next, armFor(next));
+    }
+    case 'bytes':
+      return model.connection === 'open' ? result({ ...model, lastByteAt: input.at, failures: model.fault ? model.failures : 0 }) : result(model);
+    case 'dropped':
+      return onDropped(model, input.at);
+    case 'tick':
+      return onTick(model, input.at);
     case 'event':
       return onEvent(model, input.data, input.at);
     case 'digest': {
@@ -336,11 +517,11 @@ export function reduce(model: LiveModel, input: LiveInput): LiveResult {
       return input.digest === a.digest ? commit(model, a, input.at) : readInstead(model, a);
     }
     case 'state':
-      return model.phase === 'loading' ? result(model) : onState(model, input.reply, input.at);
+      return model.phase === 'loading' ? result(model) : onState(succeeded(model), input.reply, input.at);
     case 'record': {
       const round = input.reply.round;
       if (model.phase === 'loading' || !canRequest(model.applied, 'record', round)) return result(model);
-      return settle({ ...model, records: new Map(model.records).set(round, input.reply) });
+      return settle({ ...succeeded(model), records: new Map(model.records).set(round, input.reply) });
     }
     case 'navigate': {
       if (model.phase === 'loading' || model.displayed === undefined) return result(model);
