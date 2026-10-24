@@ -1,12 +1,18 @@
-### M5 and M5' (approved by the user on 2026-10-24)
+### M5, M5b and M5' (approved by the user on 2026-10-24; re-split after M5 T4 on 2026-10-24)
 
 Plan section 21, approved by the user on 2026-10-24 (H1 to H12; spec clarifications D30, D31 and D32 of 21.19, recorded in the spec). The rules of `tasks.md` apply; sizes are changed lines (src + tests; docs apart), plan 21.20. Branches are cut from an up-to-date `rewrite`.
 
-**Split up front (H1).** One branch would be about 5,500 changed lines (21.20), above the 3,500 ceiling. **M5** (`feat/008-m5-live-core`, from `rewrite` after M4' is merged, PR #37, T1 to T7) = everything testable without a browser: protocol readers, the pure live core, the `fetch` transport and the map digest; closes FR-305, FR-306, NFR-56, FR-303, FR-304, FR-307, FR-308 (86 / 10 -> 93 / 3). **M5'** (`feat/008-m5-2-live-viewer`, from `rewrite` after M5 is merged, T1' to T7') = the browser shell, the debug-scene exclusion, the web test client, the real-server proofs and the screenshots; closes FR-309, FR-311, FR-310 (93 / 3 -> 96 / 0). Checkpoints: stop and report if M5 passes about 2,000 changed lines at the end of T5, or M5' about 1,300 at the end of T3'.
+**Split up front (H1).** One branch would be about 5,500 changed lines (21.20), above the 3,500 ceiling; the work was first cut into M5 (headless) and M5' (browser).
 
-**Titles rule (this file).** No task title or test title names a pending id before the task that closes it: FR-305, FR-306, NFR-56 are first named in M5 T3; FR-303, FR-304 in M5 T4; FR-307 in M5 T5; FR-308 in M5 T6; FR-309, FR-311 in M5' T4'; FR-310 in M5' T5'. Earlier tasks cite a done id with a part name, for example `FR-287 (readers)`, `FR-288 (readers)`, `FR-289 (d) (client)`, `NFR-51 (protocol readers)`, `FR-161 (live modules)`. Check before every commit (must find only the ids already closed):
+**Re-split after M5 T4 (user decision, 2026-10-24).** M5 T4 ran 2.3x its estimate (src 403 against about 250, tests 677 against about 300, helper 189); the user accepted the overrun and closed M5 after T4 with a short closing task, so M5's branch stays near 2,700 changed lines. The connection policy, the transport and the old closing task move to a new branch M5b; the browser milestone keeps its label M5' on a renamed branch:
+- **M5** (`feat/008-m5-live-core`, T1 to T4 and T4c): protocol readers, address and scene choice, panel texts, the pure live model; closes FR-305, FR-306, NFR-56, FR-303, FR-304 (86 / 10 -> 91 / 5).
+- **M5b** (`feat/008-m5-2-live-transport`, from `rewrite` after M5 is merged, T5 to T7): the connection policy, the frame parser, the `fetch` transport, the map digest in the browser, the fake server and the D30 scan edits; closes FR-307, FR-308 (91 / 5 -> 93 / 3).
+- **M5'** (`feat/008-m5-3-live-viewer`, from `rewrite` after M5b is merged, T1' to T7'): the browser shell, the debug-scene exclusion, the web test client, the real-server proofs and the screenshots; closes FR-309, FR-311, FR-310 (93 / 3 -> 96 / 0).
+Checkpoints: stop and report if M5b passes about 1,050 changed lines at the end of T5 or about 2,500 at the end of T6, or M5' about 1,300 at the end of T3'. The 1.5x per-task stop rule still applies.
+
+**Titles rule (this file).** No task title or test title names a pending id before the task that closes it: FR-305, FR-306, NFR-56 are first named in M5 T3; FR-303, FR-304 in M5 T4; FR-307 in M5b T5; FR-308 in M5b T6; FR-309, FR-311 in M5' T4'; FR-310 in M5' T5'. Closing-state tests (M5 T4c, M5b T7) list the later ids in their body as a literal list, never in their title. Earlier tasks cite a done id with a part name, for example `FR-287 (readers)`, `FR-288 (readers)`, `FR-289 (d) (client)`, `NFR-51 (protocol readers)`, `FR-161 (live modules)`. Check before every commit (must find only the ids already closed):
 `rg -n "(it|test|describe)\(['\"\`][^'\"\`]*\b(FR-30[3-9]|FR-31[01]|NFR-56)\b" apps/*/test packages/*/test tools/*/test`
-The planted pending id of `traceability.test.ts` ('the pending-id check sees a pending id planted in a test title', FR-303) switches to FR-309 in M5 T4 and to FR-310 in M5' T4'; M5' T5' replaces both planted tests (21.15).
+The planted pending id of `traceability.test.ts` ('the pending-id check sees a pending id planted in a test title', FR-303) switched to FR-309 in M5 T4 (done), stays FR-309 through M5b, and switches to FR-310 in M5' T4'; M5' T5' replaces both planted tests (21.15).
 
 **Hand-offs from M4' and the viewer** (delivered facts the tasks rely on; plan 21.1):
 - Server: routes, CORS (`*` for credential-free GETs), the stream format (one `id:` + `data:` frame, heartbeat `:` every 14,000 ms, `Last-Event-ID` header wins over `lastEventId`, the `last-event-id` preflight), streams of finished or halted matches stay open (E4), the `results` event (20.4), path segments matched literally (a `:` is literal, `%3A` is refused), `{"event":"listening","port":n}`.
@@ -14,7 +20,7 @@ The planted pending id of `traceability.test.ts` ('the pending-id check sees a p
 - Viewer: `ui/main.ts` is the debug scene; `ui/load.ts` reads text, not bytes; `core/playback.ts` and `core/step.ts` `StepData` are reusable; the scans of 21.1 forbid `fetch` outside `ui/load.ts`, timers everywhere, `crypto` outside `ui/clock.ts`; the manifest pins of NFR-36 / NFR-42.
 - Server test harness (`apps/server/test/helpers/server-harness.ts`, `main-child.ts`): fake clock, port 0, `streams.closeAll()`, child processes killed by PID.
 
-## M5 (`feat/008-m5-live-core`, T1 to T7; 86 / 10 -> 93 / 3)
+## M5 (`feat/008-m5-live-core`, T1 to T4 and T4c; 86 / 10 -> 91 / 5)
 
 - [x] **T1. Branch, docs, bookkeeping targets.** NFR-55
   - Depends on: M4' merged (PR #37); plan section 21 and this file approved (done, 2026-10-24); D30 to D32 decided (done).
@@ -50,39 +56,53 @@ The planted pending id of `traceability.test.ts` ('the pending-id check sees a p
   - Commit: `feat(web): keep the live match from the server's rounds and events`.
   - Mutation proofs: a `seq <= lastSeq` frame applied again; a gap accepted; `play-step` before the digest matched; `read-state` of round N + 1; an unknown type stopping the model; the record applied to the wrong faction.
   - Done when: tests green; mutations caught; FR-303, FR-304 moved (91 / 5); `rg` finds them and no FR-305..FR-311 title outside T3.
-  - Size: L (about 550).
+  - Size: L (about 550). Actual: 1,269 (src 403, tests 677, helper `test/helpers/scripted-match.ts` 189): 2.3x, accepted by the user on 2026-10-24.
+
+- [ ] **T4c. Close M5: ledger, process checks, PR.** NFR-55
+  - Depends on: T1 to T4; the user's acceptance of the T4 overrun (done, 2026-10-24).
+  - Files: `packages/sim/test/traceability.test.ts` (closing-state test retitled to M5: 91 / 5, FR-303 to FR-306 and NFR-56 pinned done, the later ids FR-307, FR-308, FR-309, FR-310, FR-311 as a literal list in the body, none in a title), `plan.md` (sections 11 and 13: M5 closing summary, figures, the T4 decisions (1) to (7) of `PROGRESS.md` and the hand-offs to M5b: `scripted-match.ts` and its `Driver`, the `queue` of frames under check, the retry wait left open by T4 decision (6)), `PROGRESS.md`, `MEMORY.md` (local).
+  - Steps: `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server apps/web/src/ui apps/web/index.html` clean; `git diff --stat rewrite` only planned files; `package.json` changes only the `@mbrg/protocol` line of `apps/web`, the lockfile only its `apps/web` entry; no `.nvmrc` change; the titles `rg` finds only FR-303 to FR-306 and NFR-56 (and the planted FR-309); the existing viewer scans and the T4 `@mbrg/sim` scan green; `npm test`, `npm run typecheck` and `CI=1 npm test` green.
+  - PR facts: H1 to H12 and D30 to D32 as decided; the re-split into M5 / M5b / M5' (user, 2026-10-24); the T4 overrun (2.3x) accepted by the user; the ledger 91 / 5; the earlier tests edited (21.15: `shaped-deps`, `labels-render`, `strings-language`, `traceability`; `live-text` list made `arrayContaining` in T4).
+  - Commit: `test: pin the spec 008 pending set after M5`.
+  - Done when: CI green; counts 91 / 5; `MEMORY.md` updated (next: M5b).
+  - Size: S (about 80).
+
+## M5b (`feat/008-m5-2-live-transport`, from `rewrite` after M5 is merged; T5 to T7; 91 / 5 -> 93 / 3)
+
+Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.3x the first estimate), less the reuse of `apps/web/test/helpers/scripted-match.ts` (match, encoders, `Driver`) instead of new fixtures. M5b changes no manifest or lockfile.
 
 - [ ] **T5. Connection policy: retries, reconnection, unknown match, closing.** FR-307 (close); FR-289 (e) (client)
-  - Depends on: T4.
-  - Files: `apps/web/src/core/{live-retry,live-model}.ts` (new, edit), `apps/web/test/live-retry.test.ts` (new), `apps/web/test/live-model.test.ts` (more cases), `packages/sim/test/traceability.test.ts` (FR-307 out: 92 / 4).
-  - Tests first (plan 21.7, H10): delays 1, 2, 4, 8, 16, 30, 30 s after consecutive failures and reset after a success; a 429 waits the larger of the schedule and `Retry-After`; the last drawn round stays and the notice shows while waiting; `unknown-match` is fatal (no retry, no scene); a stream drop reconnects at once with `{ header: lastSeq }`, then by the schedule; 45,000 ms without a byte is a drop; the replay after a reconnection is applied without gaps or duplicates (scripted overlaps); the first connection uses the parameter, every later one the header; no stream is opened without a number; `match-finished` and `match-halted` close the stream and nothing reopens it.
+  - Depends on: M5 merged (T4c PR); branch cut from an up-to-date `rewrite`.
+  - Files: `apps/web/src/core/{live-retry,live-model}.ts` (new, edit), `apps/web/test/live-retry.test.ts` (new), `apps/web/test/live-model.test.ts` (more cases), `apps/web/test/helpers/scripted-match.ts` (the `Driver` gains failures, drops and due timers; no second helper), `packages/sim/test/traceability.test.ts` (comments: M5b targets; FR-307 out: 92 / 4).
+  - Tests first (plan 21.7, H10): delays 1, 2, 4, 8, 16, 30, 30 s after consecutive failures and reset after a success; a 429 waits the larger of the schedule and `Retry-After`; the last drawn round stays and the notice shows while waiting; `unknown-match` is fatal (no retry, no scene); a stream drop reconnects at once with `{ header: lastSeq }`, then by the schedule; 45,000 ms without a byte is a drop; the resync of T4 decision (6) (refused event, gap, wrong round) waits by the schedule; the replay after a reconnection is applied without gaps or duplicates (scripted overlaps through the `Driver`); the first connection uses the parameter, every later one the header; no stream is opened without a number; `match-finished` and `match-halted` close the stream and nothing reopens it.
   - Commit: `feat(web): retry and reconnect the live match`.
   - Mutation proofs: the schedule doubling past 30 s; `Retry-After` ignored; the reconnection by parameter; `unknown-match` retried; the stream reopened after `match-finished`.
-  - Done when: tests green; mutations caught; FR-307 moved (92 / 4). Checkpoint: about 2,000 changed lines on the branch here at most, else stop and report.
-  - Size: M (about 350).
+  - Done when: tests green; mutations caught; FR-307 moved (92 / 4). Checkpoint: about 1,050 changed lines on the branch here at most, else stop and report.
+  - Size: L (about 700: src about 240, tests about 460; first estimate 350).
 
 - [ ] **T6. Frame parser, `fetch` transport, map digest in the browser, fake server.** FR-308 (close); FR-307 (transport); FR-289 (d) (transport); FR-161 (live modules); NFR-55 (viewer scans)
   - Depends on: T5; D30 approved.
-  - Files: `apps/web/src/core/live-sse.ts` (new, pure), `apps/web/src/ui/{live-net,web-crypto}.ts` (new), `apps/web/test/helpers/fake-server.ts` (new: an injected `fetch` over the protocol encoders, plan 21.14), `apps/web/test/{live-sse,live-net,live-scans}.test.ts` (new), `apps/web/test/anti-spoiler.test.ts` (FR-161: `fetch(` also in `ui/live-net.ts`), `apps/web/test/purity.test.ts` (NFR-25: `crypto` only in `ui/web-crypto.ts`) (both D30), `packages/sim/test/traceability.test.ts` (FR-308 out: 93 / 3).
-  - Tests first: the parser gives the same frames for a recorded stream split at every byte, with LF, CRLF and CR endings, comments (heartbeats) and an `id:` without data; `live-net` against the fake server: reads use `credentials: 'omit'` and no `Authorization`, the map files are read as bytes and `sha256Hex(mapDigestBytes(files))` equals the dev map digest `4d1698a3...` (the plan 13 literal), a changed byte of any file gives `digest-mismatch` and nothing drawn, `digestAvailable()` false gives `insecure-origin` before any request (FR-308, fail closed), the stream request carries `lastEventId=<n>` the first time and the `Last-Event-ID` header on a reconnection, a dropped body (the fake errors its stream) is a drop, a 404 `unknown-match` reply is classified fatal, a 503 and a 429 with `Retry-After` are classified for the schedule; the request log of a scripted whole match never names a round above the N of that moment; scans: no live module imports `@mbrg/sim`, `core/scene.ts`, `ui/main.ts` or `ui/load.ts`, the debug modules import no live module, no `seed` identifier in the live modules, `fetch(` only in `ui/load.ts` and `ui/live-net.ts`, `crypto` only in `ui/web-crypto.ts` (each scan flags a planted violation).
+  - Files: `apps/web/src/core/live-sse.ts` (new, pure), `apps/web/src/ui/{live-net,web-crypto}.ts` (new), `apps/web/test/helpers/fake-server.ts` (new: an injected `fetch` over the protocol encoders, plan 21.14, serving the replies and frames of `scripted-match.ts`), `apps/web/test/{live-sse,live-net,live-scans}.test.ts` (new), `apps/web/test/anti-spoiler.test.ts` (FR-161: `fetch(` also in `ui/live-net.ts`), `apps/web/test/purity.test.ts` (NFR-25: `crypto` only in `ui/web-crypto.ts`) (both D30), `packages/sim/test/traceability.test.ts` (FR-308 out: 93 / 3).
+  - Tests first: the parser gives the same frames for a recorded stream split at every byte, with LF, CRLF and CR endings, comments (heartbeats) and an `id:` without data; `live-net` against the fake server: reads use `credentials: 'omit'` and no `Authorization`, the map files are read as bytes and `sha256Hex(mapDigestBytes(files))` equals the dev map digest `4d1698a3...` (the plan 13 literal), a changed byte of any file gives `digest-mismatch` and nothing drawn, `digestAvailable()` false gives `insecure-origin` before any request (FR-308, fail closed), the stream request carries `lastEventId=<n>` the first time and the `Last-Event-ID` header on a reconnection, a dropped body (the fake errors its stream) is a drop, a 404 `unknown-match` reply is classified fatal, a 503 and a 429 with `Retry-After` are classified for the schedule; the request log of a scripted whole match (the `scripted-match.ts` match) never names a round above the N of that moment; scans: no live module imports `@mbrg/sim`, `core/scene.ts`, `ui/main.ts` or `ui/load.ts`, the debug modules import no live module, no `seed` identifier in the live modules, `fetch(` only in `ui/load.ts` and `ui/live-net.ts`, `crypto` only in `ui/web-crypto.ts` (each scan flags a planted violation).
   - Commit: `feat(web): read the live match over the network and check the map digest`.
   - Mutation proofs: the digest over the decoded texts instead of the bytes; a missing `digestAvailable` check (a request is sent); the header on the first connection; `credentials` left to the default; a parser that drops a frame split inside `data:`; `fetch(` planted in `ui/main.ts` (the scan).
-  - Done when: tests green; mutations caught; FR-308 moved (93 / 3); `rg` finds `FR-307 (transport)` and FR-308.
-  - Size: L (about 650).
+  - Done when: tests green; mutations caught; FR-308 moved (93 / 3); `rg` finds `FR-307 (transport)` and FR-308. Checkpoint: about 2,500 changed lines on the branch here at most, else stop and report.
+  - Size: L (about 1,200: src about 450, fake server about 150, tests about 600; first estimate 650).
 
-- [ ] **T7. Close M5: ledger, process checks, PR.** NFR-55
-  - Depends on: T1 to T6.
-  - Files: `packages/sim/test/traceability.test.ts` (closing-state test retitled to M5: 93 / 3, FR-303 to FR-308 and NFR-56 pinned done, FR-309 to FR-311 as a literal list), `plan.md` (sections 11 and 13: M5 closing summary, figures, open parts for M5'), `PROGRESS.md`, `MEMORY.md` (local).
-  - Steps: `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server apps/web/src/ui/main.ts apps/web/src/ui/load.ts apps/web/index.html` clean; `git diff --stat rewrite` only planned files; `package.json` changes only the `@mbrg/protocol` line of `apps/web`, the lockfile only its `apps/web` entry; no `.nvmrc` change; scans of T6 green; the PR lists H1 to H12, D30 to D32 as decided, the ledger and the earlier tests edited (21.15).
-  - Commit: `test: pin the spec 008 pending set after M5`.
+- [ ] **T7. Close M5b: ledger, process checks, PR.** NFR-55
+  - Depends on: T5, T6.
+  - Files: `packages/sim/test/traceability.test.ts` (closing-state test retitled to M5b: 93 / 3, FR-303 to FR-308 and NFR-56 pinned done, FR-309, FR-310, FR-311 as a literal list in the body), `plan.md` (sections 11 and 13: M5b closing summary, figures, open parts for M5'), `PROGRESS.md`, `MEMORY.md` (local).
+  - Steps: `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server apps/web/src/ui/main.ts apps/web/src/ui/load.ts apps/web/index.html apps/web/package.json package-lock.json` clean; `git diff --stat rewrite` only planned files; no `.nvmrc` change; scans of T6 green; the PR lists H10, D30 (the scan edits), the ledger, the T5 and T6 sizes against their re-estimates and the earlier tests edited (`anti-spoiler`, `purity`, `live-model`, `scripted-match`, `traceability`).
+  - Commit: `test: pin the spec 008 pending set after M5b`.
   - Done when: CI green; counts 93 / 3; `MEMORY.md` updated (next: M5').
   - Size: S (about 80).
 
-## M5' (`feat/008-m5-2-live-viewer`, from `rewrite` after M5 is merged; T1' to T7'; 93 / 3 -> 96 / 0)
+## M5' (`feat/008-m5-3-live-viewer`, from `rewrite` after M5b is merged; T1' to T7'; 93 / 3 -> 96 / 0)
 
 - [ ] **T1'. Branch and bookkeeping targets.** NFR-55
-  - Depends on: M5 merged.
+  - Depends on: M5b merged.
   - Files: `packages/sim/test/traceability.test.ts` (comments: T4' 95 / 1, T5' 96 / 0).
+  - Note: the M5' sizes below are the first estimates; re-estimate them here from the measured M5 and M5b ratios and report them before T2'.
   - Commit: `test: prepare the spec 008 bookkeeping for M5'`.
   - Done when: suite, typecheck, `CI=1` green; no id moved.
   - Size: S (about 30).
@@ -100,7 +120,7 @@ The planted pending id of `traceability.test.ts` ('the pending-id check sees a p
 - [ ] **T3'. The live scene in the browser: entry, shell, panel, timers, runner.** FR-303 (shell); FR-304 (shell); FR-305 (shell); FR-306 (entry); FR-307 (shell); FR-155 (live timers); NFR-33 (live clock)
   - Depends on: T2'.
   - Files: `apps/web/src/ui/{entry,live-main,live-panel,live-runner,live-timer,live-config}.ts` (new), `apps/web/index.html` (script `/src/ui/entry.ts`), `apps/web/test/{live-runner,live-entry}.test.ts` (new), `apps/web/test/anti-spoiler.test.ts` (FR-155: timers only in `ui/live-timer.ts`) and `apps/web/test/labels-purity.test.ts` (NFR-33: the exact clock-importer list) (both D30).
-  - Tests first (Node, fake server of M5 T6, fake timers, no DOM): the runner executes `reduce` effects in order and feeds the results back: a whole dev-map match from round 0 to T draws N at load, plays one step per `round-applied`, writes the address of D31 with `history.replaceState` (a stub), shows the notice and keeps the last drawn round while the fake server is down, reconnects with the header, closes the stream at the finish; `entry.ts` chooses the scene of each FR-306 case and imports `./main` only when `import.meta.env.DEV` (a source scan of the guard); timers only in `ui/live-timer.ts`; the countdown refreshes once per second from the estimate.
+  - Tests first (Node, fake server of M5b T6, fake timers, no DOM): the runner executes `reduce` effects in order and feeds the results back: a whole dev-map match from round 0 to T draws N at load, plays one step per `round-applied`, writes the address of D31 with `history.replaceState` (a stub), shows the notice and keeps the last drawn round while the fake server is down, reconnects with the header, closes the stream at the finish; `entry.ts` chooses the scene of each FR-306 case and imports `./main` only when `import.meta.env.DEV` (a source scan of the guard); timers only in `ui/live-timer.ts`; the countdown refreshes once per second from the estimate.
   - Visual (local run with the T6' fixture, or the real `main.ts` with timing `manual` until T6'): first look at round 0 and phase 2, shown to the user before T4'.
   - Commit: `feat(web): show a live match from the server`.
   - Mutation proofs: the debug import without the `DEV` guard (the scan); the step played while browsing an earlier round (D32); the countdown refreshed from the server's last reported time without the elapsed time; a `setTimeout` planted in `live-main.ts` (the scan).
@@ -110,7 +130,7 @@ The planted pending id of `traceability.test.ts` ('the pending-id check sees a p
 - [ ] **T4'. Production build output: no debug scene, no web test client, no credential.** FR-309, FR-311 (close); FR-306 (production build)
   - Depends on: T3'.
   - Files: `apps/web/test/build-output.test.ts` (new; explicit timeout), `apps/web/src/ui/main.ts` (one marker line `data-mbrg-scene="debug"` if T2' did not add it), `packages/sim/test/traceability.test.ts` (FR-309, FR-311 out: 95 / 1; the planted id FR-309 becomes FR-310).
-  - Tests first (plan 21.10): the Vite build API into a temporary folder with `VITE_MBRG_WEB_CREDENTIAL` set to a planted value: no file contains the planted value; no `map.json`, `ids.png` or `presentation.json` copy; no `data-mbrg-scene` value `debug` or `client`; no `client.html`; the emitted entry has no reference to the sim exports' error kinds that only the debug path uses (a code marker list); the development server (`import.meta.env.DEV` true) still offers the debug scene for a seed-only address (the T3' entry test); the debug scene never connects to the server (the M5 T6 scan, re-run here by name).
+  - Tests first (plan 21.10): the Vite build API into a temporary folder with `VITE_MBRG_WEB_CREDENTIAL` set to a planted value: no file contains the planted value; no `map.json`, `ids.png` or `presentation.json` copy; no `data-mbrg-scene` value `debug` or `client`; no `client.html`; the emitted entry has no reference to the sim exports' error kinds that only the debug path uses (a code marker list); the development server (`import.meta.env.DEV` true) still offers the debug scene for a seed-only address (the T3' entry test); the debug scene never connects to the server (the M5b T6 scan, re-run here by name).
   - Commit: `test(web): keep the debug scene and the test client out of production`.
   - Mutation proofs: the `DEV` guard removed (the debug marker and the dev map assets appear); `client.html` added as a build input (the test fails); the credential read in `live-config.ts` (the planted value appears).
   - Done when: tests green; mutations caught; FR-309, FR-311 moved (95 / 1).
@@ -138,7 +158,7 @@ The planted pending id of `traceability.test.ts` ('the pending-id check sees a p
 - [ ] **T7'. Screenshots, browser figures, close M5' and spec 008.** NFR-55
   - Depends on: T1' to T6'.
   - Files: `packages/sim/test/traceability.test.ts` (closing-state test retitled to M5': 96 / 0, the pending set empty), `spec.md` (status `implemented` only after the user's acceptance), `plan.md` (sections 11 and 13: M5' closing summary, figures), `tasks.md`, `PROGRESS.md`, `MEMORY.md` (local).
-  - Steps: the screenshot set of plan 21.14 at 1920 x 1080 from the T6' fixture (live viewer at round 0, round 1 in phase 1, phase 2 and applied, round T, a halted match, the connection notice, the unknown-match and `need-match` messages; the web test client), listed with their addresses in the PR and reviewed by the user; the browser figures of H11 on the reference PC (pane visible); process checks as M5 T7 plus `npm run build` and the T4' test; `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server/src` clean.
+  - Steps: the screenshot set of plan 21.14 at 1920 x 1080 from the T6' fixture (live viewer at round 0, round 1 in phase 1, phase 2 and applied, round T, a halted match, the connection notice, the unknown-match and `need-match` messages; the web test client), listed with their addresses in the PR and reviewed by the user; the browser figures of H11 on the reference PC (pane visible); process checks as M5b T7 plus `npm run build` and the T4' test; `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server/src` clean.
   - Commit: `test: close the spec 008 pending set after M5'`.
   - Done when: CI green; counts 96 / 0; screenshots accepted by the user; spec 008 marked `implemented` with the user's OK; `MEMORY.md` updated (next: plan spec 009).
   - Size: S (about 100).

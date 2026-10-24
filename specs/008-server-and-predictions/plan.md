@@ -1,7 +1,7 @@
 # Plan 008 — Server and predictions
 Spec: `specs/008-server-and-predictions/spec.md` (approved by the user on 2026-10-21, D25). Covers FR-231 to FR-315 and NFR-47 to NFR-57 (96 ids). Delivery in milestones (spec D18, D24): M1, M2a, M2b, M3a, M3b, M4, M5, each with its own branch cut from an up-to-date `rewrite`, its own PR into `rewrite`, squash merge with the user's OK and CI green. GitHub issues: one per milestone only if the user wants them (spec "Splitting").
 
-This plan is at overview level for the whole spec and detailed for **M1** (branch `feat/008-m1-secret-and-sim-exports`), **M2a** (section 16), **M2b** and **M2b'** (section 17), **M3a** and **M3a'** (section 18) and **M3b** and **M3b'** (section 19, approved by the user on 2026-10-23: E1 to E10 and the spec clarification D28). M4 and M4' are detailed in section 20 and `tasks-M4.md` (approved by the user on 2026-10-23: G1 to G10 and the spec clarification D29). M5 and M5' are detailed in section 21 and `tasks-M5.md` (approved by the user on 2026-10-24: H1 to H12 and the spec clarifications D30 to D32).
+This plan is at overview level for the whole spec and detailed for **M1** (branch `feat/008-m1-secret-and-sim-exports`), **M2a** (section 16), **M2b** and **M2b'** (section 17), **M3a** and **M3a'** (section 18) and **M3b** and **M3b'** (section 19, approved by the user on 2026-10-23: E1 to E10 and the spec clarification D28). M4 and M4' are detailed in section 20 and `tasks-M4.md` (approved by the user on 2026-10-23: G1 to G10 and the spec clarification D29). M5, M5b and M5' are detailed in section 21 and `tasks-M5.md` (approved by the user on 2026-10-24: H1 to H12 and the spec clarifications D30 to D32; M5 closed after T4 and the rest moved to M5b by the user on 2026-10-24).
 
 **Gate.** This plan and `tasks.md` were approved by the user for M1 and M2a, and for M2b and M2b' on 2026-10-22, and for M3a on 2026-10-22 (section 18 with C1 to C8 as recommended, `tasks.md`; C2 recorded in the spec as D26). The items of section 1 were answered by the user on 2026-10-21/22 (U1 to U5, now decisions).
 
@@ -181,8 +181,8 @@ Superseded by section 19.9 (2026-10-23). The first version used I = 120, L1 = 30
 - **M4 closing state** (T5): `DONE_008` holds 82 ids and `PENDING_008` 14 (asserted explicitly in `traceability.test.ts`: the closing-state test is retitled to M4 and pins the 33 ids closed since M2b, the 3 M3a' ids, FR-287, NFR-49 and FR-271 to FR-274 as done, and the 14 later ids as a literal list; 96-id sum). Closed in M4 (4): FR-274 (T2), FR-271, FR-272, FR-273 (T4). Parts completed in M4 (ids already done): FR-241, FR-243, FR-246 (scoring, pure; scoring inside the step transaction), FR-251 (c) (a halt scores nothing and keeps the victim rows), FR-269 (results: a phase with no prediction writes no row), FR-279 (d) (generation, pure), FR-258 (results rounds, pure), FR-287 (d) and FR-289 / FR-290 (the `results` event, its numbering and its place in the decision), FR-256 and NFR-47 (d) (results storage rules and scan), NFR-48 (lifecycle re-pin), NFR-51 (scoring and ranking), NFR-57 (results rows in the raw dump), NFR-49 (a `results` event inside a decision). Left for M4': FR-275 to FR-278, the results lists and reads (FR-257 results encoders, FR-279 (d) leaderboard, FR-281 (e) to (g), FR-258 / FR-270 results reads, FR-251 (d), (f)), FR-286 / FR-301 / NFR-47 (c) / NFR-52 (results routes), NFR-48 / NFR-57 / FR-315 / FR-294 (results goldens and durability).
 - **M4' closing state** (T6'): `DONE_008` holds 86 ids and `PENDING_008` 10 (asserted explicitly in `traceability.test.ts`: the closing-state test is retitled to M4' and pins the 33 ids closed since M2b, the 3 M3a' ids, FR-287, NFR-49 and FR-271 to FR-278 as done, and the 10 M5 ids as a literal list; 96-id sum). Closed in M4' (4): FR-275, FR-276, FR-277, FR-278 (T3'). Parts completed in M4' (ids already done): FR-257 (results encoders and twins over HTTP), FR-279 (d) (results lists, leaderboard generation), FR-281 (e) to (g) (service and HTTP), FR-258 (results) and FR-270 (unscored hidden), FR-251 (d), (f) (results of a halted match), FR-286 / FR-301 / NFR-47 (c) / NFR-52 (results routes), NFR-48 (results), NFR-57 (results), FR-315 (results), FR-294 (results replay). Left after M4': FR-303 to FR-311 and NFR-56 (M5).
 - **M4 / M4' target** (section 20.10, approved by the user on 2026-10-23): M4 T2 moves FR-274 (79 / 17), T4 moves FR-271, FR-272, FR-273 (82 / 14), T5 pins the M4 closing state 82 / 14; M4' T3' moves FR-275, FR-276, FR-277, FR-278 (86 / 10), T6' pins 86 / 10. Left after M4': FR-303 to FR-311 and NFR-56 (M5). Titles: no M4 or M4' title names an FR-271 to FR-278 id before the task that closes it (`tasks-M4.md`, titles rule).
-- M5 removes the pending set (an empty list) and the spec goes to `implemented` after M5's acceptance.
-- **M5 / M5' target** (section 21.16, approved by the user on 2026-10-24): M5 T3 moves FR-305, FR-306, NFR-56 (89 / 7), T4 moves FR-303, FR-304 (91 / 5), T5 moves FR-307 (92 / 4), T6 moves FR-308 (93 / 3), T7 pins the M5 closing state 93 / 3; M5' T4' moves FR-309, FR-311 (95 / 1), T5' moves FR-310 (96 / 0), T7' pins the empty pending set. Parts completed on the way: FR-287 and FR-288 (readers), FR-289 (d), (e) (client), FR-302 (client estimate), FR-254 (client requests), NFR-51 (protocol readers) in M5; FR-303, FR-304, FR-305 (shell), FR-306 (production build), FR-307 and FR-308 (real server), NFR-56 (web test client), NFR-55 (viewer scans, D30) in M5'. Planted pending ids: FR-303 -> FR-309 in M5 T4, FR-309 -> FR-310 in M5' T4', both planted tests replaced in M5' T5' by an empty-set test and a synthetic-list detection test. Titles: no M5 or M5' title names a pending id before the task that closes it.
+- M5' removes the pending set (an empty list) and the spec goes to `implemented` after the acceptance of M5'.
+- **M5 / M5b / M5' target** (section 21.16, approved by the user on 2026-10-24; re-split after M5 T4 by the user on 2026-10-24): M5 T3 moves FR-305, FR-306, NFR-56 (89 / 7), T4 moves FR-303, FR-304 (91 / 5), T4c pins the M5 closing state 91 / 5 (FR-307 to FR-311 as a literal list); M5b T5 moves FR-307 (92 / 4), T6 moves FR-308 (93 / 3), T7 pins the M5b closing state 93 / 3; M5' T4' moves FR-309, FR-311 (95 / 1), T5' moves FR-310 (96 / 0), T7' pins the empty pending set. Parts completed on the way: FR-287 and FR-288 (readers), FR-289 (d) (client order), FR-302 (client estimate), FR-254 (client requests), NFR-51 (protocol readers) in M5; FR-289 (d), (e) (client, transport), FR-307 (transport), 004 FR-161 (live modules), NFR-55 (viewer scans, D30) in M5b; FR-303, FR-304, FR-305 (shell), FR-306 (production build), FR-307 and FR-308 (real server), NFR-56 (web test client) in M5'. Planted pending ids: FR-303 -> FR-309 in M5 T4 (kept through M5b), FR-309 -> FR-310 in M5' T4', both planted tests replaced in M5' T5' by an empty-set test and a synthetic-list detection test. Titles: no M5, M5b or M5' title names a pending id before the task that closes it.
 
 ## 12. Milestones (delivery)
 | Milestone | Branch | Content | Ids | Depends on |
@@ -197,8 +197,9 @@ Superseded by section 19.9 (2026-10-23). The first version used I = 120, L1 = 30
 | M3b' | `feat/008-m3b2-stream-proofs-and-load` (from `rewrite` after M3b is merged) | Event content and order on the wire, shutdown and restart with streams, the NFR-49 procedure (section 19, T1' to T5'); closes FR-287 and NFR-49 (78 / 18) | FR-287 (not (d)); FR-288, FR-290, FR-257, FR-259, FR-294 (stream parts); NFR-47 (a), (c) over the stream; NFR-49; NFR-57 (replay) | M3b |
 | M4 | `feat/008-m4-scoring` (from `rewrite` at b0905b1 or later) | Pure scoring and ranking, the `results` event with the re-pinned sequences, scoring inside the step transaction (section 20, T1 to T5); closes FR-274, FR-271, FR-272, FR-273 (82 / 14) | FR-271 to FR-274; scoring parts of FR-241, FR-243, FR-246, FR-251 (c); FR-269 (results); FR-287 (d); NFR-47 (d) (results), NFR-48 (re-pin), NFR-57 (rows) | M3b' |
 | M4' | `feat/008-m4-2-results-reads` (from `rewrite` after M4 is merged) | Results wire shapes and cursors, the three reads through store and service, the routes over HTTP, results goldens and durability (section 20, T1' to T6'); closes FR-275 to FR-278 (86 / 10) | FR-275 to FR-278; FR-279 (d), FR-281 (e) to (g); NFR-48 (results), NFR-57 (results) | M4 |
-| M5 | `feat/008-m5-live-core` (from `rewrite` after M4' is merged, PR #37) | Headless live client (section 21, T1 to T7): protocol readers, address and scene choice, panel texts, the pure live model (rounds, events, requests), the connection policy, the frame parser and the `fetch` transport with the map digest; closes FR-305, FR-306, NFR-56, FR-303, FR-304, FR-307, FR-308 (93 / 3) | FR-303 to FR-308, NFR-56; FR-287, FR-288, FR-289 (client parts), NFR-51 (protocol readers) | M4' |
-| M5' | `feat/008-m5-2-live-viewer` (from `rewrite` after M5 is merged) | Browser shell and proofs (section 21, T1' to T7'): map-view extraction, live shell and entry, production build check, web test client, real-server proofs and the local-run fixture, screenshots; closes FR-309, FR-311, FR-310 (96 / 0) | FR-309 to FR-311; FR-303 to FR-308 (shell, production build, real server), NFR-56 (web test client) | M5 |
+| M5 | `feat/008-m5-live-core` (from `rewrite` after M4' is merged, PR #37) | Headless live core (section 21, T1 to T4 and the closing T4c; closed after T4 by the user on 2026-10-24): protocol readers, address and scene choice, panel texts, the pure live model (rounds, events, requests); closes FR-305, FR-306, NFR-56, FR-303, FR-304 (91 / 5) | FR-303 to FR-306, NFR-56; FR-287, FR-288 (readers), FR-289 (d) (client order), NFR-51 (protocol readers) | M4' |
+| M5b | `feat/008-m5-2-live-transport` (from `rewrite` after M5 is merged) | Headless live transport (section 21, T5 to T7): the connection policy, the frame parser, the `fetch` transport with the map digest, the fake server, the D30 scan edits; closes FR-307, FR-308 (93 / 3) | FR-307, FR-308; FR-289 (d), (e) (client), 004 FR-161 (live modules), NFR-55 (viewer scans) | M5 |
+| M5' | `feat/008-m5-3-live-viewer` (from `rewrite` after M5b is merged) | Browser shell and proofs (section 21, T1' to T7'): map-view extraction, live shell and entry, production build check, web test client, real-server proofs and the local-run fixture, screenshots; closes FR-309, FR-311, FR-310 (96 / 0) | FR-309 to FR-311; FR-303 to FR-308 (shell, production build, real server), NFR-56 (web test client) | M5b |
 
 ## 13. Recorded figures and checks
 **M1 closing summary**: delivers the three sim exports with state/faction checks (FR-312, FR-313), the `apps/server` skeleton with the tsx runner and warning filter, the secret/commitment/round-seed derivation (FR-252), the D7 checks (NFR-53), the dev-map seed goldens, the absorber uniformity (NFR-47(e), worst 0.2227 pp) and the traceability pending set (NFR-55). Earlier tests edited (only as the plan allows): `packages/sim/test/{candidates,match,traceability}.test.ts`, `packages/shared/test/no-regression.test.ts`, `apps/web/test/{shaped-deps,labels-render}.test.ts` (lockfile-entry pins now ignore `apps/server`). Lockfile diff = the workspace entry and link only. New dependencies: `tsx` 4.23.15 and `@types/node` 24.19.2, dev dependencies of `apps/server` (approved U2). Node `v24.0.0` (local), `node:sqlite` prints an `ExperimentalWarning` (filtered by the server). **Version dependence (noted after the merge, PR #28, 061119b):** CI runs Node `v24.21.0`, which no longer prints that warning; the M1 runner test was made version tolerant (it records whether the warning appears and checks the filter only drops that one). The filter stays harmless where the warning is absent. Map digest of `maps/dev`: `4d1698a310b46a6507fd128dad87f20873065d44a71b2ee5a78c062eb5c1e679`.
@@ -843,7 +844,7 @@ One branch would be about 4,300 to 4,750: above the 3,500 ceiling (G1).
 
 ## 21. M5 and M5' detail (live viewer, web test client)
 **Status: approved by the user on 2026-10-24** (H1 to H12 and the spec clarifications D30 to D32 of 21.19, recorded in the spec). Tasks in `tasks-M5.md`.
-Split up front (H1, D24 spirit): **M5** on `feat/008-m5-live-core` from `rewrite` after M4' is merged (PR #37, 56481b9 or later), tasks T1 to T7, headless: protocol readers, the pure live core, the transport over `fetch`, closes FR-305, FR-306, NFR-56, FR-303, FR-304, FR-307, FR-308 (93 / 3); **M5'** on `feat/008-m5-2-live-viewer` from `rewrite` after M5 is merged, tasks T1' to T7': the browser shell, the debug-scene exclusion, the web test client, the real-server proofs and the screenshots, closes FR-309, FR-311, FR-310 (96 / 0). Reason: about 5,500 changed lines in one branch (21.20), above the 3,500 ceiling; the cut puts everything testable without a browser in M5 and everything that draws, builds or runs against the real server in M5'. **No new third-party dependency, no change to the map format, the presentation data, the id image, `MatchState`, `RoundRecord`, the server, the store schema or any wire shape**: no "ask first" item is triggered except the internal workspace dependency of H4 and the repository line of H9.
+Split up front (H1, D24 spirit) into a headless part and a browser part, then re-split by the user on 2026-10-24 after M5 T4 ran 2.3x its estimate (overrun accepted): **M5** on `feat/008-m5-live-core` from `rewrite` after M4' is merged (PR #37, 56481b9 or later), tasks T1 to T4 and the closing T4c: protocol readers, address and scene choice, panel texts, the pure live model, closes FR-305, FR-306, NFR-56, FR-303, FR-304 (91 / 5); **M5b** on `feat/008-m5-2-live-transport` from `rewrite` after M5 is merged, tasks T5 to T7: the connection policy, the frame parser, the transport over `fetch`, the map digest, the fake server, closes FR-307, FR-308 (93 / 3); **M5'** on `feat/008-m5-3-live-viewer` from `rewrite` after M5b is merged, tasks T1' to T7': the browser shell, the debug-scene exclusion, the web test client, the real-server proofs and the screenshots, closes FR-309, FR-311, FR-310 (96 / 0). Reason: about 5,500 changed lines in one branch (21.20), above the 3,500 ceiling; the first cut put everything testable without a browser in M5 and everything that draws, builds or runs against the real server in M5'; the measured T4 ratio would have taken the headless branch to about 4,600 lines, so its transport half moved to M5b. **No new third-party dependency, no change to the map format, the presentation data, the id image, `MatchState`, `RoundRecord`, the server, the store schema or any wire shape**: no "ask first" item is triggered except the internal workspace dependency of H4 and the repository line of H9.
 
 ### 21.1 Starting point (facts read from the code on 2026-10-24)
 - `apps/web/index.html` loads `/src/ui/main.ts`, the debug scene shell (377 lines): load, checks, colours, labels, renderer, playback, panel, input, address sync. It imports the sim (`getRounds`, `getState`, `ownerOf`, `totalRounds`) and is the only module besides `core/scene.ts` that names `@mbrg/sim` (pinned by `anti-spoiler.test.ts` line 83).
@@ -867,14 +868,14 @@ apps/web/src/core/                                         (all PURE: the NFR-25
   live-text.ts (new)         stage line, countdown text, victim / winner / halt lines, notices and errors (Spanish via STRINGS) (M5 T3)
   strings.ts (edit)          the new Spanish texts (live viewer M5 T3; web test client M5' T5')
   live-rounds.ts (new)       ownersOf(pairs), applyRecord(owners, record) -> owners | mismatch, stepDataOf, canRequest(model, j) (M5 T4)
-  live-model.ts (new)        LiveModel, LiveInput, LiveEffect, reduce(model, input) -> { model, effects }, estimateAt   (M5 T4, T5)
-  live-retry.ts (new)        retry schedule 1, 2, 4, 8, 16, then 30 s; Retry-After; reply classification; watchdog constant (M5 T5)
-  live-sse.ts (new)          incremental event-stream frame parser (id, data, comments, CR / LF / CRLF, split chunks)  (M5 T6)
+  live-model.ts (new)        LiveModel, LiveInput, LiveEffect, reduce(model, input) -> { model, effects }, estimateAt   (M5 T4, M5b T5)
+  live-retry.ts (new)        retry schedule 1, 2, 4, 8, 16, then 30 s; Retry-After; reply classification; watchdog constant (M5b T5)
+  live-sse.ts (new)          incremental event-stream frame parser (id, data, comments, CR / LF / CRLF, split chunks)  (M5b T6)
   client-form.ts (new)       web test client: submission bodies, paths with the namespaced id unescaped, reply texts      (M5' T5')
 apps/web/src/ui/
   live-net.ts (new)          createLiveNet({ base, fetch }): reads, map files as bytes, the stream over a fetch body; the
-                             ONLY network module besides ui/load.ts (D30); `credentials: 'omit'`, no Authorization       (M5 T6)
-  web-crypto.ts (new)        digestAvailable(), sha256Hex(bytes), requestId(); the ONLY crypto user (D30)                (M5 T6)
+                             ONLY network module besides ui/load.ts (D30); `credentials: 'omit'`, no Authorization       (M5b T6)
+  web-crypto.ts (new)        digestAvailable(), sha256Hex(bytes), requestId(); the ONLY crypto user (D30)                (M5b T6)
   live-timer.ts (new)        after(ms, fn) -> cancel; the ONLY timer user (D30)                                          (M5' T3')
   live-config.ts (new)       the server origin: `import.meta.env.VITE_MBRG_SERVER`, default `http://127.0.0.1:8787` in
                              development and the page origin in production (H8)                                         (M5' T3')
@@ -891,7 +892,8 @@ apps/web/index.html (edit)   script `/src/ui/entry.ts`                          
 apps/web/client.html (new)   the web test client page: no text nodes (NFR-28 rule); not a production build input         (M5' T5')
 apps/web/package.json (edit) + "@mbrg/protocol": "*" (H4); lockfile: the `apps/web` entry only                         (M5 T3)
 .gitignore (edit)            + `.env.local` (the development credential file, H9)                                       (M5' T5')
-apps/web/test/helpers/fake-server.ts (new)  a fake server over the protocol encoders, as an injected `fetch` (21.14)   (M5 T6)
+apps/web/test/helpers/fake-server.ts (new)  a fake server over the protocol encoders, as an injected `fetch` (21.14)   (M5b T6)
+apps/web/test/helpers/scripted-match.ts (new)  a scripted dev-map match, encoded replies and events, and a `Driver` (M5 T4; reused by M5b, M5')
 apps/server/test/viewer-live.test.ts, viewer-live-child.test.ts, client-live.test.ts (new)  real-server proofs (H6)    (M5' T6')
 apps/server/test/fixtures/dev-live-server.ts (new, hand-run)  local run with the fake clock and a fixed random seed     (M5' T6')
 ```
@@ -974,7 +976,7 @@ Spanish texts, all in `core/strings.ts`: the title of the live scene, "Ronda N d
 Viewer and credential-free client reads: `fetch(url, { credentials: 'omit' })` with no custom header, so a cross-origin GET is a simple request (no preflight) answered `*` (18.4b); the stream reconnection adds only `Last-Event-ID` (preflight allowed by E8). Credentialed requests (submission, own predictions) send `Authorization: Bearer` and `Content-Type: application/json` from an allowed origin. Bodies are read as text and parsed with `JSON.parse`, then by the protocol readers (untrusted input).
 
 ### 21.13 Anti-spoiler on the client side (FR-254 client half, FR-303, FR-304, 004 FR-161)
-- No live module imports `@mbrg/sim` or the debug modules, and the debug modules (`ui/main.ts`, `ui/load.ts`, `core/scene.ts`, `core/step.ts` callers) import no live module (scan, M5 T6 / M5' T2').
+- No live module imports `@mbrg/sim` or the debug modules, and the debug modules (`ui/main.ts`, `ui/load.ts`, `core/scene.ts`, `core/step.ts` callers) import no live module (scan, M5b T6 / M5' T2').
 - Requests: only `canRequest` rounds (21.6), tested against the fake server's request log over whole matches and against the real server.
 - Holding: the model's type has no field for an absorber or a state of round N + 1; `held` gains round k only from a `round-applied` of round k or a read of k <= N.
 - The seed of the debug scene still goes nowhere: the live modules never see it (scan: no `seed` identifier in live modules).
@@ -999,9 +1001,10 @@ Viewer and credential-free client reads: `fetch(url, { credentials: 'omit' })` w
 - `apps/web/src/ui/main.ts` (source, not a test): the extraction of H5, behaviour unchanged; every 004 to 007 test passes unedited.
 
 ### 21.16 Ids and ledger
-- **M5**: T3 closes FR-305, FR-306, NFR-56 (89 / 7); T4 closes FR-303, FR-304 (91 / 5); T5 closes FR-307 (92 / 4); T6 closes FR-308 (93 / 3); T7 pins 93 / 3. Parts: FR-287 and FR-288 (readers), FR-289 (d), (e) (client), FR-302 (client estimate), FR-254 (client requests), 004 FR-161 (live modules), NFR-51 (protocol readers).
+- **M5**: T3 closes FR-305, FR-306, NFR-56 (89 / 7); T4 closes FR-303, FR-304 (91 / 5); T4c pins 91 / 5. Parts: FR-287 and FR-288 (readers), FR-289 (d) (client order), FR-302 (client estimate), FR-254 (client requests), NFR-51 (protocol readers).
+- **M5b**: T5 closes FR-307 (92 / 4); T6 closes FR-308 (93 / 3); T7 pins 93 / 3. Parts: FR-289 (d), (e) (client, transport), FR-307 (transport), 004 FR-161 (live modules), NFR-55 (viewer scans, D30).
 - **M5'**: T4' closes FR-309 and FR-311 (95 / 1); T5' closes FR-310 (96 / 0); T7' pins the empty pending set. Parts: FR-303, FR-304, FR-305 (shell), FR-306 (production build), FR-307 and FR-308 (real server), NFR-56 (web test client), NFR-55 (viewer scans, D30).
-- Titles: no M5 or M5' task or test title names a pending id before the task that closes it (`tasks-M5.md`, titles rule).
+- Titles: no M5, M5b or M5' task or test title names a pending id before the task that closes it (`tasks-M5.md`, titles rule).
 
 ### 21.17 Decisions of this plan (planner, with the discarded alternative)
 - PD33. Pure reducer with effects as data (21.3). Discarded: a stateful client object calling `fetch` and the DOM (testable only in a browser).
@@ -1016,13 +1019,13 @@ Viewer and credential-free client reads: `fetch(url, { credentials: 'omit' })` w
 - **Bundler dead-code removal** (Vite 8, Rolldown): the debug branch must disappear from the production output; the build-output test proves it, and a failure means the entry must use a separate production input (decided then, no spec change).
 - **Strings module in production**: `core/strings.ts` is one object, so the production bundle may carry the debug and test-client texts (not their code). Accepted: FR-311 forbids the client and the credential, not texts; the build test uses code markers, not texts.
 - **Extraction of `ui/main.ts`** (H5): a behaviour change of the debug scene would break FR-309; guarded by every 004 to 007 test unedited and the before / after screenshots.
-- **Size**: the reducer (T4, T5) and the shell (T3') are the largest; checkpoint after M5 T5 at about 2,000 lines and after M5' T3' at about 1,300.
+- **Size**: the reducer (M5 T4, M5b T5), the transport (M5b T6) and the shell (T3') are the largest; M5 T4 ran 2.3x (accepted, re-split into M5b); checkpoints after M5b T5 at about 1,050 lines, after M5b T6 at about 2,500, and after M5' T3' at about 1,300.
 - **Spec 009** amends the same scans (009 NFR-60) and the panel (the "revelando…" text); M5 adds no 009 hook, so 009's plan adds its tours between the event and the `play-step` effect (21.3) and extends the D30 lists.
 - **Windows**: the child-process restart on the same port; the M3b' lessons (kill by PID in `finally`, readers closed before temp files are removed, batches of sockets) apply.
 - **Map files are read whole per request** (M3a' note): fine for the dev map; real-size maps are a later measured change.
 
 ### 21.19 Decisions needing the user's approval (recommendation first)
-- **H1. Split M5 / M5' up front** (21, 21.20). Alternative: one branch with a checkpoint (about 5,500 lines expected).
+- **H1. Split M5 / M5' up front** (21, 21.20). Alternative: one branch with a checkpoint (about 5,500 lines expected). Amended by the user on 2026-10-24 after M5 T4: M5 closes after T4 (T4c), the old T5 to T7 form M5b, M5' moves to `feat/008-m5-3-live-viewer`.
 - **H2. Client architecture and transport**: PD33 to PD38 (pure reducer, `fetch` stream with the parameter then the header, unknown types consumed, readers in protocol, digest before drawing, 45 s watchdog). Alternative: `EventSource`.
 - **H3. The live address (D31 below)**: match, displayed round, camera. Alternative: P20 literally (match only, never rewritten).
 - **H4. `apps/web` depends on the workspace `@mbrg/protocol`** (internal, no third party; two pinned manifest tests updated). Alternative: copying the wire types into the viewer (two definitions drift).
@@ -1043,14 +1046,16 @@ Viewer and credential-free client reads: `fetch(url, { credentials: 'omit' })` w
 ### 21.20 Size estimates (changed lines, src + tests; docs apart)
 | Task | Estimate |
 |---|---|
-| M5 T1 branch, docs, bookkeeping | 40 |
-| M5 T2 protocol readers | 650 |
-| M5 T3 address, scene choice, panel texts, strings, protocol dependency | 450 |
-| M5 T4 live model: rounds, events, requests | 550 |
-| M5 T5 connection policy | 350 |
-| M5 T6 frame parser, transport, crypto, fake server, scans | 650 |
-| M5 T7 close | 80 |
-| **M5** | **about 2,770 + docs 350** |
+| M5 T1 branch, docs, bookkeeping | 40 (actual about 5) |
+| M5 T2 protocol readers | 650 (actual 760) |
+| M5 T3 address, scene choice, panel texts, strings, protocol dependency | 450 (actual about 620) |
+| M5 T4 live model: rounds, events, requests | 550 (actual 1,269: src 403, tests 677, helper 189; 2.3x, accepted) |
+| M5 T4c close | 80 |
+| **M5** | **about 2,730 (measured) + docs** |
+| M5b T5 connection policy | 700 (first estimate 350; src about 240, tests about 460) |
+| M5b T6 frame parser, transport, crypto, fake server, scans | 1,200 (first estimate 650; src about 450, fake server about 150, tests about 600) |
+| M5b T7 close | 80 |
+| **M5b** | **about 1,980 + docs** |
 | M5' T1' branch, bookkeeping | 30 |
 | M5' T2' map-view extraction, debug scene unchanged | 550 |
 | M5' T3' live shell, entry, panel, timers, runner | 650 |
@@ -1058,5 +1063,5 @@ Viewer and credential-free client reads: `fetch(url, { credentials: 'omit' })` w
 | M5' T5' web test client | 550 |
 | M5' T6' real-server proofs, local-run fixture | 650 |
 | M5' T7' screenshots, figures, close | 100 |
-| **M5'** | **about 2,780 + docs 150** |
-One branch would be about 5,500 lines: above the 3,500 ceiling (H1).
+| **M5'** | **about 2,780 + docs 150** (first estimates; re-estimated in M5' T1') |
+One branch would be about 5,500 lines: above the 3,500 ceiling (H1). M5b sizes are re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.3x the first estimate), less the reuse of `test/helpers/scripted-match.ts`.
