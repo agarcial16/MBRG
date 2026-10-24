@@ -20,7 +20,7 @@ const expectSame = (got: ReturnType<typeof snapshotOf>, golden: ResultsGolden, w
 };
 
 describe('the results golden', () => {
-  it('NFR-48 (results) the golden holds the three dev secrets, 12 phase results each, 8 players each and the leaderboard of 7', () => {
+  it('NFR-48 (results) the golden holds the three dev secrets, 8 phase results each, 8 players each and the leaderboard of 7', () => {
     expect(NAMES).toStrictEqual(['ascending-00-1f', 'ascending-20-3f', 'all-a5']);
     for (const name of NAMES) {
       const g = GOLDEN[name]!;

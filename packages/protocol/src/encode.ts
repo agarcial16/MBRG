@@ -341,7 +341,7 @@ export function encodeLeaderboardRow(row: LeaderboardRow): string {
   });
 }
 
-const RUNNING_STAGES =['phase-1', 'phase-2', 'locked'] as const;
+const RUNNING_STAGES = ['phase-1', 'phase-2', 'locked'] as const;
 const nullOrInt = (what: string, min: number) => (v: unknown): string => (v === null ? 'null' : int(what, min)(v));
 const schedule = (v: unknown): string => {
   const o = objectOf(v, 'event.schedule', ['c1', 'c2', 'a']);

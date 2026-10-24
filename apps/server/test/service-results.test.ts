@@ -99,7 +99,7 @@ describe('the results of a scored phase', () => {
     bare.close();
   });
 
-  it('FR-279 (d) (results) the phase results page with limits 1, 2 and 500: never a repeat or a skip, next exactly when more follow', () => {
+  it('FR-279 (c) (results) the phase results page with limits 1, 2 and 500: never a repeat or a skip, next exactly when more follow', () => {
     const r = play(12);
     for (const [round, phase] of [[1, 1], [2, 1], [1, 2], [3, 2]] as const) {
       const kind = phase === 1 ? 'victim' : 'absorber';
@@ -219,7 +219,7 @@ describe('the results of a player', () => {
     r.h.close();
   });
 
-  it('FR-279 (d) (results) the player results page with limits 1, 2 and 500: no repeat or skip, the same total on every page', () => {
+  it('FR-279 (c) (results) the player results page with limits 1, 2 and 500: no repeat or skip, the same total on every page', () => {
     const r = play(12);
     const mine = orderOf(expectedRows(r).filter((x) => x.playerId === 'web:p1')).map(playerItem);
     const total = ok(playerOf(r, 'web:p1')).total;
@@ -254,7 +254,7 @@ describe('the results of a player', () => {
     submit('p8', { kind: 'winner', faction: alive[2] });
     expect(ok(playerOf(r, 'web:p8'))).toStrictEqual({ playerId: 'web:p8', total: 0, items: [] });
     expect(ok(playerOf(r, 'web:p7')).items).toHaveLength(1);
-    // The leaderboard does not list either of them.
+    // The leaderboard does not list web:p8 (only unscored predictions). web:p7 is listed: its round-2 victim row is scored at the reveal.
     expect(ok(r.h.service.leaderboard(r.id, { limit: 500 })).items.map((i) => i.playerId)).not.toContain('web:p8');
     r.h.close();
   });
