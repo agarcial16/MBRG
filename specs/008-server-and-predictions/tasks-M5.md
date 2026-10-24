@@ -58,7 +58,7 @@ The planted pending id of `traceability.test.ts` ('the pending-id check sees a p
   - Done when: tests green; mutations caught; FR-303, FR-304 moved (91 / 5); `rg` finds them and no FR-305..FR-311 title outside T3.
   - Size: L (about 550). Actual: 1,269 (src 403, tests 677, helper `test/helpers/scripted-match.ts` 189): 2.3x, accepted by the user on 2026-10-24.
 
-- [ ] **T4c. Close M5: ledger, process checks, PR.** NFR-55
+- [x] **T4c. Close M5: ledger, process checks, PR.** NFR-55
   - Depends on: T1 to T4; the user's acceptance of the T4 overrun (done, 2026-10-24).
   - Files: `packages/sim/test/traceability.test.ts` (closing-state test retitled to M5: 91 / 5, FR-303 to FR-306 and NFR-56 pinned done, the later ids FR-307, FR-308, FR-309, FR-310, FR-311 as a literal list in the body, none in a title), `plan.md` (sections 11 and 13: M5 closing summary, figures, the T4 decisions (1) to (7) of `PROGRESS.md` and the hand-offs to M5b: `scripted-match.ts` and its `Driver`, the `queue` of frames under check, the retry wait left open by T4 decision (6)), `PROGRESS.md`, `MEMORY.md` (local).
   - Steps: `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server apps/web/src/ui apps/web/index.html` clean; `git diff --stat rewrite` only planned files; `package.json` changes only the `@mbrg/protocol` line of `apps/web`, the lockfile only its `apps/web` entry; no `.nvmrc` change; the titles `rg` finds only FR-303 to FR-306 and NFR-56 (and the planted FR-309); the existing viewer scans and the T4 `@mbrg/sim` scan green; `npm test`, `npm run typecheck` and `CI=1 npm test` green.

@@ -217,7 +217,7 @@ describe('traceability', () => {
     for (const id of PENDING_008) expect(expected, id).toContain(id);
   });
 
-  it("NFR-55 M4' closing state, 86 ids done and 10 pending: the M2b to M3a' ids done, the event order, the load procedure, the scoring and the three results reads done, the M5 ids pending", () => {
+  it('NFR-55 M5 closing state, 91 ids done and 5 pending: the M2b to M4 ids done, the live core (readers, scene choice, texts, rounds held) done, the live transport and viewer ids pending', () => {
     // M4 closing state (plan sections 11 and 13): asserted explicitly. M3a moved six ids
     // (T2: FR-279; T3: FR-283, FR-299; T5: FR-281; T6: FR-284, FR-286); M3a' T2' moved FR-280 and FR-298; T3' moved FR-285.
     // M3b moved no id: it completed parts of done ids (event encoders, stream framing, stream limits, the replay read, the hub,
@@ -282,7 +282,14 @@ describe('traceability', () => {
       expect(DONE_008, id).toContain(id);
       expect(PENDING_008, id).not.toContain(id);
     }
-    // M4 and M4' moved FR-271 to FR-278; only the M5 ids are still pending (a literal list of every one of the 10).
+    // M5 closed five ids (91 done, 5 pending): T3 FR-305, FR-306, NFR-56; T4 FR-303, FR-304; a literal list independent of DONE_008.
+    const closedByM5 = ['FR-303', 'FR-304', 'FR-305', 'FR-306', 'NFR-56'];
+    expect(new Set(closedByM5).size).toBe(5);
+    for (const id of closedByM5) {
+      expect(DONE_008, id).toContain(id);
+      expect(PENDING_008, id).not.toContain(id);
+    }
+    // M4 and M4' moved FR-271 to FR-278 and M5 five more; only the ids of M5b and M5' are still pending (a literal list of the 5).
     const laterIds = [
       'FR-307', 'FR-308', 'FR-309', 'FR-310', 'FR-311',
     ];
