@@ -218,7 +218,7 @@ describe('traceability', () => {
     for (const id of PENDING_008) expect(expected, id).toContain(id);
   });
 
-  it('NFR-55 ledger after the transport, 93 ids done and 3 pending: the M2b to M5 ids and the live transport done, the viewer ids pending', () => {
+  it('NFR-55 M5b closing state, 93 ids done and 3 pending: the M2b to M5b ids done (the live core and the live transport), the viewer ids pending', () => {
     // M4 closing state (plan sections 11 and 13): asserted explicitly. M3a moved six ids
     // (T2: FR-279; T3: FR-283, FR-299; T5: FR-281; T6: FR-284, FR-286); M3a' T2' moved FR-280 and FR-298; T3' moved FR-285.
     // M3b moved no id: it completed parts of done ids (event encoders, stream framing, stream limits, the replay read, the hub,

@@ -102,7 +102,7 @@ Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.
   - Done when: tests green; mutations caught; FR-308 moved (93 / 3); `rg` finds `FR-307 (transport)` and FR-308. Checkpoint: about 2,500 changed lines on the branch here at most, else stop and report.
   - Size: L (about 600 as the user's split: src about 250, fake server about 150, tests about 200 + scans; first estimate for the whole old T6 was 650).
 
-- [ ] **T7. Close M5b: ledger, process checks, PR.** NFR-55
+- [x] **T7. Close M5b: ledger, process checks, PR.** NFR-55
   - Depends on: T5, T6a, T6b.
   - Files: `packages/sim/test/traceability.test.ts` (closing-state test retitled to M5b: 93 / 3, FR-303 to FR-308 and NFR-56 pinned done, FR-309, FR-310, FR-311 as a literal list in the body), `plan.md` (sections 11 and 13: M5b closing summary, figures, open parts for M5'), `PROGRESS.md`, `MEMORY.md` (local).
   - Steps: `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server apps/web/src/ui/main.ts apps/web/src/ui/load.ts apps/web/index.html apps/web/package.json package-lock.json` clean; `git diff --stat rewrite` only planned files; no `.nvmrc` change; scans of T6 green; the PR lists H10, D30 (the scan edits), the ledger, the T5 and T6 sizes against their re-estimates and the earlier tests edited (`anti-spoiler`, `purity`, `live-model`, `scripted-match`, `traceability`).
