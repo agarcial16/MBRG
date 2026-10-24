@@ -149,7 +149,7 @@ export class Driver {
     const out = reduce(this.model, input);
     this.model = out.model;
     for (const effect of out.effects) {
-      this.log.push({ effect, applied: this.model.applied });
+      this.log.push({ effect, applied: out.model.applied });
       await this.answer(effect);
     }
   }

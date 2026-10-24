@@ -58,7 +58,7 @@ const expected = specIds.filter((id) => !RETIRED.includes(id));
 
 /**
  * Ids of spec 008 whose tests are not written yet (pinned literal list). Each task of spec 008
- * removes the ids it traces in its own commit; M5 leaves this list empty.
+ * removes the ids it traces in its own commit; M5' leaves this list empty.
  */
 const PENDING_008: readonly string[] = [
   'FR-307', 'FR-308', 'FR-309', 'FR-310', 'FR-311',
@@ -207,8 +207,9 @@ describe('traceability', () => {
     // T4 adds FR-271, FR-272, FR-273 (82 / 14); T5 pins the closing state.
     // M4' target (T6'): 86 done / 10 pending. T1' starts at 82 / 14; T2' moves none; T3' adds four ids (86 / 10);
     // T4' and T5' move none; T6' pins the closing state.
-    // M5 target (T7): 93 done / 3 pending (plan section 21.16). T1 and T2 start at 86 / 10 and move none; T3 adds FR-305, FR-306,
-    // NFR-56 (89 / 7); T4 adds FR-303, FR-304 (91 / 5); T5 adds FR-307 (92 / 4); T6 adds FR-308 (93 / 3); T7 pins the closing state.
+    // M5 target (T4c): 91 done / 5 pending (plan section 21.16). T1 and T2 start at 86 / 10 and move none; T3 adds FR-305, FR-306,
+    // NFR-56 (89 / 7); T4 adds FR-303, FR-304 (91 / 5); T4c pins the closing state.
+    // M5b target (T7): 93 done / 3 pending. T5 adds FR-307 (92 / 4); T6 adds FR-308 (93 / 3); T7 pins the closing state.
     // M5' target (T7'): 96 done / 0 pending. T1' starts at 93 / 3; T4' adds FR-309, FR-311 (95 / 1); T5' adds FR-310 (96 / 0).
     expect(DONE_008).toHaveLength(91);
     expect(PENDING_008).toHaveLength(5);
@@ -246,7 +247,7 @@ describe('traceability', () => {
     // Up to M3a: the 40 ids of M1 and M2a, 27 of M2b and M2b', 6 of M3a, all distinct and all done.
     const closedSinceM2b = new Set([...closedByM2b, ...closedByM2b2, ...closedByM3a]);
     expect(closedSinceM2b.size).toBe(33);
-    // (58 outside this set now: the 40 of M1 and M2a plus FR-280, FR-285 and FR-298 of M3a', FR-287 and NFR-49 of M3b', FR-271 to FR-274 of M4 and FR-275 to FR-278 of M4', asserted below.)
+    // (58 outside this set now: the 40 of M1 and M2a plus FR-280, FR-285 and FR-298 of M3a', FR-287 and NFR-49 of M3b', FR-271 to FR-274 of M4, FR-275 to FR-278 of M4' and FR-303 to FR-306 and NFR-56 of M5, asserted below.)
     expect(DONE_008.filter((id) => !closedSinceM2b.has(id))).toHaveLength(58);
     // M3a' closed three ids: T2' FR-280 and FR-298, T3' FR-285.
     const closedByM3a2 = ['FR-280', 'FR-285', 'FR-298'];

@@ -293,3 +293,9 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Not done (as instructed): push, PR, Linux CI run, squash. The PR must list H1 to H12 and D30 to D32 as decided, the re-split, the T4 overrun (2.3x) accepted by the user, the ledger 91 / 5, the earlier tests edited (`shaped-deps`, `labels-render`, `strings-language`, `live-text`, `traceability`).
 - Untested: everything against a real server and a browser (M5').
 - Next step: review and the user's OK for the PR; then M5b T5 (connection policy) from `rewrite` after the merge.
+
+### M5 review fixes
+- Changed: `traceability.test.ts` comments only (PENDING_008 doc says M5'; target comments split into M5 91 / 5 at T4c and M5b 93 / 3; the "58 outside this set" list now names FR-303 to FR-306 and NFR-56); `scripted-match.ts` logs `out.model.applied` (the N of the moment the request was issued); `plan.md` section 13 and `tasks-M5.md` M5b T5/T6 record the reviewer hand-offs (looser readers, onState digest and readInstead record, following lost on resync, double read-state, applying.record reading, `seed` literal in the scan); `MEMORY.md` section 4 out-of-scope line fixed.
+- Tests: typecheck clean; `CI=1 npm test` 202 files, 3465 passed, 4 skipped (unchanged); no assertion changed.
+- Untested: the hand-off items are decisions for M5b, not implemented.
+- Next step: M5b T5 after M5 merges.
