@@ -24,7 +24,7 @@ One file per milestone; read only the active one plus the rules above. Do not re
 | M3a | `tasks-M3a.md` | merged (PR #32) |
 | M3a' | `tasks-M3a2.md` | merged (PR #33) |
 | M3b, M3b' | `tasks-M3b.md` | merged (PR #34, #35) |
-| M4, M4' | `tasks-M4.md` | approved by the user (2026-10-23; plan section 20, G1 to G10, spec clarification D29); M4 done, PR pending |
+| M4, M4' | `tasks-M4.md` | approved by the user (2026-10-23; plan section 20, G1 to G10, spec clarification D29); M4 merged (PR #36); M4' done (T1' to T6'), PR pending |
 
 Progress per task lives in `specs/008-server-and-predictions/PROGRESS.md`.
 ## Later milestones (headings only; detailed later, at most 10 tasks each)

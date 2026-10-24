@@ -85,6 +85,10 @@ describe('the log scan', () => {
     expect((await post(`/matches/${id}/predictions`, { kind: 'winner', faction: a, playerId: PLAYER, requestId: 'p-1' }, CLIENT_CREDENTIAL, id)).status).toBe(200);
     expect((await call(A, { path: `/matches/${id}/predictions?playerId=${PLAYER}`, headers: bearer(CLIENT_CREDENTIAL) }, id)).status).toBe(200);
     expect((await post(`/matches/${id}/advance`, { round: 1, step: 'phase-1-close' }, hostToken, id)).status).toBe(200);
+    // The results reads (the three routes) while the match runs: the scored victim phase, an unscored phase, a player and the board.
+    for (const path of [`/matches/${id}/results/1/1`, `/matches/${id}/results/1/2`, `/matches/${id}/players/web:nobody-here/results`, `/matches/${id}/leaderboard`]) {
+      expect((await call(A, { path }, id)).status, path).toBe(path.endsWith('/results/1/2') ? 404 : 200);
+    }
     // 400, 403, 404, 405, 409, 413.
     expect((await post(`/matches/${id}/predictions`, { kind: 'winner', faction: a, playerId: 'discord:1' }, CLIENT_CREDENTIAL, id)).status).toBe(400);
     expect((await call(A, { method: 'POST', path: '/matches', body: '{"bad json', headers: bearer(OPERATOR) }, id)).status).toBe(400);
@@ -109,6 +113,10 @@ describe('the log scan', () => {
       expect((await post(`/matches/${id}/advance`, { round: shown.appliedRounds + 1, step }, hostToken, id)).status).toBe(200);
     }
     expect((await call(A, { path: `/matches/${id}` }, id)).text).toContain(SECRET_HEX);
+    // After the finish the winner is scored: the planted player is on the board and in its own results (the player id is the reply's subject).
+    expect((await call(A, { path: `/matches/${id}/leaderboard` }, id)).text).toContain(`web:${PLAYER}`);
+    expect((await call(A, { path: `/matches/${id}/players/web:${PLAYER}/results` }, id)).status).toBe(200);
+    expect((await call(A, { path: `/matches/${id}/results/4/2` }, id)).status).toBe(200);
     // The stream bytes: everything before the match-finished frame goes to `before`, that frame to `after`.
     const streamed: Frame[] = [];
     do streamed.push(await feed.next(10_000)); while (!(streamed[streamed.length - 1] as Frame).raw.includes('"type":"match-finished"'));
@@ -221,8 +229,9 @@ describe('the log scan', () => {
     const withToken = everything.filter((t) => t.includes(hostToken));
     expect(withToken).toHaveLength(2);
     for (const text of withToken) expect(text.startsWith('201\n')).toBe(true);
-    // The own predictions carry the planted player id only in the reply to its client.
-    expect(everything.filter((t) => t.includes(PLAYER))).toHaveLength(1);
+    // The planted player id is in the reply to its client (own predictions) and, after the finish only, in the board and its own results.
+    expect(everything.filter((t) => t.includes(PLAYER))).toHaveLength(3);
+    expect(session.before.filter((t) => t.includes(PLAYER))).toHaveLength(1);
   }, 60_000);
 
   it('NFR-47 (c) a production process holds no planted credential, host token, secret or round seed in stdout or stderr, whatever it served', async () => {

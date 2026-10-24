@@ -5,7 +5,7 @@
 import type { MatchEvent, MatchSummary, PredictionKind, PublicState } from '@mbrg/protocol';
 import type { MemoScope } from '../core/memo';
 import type { StoredPrediction } from '../core/predictions';
-import type { ResultRow, ScorablePrediction } from '../core/scoring';
+import type { PlayerTotals, ResultRow, ScorablePrediction } from '../core/scoring';
 import type { CoreMatch, StepRow } from '../core/view';
 
 /**
@@ -87,6 +87,26 @@ export type MatchListKey = readonly [createdAt: number, matchId: string];
 /** The keyset of the own predictions (FR-279 (b)): local player id, round (0 for the winner), kind. */
 export type PredictionKey = readonly [localId: string, round: number, kind: PredictionKind];
 
+/** The keyset of a player's results (plan 20.7): round (0 for the winner), then kind in text order. */
+export type PlayerResultKey = readonly [round: number, kind: PredictionKind];
+
+/** One stored result of a phase as the phase results list it: the player id as stored, the choice, the correct bit and the points. */
+export interface StoredPhaseResult {
+  readonly playerId: string;
+  readonly choice: number;
+  readonly correct: boolean;
+  readonly points: number;
+}
+
+/** One stored result of one player: the winner has round 0. */
+export interface StoredPlayerResult {
+  readonly kind: PredictionKind;
+  readonly round: number;
+  readonly choice: number;
+  readonly correct: boolean;
+  readonly points: number;
+}
+
 /** A memo entry: the digest of the canonical content, the reply as given and the first-use instant (FR-282, PD12). */
 export interface StoredMemo {
   readonly contentDigest: string;
@@ -165,6 +185,21 @@ export interface Store {
    * would reveal an outcome.
    */
   putResults(matchId: string, rows: readonly ResultRow[]): void;
+  /**
+   * The result rows of one scored phase (`victim` for phase 1, `absorber` for phase 2) of `round`, after the player id
+   * `after` (exclusive; from the start when absent), at most `limit`, ordered by player id (code unit order; M4' reads,
+   * phase results). Rows exist only for scored phases (the refusals of `putResults`), so nothing unscored can be listed.
+   */
+  phaseResultsAfter(matchId: string, kind: 'victim' | 'absorber', round: number, after: string | undefined, limit: number): StoredPhaseResult[];
+  /**
+   * The result rows of one player id (as stored, namespace included) after the key `after` (exclusive), at most `limit`,
+   * ordered by round (0 for the winner) then kind.
+   */
+  playerResultsAfter(matchId: string, playerId: string, after: PlayerResultKey | undefined, limit: number): StoredPlayerResult[];
+  /** The sum of every stored result of one player id in a match (0 with none): the `total` of the player results. */
+  playerTotal(matchId: string, playerId: string): number;
+  /** One aggregate per player id with at least one result row: total and correct counts per kind, in no promised order. */
+  leaderboardTotals(matchId: string): PlayerTotals[];
   /** Appends events: the first number is the stored last number + 1 and the rest follow without a gap (FR-289). */
   appendEvents(matchId: string, events: readonly MatchEvent[]): void;
   /** The events with a number above `seq`, in order. */

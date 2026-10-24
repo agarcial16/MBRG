@@ -21,15 +21,19 @@ import type { Readable } from 'node:stream';
 import {
   encodeAdvance,
   encodeCreation,
+  encodeLeaderboardRow,
   encodeMatchSummary,
   encodeOwnPrediction,
   encodePage,
+  encodePhaseResults,
+  encodePlayerResults,
   encodePrediction,
   encodePublicMatch,
   encodeRecord,
   encodeState,
   errorReply,
   isLocalId,
+  isPlayerId,
   rateLimited,
   readPageQuery,
   readSubmission,
@@ -117,6 +121,17 @@ const startOf = (ctx: RouteContext) => {
     .filter(([name]) => name === 'lastEventId')
     .map(([, value]) => value);
   return readStreamStart(ctx.lastEventId, values.length === 0 ? undefined : values.length === 1 ? (values[0] as string) : '');
+};
+
+/**
+ * Stage 4 of the phase results route: a round segment that is not a round of at least 1 is `invalid-request ['round']`
+ * (`0` included: the creation state has no results), then a phase segment other than the text `1` or `2` is `['phase']`.
+ */
+const resultsShape = (ctx: RouteContext): ErrorReply | undefined => {
+  const round = parseRoundSegment(ctx.params.round as string);
+  if (round.kind === 'invalid' || (round.kind === 'round' && round.value < 1)) return errorReply('invalid-request', ['round']);
+  const phase = ctx.params.phase;
+  return phase === '1' || phase === '2' ? undefined : errorReply('invalid-request', ['phase']);
 };
 
 const MAP_FILE_TYPES = Object.freeze({ 'map.json': 'application/json', 'presentation.json': 'application/json', 'ids.png': 'image/png' } as const);
@@ -231,6 +246,55 @@ export const productionRoutes = (service: MatchService, settings: ServerSettings
         ...(extra.playerId === undefined ? {} : { playerId: extra.playerId }),
       };
       return replyOf(service.ownPredictionsPage(request), 200, (page) => encodePage(page, encodeOwnPrediction));
+    },
+  },
+  {
+    method: 'GET',
+    path: '/matches/:id/results/:round/:phase',
+    body: 'none',
+    checkQuery: (ctx) => {
+      const query = readPageQuery('phase-results', pairsOf(ctx.query));
+      return query.ok ? undefined : query.error;
+    },
+    shape: resultsShape,
+    decide: (ctx) => {
+      const query = readPageQuery('phase-results', pairsOf(ctx.query));
+      if (!query.ok) return { kind: 'error', error: query.error };
+      const { limit, after } = query.value;
+      const phase = ctx.params.phase === '1' ? 1 : 2;
+      return replyOf(service.phaseResults(ctx.params.id as string, roundOf(ctx), phase, after === undefined ? { limit } : { limit, after }), 200, encodePhaseResults);
+    },
+  },
+  {
+    method: 'GET',
+    path: '/matches/:id/players/:playerId/results',
+    body: 'none',
+    checkQuery: (ctx) => {
+      const query = readPageQuery('player-results', pairsOf(ctx.query));
+      return query.ok ? undefined : query.error;
+    },
+    // The namespaced player id is one path segment matched literally; a malformed one is `invalid-player-id` (before `unknown-match`).
+    shape: (ctx) => (isPlayerId(ctx.params.playerId) ? undefined : errorReply('invalid-player-id', ['playerId'])),
+    decide: (ctx) => {
+      const query = readPageQuery('player-results', pairsOf(ctx.query));
+      if (!query.ok) return { kind: 'error', error: query.error };
+      const { limit, after } = query.value;
+      return replyOf(service.playerResults(ctx.params.id as string, ctx.params.playerId as string, after === undefined ? { limit } : { limit, after }), 200, encodePlayerResults);
+    },
+  },
+  {
+    method: 'GET',
+    path: '/matches/:id/leaderboard',
+    body: 'none',
+    checkQuery: (ctx) => {
+      const query = readPageQuery('leaderboard', pairsOf(ctx.query));
+      return query.ok ? undefined : query.error;
+    },
+    decide: (ctx) => {
+      const query = readPageQuery('leaderboard', pairsOf(ctx.query));
+      if (!query.ok) return { kind: 'error', error: query.error };
+      const { limit, after } = query.value;
+      return replyOf(service.leaderboard(ctx.params.id as string, after === undefined ? { limit } : { limit, after }), 200, (page) => encodePage(page, encodeLeaderboardRow));
     },
   },
   {

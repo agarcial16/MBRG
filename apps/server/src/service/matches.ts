@@ -29,20 +29,26 @@
 // the running matches at `start` arms a retry of the whole start check RETRY_MS later, until it succeeds (FR-294); a
 // programming error there is rethrown by `start`. `close` cancels every wake-up.
 //
+// Results reads (M4'): the results of a scored phase, a player's results and the leaderboard, from the `results` rows alone
+// (rows exist only for scored phases) and the public parts of the stored match; they write nothing.
+//
 // Reads (FR-281 (a) to (d), (h), (j), FR-258, FR-302; M3a T5): outcomes with an `ErrorReply`, no transaction and no write
 // (only the in-memory reported time); a storage failure is `unavailable`; keyset pages with the cursors of the protocol.
 
-import { PAGE_LIMIT_MAX, canonicalBody, encodeCursor, encodePublicMatch, errorReply, isLocalId, isNamespace, playerIdOf, readAdvance, readCreation, readSubmission } from '@mbrg/protocol';
+import { PAGE_LIMIT_MAX, canonicalBody, encodeCursor, encodePublicMatch, errorReply, isLocalId, isNamespace, isPlayerId, pageOf, playerIdOf, readAdvance, readCreation, readSubmission } from '@mbrg/protocol';
 import type {
   AdvanceReply,
   CreationReply,
   CursorKey,
   CursorList,
   ErrorReply,
+  LeaderboardRow,
   MatchEvent,
   MatchSummary,
   OwnPrediction,
   Page,
+  PhaseResultsPage,
+  PlayerResultsPage,
   PredictionReply,
   PublicMatch,
   RecordReply,
@@ -57,7 +63,7 @@ import { MEMO_RETENTION_MS, decideMemo, isMemoisable } from '../core/memo';
 import type { MemoScope } from '../core/memo';
 import { decideSubmission } from '../core/predictions';
 import { readRound } from '../core/reads';
-import { scorePhase } from '../core/scoring';
+import { rankLeaderboard, readResultsRound, scorePhase, scoredPhaseCount } from '../core/scoring';
 import type { StoredPrediction, Submission } from '../core/predictions';
 import { haltMatch, runDue } from '../core/steps';
 import type { StepDeps, StepOutcome } from '../core/steps';
@@ -252,6 +258,24 @@ export interface MatchService {
   records(matchId: string, request: PageRequest<'records'>): ReadOutcome<Page<RecordReply>>;
   /** FR-281 (h), FR-270 (read), C3: the stored predictions of the caller's namespace (or one local id), one keyset page. */
   ownPredictionsPage(request: OwnPredictionsPageRequest): ReadOutcome<Page<OwnPrediction>>;
+  /**
+   * FR-281 (e), FR-275, FR-258: the results of the phase `phase` of `round`, one keyset page by player id: phase 1 names the
+   * victim, phase 2 carries the record of the round. A phase that is not scored yet (any stage) is `round-not-applied`
+   * naming only N; a round that is not a whole number >= 1 is `invalid-request ['round']`, a phase other than 1 or 2
+   * `['phase']`, both checked before the match is looked up.
+   */
+  phaseResults(matchId: string, round: number, phase: 1 | 2, request: PageRequest<'phase-results'>): ReadOutcome<PhaseResultsPage>;
+  /**
+   * FR-281 (f), FR-276: the scored predictions of one player id (namespaced, as stored), one keyset page by round (0 for the
+   * winner) then kind, with the `total` of every scored item. A well-formed player id with no scored prediction gets an
+   * empty page with total 0 (no unscored prediction is told apart, FR-270); a malformed one is `invalid-player-id`.
+   */
+  playerResults(matchId: string, playerId: string, request: PageRequest<'player-results'>): ReadOutcome<PlayerResultsPage>;
+  /**
+   * FR-281 (g), FR-277, FR-279 (d): the leaderboard, one page of the ranking by rank then player id. A cursor cut at another
+   * generation (a phase was scored since) is `stale-cursor`.
+   */
+  leaderboard(matchId: string, request: PageRequest<'leaderboard'>): ReadOutcome<Page<LeaderboardRow>>;
   /** FR-300 (host-token check): whether the credential is the host token of the match, by digest comparison; false for an unknown match. */
   hostTokenMatches(matchId: string, credential: string): ReadOutcome<boolean>;
   /**
@@ -999,6 +1023,62 @@ export function createMatchService(options: ServiceOptions): MatchService {
           version: p.version,
         });
         return { ok: true, reply: pageFrom('predictions', rows, limit, own, (r) => [r.localId, r.prediction.round, r.prediction.kind]) };
+      });
+    },
+
+    phaseResults(matchId: string, round: number, phase: 1 | 2, request: PageRequest<'phase-results'>): ReadOutcome<PhaseResultsPage> {
+      const { limit, after } = request;
+      checkPageSize(limit);
+      // Shape checks come before the match is looked up (FR-301 order); readResultsRound repeats them for the scored check.
+      if (typeof round !== 'number' || !Number.isInteger(round) || round < 1) return invalidRound();
+      if (phase !== 1 && phase !== 2) return { ok: false, error: errorReply('invalid-request', ['phase']) };
+      return read(() => {
+        const stored = storedMatch(matchId);
+        if (stored === undefined) return unknownMatch();
+        const scored = readResultsRound(stored.match, round, phase);
+        if (!scored.ok) return scored;
+        const id = stored.match.matchId;
+        const rows = store.phaseResultsAfter(id, phase === 1 ? 'victim' : 'absorber', round, after === undefined ? undefined : after[0], limit + 1);
+        const page = pageFrom('phase-results', rows, limit, (r) => ({ playerId: r.playerId, choice: r.choice, correct: r.correct, points: r.points }), (r) => [r.playerId]);
+        const applied = round <= stored.match.appliedRounds;
+        const record = applied ? store.recordsAfter(id, round - 1, 1)[0] : undefined;
+        if (applied && (record === undefined || record.round !== round)) throw new RangeError('inconsistent stored data: no record of an applied round');
+        const victim = record !== undefined ? record.eliminated : stored.match.victim?.victim;
+        if (phase === 1 && victim === undefined) throw new RangeError('inconsistent stored data: no victim of a scored phase');
+        return {
+          ok: true,
+          reply: { round, phase, ...(phase === 1 ? { victim: victim! } : { record: recordReply(record!) }), ...page },
+        };
+      });
+    },
+
+    playerResults(matchId: string, playerId: string, request: PageRequest<'player-results'>): ReadOutcome<PlayerResultsPage> {
+      const { limit, after } = request;
+      checkPageSize(limit);
+      if (!isPlayerId(playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+      return read(() => {
+        const stored = storedMatch(matchId);
+        if (stored === undefined) return unknownMatch();
+        const id = stored.match.matchId;
+        const rows = store.playerResultsAfter(id, playerId, after, limit + 1);
+        const page = pageFrom('player-results', rows, limit, (r) => ({ kind: r.kind, ...(r.kind === 'winner' ? {} : { round: r.round }), choice: r.choice, correct: r.correct, points: r.points }), (r) => [r.round, r.kind]);
+        return { ok: true, reply: { playerId, total: store.playerTotal(id, playerId), ...page } };
+      });
+    },
+
+    leaderboard(matchId: string, request: PageRequest<'leaderboard'>): ReadOutcome<Page<LeaderboardRow>> {
+      const { limit, after } = request;
+      checkPageSize(limit);
+      return read(() => {
+        const stored = storedMatch(matchId);
+        if (stored === undefined) return unknownMatch();
+        // The generation counts the scored phases: a cursor cut before (or after, never issued) another phase was scored is stale.
+        const generation = scoredPhaseCount(stored.match);
+        if (after !== undefined && after[0] !== generation) return { ok: false, error: errorReply('stale-cursor') };
+        const ranked = rankLeaderboard(store.leaderboardTotals(stored.match.matchId));
+        const page = pageOf(ranked, (e): readonly [number, string] => [e.rank, e.playerId], after === undefined ? undefined : [after[1], after[2]], limit);
+        const items = page.items.map((e): LeaderboardRow => ({ rank: e.rank, playerId: e.playerId, total: e.total, correctVictims: e.correctVictims, correctAbsorbers: e.correctAbsorbers, correctWinner: e.correctWinner }));
+        return { ok: true, reply: page.next === undefined ? { items } : { items, next: encodeCursor('leaderboard', [generation, page.next[0], page.next[1]]) } };
       });
     },
 

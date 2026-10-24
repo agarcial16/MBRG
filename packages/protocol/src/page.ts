@@ -1,5 +1,5 @@
 import { errorReply } from './errors';
-import { isLocalId } from './ids';
+import { isLocalId, isPlayerId } from './ids';
 import type { ReadResult } from './read';
 import { PREDICTION_KINDS, type PredictionKind } from './wire';
 
@@ -16,19 +16,25 @@ export const PAGE_LIMIT_DEFAULT = 100;
 export const PAGE_LIMIT_MAX = 500;
 export const CURSOR_MAX_LENGTH = 256;
 
-/** The list tags of M3a (the results and leaderboard lists join in M4). */
-export const CURSOR_LISTS = ['matches', 'records', 'predictions'] as const;
+/** The list tags: the three of M3a, then the results lists (phase results, a player's results, the leaderboard). */
+export const CURSOR_LISTS = ['matches', 'records', 'predictions', 'phase-results', 'player-results', 'leaderboard'] as const;
 export type CursorList = (typeof CURSOR_LISTS)[number];
 
 /**
  * The order key of each list (FR-279 (b)): match list by creation instant then match id; records by round; own
  * predictions by local player id, then round (0 for the winner, which has none), then kind. Texts compare by UTF-16 code
- * unit, which equals SQLite's BINARY order for the ASCII texts these keys hold.
+ * unit, which equals SQLite's BINARY order for the ASCII texts these keys hold. The results lists (plan 20.7): phase
+ * results by namespaced player id; a player's results by round (0 for the winner) then kind; the leaderboard by rank then
+ * player id, with the generation (the number of scored phases) the page was cut at, so a cursor from before a new scored
+ * phase can be told apart (FR-279 (d)).
  */
 export interface CursorKeys {
   readonly matches: readonly [createdAt: number, matchId: string];
   readonly records: readonly [round: number];
   readonly predictions: readonly [playerId: string, round: number, kind: PredictionKind];
+  readonly 'phase-results': readonly [playerId: string];
+  readonly 'player-results': readonly [round: number, kind: PredictionKind];
+  readonly leaderboard: readonly [generation: number, rank: number, playerId: string];
 }
 export type CursorKey<L extends CursorList> = CursorKeys[L];
 
@@ -60,6 +66,16 @@ function isKeyOf(list: CursorList, parts: readonly unknown[]): boolean {
       if (typeof kind !== 'string' || !(PREDICTION_KINDS as readonly string[]).includes(kind)) return false;
       return (kind === 'winner') === (parts[1] === 0);
     }
+    case 'phase-results':
+      return parts.length === 1 && isPlayerId(parts[0]);
+    case 'player-results': {
+      if (parts.length !== 2 || !isInt(parts[0], 0)) return false;
+      const kind = parts[1];
+      if (typeof kind !== 'string' || !(PREDICTION_KINDS as readonly string[]).includes(kind)) return false;
+      return (kind === 'winner') === (parts[0] === 0);
+    }
+    case 'leaderboard':
+      return parts.length === 3 && isInt(parts[0], 0) && isInt(parts[1], 1) && isPlayerId(parts[2]);
     default:
       return false;
   }

@@ -13,7 +13,7 @@ import type { FaultPlan } from '../src/store/faults';
 import { openStore } from '../src/store/sqlite';
 import type { Store } from '../src/store/store';
 import { dumpRows, withRawDb } from './helpers/db-scan';
-import { perform, scriptCursor, serviceOn } from './helpers/durability-script';
+import { perform, resultsReads, scriptCursor, serviceOn } from './helpers/durability-script';
 import type { ActionSpec } from './helpers/durability-script';
 import { fakeClock } from './helpers/fake-clock';
 import { START_MS, withTempDir } from './helpers/service-harness';
@@ -135,6 +135,8 @@ interface Run {
   readonly kill: Kill | undefined;
   readonly dump: string;
   readonly publicMatch: string;
+  /** The results reads (phase results, players, leaderboard) at the end of the run. */
+  readonly results: string;
 }
 
 /** Runs the script on `file`; with a plan, the seam kills the first server at the planned point and a new one takes over. */
@@ -173,8 +175,9 @@ function runScript(file: string, plan: FaultPlan = {}): Run {
       cursor.after(spec, reply);
     }
     const publicMatch = encodePublicMatch(live.service.publicMatch(matchId)!);
+    const results = resultsReads(live.service, matchId);
     live.service.close();
-    return { specs, replies, published, txs: trace.txs, kill, dump: withRawDb(file, dumpRows), publicMatch };
+    return { specs, replies, published, txs: trace.txs, kill, dump: withRawDb(file, dumpRows), publicMatch, results };
   } finally {
     live.service.close();
   }
@@ -194,6 +197,7 @@ function expectSameContinuation(run: Run, reference: Run, where: string): void {
   expect(run.replies, `${where}: the replies that counted`).toStrictEqual(reference.replies);
   expect(run.published, `${where}: the published events`).toStrictEqual(reference.published);
   expect(run.publicMatch, `${where}: the public data`).toBe(reference.publicMatch);
+  expect(run.results, `${where}: the results reads and the leaderboard`).toBe(reference.results);
   expect(run.dump === reference.dump, `${where}: the raw database at the end`).toBe(true);
 }
 
@@ -241,6 +245,13 @@ describe('NFR-57 (durability, M2b part) a kill between and inside every storage 
         if (spec.kind === 'advance') expect(JSON.parse(run.replies[i]!), spec.label).toMatchObject({ ok: true, reply: { result: 'performed' } });
       }
       withRawDb(join(dir, 'plain.sqlite'), (db) => expect(db.prepare('SELECT COUNT(*) AS n FROM memo').get()?.n).toBe(0));
+      // The results reads are not vacuous: scored phases, the two players and a non-empty leaderboard.
+      const reads = JSON.parse(run.results) as { phaseResults: Record<string, { items: unknown[] }>; players: Record<string, { total: number; items: unknown[] }>; leaderboard: { playerId: string }[] };
+      expect(Object.keys(reads.phaseResults)).toHaveLength(8);
+      expect(Object.values(reads.phaseResults).some((p) => p.items.length > 0)).toBe(true);
+      expect(reads.players['web:p1']!.items.length).toBeGreaterThan(3);
+      expect(reads.players['web:nobody']).toStrictEqual({ playerId: 'web:nobody', total: 0, items: [] });
+      expect(reads.leaderboard.map((r) => r.playerId)).toContain('web:p1');
       expect(withRawDb(join(dir, 'plain.sqlite'), decisionViolations)).toStrictEqual([]);
     });
   });

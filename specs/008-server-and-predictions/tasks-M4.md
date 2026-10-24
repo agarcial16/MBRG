@@ -64,14 +64,14 @@ Plan section 20. The rules of `tasks.md` apply; sizes are changed lines (src + t
 
 ## M4' (`feat/008-m4-2-results-reads`, from `rewrite` after M4 is merged; T1' to T6'; 82 / 14 -> 86 / 10)
 
-- [ ] **T1'. Branch and bookkeeping targets.** NFR-55
+- [x] **T1'. Branch and bookkeeping targets.** NFR-55
   - Depends on: M4 merged.
   - Files: `packages/sim/test/traceability.test.ts` (comments: T3' 86 / 10).
   - Commit: `test: prepare the spec 008 bookkeeping for M4'`.
   - Done when: suite, typecheck, `CI=1` green; no id moved.
   - Size: S (about 30).
 
-- [ ] **T2'. Wire shapes, encoders and cursors of the results reads (pure).** FR-257 (results encoders); FR-279 (results lists); NFR-51 (protocol)
+- [x] **T2'. Wire shapes, encoders and cursors of the results reads (pure).** FR-257 (results encoders); FR-279 (results lists); NFR-51 (protocol)
   - Depends on: T1'.
   - Files: `packages/protocol/src/{wire,encode,page,ids,index}.ts`, `packages/protocol/test/{encode-results,page}.test.ts` (`page.test.ts` is an earlier test: `CURSOR_LISTS` gains three tags, meaning unchanged).
   - Tests first (plan 20.6, 20.7): `encodePhaseResults`, `encodePlayerResults`, `encodeLeaderboardRow` write their fixed key order whatever the input order, `victim` exactly for phase 1 and `record` exactly for phase 2, `round` absent exactly for a winner item, `next` exactly when present; refuse an extra, inherited or `null` member, a `correct` that is not a boolean, negative points, a rank below 1; `isPlayerId`: `web:a`, `discord:A.b-c_9` yes, `web`, `:a`, `web:`, `web:a:b`, `Web:a`, a 17-character namespace, a 65-character local id no; cursors: `phase-results [playerId]`, `player-results [round, kind]` (winner exactly with round 0), `leaderboard [generation, rank, playerId]` (generation >= 0, rank >= 1) round-trip; a cursor of one list is `invalid-request ['cursor']` on every other list (the existing cross-list test, now six tags); a leaderboard cursor without the generation is refused; the longest keys stay under 256 characters.
@@ -80,7 +80,7 @@ Plan section 20. The rules of `tasks.md` apply; sizes are changed lines (src + t
   - Done when: tests green; mutations caught; no id moved; `rg` finds `FR-279 (results lists)`, `FR-257 (results encoders)`.
   - Size: M (about 400).
 
-- [ ] **T3'. The three results reads through the store and the service.** FR-275, FR-276, FR-277, FR-278 (close); FR-279 (d) (leaderboard); FR-281 (e) to (g) (service); FR-258 (results); FR-270 (unscored hidden); FR-251 (d), (f) (results of a halted match)
+- [x] **T3'. The three results reads through the store and the service.** FR-275, FR-276, FR-277, FR-278 (close); FR-279 (d) (leaderboard); FR-281 (e) to (g) (service); FR-258 (results); FR-270 (unscored hidden); FR-251 (d), (f) (results of a halted match)
   - Depends on: T2'.
   - Files: `apps/server/src/store/{store,sqlite,faults}.ts` (`phaseResultsAfter`, `playerResultsAfter`, `playerTotal`, `leaderboardTotals`), `apps/server/src/service/matches.ts` (`phaseResults`, `playerResults`, `leaderboard`), `apps/server/test/{service-results,store-results-reads}.test.ts` (new), `apps/server/test/{service-seam,service-create}.test.ts` (pinned service method lists gain the three names), `packages/sim/test/traceability.test.ts` (FR-275 to FR-278 out of `PENDING_008`: 86 / 10; the planted M4 id becomes FR-310, retitled).
   - Tests first (service, fake clock, a scripted dev-map match with players `web:p1` .. `web:p6` and `discord:p1`): phase results of a scored phase: phase 1 gives the victim, phase 2 the record of round k, items ordered by player id with choice, correct, points, paged (limit 1, 2, 500; cursors never repeat or skip); unscored (k, phase) in every stage, k = N + 1 phase 2, k above T: `round-not-applied` naming only N, the same reply bytes; player results: per scored phase, the winner item only once finished, `total` the sum of every scored item; a player with only unscored predictions gets the same reply as an unknown well-formed player id (empty, total 0) (FR-270); leaderboard: one row per player with a scored prediction (all-zero players included), rank, total, correct counts, ranks shared (1, 1, 3), order rank then player id; a cursor read across a phase close is `stale-cursor` (409 kind), a cursor of the current generation after a restart still works; FR-278: ids returned exactly as stored, `web:a` and `discord:a` distinct rows, no field derived from an id; a halted match serves the scored results and the leaderboard as they were (FR-251 (d), (f)); `unknown-match`; `unavailable` under the fault seam; nothing written by a read (database dump unchanged).
@@ -89,7 +89,7 @@ Plan section 20. The rules of `tasks.md` apply; sizes are changed lines (src + t
   - Done when: tests green; mutations caught; FR-275 to FR-278 moved (86 / 10); `rg` finds them.
   - Size: L (about 600).
 
-- [ ] **T4'. The results routes over HTTP.** FR-281 (e) to (g) (HTTP); FR-279 (d) (HTTP); FR-286 (results reads); FR-301 (order, results routes); FR-257 (results twins over HTTP); NFR-47 (c) (results replies); NFR-52 (network)
+- [x] **T4'. The results routes over HTTP.** FR-281 (e) to (g) (HTTP); FR-279 (d) (HTTP); FR-286 (results reads); FR-301 (order, results routes); FR-257 (results twins over HTTP); NFR-47 (c) (results replies); NFR-52 (network)
   - Depends on: T3'.
   - Files: `apps/server/src/http/server.ts` (three routes of plan 20.6), `apps/server/test/{http-results,http-results-twins}.test.ts` (new), `apps/server/test/server-log-scan.test.ts` (the scan also reads the results replies).
   - Tests first (real listener, port 0, fake clock): 200 bodies byte-equal to the protocol encoders; query `limit`, `cursor` and any other parameter as the other list routes (400 naming the field); round `0`, `01`, `-1` 400 `['round']`, a round past 2^53 - 1 404 `round-not-applied`; phase `0`, `3`, `x` 400 `['phase']`; a malformed player id 400 `invalid-player-id ['playerId']`, checked after the query and before `unknown-match` (FR-301 order); 404 `unknown-match`; 409 `stale-cursor`; 503 under the fault seam; `POST` 405 with `Allow: GET, OPTIONS`; CORS: any `Origin` without `Authorization` gets `*`, with `Authorization` only an allowed origin; the preflight of a read path; the anonymous per-minute limit counts the three routes; twins (same public data, different absorber, during phase 2 and `locked`): the three reads give byte-identical bodies; before the finish no results reply contains the planted secret or round seeds in any NFR-47 (c) encoding.
@@ -98,7 +98,7 @@ Plan section 20. The rules of `tasks.md` apply; sizes are changed lines (src + t
   - Done when: tests green; mutations caught; no id moved; `rg` finds `FR-281 (e)`.
   - Size: L (about 550).
 
-- [ ] **T5'. Results goldens, determinism and durability.** NFR-48 (results); NFR-57 (results); FR-315 (results); FR-294 (results replay)
+- [x] **T5'. Results goldens, determinism and durability.** NFR-48 (results); NFR-57 (results); FR-315 (results); FR-294 (results replay)
   - Depends on: T4'.
   - Files: `apps/server/test/golden/dev-results.json` (new) and its hand-run generator `golden/generate-dev-results.ts` (independent: dev-secrets, the sim exports and its own arithmetic; it imports nothing from `src/core/scoring.ts`), `apps/server/test/{results-golden,results-durability}.test.ts` (new), `apps/server/test/helpers/durability-script.ts` (reads the results and the leaderboard at the end), `apps/server/test/service-durability.test.ts` (compares those reads too).
   - Tests first (plan 20.8): for the three dev secrets and the fixed prediction set (seven players; every kind; replaced predictions; a winner changed after a reveal; a player with all-zero points; a player who predicts nothing in one round), the phase results of every round, the player results of every player and the whole leaderboard equal the golden with timing `manual`, clock settings with L2 > 0 and L2 = 0, a manual advance in every stage, late steps after a forward jump, a backward jump, a restart after every step (new store and service on the file, `start()`), in-memory and file databases; a few golden figures are also literals in the test (non-round totals); NFR-57: after every kill point of the durability script the restarted run gives the same results reads and leaderboard as the uninterrupted one; a kill after the `COMMIT` of a phase-1 close and before its publication: after the restart the replay holds its `results` event once with its stored number and the rows exist once.
@@ -107,7 +107,7 @@ Plan section 20. The rules of `tasks.md` apply; sizes are changed lines (src + t
   - Done when: tests green; mutations caught; no id moved.
   - Size: L (about 450; golden JSON about 300, counted apart).
 
-- [ ] **T6'. Close M4': ledger, process checks, PR.** NFR-55
+- [x] **T6'. Close M4': ledger, process checks, PR.** NFR-55
   - Depends on: T1' to T5'.
   - Files: `packages/sim/test/traceability.test.ts` (closing-state test retitled to M4': 86 / 10, FR-271 to FR-278 pinned done, the 10 M5 ids as a literal list), `plan.md` (sections 11 and 13: M4' closing summary, figures, open parts for M5), `PROGRESS.md`, `MEMORY.md` (local).
   - Steps: as M4 T5; `git diff --exit-code rewrite -- ... apps/server/test/golden/{dev-secrets,core-timelines,service-timelines}.json` clean (only `dev-results.json` new).
