@@ -875,12 +875,12 @@ apps/web/src/core/                                         (all PURE: the NFR-25
   live-rounds.ts (new)       ownersOf(pairs), applyRecord(owners, record) -> owners | mismatch, stepDataOf, canRequest(model, j) (M5 T4)
   live-model.ts (new)        LiveModel, LiveInput, LiveEffect, reduce(model, input) -> { model, effects }, estimateAt   (M5 T4, M5b T5)
   live-retry.ts (new)        retry schedule 1, 2, 4, 8, 16, then 30 s; Retry-After; reply classification; watchdog constant (M5b T5)
-  live-sse.ts (new)          incremental event-stream frame parser (id, data, comments, CR / LF / CRLF, split chunks)  (M5b T6)
+  live-sse.ts (new)          incremental event-stream frame parser (id, data, comments, CR / LF / CRLF, split chunks)  (M5b T6a)
   client-form.ts (new)       web test client: submission bodies, paths with the namespaced id unescaped, reply texts      (M5' T5')
 apps/web/src/ui/
   live-net.ts (new)          createLiveNet({ base, fetch }): reads, map files as bytes, the stream over a fetch body; the
-                             ONLY network module besides ui/load.ts (D30); `credentials: 'omit'`, no Authorization       (M5b T6)
-  web-crypto.ts (new)        digestAvailable(), sha256Hex(bytes), requestId(); the ONLY crypto user (D30)                (M5b T6)
+                             ONLY network module besides ui/load.ts (D30); `credentials: 'omit'`, no Authorization       (M5b T6b)
+  web-crypto.ts (new)        digestAvailable(), sha256Hex(bytes) (M5b T6a), requestId() (M5' T5'); the ONLY crypto user (D30)
   live-timer.ts (new)        after(ms, fn) -> cancel; the ONLY timer user (D30)                                          (M5' T3')
   live-config.ts (new)       the server origin: `import.meta.env.VITE_MBRG_SERVER`, default `http://127.0.0.1:8787` in
                              development and the page origin in production (H8)                                         (M5' T3')
@@ -897,7 +897,7 @@ apps/web/index.html (edit)   script `/src/ui/entry.ts`                          
 apps/web/client.html (new)   the web test client page: no text nodes (NFR-28 rule); not a production build input         (M5' T5')
 apps/web/package.json (edit) + "@mbrg/protocol": "*" (H4); lockfile: the `apps/web` entry only                         (M5 T3)
 .gitignore (edit)            + `.env.local` (the development credential file, H9)                                       (M5' T5')
-apps/web/test/helpers/fake-server.ts (new)  a fake server over the protocol encoders, as an injected `fetch` (21.14)   (M5b T6)
+apps/web/test/helpers/fake-server.ts (new)  a fake server over the protocol encoders, as an injected `fetch` (21.14)   (M5b T6b)
 apps/web/test/helpers/scripted-match.ts (new)  a scripted dev-map match, encoded replies and events, and a `Driver` (M5 T4; reused by M5b, M5')
 apps/server/test/viewer-live.test.ts, viewer-live-child.test.ts, client-live.test.ts (new)  real-server proofs (H6)    (M5' T6')
 apps/server/test/fixtures/dev-live-server.ts (new, hand-run)  local run with the fake clock and a fixed random seed     (M5' T6')
@@ -981,7 +981,7 @@ Spanish texts, all in `core/strings.ts`: the title of the live scene, "Ronda N d
 Viewer and credential-free client reads: `fetch(url, { credentials: 'omit' })` with no custom header, so a cross-origin GET is a simple request (no preflight) answered `*` (18.4b); the stream reconnection adds only `Last-Event-ID` (preflight allowed by E8). Credentialed requests (submission, own predictions) send `Authorization: Bearer` and `Content-Type: application/json` from an allowed origin. Bodies are read as text and parsed with `JSON.parse`, then by the protocol readers (untrusted input).
 
 ### 21.13 Anti-spoiler on the client side (FR-254 client half, FR-303, FR-304, 004 FR-161)
-- No live module imports `@mbrg/sim` or the debug modules, and the debug modules (`ui/main.ts`, `ui/load.ts`, `core/scene.ts`, `core/step.ts` callers) import no live module (scan, M5b T6 / M5' T2').
+- No live module imports `@mbrg/sim` or the debug modules, and the debug modules (`ui/main.ts`, `ui/load.ts`, `core/scene.ts`, `core/step.ts` callers) import no live module (scan, M5b T6b / M5' T2').
 - Requests: only `canRequest` rounds (21.6), tested against the fake server's request log over whole matches and against the real server.
 - Holding: the model's type has no field for an absorber or a state of round N + 1; `held` gains round k only from a `round-applied` of round k or a read of k <= N.
 - The seed of the debug scene still goes nowhere: the live modules never see it (scan: no `seed` identifier in live modules).
@@ -1007,7 +1007,7 @@ Viewer and credential-free client reads: `fetch(url, { credentials: 'omit' })` w
 
 ### 21.16 Ids and ledger
 - **M5**: T3 closes FR-305, FR-306, NFR-56 (89 / 7); T4 closes FR-303, FR-304 (91 / 5); T4c pins 91 / 5. Parts: FR-287 and FR-288 (readers), FR-289 (d) (client order), FR-302 (client estimate), FR-254 (client requests), NFR-51 (protocol readers).
-- **M5b**: T5 closes FR-307 (92 / 4); T6 closes FR-308 (93 / 3); T7 pins 93 / 3. Parts: FR-289 (d), (e) (client, transport), FR-307 (transport), 004 FR-161 (live modules), NFR-55 (viewer scans, D30).
+- **M5b**: T5 closes FR-307 (92 / 4); T6a (parser, digest function) moves no id; T6b closes FR-308 (93 / 3); T7 pins 93 / 3. Parts: FR-289 (d), (e) (client, transport), FR-307 (transport), 004 FR-161 (live modules), NFR-55 (viewer scans, D30).
 - **M5'**: T4' closes FR-309 and FR-311 (95 / 1); T5' closes FR-310 (96 / 0); T7' pins the empty pending set. Parts: FR-303, FR-304, FR-305 (shell), FR-306 (production build), FR-307 and FR-308 (real server), NFR-56 (web test client), NFR-55 (viewer scans, D30).
 - Titles: no M5, M5b or M5' task or test title names a pending id before the task that closes it (`tasks-M5.md`, titles rule).
 
@@ -1024,7 +1024,7 @@ Viewer and credential-free client reads: `fetch(url, { credentials: 'omit' })` w
 - **Bundler dead-code removal** (Vite 8, Rolldown): the debug branch must disappear from the production output; the build-output test proves it, and a failure means the entry must use a separate production input (decided then, no spec change).
 - **Strings module in production**: `core/strings.ts` is one object, so the production bundle may carry the debug and test-client texts (not their code). Accepted: FR-311 forbids the client and the credential, not texts; the build test uses code markers, not texts.
 - **Extraction of `ui/main.ts`** (H5): a behaviour change of the debug scene would break FR-309; guarded by every 004 to 007 test unedited and the before / after screenshots.
-- **Size**: the reducer (M5 T4, M5b T5), the transport (M5b T6) and the shell (T3') are the largest; M5 T4 ran 2.3x (accepted, re-split into M5b); checkpoints after M5b T5 at about 1,050 lines, after M5b T6 at about 2,500, and after M5' T3' at about 1,300.
+- **Size**: the reducer (M5 T4, M5b T5), the transport (M5b T6a, T6b) and the shell (T3') are the largest; M5 T4 ran 2.3x (accepted, re-split into M5b); checkpoints after M5b T5 at about 1,050 lines, after M5b T6b at about 2,500, and after M5' T3' at about 1,300.
 - **Spec 009** amends the same scans (009 NFR-60) and the panel (the "revelando…" text); M5 adds no 009 hook, so 009's plan adds its tours between the event and the `play-step` effect (21.3) and extends the D30 lists.
 - **Windows**: the child-process restart on the same port; the M3b' lessons (kill by PID in `finally`, readers closed before temp files are removed, batches of sockets) apply.
 - **Map files are read whole per request** (M3a' note): fine for the dev map; real-size maps are a later measured change.
@@ -1058,7 +1058,8 @@ Viewer and credential-free client reads: `fetch(url, { credentials: 'omit' })` w
 | M5 T4c close | 80 |
 | **M5** | **about 2,730 (measured) + docs** |
 | M5b T5 connection policy | 700 (first estimate 350; src about 240, tests about 460) |
-| M5b T6 frame parser, transport, crypto, fake server, scans | 1,200 (first estimate 650; src about 450, fake server about 150, tests about 600) |
+| M5b T6a frame parser, digest function | 600 (user split of the old T6, 2026-10-24; src about 150, tests about 450) |
+| M5b T6b transport, map digest check, fake server, scans | 600 (old T6 as a whole 1,200, first estimate 650) |
 | M5b T7 close | 80 |
 | **M5b** | **about 1,980 + docs** |
 | M5' T1' branch, bookkeeping | 30 |
