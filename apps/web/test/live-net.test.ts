@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { encodeError, mapDigestBytes, rateLimited, type MapFileName } from '@mbrg/protocol';
-import { createLiveNet, type DigestApi, type StreamEnd, type StreamHandlers } from '../src/ui/live-net';
+import { sha256Hex } from '../src/ui/web-crypto';
+import { createLiveNet,type DigestApi, type StreamEnd, type StreamHandlers } from '../src/ui/live-net';
 import { reduce, startLive, type LiveEffect, type LiveInput, type LiveModel } from '../src/core/live-model';
 import { createFakeServer, frameText, type FakeServer } from './helpers/fake-server';
 import { MATCH_ID, eventsFrom, eventsOfRound, publicAt, recordReply, scripted, stateReply, type Scripted } from './helpers/scripted-match';
@@ -202,7 +203,85 @@ describe('FR-289 (d) (transport) the stream is read over fetch', () => {
   });
 });
 
-/** A small runner like the one M5' builds: it runs the effects of the model against the net and feeds the results back. */
+describe('FR-308 the production digest path (no injected digest)', () => {
+  it('FR-308 with the platform digest functions the real path hashes the dev map files to the pinned literal', async () => {
+    const { server } = await setup(1);
+    // web-crypto.ts itself, not the REAL copy of this file.
+    expect(await sha256Hex(mapDigestBytes(server.files))).toBe(DEV_DIGEST);
+    const net = createLiveNet({ base: BASE, fetch: server.fetch });
+    const read = await net.readMapFiles('dev', DEV_DIGEST);
+    expect(read.ok).toBe(true);
+    // And a wrong announced digest is still refused through the same path.
+    expect(await net.readMapFiles('dev', DEV_DIGEST.replace(/^4/, '5'))).toStrictEqual({ ok: false, outcome: 'fatal', fatal: 'digest-mismatch' });
+    // A changed byte against the right announced digest: only a real hash of the bytes sees it.
+    const last = server.files['ids.png'].length - 1;
+    server.files['ids.png'][last] = (server.files['ids.png'][last] as number) ^ 1;
+    expect(await net.readMapFiles('dev', DEV_DIGEST)).toStrictEqual({ ok: false, outcome: 'fatal', fatal: 'digest-mismatch' });
+  });
+
+  it('FR-308 on a platform with no digest function the default path answers insecure-origin before any request', async () => {
+    const { server } = await setup(1);
+    vi.stubGlobal('crypto', {});
+    try {
+      const net = createLiveNet({ base: BASE, fetch: server.fetch });
+      expect(await net.readPublic(MATCH_ID)).toStrictEqual({ ok: false, outcome: 'fatal', fatal: 'insecure-origin' });
+      expect(await net.readMapFiles('dev', DEV_DIGEST)).toStrictEqual({ ok: false, outcome: 'fatal', fatal: 'insecure-origin' });
+      expect(server.requests).toStrictEqual([]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    // Restored: the same net kind works again.
+    const again = createLiveNet({ base: BASE, fetch: server.fetch });
+    expect((await again.readPublic(MATCH_ID)).ok).toBe(true);
+  });
+});
+
+describe('FR-289 (d) (transport) edges of the stream read', () => {
+  const sseBody = (chunks: Uint8Array[]): Response =>
+    new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          for (const chunk of chunks) controller.enqueue(chunk);
+          controller.close();
+        },
+      }),
+      { status: 200 },
+    );
+
+  it('FR-289 (d) (transport) a multi-byte character split across two chunks is decoded whole', async () => {
+    const bytes = new TextEncoder().encode('id: 1\ndata: {"t":"é€"}\n\n');
+    const cut = bytes.indexOf(0xc3) + 1; // inside the two-byte letter
+    const frames: unknown[] = [];
+    const net = createLiveNet({ base: BASE, fetch: () => Promise.resolve(sseBody([bytes.slice(0, cut), bytes.slice(cut)])), digest: REAL });
+    const end = await net.openStream(MATCH_ID, start(0, 'parameter'), handlers([], frames), new AbortController().signal);
+    expect(frames).toStrictEqual([{ t: 'é€' }]);
+    expect(end).toStrictEqual({ type: 'dropped' });
+  });
+
+  it('FR-289 (d) (transport) a request aborted before the reply is aborted, not a failure to retry', async () => {
+    const control = new AbortController();
+    const net = createLiveNet({
+      base: BASE,
+      fetch: () => {
+        control.abort();
+        return Promise.reject(new DOMException('aborted', 'AbortError'));
+      },
+      digest: REAL,
+    });
+    const log: string[] = [];
+    expect(await net.openStream(MATCH_ID, start(0, 'header'), handlers(log), control.signal)).toStrictEqual({ type: 'aborted' });
+    expect(log).toStrictEqual([]);
+  });
+
+  it('FR-289 (d) (transport) a 200 with no body is a failure to retry and never opens', async () => {
+    const net = createLiveNet({ base: BASE, fetch: () => Promise.resolve(new Response(null, { status: 200 })), digest: REAL });
+    const log: string[] = [];
+    expect(await net.openStream(MATCH_ID, start(0, 'header'), handlers(log), new AbortController().signal)).toStrictEqual({ type: 'failed', failure: { ok: false, outcome: 'retry' } });
+    expect(log).toStrictEqual([]);
+  });
+});
+
+/** A small runner like the one M5' builds:it runs the effects of the model against the net and feeds the results back. */
 function watch(server: FakeServer) {
   let model: LiveModel = startLive(MATCH_ID).model;
   let clock = 1000;
