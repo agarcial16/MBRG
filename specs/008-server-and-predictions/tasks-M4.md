@@ -107,7 +107,7 @@ Plan section 20. The rules of `tasks.md` apply; sizes are changed lines (src + t
   - Done when: tests green; mutations caught; no id moved.
   - Size: L (about 450; golden JSON about 300, counted apart).
 
-- [ ] **T6'. Close M4': ledger, process checks, PR.** NFR-55
+- [x] **T6'. Close M4': ledger, process checks, PR.** NFR-55
   - Depends on: T1' to T5'.
   - Files: `packages/sim/test/traceability.test.ts` (closing-state test retitled to M4': 86 / 10, FR-271 to FR-278 pinned done, the 10 M5 ids as a literal list), `plan.md` (sections 11 and 13: M4' closing summary, figures, open parts for M5), `PROGRESS.md`, `MEMORY.md` (local).
   - Steps: as M4 T5; `git diff --exit-code rewrite -- ... apps/server/test/golden/{dev-secrets,core-timelines,service-timelines}.json` clean (only `dev-results.json` new).

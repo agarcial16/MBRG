@@ -241,3 +241,10 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Size: about 570 changed lines of tests and generator (golden JSON 584 lines, counted apart) against about 450 estimated (1.27x).
 - Untested: nothing planned remains for the reads; the T6' scans are next.
 - Next step: T6' (close M4': ledger, process checks).
+
+### M4' T6' - Close M4': ledger, process checks, PR
+- Changed: `traceability.test.ts` (the closing-state test is retitled to M4': 86 done / 10 pending, FR-271 to FR-278 pinned done by two literal lists of 4, the 10 M5 ids as a literal list), `plan.md` (section 11 M4' closing state, section 13 M4' closing summary), `tasks-M4.md` (T6' ticked), `tasks.md` (index row), `PROGRESS.md`, `MEMORY.md` (local, 49 lines; next: PR of M4', then M5).
+- Process checks: `git diff --exit-code rewrite -- packages/shared/src maps/dev packages/sim/src packages/sim/test/golden apps/server/test/golden/dev-secrets.json` clean; also clean for `core-timelines.json` and `service-timelines.json` (the only new golden is `dev-results.json`); no `package.json`, lockfile or `.nvmrc` change; `SCHEMA_VERSION` still 1; scans: `node:sqlite` imported only by `store/sqlite.ts` (other hits are comments), timers only in `service/scheduler.ts`, `node:http` as a value only in `http/server.ts` (the others are type imports), output only in `main.ts` and `http/log.ts`, no production import of `store/faults.ts`, no `Math.random` or `Date.now` in shared, sim or the core. Title scan: FR-275 to FR-278 only in the T3' test titles.
+- Run: typecheck clean; `CI=1 npm test` 197 files, 3257 passed, 4 skipped. `git diff --shortstat rewrite` before this commit: 32 files, +3,186 / -45 (of which golden JSON 584, docs about 90, so about 2,500 of source and tests).
+- Not done (as instructed): push, PR, Linux CI run, squash. The PR must list the ledger (86 / 10), the T3' size overrun accepted by the user, the new golden and the earlier tests edited (plan 20.9: `page.test.ts`, `service-seam`, `service-create`, `server-log-scan`, `service-durability`, `durability-script`, `traceability`).
+- Next step: review and the user's OK for the PR; then detail M5.

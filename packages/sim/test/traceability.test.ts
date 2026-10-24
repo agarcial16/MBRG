@@ -216,7 +216,7 @@ describe('traceability', () => {
     for (const id of PENDING_008) expect(expected, id).toContain(id);
   });
 
-  it("NFR-55 M4 closing state plus M4' T3', 86 ids done and 10 pending: the M2b to M3a' ids done, the event order, the load procedure, the scoring and the three results reads done, the M5 ids pending", () => {
+  it("NFR-55 M4' closing state, 86 ids done and 10 pending: the M2b to M3a' ids done, the event order, the load procedure, the scoring and the three results reads done, the M5 ids pending", () => {
     // M4 closing state (plan sections 11 and 13): asserted explicitly. M3a moved six ids
     // (T2: FR-279; T3: FR-283, FR-299; T5: FR-281; T6: FR-284, FR-286); M3a' T2' moved FR-280 and FR-298; T3' moved FR-285.
     // M3b moved no id: it completed parts of done ids (event encoders, stream framing, stream limits, the replay read, the hub,
@@ -266,13 +266,16 @@ describe('traceability', () => {
       expect(DONE_008, id).toContain(id);
       expect(PENDING_008, id).not.toContain(id);
     }
-    // M4' T3' closed four ids (86 done, 10 pending): FR-275 to FR-278, the three results reads; a literal list independent of DONE_008.
+    // M4' closed four ids (86 done, 10 pending): FR-275 to FR-278, the three results reads (T3'); with FR-271 to FR-274 of M4 the
+    // eight scoring and results ids are all done. A literal list independent of DONE_008.
     const closedByM4b = ['FR-275', 'FR-276', 'FR-277', 'FR-278'];
     expect(new Set(closedByM4b).size).toBe(4);
     for (const id of closedByM4b) {
       expect(DONE_008, id).toContain(id);
       expect(PENDING_008, id).not.toContain(id);
     }
+    for (const id of [...closedByM4, ...closedByM4b]) expect(DONE_008, id).toContain(id);
+    expect(new Set([...closedByM4, ...closedByM4b]).size).toBe(8);
     // M3b' closed FR-287 (T2') and NFR-49 (T4'): done, not pending.
     for (const id of ['FR-287', 'NFR-49']) {
       expect(DONE_008, id).toContain(id);
