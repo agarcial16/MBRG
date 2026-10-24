@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import webManifestRaw from '../package.json?raw';
 import lockRaw from '../../../package-lock.json?raw';
 
-// The dependency set of spec 005 (merged at 2f6f25c): spec 006 adds none.
+// The dependency set of spec 005 (merged at 2f6f25c): spec 006 adds none. Spec 008 adds only its internal workspace
+// @mbrg/protocol to the viewer (M5, decision H4 and D30: no third-party package).
 const WEB_005 = {
   name: '@mbrg/web',
   version: '0.0.0',
-  dependencies: { '@mbrg/shared': '*', '@mbrg/sim': '*', three: '0.186.1' },
+  dependencies: { '@mbrg/protocol': '*', '@mbrg/shared': '*', '@mbrg/sim': '*', three: '0.186.1' },
   devDependencies: { '@types/three': '0.186.0', vite: '8.3.4' },
 };
 /** Every spec 008 workspace entry and its link (A1): apps/server, packages/protocol and node_modules/@mbrg/* of those. */
@@ -25,7 +26,7 @@ function fnv1a64(text: string): string {
 }
 
 describe('spec 006 dependencies', () => {
-  it('NFR-42 the viewer manifest dependencies equal the spec 005 set', () => {
+  it('NFR-42 the viewer manifest dependencies equal the spec 005 set plus the workspace @mbrg/protocol (D30)', () => {
     const manifest = JSON.parse(webManifestRaw) as Record<string, unknown>;
     expect(manifest.dependencies).toStrictEqual(WEB_005.dependencies);
     expect(manifest.devDependencies).toStrictEqual(WEB_005.devDependencies);
@@ -33,7 +34,7 @@ describe('spec 006 dependencies', () => {
     expect(manifest.optionalDependencies).toBeUndefined();
   });
 
-  it('NFR-42 the lockfile workspace entry of the viewer equals the spec 005 one', () => {
+  it('NFR-42 the lockfile workspace entry of the viewer equals the spec 005 one plus the workspace @mbrg/protocol (D30)', () => {
     const lock = JSON.parse(lockRaw) as { packages: Record<string, Record<string, unknown>> };
     expect(lock.packages['apps/web']).toStrictEqual(WEB_005);
   });

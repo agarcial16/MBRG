@@ -55,6 +55,29 @@ export const STRINGS = {
   controlReset: 'Restablecer vista',
   controlGo: 'Ir',
   roundInputLabel: 'Ir a la ronda',
+  // Live viewer (spec 008, M5). Error kinds stay English identifiers; only the sentences live here.
+  liveTitle: 'Partida en directo',
+  liveStagePhase1: 'Fase 1: se puede predecir la víctima de la ronda.',
+  liveStagePhase2: 'Fase 2: se puede predecir quién absorbe a la víctima.',
+  liveStageLocked: 'Predicciones cerradas: la ronda se aplicará en breve.',
+  liveStageFinished: 'Partida terminada.',
+  liveStageHalted: 'Partida detenida.',
+  liveCountdown: 'Próximo paso en {time}',
+  liveVictim: 'Víctima de la ronda: {name}.',
+  liveWinner: 'Ganadora de la partida: {name}.',
+  liveHaltMapChanged: 'La partida se ha detenido porque el mapa ha cambiado.',
+  liveHaltIsolatedFaction: 'La partida se ha detenido porque una facción ha quedado aislada.',
+  liveHaltVictimMismatch: 'La partida se ha detenido porque la víctima no coincide con el resultado de la ronda.',
+  liveReconnecting: 'Sin conexión con el servidor. Se conserva el último estado. Próximo intento en {time}.',
+  liveRoundAboveN: 'La ronda «{text}» todavía no se ha jugado. Se muestra la ronda {round}.',
+  liveRoundInvalid: 'El parámetro «round» no es válido: «{text}». Se muestra la ronda {round}.',
+  liveErrorUnknownMatch: 'No existe ninguna partida con ese identificador. No se dibuja ningún mapa.',
+  liveErrorDigestMismatch: 'Los archivos del mapa no coinciden con la huella de la partida. No se dibuja nada.',
+  liveErrorInsecureOrigin:
+    'Hace falta una dirección segura (https o localhost) para comprobar la huella del mapa. No se dibuja nada.',
+  liveErrorBoth: 'La dirección no puede llevar a la vez una semilla y el identificador de una partida.',
+  liveErrorNeedMatch: 'Hace falta el identificador de una partida en la dirección.',
+  liveErrorBadMatch: 'El identificador de la partida de la dirección no es válido.',
 } as const;
 
 /** Fills {name} placeholders; a placeholder without a value is left as written. */
