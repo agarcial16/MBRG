@@ -7,6 +7,7 @@ import type { Store } from '../../src/store/store';
 import { DEV_DIR } from './digests';
 import type { FakeClock } from './fake-clock';
 import { fakeRandom } from './fake-random';
+import { snapshotOf } from './results-timelines';
 import { CLOCK_TIMING, OPERATOR, START_MS, creationBody } from './service-harness';
 
 // The scripted match of the durability tests (spec 008 NFR-57, M2b' T6'), shared by the in-process tests and the child
@@ -34,6 +35,13 @@ export const serviceOn = (store: Store, clock: FakeClock, file: string): MatchSe
   const settings = settingsFor(file);
   return createMatchService({ store, clock, maps: createMapCatalog(settings.maps), settings, random: fakeRandom(RANDOM_SEED) });
 };
+
+/**
+ * The results reads of the finished script match as one text (NFR-57 results part): every phase result of the four rounds, the
+ * results of the two scripted players and of an unknown one, and the whole leaderboard. A restarted run must give the same text.
+ */
+export const resultsReads = (service: MatchService, matchId: string): string =>
+  JSON.stringify(snapshotOf(service, matchId, ['web:p1', 'web:p2', 'web:nobody'], 4, 2));
 
 /** One action of the script, plain JSON: what is sent and at which clock reading. */
 export type ActionSpec =
