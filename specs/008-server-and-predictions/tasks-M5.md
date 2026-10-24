@@ -25,7 +25,7 @@ The planted pending id of `traceability.test.ts` ('the pending-id check sees a p
   - Done when: suite, typecheck and `CI=1` green; no id moved.
   - Size: S (about 40).
 
-- [ ] **T2. Protocol readers of every reply and event the clients read.** FR-287 (readers); FR-288 (readers); NFR-51 (protocol readers)
+- [x] **T2. Protocol readers of every reply and event the clients read.** FR-287 (readers); FR-288 (readers); NFR-51 (protocol readers)
   - Depends on: T1.
   - Files: `packages/protocol/src/{decode,index}.ts`, `packages/protocol/test/decode.test.ts` (new), `packages/protocol/test/purity.test.ts` (if it lists files).
   - Tests first (plan 21.2, PD36): for every shape the server encodes (`PublicMatch` in each stage, with and without `schedule`, `victim`, `winner`, `matchSecret`, `haltReason`; the seven events; `StateReply`, `RecordReply`, `ErrorReply` with its optional fields, `PredictionReply`, a page of `OwnPrediction`, `PlayerResultsPage`, a page of `LeaderboardRow`) `read(JSON.parse(encode(x)))` equals x; refusals name the first failing field in the key order: a missing, extra, inherited (`__proto__` text) or ill-typed member, a negative or fractional number, a `victim` with `c2` without `a`, `winner` outside `finished`, a stage outside `STAGES`, a halt reason outside `HALT_REASONS`; `readEvent` returns `unknown` with its `seq` for a type outside `EVENT_KEYS` with a whole `seq`, and `invalid` for an unknown type without one; inputs never mutated.

@@ -257,3 +257,12 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Size: about 5 changed lines of test comments (docs apart).
 - Untested: nothing.
 - Next step: T2 (protocol readers).
+
+### M5 T2 - Protocol readers of every reply and event the clients read
+- Changed: new `packages/protocol/src/decode.ts` (pure): `readPublicMatch`, `readEvent` (`known` | `unknown` with its `seq` | `invalid` with the field), `readStateReply`, `readRecordReply`, `readErrorReply`, `readPredictionReply`, `readOwnPredictionsPage`, `readPlayerResultsPage`, `readLeaderboardPage`; results are `Decoded<T>` = `{ ok: true, value }` | `{ ok: false, field }`. Exact key sets from the encoders' key lists, own-property rule, whole numbers, the stage rules of the public view (schedule exactly while the clock runs, victim required in phase-2 and locked and optional in halted, winner and secret exactly in finished, halt reason exactly in halted), `c2` and `a` null together (and null exactly for timing `manual` inside the public data). Exported from `index.ts`. Tests: new `test/decode.test.ts` (128 tests: round trips of every shape and stage, 21 event and 40 view refusals naming the field, own-property and `__proto__` text cases, frozen inputs).
+- Decisions beyond the plan: refusal fields are dotted paths with list indexes (`state.owners[1]`, `victim.c2`); a non-object is refused as `body`; extra members are checked after the members of the key list (the first extra in sorted order); an event `round-applied` whose record names another round is refused at `record.round`; a wrong player result worth points is refused at `points`; the phase-results page has no reader (no client in M5 or M5' reads it).
+- Tests: typecheck clean; `CI=1 npm test` 198 files, 3385 passed, 4 skipped. Title scan: FR-303..FR-311 and NFR-56 appear only in the two planted-id tests of `traceability.test.ts`.
+- Mutation proofs (full suite, one at a time, restored and verified): an extra member accepted (12 tests fail); `winner` accepted in `phase-1` (1); an unknown type answered `invalid` (1); `seq` 0 accepted (2); the own-property check replaced by `in` (2): 5 of 5 caught, all in `decode.test.ts`.
+- Size: 760 changed lines (src 385 with the export, tests 375) against about 650 estimated (1.17x).
+- Untested: the readers against real server replies (M5' T6'); the phase-results page.
+- Next step: T3 (address, scene choice, panel texts, protocol dependency).
