@@ -313,3 +313,12 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Size: about 820 changed lines (src: model +241 / -30, retry 30, decode +15; tests 384 + 42 + 10; helper 55; traceability 33) against about 700: 1.2x, under the 1.5x rule and the 1,050 checkpoint.
 - Untested: the model against the real network (T6b, M5'); timers (M5' `ui/live-timer.ts`).
 - Next step: T6a (frame parser, digest function).
+
+### M5b T6a - Frame parser and the browser digest function
+- Changed: `core/live-sse.ts` (new: `createSseParser().push(chunk)` gives `{ id, data }` frames; LF, CRLF and CR, a CR LF pair split between chunks, comments, unknown fields, an `id` without `data` (no frame), several `data` lines joined with a line feed, a leading byte order mark dropped; the id of one block does not leak into the next), `ui/web-crypto.ts` (new: `digestAvailable(platform?)`, `sha256Hex(bytes, platform?)`: copies exactly the bytes of the view, hex in lower case, throws `no digest function` when the platform has none), `test/{live-sse,web-crypto}.test.ts` (new), `test/purity.test.ts` (D30: the platform `crypto` allowed in `ui/web-crypto.ts` only; clock, `performance`, `Date`, `Math.random` still banned there). No id moved (92 / 4).
+- Decisions the plan did not fix: (1) the purity exception is in this task (it creates the first `crypto` user), as noted in the docs commit; (2) the parser has no line-length cap (the server's frames are small; a cap belongs with the transport if wanted); (3) `sha256Hex` and `digestAvailable` take an injected platform object (default `globalThis.crypto`) so the fail-closed case is tested without patching globals; (4) `requestId()` waits for M5' T5'.
+- Tests: typecheck clean; `CI=1 npm test` 205 files, 3514 passed, 4 skipped. Title scan: no FR-308..FR-311 in a title.
+- Mutation proofs (full suite, one at a time, restored): a parser that keeps no partial line across chunks (drops a frame split inside `data:`); CR taken as part of a line; the LF after a CR not skipped; a hash of the whole buffer instead of the view; no fail-closed throw in `sha256Hex` (survived once: the platform error was also a throw, so the test now names the message; rerun killed); the purity exception widened to every `ui` file: 6 of 6 caught.
+- Size: about 235 changed lines (src 62 + 22, tests 84 + 51, purity +16) against about 600: 0.4x.
+- Untested: the parser and the hash against a real fetch body and a browser (T6b, M5').
+- Next step: T6b (transport, map digest check, fake server, scans).

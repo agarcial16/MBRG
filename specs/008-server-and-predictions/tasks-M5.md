@@ -83,7 +83,7 @@ Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.
   - Done when: tests green; mutations caught; FR-307 moved (92 / 4). Checkpoint: about 1,050 changed lines on the branch here at most, else stop and report.
   - Size: L (about 700: src about 240, tests about 460; first estimate 350).
 
-- [ ] **T6a. Frame parser and the browser digest function.** FR-289 (d) (frame parser); NFR-25 (digest function); map digest (part, FR-308 is named in T6b)
+- [x] **T6a. Frame parser and the browser digest function.** FR-289 (d) (frame parser); NFR-25 (digest function); map digest (part, FR-308 is named in T6b)
   - Depends on: T5. (T6 of the earlier M5b text, split in two by the user on 2026-10-24: the parts about parsing and the digest function.)
   - Files: `apps/web/src/core/live-sse.ts` (new, pure), `apps/web/src/ui/web-crypto.ts` (new: `digestAvailable()`, `sha256Hex(bytes)`; `requestId()` waits for M5' T5'), `apps/web/test/{live-sse,web-crypto}.test.ts` (new), `apps/web/test/purity.test.ts` (NFR-25: `crypto` only in `ui/web-crypto.ts`; D30; it moves here because this task creates the first `crypto` user).
   - Tests first: the parser gives the same frames for a recorded stream split at every byte, with LF, CRLF and CR endings (also a CR LF pair split between chunks), comments (heartbeats) and an `id:` without data, a `data:` with and without the space after the colon, several `data:` lines of one frame; `sha256Hex` of known vectors (empty input, `abc`, the dev map digest input), `digestAvailable()` false when the platform has no digest function (an injected platform object, no ambient global patched), the purity scan flags `crypto` in any other `ui` file.
