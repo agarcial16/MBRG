@@ -161,7 +161,7 @@ Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.
   - Done when: tests green; mutations caught; FR-310 moved (96 / 0); `rg` finds it.
   - Size: L (about 550).
 
-- [ ] **T6'. Real-server proofs and the local-run fixture.** FR-303 (real server); FR-307 (real server); FR-308 (real server); FR-310 (real server); NFR-52 (viewer over the network)
+- [x] **T6'. Real-server proofs and the local-run fixture.** FR-303 (real server); FR-307 (real server); FR-308 (real server); FR-310 (real server); NFR-52 (viewer over the network)
   - Depends on: T5'; H6, H12 approved.
   - Note (M5b review, FR-308): the real-server proofs include the runner order of T3': the map files are verified once before the first `public` input; with a served file changed by one byte nothing is drawn and `digest-mismatch` is shown outside the model. `requestId()` of `ui/web-crypto.ts` is built in T5' (web test client), not here.
   - Files: `apps/server/test/{viewer-live,viewer-live-child,client-live}.test.ts` (new), `apps/server/test/fixtures/dev-live-server.ts` (new, hand-run), `apps/server/test/helpers/main-child.ts` (a fixed port option, if needed).

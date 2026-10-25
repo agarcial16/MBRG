@@ -44,6 +44,8 @@ export interface ServerHarnessOptions {
   readonly wrapStore?: (store: Store) => Store;
   /** Options of the underlying service harness (map folders, fake random seed, test-only round-seed source, secret). */
   readonly service?: Omit<HarnessOptions, 'store'>;
+  /** The port to listen on (default 0: any free port); the hand-run fixture uses a fixed one. */
+  readonly port?: number;
   /** Called after each logged event is recorded (it may throw: a failing sink). */
   readonly onLog?: (event: LogEvent) => void;
 }
@@ -156,7 +158,7 @@ export async function startServer(options: ServerHarnessOptions = {}): Promise<S
     clients: options.clients ?? [{ namespace: CLIENT_NAMESPACE, credential: CLIENT_CREDENTIAL }],
     allowedOrigins: options.allowedOrigins ?? ['https://app.example'],
     host: '127.0.0.1',
-    port: 0,
+    port: options.port ?? 0,
     limits: { ...DEFAULT_LIMITS, ...(options.limits ?? {}) },
   };
   const logs: LogEvent[] = [];
@@ -176,7 +178,7 @@ export async function startServer(options: ServerHarnessOptions = {}): Promise<S
   });
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
-    server.listen(0, '127.0.0.1', resolve);
+    server.listen(options.port ?? 0, '127.0.0.1', resolve);
   });
   const address = server.address();
   if (address === null || typeof address === 'string') throw new Error('the test server has no port');
