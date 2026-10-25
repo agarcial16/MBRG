@@ -15,7 +15,7 @@ Titles: FR-316, FR-319, FR-320, FR-336, FR-338, FR-349 first named in T2; FR-342
   - Mutation proofs: `age < 5000`; budget without the 1,000 margin; absorber budget without Dt; public data treated as fresh; `>=` 0.5 turned into `>`.
   - Done when: tests green; 26 / 21. Size: M (about 550).
 
-- [ ] **T3. Tour playback driver.** FR-342, FR-344
+- [x] **T3. Tour playback driver.** FR-342, FR-344
   - Depends on: T2.
   - Files: `apps/web/src/core/tour-playback.ts` (new), `apps/web/test/tour-playback.test.ts` (new).
   - Tests first: t = 0 at the handling reading (A1); frames at any reading draw that t (dropped frames, a 10 s gap -> final state on the first frame with t >= D); a sequence (victim then absorber) starts the second at the first's end instant; an absorber tour's end hands over the 005 step with `startMs` = the end frame's reading; `complete` gives the final state and the step at once; `motionChanged` completes (`FR-344`); the result hook fires once, on the first frame with t >= τ_H; inputs untouched; no clock read (throwing clock).
