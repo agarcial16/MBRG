@@ -120,7 +120,7 @@ Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.
   - Done when: suite, typecheck, `CI=1` green; no id moved.
   - Size: S (about 30).
 
-- [ ] **T2'. Extract the drawing shell; the debug scene unchanged.** FR-156 (map view); FR-176 (map view); FR-161 (live modules); NFR-27 (before and after)
+- [x] **T2'. Extract the drawing shell; the debug scene unchanged.** FR-156 (map view); FR-176 (map view); FR-161 (live modules); NFR-27 (before and after)
   - Depends on: T1'; H5 approved (if the alternative is chosen, this task becomes "no change" and T3' duplicates the shell).
   - Files: `apps/web/src/ui/{map-view,main}.ts` (new, edit), `apps/web/test/map-view-scan.test.ts` (new: `map-view.ts` names no seed or round count, imports neither the sim nor the scene module, avoids the banned words of FR-155).
   - Tests first: the new scan; every 004 to 007 test passes unedited (the meaning of the debug scene is unchanged).
