@@ -151,6 +151,8 @@ describe('FR-287 (readers) the events read back what the encoder wrote', () => {
     ['c2 without a', 'victim-revealed', (o) => (o.a = null), 'a'],
     ['a without c2', 'victim-revealed', (o) => (o.c2 = null), 'a'],
     ['a missing c2', 'victim-revealed', (o) => delete o.c2, 'c2'],
+    ['a victim who is not among the living', 'victim-revealed', (o) => (o.living = [1, 2, 7]), 'victim'],
+    ['a candidate who is not among the living', 'victim-revealed', (o) => (o.candidates = [2, 9]), 'candidates'],
     ['a record of another round', 'round-applied', (o) => (o.record.round = 2), 'record.round'],
     ['a record with an extra member', 'round-applied', (o) => (o.record.seed = 5), 'record.seed'],
     ['a record without an absorber', 'round-applied', (o) => delete o.record.absorber, 'record.absorber'],
@@ -231,6 +233,14 @@ describe('FR-288 (readers) the public data reads back what the encoder wrote', (
     ['a fractional revealedAt', phase2, (o) => (o.victim.revealedAt = 0.5), 'victim.revealedAt'],
     ['a victim candidate of 0', phase2, (o) => (o.victim.candidates = [0]), 'victim.candidates[0]'],
     ['a first failing field before a later one', base, (o) => ((o.mapId = 'A'), (o.lastSeq = 0)), 'mapId'],
+    // Cross-field rules (tightened with the connection policy): the applied rounds fit the stage and the total.
+    ['more applied rounds than the total', halted, (o) => ((o.appliedRounds = 3), (o.state.round = 3)), 'appliedRounds'],
+    ['every round applied while the match runs', base, (o) => ((o.appliedRounds = 2), (o.state.round = 2)), 'appliedRounds'],
+    ['finished with rounds left', finished, (o) => ((o.appliedRounds = 1), (o.state.round = 1)), 'appliedRounds'],
+    ['a victim of a round that is not the next one', phase2, (o) => (o.victim.round = 2), 'victim.round'],
+    ['a victim of round 0', phase2, (o) => (o.victim.round = 0), 'victim.round'],
+    ['a victim who is not among the living', phase2, (o) => (o.victim.living = [1, 3]), 'victim.victim'],
+    ['a candidate who is not among the living', phase2, (o) => (o.victim.candidates = [1, 4]), 'victim.candidates'],
   ];
   it.each(cases)('FR-288 (readers) refused: %s', (_n, view, change, expected) => {
     const r = readPublicMatch(changed(JSON.parse(encodePublicMatch(view)), change));

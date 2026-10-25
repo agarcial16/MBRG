@@ -34,7 +34,10 @@ function coreViolations(src: string): string[] {
   return found;
 }
 
-/** Clock reads and system randomness anywhere in `src` except `ui/clock.ts`. */
+/** The one module that may use the platform digest function (D30, spec 008): the map and state digests of the live viewer. */
+const CRYPTO_MODULE = 'ui/web-crypto.ts';
+
+/** Clock reads and system randomness anywhere in `src` except `ui/clock.ts`; the platform `crypto` only in `ui/web-crypto.ts`. */
 function clockViolations(path: string, src: string): string[] {
   if (path === 'ui/clock.ts') return [];
   const code = codeOnly(src);
@@ -42,7 +45,7 @@ function clockViolations(path: string, src: string): string[] {
   if (/\bperformance\b/.test(code)) found.push('performance');
   if (/\bDate\b/.test(code)) found.push('Date');
   if (FORBIDDEN_RANDOM.test(code)) found.push('Math.random');
-  if (/\bcrypto\b/.test(code)) found.push('crypto');
+  if (/\bcrypto\b/.test(code) && path !== CRYPTO_MODULE) found.push('crypto');
   return found;
 }
 
@@ -111,6 +114,17 @@ describe('NFR-25 clock reads only in ui/clock.ts', () => {
       expect(clockViolations(path, 'const t = new Date().getTime();'), path).toStrictEqual(['Date']);
     }
     expect(clockViolations('ui/clock.ts', 'const t = performance.now();')).toStrictEqual([]);
+  });
+
+  it('NFR-25 the platform crypto is allowed in ui/web-crypto.ts only; the clock and randomness stay banned there', () => {
+    const digest = 'const d = await crypto.subtle.digest("SHA-256", b);';
+    expect(clockViolations('ui/web-crypto.ts', digest)).toStrictEqual([]);
+    for (const path of ['core/live-model.ts', 'core/live-sse.ts', 'ui/main.ts', 'ui/load.ts', 'ui/live-net.ts', 'ui/web-crypto-extra.ts', 'render/renderer.ts']) {
+      expect(clockViolations(path, digest), path).toStrictEqual(['crypto']);
+    }
+    expect(clockViolations('ui/web-crypto.ts', 'const t = performance.now(); const u = Date.now(); const r = Math.random();')).toStrictEqual(['performance', 'Date', 'Math.random']);
+    // The module exists and is a source the scan reads (not vacuous).
+    expect(sources.map(([path]) => path)).toContain(CRYPTO_MODULE);
   });
 });
 
