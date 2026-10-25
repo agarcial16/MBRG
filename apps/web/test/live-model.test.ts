@@ -561,7 +561,7 @@ describe('FR-304 browsing reads only the rounds up to N', () => {
     checking.defer = true;
     await checking.load(1);
     await checking.events(eventsOfRound(s, 2));
-    expect(Object.keys(checking.model.applying!).sort()).toStrictEqual(['digest', 'record', 'round', 'step']);
+    expect(Object.keys(checking.model.applying!).sort()).toStrictEqual(['digest', 'record', 'round', 'step', 'tour']);
     // While round N + 1 is being checked the model holds the announced record and digest, never owners for it.
     expect(checking.model.held.has(2)).toBe(false);
   });

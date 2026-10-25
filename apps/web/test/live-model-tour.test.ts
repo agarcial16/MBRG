@@ -277,3 +277,221 @@ describe('NFR-61 the victim tour never depends on the absorber or on round k', (
     }
   });
 });
+
+type PlayStep = Extract<LiveEffect, { type: 'play-step' }>;
+const playSteps = (effects: readonly LiveEffect[]): PlayStep[] => effects.filter((e): e is PlayStep => e.type === 'play-step');
+
+/**
+ * The events of round k with `candidates` (default: the absorber and one other faction, so d = 2) in the reveal. `noLocked`
+ * drops the `locked` schedule (L2 = 0: one instant closes phase 2 and applies) and renumbers; `appliedAt` replaces the
+ * application instant.
+ */
+function roundOf(s: Scripted, k: number, opts: { candidates?: readonly number[]; noLocked?: boolean; appliedAt?: number } = {}): MatchEvent[] {
+  const record = s.records[k - 1] as Scripted['records'][number];
+  const other = (s.living[k - 1] as number[]).find((f) => f !== record.eliminated && f !== record.absorber) ?? record.eliminated;
+  const candidates = opts.candidates ?? [record.absorber, other].sort((a, b) => a - b);
+  const list = matchEventsOfRound(s, k)
+    .map((e) => (e.type === 'victim-revealed' ? { ...e, candidates } : e))
+    .map((e) => (e.type === 'round-applied' && opts.appliedAt !== undefined ? { ...e, appliedAt: opts.appliedAt } : e))
+    .filter((_, i) => !(opts.noLocked === true && i === 4));
+  return list.map((e, i) => ({ ...e, seq: seqOfRound(k) + i }) as MatchEvent);
+}
+
+/** Feeds the events one by one, each at its own instant, and returns every effect in order. */
+async function feedList(d: Driver, list: readonly MatchEvent[], ats: readonly number[]): Promise<LiveEffect[]> {
+  const out: LiveEffect[] = [];
+  for (const [i, e] of list.entries()) out.push(...(await feedAt(d, wire([e])[0], ats[i] as number)));
+  return out;
+}
+
+const CLOCK = { i: 60, l1: 20, l2: 10 } as const;
+const clockPublic = { timing: CLOCK, schedule: { c1: 15_000, c2: 40_000, a: 50_000 } } as const;
+const sequence = (from: number, n: number): number[] => Array.from({ length: n }, (_, i) => from + i);
+
+describe('FR-345 the absorber tour starts with the round step', () => {
+  it('FR-345 a fresh application with d >= 2 sets N and the records at commit as before and plays the step with the tour', async () => {
+    const s = await scripted();
+    const d = new Driver(s);
+    await d.load(0);
+    const record = s.records[0] as Scripted['records'][number];
+    const list = roundOf(s, 1);
+    const candidates = (list[1] as Revealed).candidates;
+    expect(candidates).toHaveLength(2);
+    const out = await feedList(d, list, sequence(10_100, 8));
+    const steps = playSteps(out);
+    expect(steps).toHaveLength(1);
+    expect(steps[0]?.from).toBe(0);
+    expect(steps[0]?.to).toBe(1);
+    expect(steps[0]?.data.absorber).toBe(record.absorber);
+    expect(steps[0]?.tour).toStrictEqual({ victim: record.eliminated, candidates, absorber: record.absorber, sigma: fnv1a32('AbCdEfGh01234567:1:absorber') });
+    expect(Object.keys(steps[0]?.tour as object).sort()).toStrictEqual(['absorber', 'candidates', 'sigma', 'victim']);
+    expect(d.model.applied).toBe(1);
+    expect(d.model.displayed).toBe(1);
+    expect(d.model.records.get(1)).toStrictEqual(record);
+    expect(d.model.victim).toBeUndefined();
+    expect(d.model.touring).toBe(true);
+  });
+
+  it('FR-345 the budget with L2 > 0 and with L2 = 0 follows the application instant, I - L1 - L2, the estimate, 1,000 ms and Dt', async () => {
+    const s = await scripted();
+    // The victim reveal reports 5,101 at 10,100, so the estimate at the application (10,105) is 5,106; applied at 5,105; Dt = 1,500.
+    const withL2 = await ready(s, 0, clockPublic);
+    const out = await feedList(withL2, roundOf(s, 1).slice(1), [10_100, 10_102, 10_103, 10_104, 10_105, 10_106, 10_107]);
+    expect(playSteps(out)[0]?.tour?.budget).toBe(5105 + 30_000 - 5106 - 1000 - 1500);
+    const noL2 = await ready(s, 0, { timing: { i: 60, l1: 20, l2: 0 }, schedule: clockPublic.schedule });
+    const out0 = await feedList(noL2, roundOf(s, 1, { noLocked: true }).slice(1), [10_100, 10_102, 10_103, 10_105, 10_106, 10_107]);
+    expect(playSteps(out0)[0]?.tour?.budget).toBe(5105 + 40_000 - 5106 - 1000 - 1500);
+  });
+
+  it('FR-345 a reveal of age 5,000 plays the tour and one of 5,001 plays the step alone; the last round is nominal', async () => {
+    const s = await scripted();
+    for (const [appliedAt, plays] of [[106, true], [105, false]] as const) {
+      const d = await ready(s, 0, clockPublic);
+      const out = await feedList(d, roundOf(s, 1, { appliedAt }).slice(1), [10_100, 10_102, 10_103, 10_104, 10_105, 10_106, 10_107]);
+      expect(playSteps(out)[0]?.tour !== undefined, `appliedAt ${String(appliedAt)}`).toBe(plays);
+    }
+    // k = T: no next phase 1, so the tour plays at nominal speed even with a running clock (FR-349).
+    const d = new Driver(s);
+    const lastRecord = s.records[s.total - 1] as Scripted['records'][number];
+    await d.feed({ type: 'public', at: d.at, match: publicAt(s, s.total - 1, clockPublic) });
+    const last = roundOf(s, s.total, { candidates: [lastRecord.absorber, lastRecord.eliminated].sort((a, b) => a - b) });
+    const out = await feedList(d, last.slice(0, 6), sequence(10_100, 6));
+    const tour = playSteps(out)[0]?.tour;
+    expect(tour).toBeDefined();
+    expect('budget' in (tour as object)).toBe(false);
+    // The round before it has a budget.
+    const early = await ready(s, 0, clockPublic);
+    const first = await feedList(early, roundOf(s, 1).slice(1), [10_100, 10_102, 10_103, 10_104, 10_105, 10_106, 10_107]);
+    expect(playSteps(first)[0]?.tour?.budget).toBeTypeOf('number');
+  });
+
+  it('FR-350 d = 1, an absorber outside the candidates and candidates that are not held play the step without a tour', async () => {
+    const s = await scripted();
+    const record = s.records[0] as Scripted['records'][number];
+    const others = (s.living[0] as number[]).filter((f) => f !== record.eliminated && f !== record.absorber).slice(0, 2);
+    expect(others).toHaveLength(2);
+    const cases: [string, MatchEvent[]][] = [
+      ['d = 1', roundOf(s, 1, { candidates: [record.absorber] })],
+      ['absorber outside', roundOf(s, 1, { candidates: others })],
+    ];
+    for (const [name, list] of cases) {
+      const d = new Driver(s);
+      await d.load(0);
+      const steps = playSteps(await feedList(d, list, sequence(10_100, 8)));
+      expect(steps, name).toHaveLength(1);
+      expect(steps[0] !== undefined && 'tour' in steps[0], name).toBe(false);
+      expect(d.model.touring, name).toBe(false);
+    }
+    // Not held: the model joined after the reveal and read no victim (the application arrives alone).
+    const d = new Driver(s);
+    await d.load(0);
+    const applied = roundOf(s, 1).slice(5, 6).map((e) => ({ ...e, seq: 2 }) as MatchEvent);
+    const steps = playSteps(await feedList(d, applied, [10_100]));
+    expect(steps).toHaveLength(1);
+    expect('tour' in (steps[0] as object)).toBe(false);
+  });
+
+  it('FR-350 a digest that differs plays no tour and the model keeps none: the state is read and drawn at once', async () => {
+    const s = await scripted();
+    const d = new Driver(s);
+    d.corrupt = true;
+    await d.load(0);
+    const out = await feedList(d, roundOf(s, 1), sequence(10_100, 8));
+    expect(playSteps(out)).toStrictEqual([]);
+    expect(out.filter((e) => e.type === 'draw')).toHaveLength(1);
+    expect(d.model.applying).toBeUndefined();
+    expect(d.model.touring).toBe(false);
+    // While the state is read the model holds the announced record and no tour.
+    const reading = new Driver(s);
+    reading.corrupt = true;
+    reading.holdReads = true;
+    await reading.load(0);
+    await feedList(reading, roundOf(s, 1).slice(0, 6), sequence(10_100, 6));
+    expect(reading.model.applying?.step).toBe('read');
+    expect(reading.model.applying?.tour).toBeUndefined();
+  });
+
+  it('FR-350 a record that does not fit what is held (mismatch at receipt) keeps no tour either', async () => {
+    const s = await scripted();
+    const d = new Driver(s);
+    d.holdReads = true;
+    await d.load(0);
+    const list = roundOf(s, 1)
+      .slice(0, 6)
+      .map((e) => (e.type === 'round-applied' ? { ...e, record: { ...e.record, transferred: [...e.record.transferred, 999_999_999] } } : e));
+    await feedList(d, list, sequence(10_100, 6));
+    expect(d.model.applying?.step).toBe('read');
+    expect(d.model.applying?.tour).toBeUndefined();
+  });
+
+  it('FR-345 a late joiner in phase 2 plays no victim tour but the later application plays the absorber tour from the public candidates', async () => {
+    const s = await scripted();
+    const list = roundOf(s, 1);
+    const e = list[1] as Revealed;
+    const victim = { round: 1, victim: e.victim, candidates: e.candidates, living: e.living, revealedAt: e.revealedAt, c2: null, a: null, seq: e.seq };
+    const d = new Driver(s);
+    await d.feed({ type: 'public', at: d.at, match: publicAt(s, 0, { stage: 'phase-2', victim, lastSeq: seqOfRound(1) + 2 }) });
+    expect(d.effects.filter((x) => x.type === 'victim-tour')).toStrictEqual([]);
+    const out = await feedList(d, list.slice(3, 6), sequence(10_100, 3));
+    const tour = playSteps(out)[0]?.tour;
+    expect(tour?.candidates).toStrictEqual(e.candidates);
+    expect(tour?.victim).toBe(e.victim);
+  });
+
+  it('FR-350 a spectator who browses an earlier round gets no tour for the application of round N + 1', async () => {
+    const s = await scripted();
+    const d = new Driver(s);
+    await d.load(1);
+    await d.feed({ type: 'navigate', at: d.at, action: 'previous' });
+    const out = await feedList(d, roundOf(s, 2), sequence(10_100, 8));
+    expect(out.filter((x) => x.type === 'victim-tour' || x.type === 'complete-tour')).toStrictEqual([]);
+    expect(playSteps(out).filter((p) => p.tour !== undefined)).toStrictEqual([]);
+    expect(d.model.touring).toBe(false);
+  });
+
+  it('FR-350 a halt or a new reveal while the absorber tour may run completes it first', async () => {
+    const s = await scripted();
+    const d = new Driver(s);
+    d.defer = true;
+    await d.load(0);
+    await feedList(d, roundOf(s, 1), sequence(10_100, 8));
+    // The next reveal waits behind the check of the round; the digest then commits and drains the queue.
+    const next = roundOf(s, 2);
+    expect(await feedAt(d, wire([next[0] as MatchEvent])[0], 10_110)).toStrictEqual([]);
+    expect(await feedAt(d, wire([next[1] as MatchEvent])[0], 10_111)).toStrictEqual([]);
+    const before = d.log.length;
+    await d.resolve();
+    expect(d.log.slice(before).map((x) => x.effect.type)).toStrictEqual(['play-step', 'complete-tour', 'victim-tour']);
+    const halt = await feedAt(d, wire([{ type: 'match-halted', seq: seqOfRound(2) + 2, round: 2, reason: 'victim-mismatch', reportedTime: 9999 }])[0], 10_200);
+    expect(types(halt)).toStrictEqual(['complete-tour', 'close-stream']);
+  });
+});
+
+describe('FR-337 the tours change nothing else in the model', () => {
+  it('FR-337 over a whole match the model and the effects equal those of a match without absorber tours, minus the tour fields', async () => {
+    const s = await scripted();
+    const strip = (v: unknown): unknown =>
+      JSON.parse(JSON.stringify(v, (key, x: unknown) => (key === 'touring' || key === 'tour' || key === 'candidates' ? undefined : x instanceof Map ? { map: [...x] } : x)));
+    const absorber = (k: number): number => (s.records[k - 1] as Scripted['records'][number]).absorber;
+    const run = async (candidatesOf: (k: number) => number[]): Promise<Driver> => {
+      const d = new Driver(s);
+      await d.feed({ type: 'public', at: d.at, match: publicAt(s, 0, clockPublic) });
+      let at = 10_100;
+      for (let k = 1; k <= s.total; k++) {
+        const list = roundOf(s, k, { candidates: candidatesOf(k) });
+        await feedList(d, list, list.map(() => (at += 3)));
+      }
+      return d;
+    };
+    const withTours = await run((k) => [absorber(k), (s.records[k - 1] as Scripted['records'][number]).eliminated].sort((a, b) => a - b));
+    const without = await run((k) => [absorber(k)]);
+    expect(playSteps(withTours.effects).filter((p) => p.tour !== undefined)).toHaveLength(s.total);
+    expect(playSteps(without.effects).filter((p) => p.tour !== undefined)).toStrictEqual([]);
+    const plainEffects = (d: Driver): unknown[] => d.effects.filter((e) => e.type !== 'victim-tour' && e.type !== 'complete-tour').map(strip);
+    expect(plainEffects(withTours)).toStrictEqual(plainEffects(without));
+    expect(strip(withTours.model)).toStrictEqual(strip(without.model));
+    // The countdown: the reported time and the schedule are the same.
+    expect(withTours.model.reported).toStrictEqual(without.model.reported);
+    expect(withTours.model.schedule).toStrictEqual(without.model.schedule);
+  });
+});

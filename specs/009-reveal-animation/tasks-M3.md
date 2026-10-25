@@ -14,7 +14,7 @@ Titles: FR-317, FR-339, FR-340, NFR-61 first named in T2; FR-337, FR-345, FR-350
   - Mutation proofs: tour emitted from `fromPublic`; estimate taken before raising with the event's reported time; `complete-tour` dropped on halt.
   - Done when: tests green; 34 / 13. Size: M (about 400).
 
-- [ ] **T3. Absorber tour with the round step.** FR-337, FR-345, FR-350
+- [x] **T3. Absorber tour with the round step.** FR-337, FR-345, FR-350
   - Depends on: T2.
   - Files: `apps/web/src/core/live-model.ts`, `apps/web/test/live-model-tour.test.ts`.
   - Tests first: a fresh `round-applied` with d >= 2 sets N, displayed and records at `commit` as before and emits `play-step` with `tour` (victim, candidates captured before `victim` is cleared, absorber, σ `<match id>:<k>:absorber`, budget); L2 = 0 and L2 > 0 scripted timelines; d = 1, stale, absorber not among candidates, no candidates held: `play-step` without tour; a digest mismatch (`readInstead`) plays no tour; a late joiner in phase 2 (candidates from public data) gets the tour on a later fresh application; every other event, the countdown and the queue are handled exactly as without tours (the 008 live-model tests unchanged and green; same effects minus the tour fields, FR-337).
