@@ -411,6 +411,6 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
   Open the printed `viewer` address (`http://localhost:5173/?match=<id>`) and `client` address (`http://localhost:5173/client.html?match=<id>`).
   Window 1 commands, typed one per line: `advance` (one operator step of a manual match: phase-1 close, phase-2 close, application), `tick <seconds>` (moves the fake clock, firing clock steps and the stream heartbeat; use with the `clock` mode: `tick 80`, `tick 30`, `tick 10`), `break-map` (edits the served map copy: the next step halts the match; a page loaded after it shows `digest-mismatch`), `quit`. Restarting the fixture (a new process, an in-memory store) gives a fresh match with the same id.
   Screenshots to take: viewer at round 0; after `advance` x3 (round 1 applied, with the step); a `clock` match for the countdown; after `break-map` and `advance` (halted); the unknown-match message (a wrong `?match=` of 16 characters); the web test client after a prediction and an application.
-- Size: about 760 changed lines against about 750 (all tests, helpers and the fixture): 1.0x.
+- Size: about 640 changed lines against about 750 (all tests, helpers and the fixture): 0.85x.
 - Untested: any browser behaviour (CORS preflight from `localhost:5173` for the credentialed calls, the real `crypto.subtle`, the WebGL scene, the address rewrite); NFR-52's browser half is the coordinator's.
 - Next step: T7' (the coordinator: screenshots, browser figures, closing).
