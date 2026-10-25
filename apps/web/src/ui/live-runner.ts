@@ -77,6 +77,9 @@ export function startRunner(deps: RunnerDeps): LiveRunner {
     deps.port.fail(message);
   };
 
+  /** A call that threw (a scene that cannot open, a digest function that fails) ends the scene with a visible notice. */
+  const crash = (): void => end(errorText('failure'));
+
   /** The panel refreshes once per second while a countdown or the time of the next attempt is on show. */
   const refresh = (): void => {
     cancelRefresh?.();
@@ -162,6 +165,9 @@ export function startRunner(deps: RunnerDeps): LiveRunner {
         if (!current()) return;
         if (result.type === 'failed') failed({ type: 'stream' }, result.failure);
         else if (result.type === 'dropped') feed({ type: 'dropped', at: deps.now() });
+      })
+      .catch(() => {
+        if (current()) crash();
       });
   }
 
@@ -178,13 +184,13 @@ export function startRunner(deps: RunnerDeps): LiveRunner {
   function run(effect: LiveEffect): void {
     switch (effect.type) {
       case 'read-public':
-        void loadPublic();
+        loadPublic().catch(crash);
         return;
       case 'read-state':
-        void read({ type: 'state', round: effect.round });
+        read({ type: 'state', round: effect.round }).catch(crash);
         return;
       case 'read-record':
-        void read({ type: 'record', round: effect.round });
+        read({ type: 'record', round: effect.round }).catch(crash);
         return;
       case 'open-stream':
         openStream(effect.after, effect.via);

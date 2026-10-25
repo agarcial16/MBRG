@@ -287,6 +287,56 @@ describe('FR-308 (shell) the map files are verified once, before the first publi
     expect(h.port.opens).toHaveLength(1);
   });
 
+  it('FR-303 (shell) a scene port that throws while opening ends the scene with the failure notice instead of stalling', async () => {
+    const h = await launch({
+      n: 1,
+      port: (port) => {
+        port.open = () => Promise.reject(new Error('webgl'));
+      },
+    });
+    expect(h.port.failures).toStrictEqual([errorText('failure')]);
+    expect(h.port.draws).toStrictEqual([]);
+    expect(h.server.streams()).toBe(0);
+    expect(h.clock.active()).toBe(0);
+  });
+
+  it('FR-303 (shell) a digest function that throws while the map files are checked ends the scene with the failure notice', async () => {
+    const h = await launch({
+      n: 1,
+      netDigest: { available: () => true, sha256Hex: () => Promise.reject(new Error('subtle')) },
+    });
+    expect(h.port.failures).toStrictEqual([errorText('failure')]);
+    expect(h.port.opens).toStrictEqual([]);
+    expect(h.clock.active()).toBe(0);
+  });
+
+  it('FR-303 (shell) a stream that cannot be opened ends the scene with the failure notice, once', async () => {
+    const h = await launch({
+      n: 1,
+      net: (base) => ({ ...base, openStream: () => Promise.reject(new Error('stream')) }),
+    });
+    expect(h.port.opens).toHaveLength(1);
+    expect(h.port.failures).toStrictEqual([errorText('failure')]);
+    expect(h.clock.active()).toBe(0);
+  });
+
+  it('FR-303 (shell) a state read that throws ends the scene with the failure notice', async () => {
+    const h = await launch({ n: 2, net: (base) => ({ ...base, readState: () => Promise.reject(new Error('state')) }) });
+    expect(h.port.failures).toStrictEqual([]);
+    h.runner.navigate('previous');
+    await settle();
+    expect(h.port.failures).toStrictEqual([errorText('failure')]);
+    expect(h.clock.active()).toBe(0);
+  });
+
+  it('FR-303 (shell) a record read that throws ends the scene with the failure notice', async () => {
+    const h = await launch({ n: 2, net: (base) => ({ ...base, readRecord: () => Promise.reject(new Error('record')) }) });
+    h.runner.navigate('previous');
+    await settle();
+    expect(h.port.failures).toStrictEqual([errorText('failure')]);
+    expect(h.clock.active()).toBe(0);
+  });
+
   it('FR-307 (shell) an unknown match shows its message and starts nothing', async () => {
     const h = await launch({ matchId: 'ZzZzZzZzZzZzZzZz' });
     expect(h.port.failures).toStrictEqual([errorText('unknown-match')]);

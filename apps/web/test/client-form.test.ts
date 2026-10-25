@@ -199,7 +199,7 @@ describe('FR-310 (web test client) the calls to the server', () => {
     expect(await net.leaderboard(MATCH_ID)).toStrictEqual({ ok: false, outcome: 'network', status: undefined });
   });
 
-  it('FR-310 (web test client) the results are reloaded on a results event: the runner hands each frame to the page before the model', async () => {
+  it('FR-310 (web test client) the onFrame hook of the runner hands each stream frame to the page, a results event once per round', async () => {
     const s = await scripted();
     const server = await createFakeServer(s, 0);
     const seen: unknown[] = [];

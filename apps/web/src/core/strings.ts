@@ -78,6 +78,7 @@ export const STRINGS = {
   liveErrorBoth: 'La dirección no puede llevar a la vez una semilla y el identificador de una partida.',
   liveErrorNeedMatch: 'Hace falta el identificador de una partida en la dirección.',
   liveErrorBadMatch: 'El identificador de la partida de la dirección no es válido.',
+  liveErrorFailure: 'El visor ha fallado de forma inesperada. No se dibuja nada más.',
   // Web test client (spec 008, M5', development only). Prediction kinds and reply kinds stay English data inside the templates.
   clientTitle: 'Cliente de pruebas de predicciones',
   clientNoCredential: 'Falta la variable {name} (archivo apps/web/.env.local). No se pueden enviar predicciones.',

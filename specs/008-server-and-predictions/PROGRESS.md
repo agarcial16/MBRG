@@ -430,3 +430,10 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Changed: `apps/web/test/live-scans.test.ts` (new `PAGE_FILE` list: `ui/client-main.ts`, `core/client-form.ts`, `ui/entry.ts`, `ui/enter.ts`, `ui/message.ts`; a test that none imports `@mbrg/sim` or has a seed identifier, and that none but `ui/entry.ts` names the debug shell, which it loads by design under `import.meta.env.DEV`; the non-vacuous test pins the list).
 - Mutation (full suite, restored): a `@mbrg/sim` import planted in `ui/client-main.ts` -> 2 tests fail (the new one and the FR-159 sim-mention scan of anti-spoiler).
 - Next step: catches in the live runner.
+
+### M5' follow-up 3 - the failures of the live runner are caught
+- Changed: `ui/live-runner.ts` (a `crash` helper ends the scene through `end()` with a visible notice; `loadPublic`, both `read` calls and the `openStream` chain now catch a throw or a rejection, the stream one only for the current generation), `core/strings.ts` (`liveErrorFailure`, Spanish), `core/live-text.ts` (error kind `failure`), tests `live-runner` (5 new: port open, digest, stream open, state read and record read throw), `live-text` and `strings-language` (the new kind), `client-form.test.ts` (title of the onFrame hook test says what it checks).
+- Decisions the plan did not fix: the same catch on the state and record reads (same stall, same cost); the digest case is tested through the net's digest option, so the throw comes from `sha256Hex` inside `readMapFiles`.
+- Tests: typecheck clean; `npm test` and `CI=1 npm test` 217 files, 3614 passed, 4 skipped; `npm run build` ok; protected-paths diff against `rewrite` clean.
+- Mutation proofs (full suite, one at a time, restored; 4 of 4): `loadPublic` catch removed (2 runner tests); `openStream` catch removed (1); state read catch removed (1); record read catch removed (1). (The runs also showed a file-level failure of `client-form.test.ts`: a syntax slip of mine in its retitle, fixed before the commit.)
+- Next step: the user's acceptance (screenshots, PR), then spec.md `implemented`.

@@ -129,9 +129,9 @@ describe('NFR-56 the connection notice and the errors of the live scene', () => 
   });
 
   it('FR-306 (messages) every error of the live scene has its own Spanish text from the strings module', () => {
-    const kinds: LiveErrorKind[] = ['unknown-match', 'digest-mismatch', 'insecure-origin', 'both', 'need-match', 'bad-match'];
+    const kinds: LiveErrorKind[] = ['unknown-match', 'digest-mismatch', 'insecure-origin', 'both', 'need-match', 'bad-match', 'failure'];
     const texts = kinds.map((kind) => errorText(kind));
-    expect(new Set(texts).size).toBe(6);
+    expect(new Set(texts).size).toBe(7);
     expect(texts).toStrictEqual([
       STRINGS.liveErrorUnknownMatch,
       STRINGS.liveErrorDigestMismatch,
@@ -139,6 +139,7 @@ describe('NFR-56 the connection notice and the errors of the live scene', () => 
       STRINGS.liveErrorBoth,
       STRINGS.liveErrorNeedMatch,
       STRINGS.liveErrorBadMatch,
+      STRINGS.liveErrorFailure,
     ]);
     expect(errorText('insecure-origin')).toMatch(/segura/);
     for (const text of texts) expect(text).not.toMatch(/\{\w+\}/);
