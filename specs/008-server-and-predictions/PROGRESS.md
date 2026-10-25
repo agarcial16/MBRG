@@ -343,3 +343,10 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Not done (as instructed): push, PR, Linux CI run, squash.
 - Untested: everything against a real server and a browser (M5').
 - Next step: review and the user's OK for the PR; then M5' T1' on `feat/008-m5-3-live-viewer` after M5b merges.
+
+### M5b review fixes - production digest path and the owner of the digest guarantee
+- Changed: `apps/web/test/live-net.test.ts` (5 tests: the default digest path through `web-crypto.ts` gives the dev-map digest, refuses a wrong announced digest and a changed byte; with `globalThis.crypto` stubbed to `{}` the default path answers `insecure-origin` before any request; a multi-byte character split across two chunks; abort before the reply; a 200 with no body). Docs: plan section 13 (owner of "no state drawn before the map digest matched", runner contract for M5', facts for the PR), `tasks-M5.md` notes in T3', T5', T6', `tasks.md` M5 row (merged, PR #38), `MEMORY.md` line 23.
+- Decision (docs only): the model departs from plan 21.3 (no "map files verified" input, no "read map files" effect, `LiveFatal` only `unknown-match`, `draw` on the first `public` input). The M5' runner verifies the map files ONCE before the first `public` input, shows `insecure-origin` and `digest-mismatch` outside the model and feeds no `public` input until `readMapFiles` returned ok; M5' runner test required (nothing drawn and no `public` fed when `readMapFiles` fails).
+- Mutation proofs (full suite, one at a time, restored): `available: () => true` (killed by the stubbed-crypto test); `sha256Hex` returning the right digest as a constant (first test version survived; a changed-byte case was added, then killed); `{ stream: true }` dropped (killed); abort branch always `failed` (killed); null-body check removed (killed).
+- Untested: the runner rule itself (M5').
+- Next step: review and the user's OK for the PR of M5b.
