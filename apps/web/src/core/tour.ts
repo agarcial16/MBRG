@@ -4,6 +4,7 @@ import { TOUR_PARAMS } from './tour-params';
 import type { TourTiming } from './tour-params';
 import { pick, tourStream } from './tour-key';
 import type { TourKind } from './tour-key';
+import type { Box } from './tour-camera';
 
 /**
  * What the stops depend on, and nothing else (FR-317): the kind, the result the tour ends on, the factions
@@ -50,6 +51,17 @@ export interface TourSpec extends StopsInput {
   readonly budget?: number;
   /** The reduced-motion still tour: one stop, the result, hold and fades only (FR-343). */
   readonly still?: true;
+  /** The victim of an absorber tour: its framing is part of the camera leg (FR-348). */
+  readonly victim?: number;
+  /** Framing box of every faction the camera may frame (the victim and the set); absent = no camera legs. */
+  readonly boxes?: ReadonlyMap<number, Box>;
+}
+
+/** One easing of the camera: from instant `from`, over `duration` ms, to the overview or to the framing of factions. */
+export interface Leg {
+  readonly from: number;
+  readonly duration: number;
+  readonly to: 'overview' | readonly number[];
 }
 
 /** A tour in whole milliseconds from its start: stop i is highlighted from `at[i]`; the last stop is the result. */
@@ -61,11 +73,26 @@ export interface Tour {
   readonly fade: number;
   /** D: the instant the tour ends, in ms. */
   readonly end: number;
+  readonly legs: readonly Leg[];
+  readonly boxes: ReadonlyMap<number, Box>;
 }
 
 /** d_i for 1 <= i <= H - 1: dmin + floor((dmax - dmin) (i - 1)^2 / (H - 2)^2), in integers (no float error). */
 function dwellOf(i: number, count: number, timing: TourTiming): number {
   return timing.dwellMin + Math.floor(((timing.dwellMax - timing.dwellMin) * (i - 1) ** 2) / (count - 2) ** 2);
+}
+
+/** The camera legs (FR-331, FR-332, FR-348); every duration is scaled like the rest of the tour. */
+function legsOf(spec: TourSpec, lastStop: number, scale: (x: number) => number): Leg[] {
+  if (spec.kind === 'victim') {
+    return [
+      { from: 0, duration: scale(TOUR_PARAMS.cameraIn), to: 'overview' },
+      { from: lastStop, duration: scale(TOUR_PARAMS.cameraOut), to: [spec.result] },
+    ];
+  }
+  if (spec.victim === undefined) return [];
+  const candidates = [...new Set(spec.set)].sort((a, b) => a - b);
+  return [{ from: 0, duration: scale(TOUR_PARAMS.cameraAbsorber), to: [spec.victim, ...candidates] }];
 }
 
 /** Builds the stops, the instants, the hold, the fade and D, scaled by the budget when it is below D. */
@@ -87,10 +114,11 @@ export function buildTour(spec: TourSpec): Tour {
   }
   const nominal = dwells.reduce((sum, d) => sum + d, 0) + hold + fade;
   const budget = spec.budget;
+  let scale = (x: number): number => x;
   if (budget !== undefined) {
     if (!(budget * 2 >= nominal)) throw new RangeError('a budget below half of the tour is skipped, not scaled');
     if (budget < nominal) {
-      const scale = (x: number): number => Math.floor((x * budget) / nominal);
+      scale = (x: number): number => Math.floor((x * budget) / nominal);
       dwells = dwells.map(scale);
       hold = scale(hold);
       fade = scale(fade);
@@ -98,7 +126,17 @@ export function buildTour(spec: TourSpec): Tour {
   }
   const at = [0];
   for (const d of dwells) at.push(at[at.length - 1]! + d);
-  return { kind: spec.kind, stops, at, hold, fade, end: at[at.length - 1]! + hold + fade };
+  const lastStop = at[at.length - 1]!;
+  return {
+    kind: spec.kind,
+    stops,
+    at,
+    hold,
+    fade,
+    end: lastStop + hold + fade,
+    legs: spec.still === true || spec.boxes === undefined ? [] : legsOf(spec, lastStop, scale),
+    boxes: spec.boxes ?? new Map(),
+  };
 }
 
 /** delta(t): rises over the fade from 0, holds until the last stop plus the hold, fades out, and is 0 from D. */

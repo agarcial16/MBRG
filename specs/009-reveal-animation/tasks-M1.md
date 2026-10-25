@@ -30,7 +30,7 @@ Titles: FR-318, FR-321, FR-322 first named in T2; FR-323, FR-324, FR-325, FR-343
   - Done when: tests green; 8 / 39.
   - Size: M (about 400).
 
-- [ ] **T4. Framing boxes, framing, easing and camera legs.** FR-331, FR-332, FR-334, FR-335, FR-348
+- [x] **T4. Framing boxes, framing, easing and camera legs.** FR-331, FR-332, FR-334, FR-335, FR-348
   - Depends on: T3.
   - Files: `apps/web/src/core/{tour-camera,tour}.ts`, `apps/web/test/tour-camera.test.ts` (new).
   - Tests first: framing box from label-set pieces on the dev map (a two-piece faction uses its main region only; fallback to all land when no label entry, PD6); framing scale for a small, a medium and a huge box (fit-scale fallback), cap min(4 fit, L0), then clamped; ease: centre linear, scale geometric, smoothstep at s = 0, E/2, E; victim legs: overview from 0 over 800 (skipped when the start is the overview), victim framing from τ_H over 1,200, camera at τ_H - 1 is leg 1's value (no early move toward the victim); absorber leg to victim + candidates over 800; after D the camera stays (no return to overview, FR-334); resize: same t, start clamped to the new area, recomputed targets, no jump at the resize instant beyond the clamp (FR-335).
