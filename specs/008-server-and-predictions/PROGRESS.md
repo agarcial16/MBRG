@@ -350,3 +350,9 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Mutation proofs (full suite, one at a time, restored): `available: () => true` (killed by the stubbed-crypto test); `sha256Hex` returning the right digest as a constant (first test version survived; a changed-byte case was added, then killed); `{ stream: true }` dropped (killed); abort branch always `failed` (killed); null-body check removed (killed).
 - Untested: the runner rule itself (M5').
 - Next step: review and the user's OK for the PR of M5b.
+
+### M5' T1' - Branch and bookkeeping targets
+- Changed: `packages/sim/test/traceability.test.ts` (comment only: M5' target line names T2'/T3' moving no id, T4' 95 / 1, T5' 96 / 0, T6' none, T7' pins the empty set). No id moved (93 / 3).
+- Re-estimate of the M5' sizes (changed lines, src + tests; docs apart) from the measured ratios (M5: 1.17, 1.4, 2.3; M5b: 1.2, 0.4, 1.2): T2' about 550 (mostly moved lines, ratio 1.0), T3' about 850 (first 650, ratio 1.3: shell code with a runner that has many tests), T4' about 300 (250), T5' about 700 (550, 1.25), T6' about 750 (650, 1.15), T1' 30, T7' 100 (not this implementer). Total of T1' to T6' about 3,180, slightly over the ~3,000 line; the per-task 1.5x ceilings are 825 (T2'), 1,275 (T3'), 450 (T4'), 1,050 (T5'), 1,125 (T6'). Reported to the coordinator; work continues under the actual-lines stop rules (1,300 after T3', 3,000 total).
+- Tests: typecheck clean; `CI=1 npm test` 207 files, 3539 passed, 4 skipped.
+- Next step: T2' (map-view extraction; no browser here: guarded by the unedited 004-007 tests and the new scan; the before/after screenshots are the coordinator's).

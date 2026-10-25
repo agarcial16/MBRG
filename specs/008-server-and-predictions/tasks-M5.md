@@ -112,7 +112,7 @@ Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.
 
 ## M5' (`feat/008-m5-3-live-viewer`, from `rewrite` after M5b is merged; T1' to T7'; 93 / 3 -> 96 / 0)
 
-- [ ] **T1'. Branch and bookkeeping targets.** NFR-55
+- [x] **T1'. Branch and bookkeeping targets.** NFR-55
   - Depends on: M5b merged.
   - Files: `packages/sim/test/traceability.test.ts` (comments: T4' 95 / 1, T5' 96 / 0).
   - Note: the M5' sizes below are the first estimates; re-estimate them here from the measured M5 and M5b ratios and report them before T2'.
