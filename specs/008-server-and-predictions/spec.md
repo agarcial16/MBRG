@@ -1,5 +1,5 @@
 # Spec 008 — Server and predictions
-Status: approved (by the user on 2026-10-21, in block: D1 to D24 and P31 to P45, recorded as D25; amended by D26, user-approved 2026-10-22, by D27, user-approved 2026-10-23, by D28, user-approved 2026-10-23, by D29, user-approved 2026-10-23, and by D30 to D32, user-approved 2026-10-24)
+Status: implemented (accepted by the user on 2026-10-25; M1 to M5' merged, 96 of 96 ids done; approved by the user on 2026-10-21, in block: D1 to D24 and P31 to P45, recorded as D25; amended by D26, user-approved 2026-10-22, by D27, user-approved 2026-10-23, by D28, user-approved 2026-10-23, by D29, user-approved 2026-10-23, and by D30 to D32, user-approved 2026-10-24)
 
 ## Context and goal
 Roadmap step 3 is "server + predictions". Steps 1 and 2 are done (specs 001 to 007, merged into `rewrite`): a pure deterministic engine gives the match state and round records of any round from (map, seed, round) (001 FR-43, FR-44), and a browser viewer draws a state, with a debug scene that computes rounds locally from a seed typed into the page address (004 FR-156 to FR-161, 005 FR-187). Nothing runs a match for several people yet, and nobody can predict anything.
