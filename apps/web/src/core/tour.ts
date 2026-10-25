@@ -75,6 +75,8 @@ export interface Tour {
   readonly end: number;
   readonly legs: readonly Leg[];
   readonly boxes: ReadonlyMap<number, Box>;
+  /** The victim an absorber tour keeps undimmed (absent for a victim tour). */
+  readonly victim?: number;
 }
 
 /** d_i for 1 <= i <= H - 1: dmin + floor((dmax - dmin) (i - 1)^2 / (H - 2)^2), in integers (no float error). */
@@ -136,6 +138,7 @@ export function buildTour(spec: TourSpec): Tour {
     end: lastStop + hold + fade,
     legs: spec.still === true || spec.boxes === undefined ? [] : legsOf(spec, lastStop, scale),
     boxes: spec.boxes ?? new Map(),
+    ...(spec.kind === 'absorber' && spec.victim !== undefined ? { victim: spec.victim } : {}),
   };
 }
 

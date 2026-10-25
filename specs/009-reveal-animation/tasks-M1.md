@@ -39,7 +39,7 @@ Titles: FR-318, FR-321, FR-322 first named in T2; FR-323, FR-324, FR-325, FR-343
   - Done when: tests green; 13 / 34.
   - Size: L (about 600).
 
-- [ ] **T5. Frame function, highlight, label factors, marker and edge indicator.** FR-327, FR-328, FR-329, FR-333, FR-347, FR-353, FR-354
+- [x] **T5. Frame function, highlight, label factors, marker and edge indicator.** FR-327, FR-328, FR-329, FR-333, FR-347, FR-353, FR-354
   - Depends on: T4.
   - Files: `apps/web/src/core/tour-frame.ts` (new), `apps/web/test/tour-frame.test.ts` (new).
   - Tests first: highlight is the latest stop at any t (a frame after three stops shows the third; no crossfade); lit = [highlight] (victim), [victim, highlight] (absorber); factors 1 and 1 - δ/δmax, hidden at full dark; `tourLabelDraws` keeps the order and keys of `instantLabels` and equals it for other = 1; tiny below 24 px in both sides only; marker radius 16 + half diagonal; indicator only when the box is wholly outside, tip on the inset rectangle, direction to the box centre; taken -> no camera, stops and dim go on; at t >= D the frame is the final state; the frame type has no result, seed, round, count or record field (`FR-353` type-level); same inputs give the same frame with `Math.random`, `Date.now`, `performance.now` throwing (`FR-354`).
