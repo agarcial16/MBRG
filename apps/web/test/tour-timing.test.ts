@@ -13,6 +13,7 @@ const victim = (extra: Partial<TourSpec> = {}): TourSpec => ({
 const absorber = (extra: Partial<TourSpec> = {}): TourSpec => ({
   kind: 'absorber',
   result: 13,
+  victim: 7,
   set: [10, 13, 16, 19],
   sigma: 3000000019,
   ...extra,
@@ -72,6 +73,11 @@ describe('tour timing', () => {
     expect(tour.at[5]).toBe(1311);
     expect([tour.hold, tour.fade, tour.end]).toStrictEqual([800, 300, 2411]);
     expect(tour.stops.at(-1)).toBe(13);
+  });
+
+  it('FR-346 an absorber tour without its victim is refused', () => {
+    expect(() => buildTour({ kind: 'absorber', result: 13, set: [10, 13], sigma: 1 })).toThrow(RangeError);
+    expect(() => buildTour({ kind: 'absorber', result: 13, set: [10, 13], sigma: 1, boxes: new Map() })).toThrow(RangeError);
   });
 
   it('FR-346 the absorber tour with two candidates alternates and ends on the absorber', () => {

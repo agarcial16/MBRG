@@ -103,6 +103,7 @@ function legsOf(spec: TourSpec, lastStop: number, scale: (x: number) => number):
 
 /** Builds the stops, the instants, the hold, the fade and D, scaled by the budget when it is below D. */
 export function buildTour(spec: TourSpec): Tour {
+  if (spec.kind === 'absorber' && spec.victim === undefined) throw new RangeError('an absorber tour needs its victim');
   const timing = spec.kind === 'absorber' ? TOUR_PARAMS.absorber : TOUR_PARAMS.victim;
   let stops: number[];
   let dwells: number[] = [];
