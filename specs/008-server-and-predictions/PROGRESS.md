@@ -420,3 +420,8 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Browser work was done by the coordinator on 2026-10-25 (facts in plan section 13); not run here.
 - Not browser-tested: production build in a browser, insecure-origin path, reconnection after a restart in a browser, real-size maps.
 - Next step: the user's acceptance (screenshots, PR), then spec.md `implemented`, then plan spec 009.
+
+### M5' follow-up 1 - D30 extended to the test client shell (docs)
+- Changed: `spec.md` D30 (one clause: the clock module also imported by `ui/client-main.ts`, the page shell of the development test client, like `ui/live-main.ts`; the live runner keeps the clock injected, stricter than D30 allowed; user-approved 2026-10-25; no id or status change), `plan.md` (the D30 quotation in 21.19, the 21.15 NFR-33 list, and the M5' closing summary decisions: the earlier "tighter" wording replaced by the approved extension), `tasks.md` (M5' row: T1' to T6' done, T7' docs done; screenshots, acceptance and `implemented` wait for the user).
+- Tests: none (docs only); the NFR-33 test already listed `ui/client-main.ts`.
+- Next step: scans cover the client page (next commit), then the runner catches.
