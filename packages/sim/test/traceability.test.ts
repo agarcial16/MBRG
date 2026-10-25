@@ -470,6 +470,31 @@ describe('traceability', () => {
     expect(DONE_009.length + PENDING_009.length).toBe(47);
   });
 
+  it('NFR-13 NFR-19 M3 closing state of spec 009: 41 ids done and 6 pending, both as literal lists', () => {
+    // Literal lists, independent of DONE_009 and PENDING_009: the tour core, decisions, driver, goldens, live model, panel and debug address are done.
+    const doneByM3 = [
+      'FR-316', 'FR-317', 'FR-318', 'FR-319', 'FR-320', 'FR-321', 'FR-322', 'FR-323', 'FR-324', 'FR-325',
+      'FR-327', 'FR-328', 'FR-329', 'FR-330', 'FR-331', 'FR-332', 'FR-333', 'FR-334', 'FR-335', 'FR-336',
+      'FR-337', 'FR-338', 'FR-339', 'FR-340', 'FR-342', 'FR-343', 'FR-344', 'FR-345', 'FR-346', 'FR-347',
+      'FR-348', 'FR-349', 'FR-350', 'FR-351', 'FR-352', 'FR-353', 'FR-354', 'NFR-59', 'NFR-60', 'NFR-61',
+      'NFR-64',
+    ];
+    const pendingAfterM3 = ['FR-326', 'FR-341', 'FR-355', 'NFR-58', 'NFR-62', 'NFR-63'];
+    expect(doneByM3).toHaveLength(41);
+    expect(pendingAfterM3).toHaveLength(6);
+    expect(new Set([...doneByM3, ...pendingAfterM3]).size).toBe(47);
+    const used = tracedIds(testSources);
+    for (const id of doneByM3) {
+      expect(DONE_009, id).toContain(id);
+      expect(PENDING_009, id).not.toContain(id);
+      expect(used.has(id), id).toBe(true);
+    }
+    // M4 (drawing, skip, figures, screenshots) and M5 (NFR-63) move the last six out.
+    for (const id of pendingAfterM3) expect(DONE_009.includes(id) !== PENDING_009.includes(id), id).toBe(true);
+    expect(DONE_009.length).toBeGreaterThanOrEqual(41);
+    expect(DONE_009.length + PENDING_009.length).toBe(47);
+  });
+
   it('NFR-13 NFR-19 no pending id of spec 009 is already traced by a test title', () => {
     const used = tracedIds(testSources);
     const traced = PENDING_009.filter((id) => used.has(id));

@@ -38,6 +38,6 @@ Titles: FR-317, FR-339, FR-340, NFR-61 first named in T2; FR-337, FR-345, FR-350
   - Mutation proofs: `transition` not winning; t compared with `>=` D; candidates from state n.
   - Done when: tests green; 41 / 6. Size: M (about 550).
 
-- [ ] **T6. Close M3.**
+- [x] **T6. Close M3.**
   - Files: traceability closing state 41 / 6, PROGRESS, plan figures, `MEMORY.md` (local).
   - Done when: suite, typecheck, `CI=1` green; scope diff clean; PR opened. Size: S (about 60).
