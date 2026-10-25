@@ -15,6 +15,8 @@ export interface LoggedRequest {
   readonly query: string;
   readonly headers: Readonly<Record<string, string>>;
   readonly credentials: RequestCredentials | undefined;
+  readonly method: string;
+  readonly body: string | undefined;
   /** The round a state or record path names, otherwise undefined. */
   readonly round: number | undefined;
 }
@@ -81,7 +83,7 @@ export async function createFakeServer(s: Scripted, n = 0): Promise<FakeServer> 
       new Headers(init?.headers).forEach((value, key) => (headers[key] = value));
       const parts = url.pathname.split('/').filter((x) => x !== '');
       const roundText = parts[0] === 'matches' && (parts[2] === 'states' || parts[2] === 'records') ? parts[3] : undefined;
-      requests.push({ url: input, path: url.pathname, query: url.search, headers, credentials: init?.credentials, round: roundText === undefined ? undefined : Number(roundText) });
+      requests.push({ url: input, path: url.pathname, query: url.search, headers, credentials: init?.credentials, method: init?.method ?? 'GET', body: typeof init?.body === 'string' ? init.body : undefined, round: roundText === undefined ? undefined : Number(roundText) });
       const next = forced.shift();
       if (next === 'network') return Promise.reject(new TypeError('network error'));
       if (next !== undefined) return Promise.resolve(new Response(next.body ?? '', { status: next.status, headers: next.headers }));

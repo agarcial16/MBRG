@@ -20,3 +20,18 @@ export async function sha256Hex(bytes: Uint8Array, platform: DigestPlatform | un
   const hash = new Uint8Array(await (platform as Required<DigestPlatform>).subtle.digest('SHA-256', view));
   return [...hash].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
+
+/** The part of the platform object `requestId` uses. */
+export interface RandomPlatform {
+  getRandomValues(array: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer>;
+}
+
+/**
+ * A client request id for one submission (FR-282): 128 random bits as 32 lower case hex digits, which is a valid local id
+ * (FR-297). The web test client draws one per submission and reuses it on a retry. Throws when there is no random source.
+ */
+export function requestId(platform: RandomPlatform | undefined = globalThis.crypto): string {
+  if (typeof platform?.getRandomValues !== 'function') throw new Error('no random source');
+  const bytes = platform.getRandomValues(new Uint8Array(new ArrayBuffer(16)));
+  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+}

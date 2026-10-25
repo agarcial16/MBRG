@@ -4,16 +4,28 @@
 // stream reconnection adds only `Last-Event-ID`. Failures are classified for the retry policy of `core/live-retry.ts`.
 import {
   MAP_FILE_NAMES,
+  isLocalId,
+  isPlayerId,
   mapDigestBytes,
   readErrorReply,
+  readLeaderboardPage,
+  readOwnPredictionsPage,
+  readPlayerResultsPage,
+  readPredictionReply,
   readPublicMatch,
   readRecordReply,
   readStateReply,
   type Decoded,
+  type LeaderboardRow,
   type MapFileName,
+  type OwnPrediction,
+  type Page,
+  type PlayerResultsPage,
+  type PredictionReply,
   type PublicMatch,
   type RecordReply,
   type StateReply,
+  type SubmissionBody,
 } from '@mbrg/protocol';
 import { classifyReply, retryAfterMs } from '../core/live-retry';
 import { createSseParser } from '../core/live-sse';
@@ -172,5 +184,71 @@ export function createLiveNet(deps: LiveNetDeps): LiveNet {
         return signal.aborted ? { type: 'aborted' } : { type: 'dropped' };
       }
     },
+  };
+}
+
+/** A read of the web test client: the value, or the reason it failed (an English identifier shown inside a Spanish template). */
+export type ClientRead<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly outcome: string; readonly status: number | undefined };
+
+export interface PredictionNetDeps {
+  readonly base: string;
+  readonly fetch: FetchLike;
+  /** The development credential (H9); absent: the credentialed calls send nothing. */
+  readonly credential: string | undefined;
+}
+
+/**
+ * The calls of the web test client (FR-310, development only). The submission and the own-predictions read are the only
+ * requests with `Authorization: Bearer` and `Content-Type`; the player results and the leaderboard are credential-free GETs.
+ * A player id outside the id rules is refused before any request, and is never percent-encoded (the server does not decode).
+ */
+export interface PredictionNet {
+  submit(matchId: string, body: SubmissionBody): Promise<ClientRead<PredictionReply>>;
+  ownPredictions(matchId: string, local: string): Promise<ClientRead<Page<OwnPrediction>>>;
+  playerResults(matchId: string, playerId: string): Promise<ClientRead<PlayerResultsPage>>;
+  leaderboard(matchId: string): Promise<ClientRead<Page<LeaderboardRow>>>;
+}
+
+export function createPredictionNet(deps: PredictionNetDeps): PredictionNet {
+  const base = deps.base.endsWith('/') ? deps.base.slice(0, -1) : deps.base;
+  const failed = (outcome: string, status?: number): ClientRead<never> => ({ ok: false, outcome, status });
+  const credentialed = (): HeadersInit => ({ Authorization: `Bearer ${deps.credential}`, 'Content-Type': 'application/json' });
+
+  async function call<T>(path: string, init: RequestInit, read: (input: unknown) => Decoded<T>): Promise<ClientRead<T>> {
+    try {
+      const response = await deps.fetch(`${base}${path}`, { ...init, credentials: 'omit' });
+      let json: unknown;
+      try {
+        json = JSON.parse(await response.text());
+      } catch {
+        json = undefined;
+      }
+      if (response.status < 200 || response.status > 299) {
+        const error = readErrorReply(json);
+        const named = error.ok ? error.value.kind : undefined;
+        return failed(named ?? 'unreadable', response.status);
+      }
+      const decoded = read(json);
+      return decoded.ok ? { ok: true, value: decoded.value } : failed('unreadable', response.status);
+    } catch {
+      return failed('network');
+    }
+  }
+
+  return {
+    async submit(matchId, body) {
+      if (deps.credential === undefined || deps.credential === '') return failed('missing-credential');
+      return call(`/matches/${matchId}/predictions`, { method: 'POST', headers: credentialed(), body: JSON.stringify(body) }, readPredictionReply);
+    },
+    async ownPredictions(matchId, local) {
+      if (deps.credential === undefined || deps.credential === '') return failed('missing-credential');
+      if (!isLocalId(local)) return failed('invalid-player-id');
+      return call(`/matches/${matchId}/predictions?playerId=${local}`, { headers: credentialed() }, readOwnPredictionsPage);
+    },
+    async playerResults(matchId, playerId) {
+      if (!isPlayerId(playerId)) return failed('invalid-player-id');
+      return call(`/matches/${matchId}/players/${playerId}/results`, {}, readPlayerResultsPage);
+    },
+    leaderboard: (matchId) => call(`/matches/${matchId}/leaderboard`, {}, readLeaderboardPage),
   };
 }

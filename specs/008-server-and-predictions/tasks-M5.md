@@ -150,7 +150,7 @@ Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.
   - Done when: tests green; mutations caught; FR-309, FR-311 moved (95 / 1).
   - Size: M (about 250).
 
-- [ ] **T5'. The web test client page.** FR-310 (close); NFR-56 (web test client); FR-282 (client request ids); FR-284 (client player ids)
+- [x] **T5'. The web test client page.** FR-310 (close); NFR-56 (web test client); FR-282 (client request ids); FR-284 (client player ids)
   - Depends on: T4'; H7, H9 approved.
   - Note (M5b review): `requestId()` (add it to `ui/web-crypto.ts`, the only `crypto` user) is built here for the client request ids (FR-282); `live-net.ts` has no use for it.
   - Files: `apps/web/client.html` (new), `apps/web/src/ui/client-main.ts` (new), `apps/web/src/core/{client-form,strings}.ts` (new, edit), `apps/web/test/{client-form,client-html}.test.ts` (new), `apps/web/test/strings-language.test.ts` (new names in its lists, D30), `.gitignore` (`.env.local`), `packages/sim/test/traceability.test.ts` (FR-310 out: 96 / 0; both planted-id tests replaced by "the pending set is empty" and a detection test over a synthetic list).

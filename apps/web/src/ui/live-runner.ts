@@ -39,6 +39,8 @@ export interface RunnerDeps {
   readonly after: After;
   /** SHA-256 of bytes in lower-case hex; the platform one by default. */
   readonly digest?: (bytes: Uint8Array) => Promise<string>;
+  /** Called with the data of each frame of the current stream before the model sees it (the web test client watches for `results`). */
+  readonly onFrame?: (data: unknown) => void;
 }
 
 export interface LiveRunner {
@@ -148,7 +150,11 @@ export function startRunner(deps: RunnerDeps): LiveRunner {
         {
           opened: () => current() && feed({ type: 'opened', at: deps.now() }),
           bytes: () => current() && feed({ type: 'bytes', at: deps.now() }),
-          frame: (data) => current() && feed({ type: 'event', at: deps.now(), data }),
+          frame: (data) => {
+            if (!current()) return;
+            deps.onFrame?.(data);
+            feed({ type: 'event', at: deps.now(), data });
+          },
         },
         abort.signal,
       )
