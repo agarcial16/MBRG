@@ -21,7 +21,7 @@ Titles: FR-318, FR-321, FR-322 first named in T2; FR-323, FR-324, FR-325, FR-343
   - Done when: tests green; mutants caught; FR-318, FR-321, FR-322 leave `PENDING_009` (3 / 44).
   - Size: M (about 500).
 
-- [ ] **T3. Dwells, instants, dim ramp, scaling, still and absorber timing.** FR-323, FR-324, FR-325, FR-343, FR-346
+- [x] **T3. Dwells, instants, dim ramp, scaling, still and absorber timing.** FR-323, FR-324, FR-325, FR-343, FR-346
   - Depends on: T2.
   - Files: `apps/web/src/core/tour.ts`, `apps/web/test/tour-timing.test.ts` (new).
   - Tests first: integer dwell formula equals the real formula for H = 6 and 12 (every i); τ_H = 3,549 / 1,687, D = 5,349 / 3,487; absorber τ_H = 1,311, D = 2,411 (`FR-346`); nominal victim D within 3,000..6,000; δ(t) at 0, 150, 299, 300, τ_H + Dhold - 1, τ_H + Dhold + 150, D - 1, D (hand values, 0.65 max); scaling by budgets 4,013 and 2,700 (non-round): each duration floored, D from scaled values, c >= 0.5 boundary exact (A4); still tour (`FR-343 (still tour)`): one stop, τ_H = 0, no camera leg, D = 1,800.
