@@ -72,12 +72,15 @@ const DONE_008: readonly string[] = ['FR-313', 'NFR-51', 'NFR-55', 'FR-312', 'NF
  * spec 009 removes the ids it traces in its own commit; the last task of M5 leaves this list empty.
  */
 const PENDING_009: readonly string[] = [
-  'FR-316', 'FR-317', 'FR-318', 'FR-319', 'FR-320', 'FR-321', 'FR-322', 'FR-323', 'FR-324', 'FR-325',
+  'FR-316', 'FR-317', 'FR-319', 'FR-320', 'FR-323', 'FR-324', 'FR-325',
   'FR-326', 'FR-327', 'FR-328', 'FR-329', 'FR-330', 'FR-331', 'FR-332', 'FR-333', 'FR-334', 'FR-335',
   'FR-336', 'FR-337', 'FR-338', 'FR-339', 'FR-340', 'FR-341', 'FR-342', 'FR-343', 'FR-344', 'FR-345',
   'FR-346', 'FR-347', 'FR-348', 'FR-349', 'FR-350', 'FR-351', 'FR-352', 'FR-353', 'FR-354', 'FR-355',
   'NFR-58', 'NFR-59', 'NFR-60', 'NFR-61', 'NFR-62', 'NFR-63', 'NFR-64',
 ];
+
+/** Ids of spec 009 already removed from PENDING_009 by the tasks that traced them (M1 T2: FR-318, FR-321, FR-322). */
+const DONE_009: readonly string[] = ['FR-318', 'FR-321', 'FR-322'];
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -404,8 +407,10 @@ describe('traceability', () => {
     expect(literal).toContain('FR-355');
     expect(literal).toContain('NFR-64');
     // Ledger of spec 009: 0 done / 47 pending at the start; each task moves its ids in its own commit.
-    expect(PENDING_009).toHaveLength(47);
-    expect([...PENDING_009].sort()).toStrictEqual([...literal].sort());
+    // M1 T2 adds FR-318, FR-321, FR-322 (3 / 44).
+    expect(PENDING_009).toHaveLength(47 - DONE_009.length);
+    expect(new Set([...PENDING_009, ...DONE_009]).size).toBe(47);
+    expect([...PENDING_009, ...DONE_009].sort()).toStrictEqual([...literal].sort());
     for (const id of PENDING_009) {
       expect(specIds, id).toContain(id);
       expect(expected, id).toContain(id);

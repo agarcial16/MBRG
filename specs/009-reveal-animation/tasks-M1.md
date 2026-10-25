@@ -12,7 +12,7 @@ Titles: FR-318, FR-321, FR-322 first named in T2; FR-323, FR-324, FR-325, FR-343
   - Done when: suite green; 0 / 47; the `rg` of the titles rule finds nothing.
   - Size: S (about 80).
 
-- [ ] **T2. Animation key, hash, stream and stops.** FR-318, FR-321, FR-322
+- [x] **T2. Animation key, hash, stream and stops.** FR-318, FR-321, FR-322
   - Depends on: T1.
   - Files: `apps/web/src/core/{tour-params,tour-key,tour}.ts` (new; `tour.ts` stops only), `apps/web/test/{tour-key,tour-stops}.test.ts` (new).
   - Tests first: FNV-1a vectors (`''`, `'a'`, `'foobar'`, published values) and the key texts of plan 4.1 (live and debug, absorber suffix, a non-ASCII text refused); mulberry32 first outputs for two non-round σ pinned from an inline independent formula in the test; `pick` bounds (0 and m - 1 reachable, m = 1 gives 0); the stream differs from the sim's `roundRng` for the same 32-bit input; H = 12 for n >= 3, 6 for n = 2, s_H = result, no two consecutive equal, s_{H-1} != result, every set member before any repeat, result only at the end when |set| <= H - 1; over every round of the dev map for seeds 1 to 100 (participants from the sim in the test) and hand-made sets of 2, 3, 11, 12 and 70 factions; same σ and set give the same stops in any input order (PD2); the input type has no absorber, record, state or seed field (type-level key test).
