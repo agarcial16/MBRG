@@ -7,6 +7,8 @@ const all = import.meta.glob('../src/**/*.ts', { query: '?raw', import: 'default
 const sources = Object.entries(all).map(([path, src]) => [path.replace('../src/', ''), src] as const);
 
 const LIVE_FILE = /^(?:core|ui)\/live-[a-z-]+\.ts$|^ui\/web-crypto\.ts$/;
+/** The pages around the live core: the development test client and the entry that chooses the scene. `entry.ts` alone may name the debug shell. */
+const PAGE_FILE = /^ui\/(?:client-main|entry|enter|message)\.ts$|^core\/client-form\.ts$/;
 /** Modules of the debug scene, and the two shared ones both scenes use: none of them may import a live module. */
 const DEBUG_SIDE = ['ui/main.ts', 'ui/load.ts', 'core/scene.ts', 'core/step.ts', 'core/playback.ts'];
 
@@ -36,6 +38,7 @@ export function seedIdentifiers(src: string): string[] {
 
 const files = (re: RegExp): string[] => sources.filter(([, src]) => re.test(codeOnly(src))).map(([path]) => path).sort();
 const live = sources.filter(([path]) => LIVE_FILE.test(path));
+const pages = sources.filter(([path]) => PAGE_FILE.test(path));
 
 describe('FR-161 (live modules) the live viewer and the debug scene stay apart', () => {
   it('NFR-55 (viewer scans) the scan sees the live modules (not vacuous)', () => {
@@ -43,11 +46,20 @@ describe('FR-161 (live modules) the live viewer and the debug scene stay apart',
     for (const wanted of ['core/live-model.ts', 'core/live-rounds.ts', 'core/live-address.ts', 'core/live-retry.ts', 'core/live-sse.ts', 'core/live-text.ts', 'ui/live-net.ts', 'ui/web-crypto.ts']) {
       expect(names, wanted).toContain(wanted);
     }
+    expect(pages.map(([path]) => path).sort()).toStrictEqual(['core/client-form.ts', 'ui/client-main.ts', 'ui/enter.ts', 'ui/entry.ts', 'ui/message.ts']);
     for (const wanted of DEBUG_SIDE) expect(sources.map(([path]) => path), wanted).toContain(wanted);
   });
 
   it('FR-161 (live modules) no live module imports the sim, the scene module, the debug shell or the debug loader', () => {
     for (const [path, src] of live) expect(liveImportViolations(src), path).toStrictEqual([]);
+  });
+
+  it('FR-161 (live modules) no page of the live viewer or of the test client imports the sim, and none but the entry names the debug scene', () => {
+    for (const [path, src] of pages) {
+      const found = liveImportViolations(src);
+      expect(path === 'ui/entry.ts' ? found.filter((v) => v.startsWith('sim import')) : found, path).toStrictEqual([]);
+      expect(seedIdentifiers(src), path).toStrictEqual([]);
+    }
   });
 
   it('FR-161 (live modules) no debug-side module imports a live module', () => {

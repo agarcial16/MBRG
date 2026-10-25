@@ -425,3 +425,8 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Changed: `spec.md` D30 (one clause: the clock module also imported by `ui/client-main.ts`, the page shell of the development test client, like `ui/live-main.ts`; the live runner keeps the clock injected, stricter than D30 allowed; user-approved 2026-10-25; no id or status change), `plan.md` (the D30 quotation in 21.19, the 21.15 NFR-33 list, and the M5' closing summary decisions: the earlier "tighter" wording replaced by the approved extension), `tasks.md` (M5' row: T1' to T6' done, T7' docs done; screenshots, acceptance and `implemented` wait for the user).
 - Tests: none (docs only); the NFR-33 test already listed `ui/client-main.ts`.
 - Next step: scans cover the client page (next commit), then the runner catches.
+
+### M5' follow-up 2 - the live scans cover the client page
+- Changed: `apps/web/test/live-scans.test.ts` (new `PAGE_FILE` list: `ui/client-main.ts`, `core/client-form.ts`, `ui/entry.ts`, `ui/enter.ts`, `ui/message.ts`; a test that none imports `@mbrg/sim` or has a seed identifier, and that none but `ui/entry.ts` names the debug shell, which it loads by design under `import.meta.env.DEV`; the non-vacuous test pins the list).
+- Mutation (full suite, restored): a `@mbrg/sim` import planted in `ui/client-main.ts` -> 2 tests fail (the new one and the FR-159 sim-mention scan of anti-spoiler).
+- Next step: catches in the live runner.
