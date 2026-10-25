@@ -1,0 +1,128 @@
+{
+  "note": "Tour goldens of spec 009 (NFR-59). INDEPENDENT values: sigma, stops, instants and D of both tours of every round of the dev map with debug seed 1, under the debug keys (debug:<k>, debug:<k>:absorber) and under the match id keys. Written by generate-tours.ts from tours-model.ts (BigInt hash and stream, no code of apps/web/src). absorber is null when the victim has fewer than two candidates.",
+  "map": "dev",
+  "seed": 1,
+  "matchId": "Ab3dE5fG7hI9jK1m",
+  "rounds": [
+    {
+      "round": 1,
+      "participants": [1, 2, 3, 4, 5],
+      "victim": 1,
+      "absorber": 3,
+      "candidates": [3],
+      "debug": {
+        "victim": {
+          "key": "debug:1",
+          "sigma": 1927870613,
+          "stops": [5, 2, 5, 4, 5, 3, 4, 5, 2, 3, 4, 1],
+          "at": [0, 120, 245, 388, 560, 772, 1037, 1365, 1769, 2260, 2849, 3549],
+          "end": 5349
+        },
+        "absorber": null
+      },
+      "live": {
+        "victim": {
+          "key": "Ab3dE5fG7hI9jK1m:1",
+          "sigma": 4267114449,
+          "stops": [4, 2, 4, 5, 4, 5, 3, 4, 2, 5, 3, 1],
+          "at": [0, 120, 245, 388, 560, 772, 1037, 1365, 1769, 2260, 2849, 3549],
+          "end": 5349
+        },
+        "absorber": null
+      }
+    },
+    {
+      "round": 2,
+      "participants": [3, 2, 4, 5],
+      "victim": 5,
+      "absorber": 2,
+      "candidates": [2],
+      "debug": {
+        "victim": {
+          "key": "debug:2",
+          "sigma": 1877537756,
+          "stops": [2, 4, 3, 2, 3, 2, 3, 4, 2, 3, 4, 5],
+          "at": [0, 120, 245, 388, 560, 772, 1037, 1365, 1769, 2260, 2849, 3549],
+          "end": 5349
+        },
+        "absorber": null
+      },
+      "live": {
+        "victim": {
+          "key": "Ab3dE5fG7hI9jK1m:2",
+          "sigma": 4216781592,
+          "stops": [4, 2, 4, 3, 4, 2, 4, 3, 4, 2, 3, 5],
+          "at": [0, 120, 245, 388, 560, 772, 1037, 1365, 1769, 2260, 2849, 3549],
+          "end": 5349
+        },
+        "absorber": null
+      }
+    },
+    {
+      "round": 3,
+      "participants": [3, 2, 4],
+      "victim": 2,
+      "absorber": 4,
+      "candidates": [3, 4],
+      "debug": {
+        "victim": {
+          "key": "debug:3",
+          "sigma": 1894315375,
+          "stops": [4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 2],
+          "at": [0, 120, 245, 388, 560, 772, 1037, 1365, 1769, 2260, 2849, 3549],
+          "end": 5349
+        },
+        "absorber": {
+          "key": "debug:3:absorber",
+          "sigma": 2457646585,
+          "stops": [3, 4, 3, 4, 3, 4],
+          "at": [0, 120, 263, 478, 811, 1311],
+          "end": 2411
+        }
+      },
+      "live": {
+        "victim": {
+          "key": "Ab3dE5fG7hI9jK1m:3",
+          "sigma": 4233559211,
+          "stops": [3, 4, 3, 4, 3, 4, 3, 4, 3, 4, 3, 2],
+          "at": [0, 120, 245, 388, 560, 772, 1037, 1365, 1769, 2260, 2849, 3549],
+          "end": 5349
+        },
+        "absorber": {
+          "key": "Ab3dE5fG7hI9jK1m:3:absorber",
+          "sigma": 2662194317,
+          "stops": [3, 4, 3, 4, 3, 4],
+          "at": [0, 120, 263, 478, 811, 1311],
+          "end": 2411
+        }
+      }
+    },
+    {
+      "round": 4,
+      "participants": [3, 4],
+      "victim": 4,
+      "absorber": 3,
+      "candidates": [3],
+      "debug": {
+        "victim": {
+          "key": "debug:4",
+          "sigma": 1843982518,
+          "stops": [3, 4, 3, 4, 3, 4],
+          "at": [0, 120, 276, 541, 987, 1687],
+          "end": 3487
+        },
+        "absorber": null
+      },
+      "live": {
+        "victim": {
+          "key": "Ab3dE5fG7hI9jK1m:4",
+          "sigma": 22480010,
+          "stops": [3, 4, 3, 4, 3, 4],
+          "at": [0, 120, 276, 541, 987, 1687],
+          "end": 3487
+        },
+        "absorber": null
+      }
+    }
+  ]
+}

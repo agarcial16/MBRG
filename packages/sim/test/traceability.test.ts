@@ -72,15 +72,15 @@ const DONE_008: readonly string[] = ['FR-313', 'NFR-51', 'NFR-55', 'FR-312', 'NF
  * spec 009 removes the ids it traces in its own commit; the last task of M5 leaves this list empty.
  */
 const PENDING_009: readonly string[] = [
-  'FR-316', 'FR-317', 'FR-319', 'FR-320',
+  'FR-317',
   'FR-326', 'FR-330',
-  'FR-336', 'FR-337', 'FR-338', 'FR-339', 'FR-340', 'FR-341', 'FR-342', 'FR-344', 'FR-345',
-  'FR-349', 'FR-350', 'FR-351', 'FR-352', 'FR-355',
-  'NFR-58', 'NFR-59', 'NFR-60', 'NFR-61', 'NFR-62', 'NFR-63', 'NFR-64',
+  'FR-337', 'FR-339', 'FR-340', 'FR-341', 'FR-345',
+  'FR-350', 'FR-351', 'FR-352', 'FR-355',
+  'NFR-58', 'NFR-61', 'NFR-62', 'NFR-63', 'NFR-64',
 ];
 
-/** Ids of spec 009 already removed from PENDING_009 by the tasks that traced them (M1 T2: FR-318, FR-321, FR-322; M1 T3: FR-323, FR-324, FR-325, FR-343, FR-346; M1 T4: FR-331, FR-332, FR-334, FR-335, FR-348; M1 T5: FR-327, FR-328, FR-329, FR-333, FR-347, FR-353, FR-354). */
-const DONE_009: readonly string[] = ['FR-318', 'FR-321', 'FR-322', 'FR-323', 'FR-324', 'FR-325', 'FR-343', 'FR-346', 'FR-331', 'FR-332', 'FR-334', 'FR-335', 'FR-348', 'FR-327', 'FR-328', 'FR-329', 'FR-333', 'FR-347', 'FR-353', 'FR-354'];
+/** Ids of spec 009 already removed from PENDING_009 by the tasks that traced them (M1 T2: FR-318, FR-321, FR-322; M1 T3: FR-323, FR-324, FR-325, FR-343, FR-346; M1 T4: FR-331, FR-332, FR-334, FR-335, FR-348; M1 T5: FR-327, FR-328, FR-329, FR-333, FR-347, FR-353, FR-354; M2 T2: FR-316, FR-319, FR-320, FR-336, FR-338, FR-349; M2 T3: FR-342, FR-344; M2 T4: NFR-59, NFR-60). */
+const DONE_009: readonly string[] = ['FR-318', 'FR-321', 'FR-322', 'FR-323', 'FR-324', 'FR-325', 'FR-343', 'FR-346', 'FR-331', 'FR-332', 'FR-334', 'FR-335', 'FR-348', 'FR-327', 'FR-328', 'FR-329', 'FR-333', 'FR-347', 'FR-353', 'FR-354', 'FR-316', 'FR-319', 'FR-320', 'FR-336', 'FR-338', 'FR-349', 'FR-342', 'FR-344', 'NFR-59', 'NFR-60'];
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -407,7 +407,7 @@ describe('traceability', () => {
     expect(literal).toContain('FR-355');
     expect(literal).toContain('NFR-64');
     // Ledger of spec 009: 0 done / 47 pending at the start; each task moves its ids in its own commit.
-    // M1 T2 adds FR-318, FR-321, FR-322 (3 / 44); T3 adds FR-323, FR-324, FR-325, FR-343, FR-346 (8 / 39); T4 adds FR-331, FR-332, FR-334, FR-335, FR-348 (13 / 34); T5 adds FR-327, FR-328, FR-329, FR-333, FR-347, FR-353, FR-354 (20 / 27).
+    // M1 T2 adds FR-318, FR-321, FR-322 (3 / 44); T3 adds FR-323, FR-324, FR-325, FR-343, FR-346 (8 / 39); T4 adds FR-331, FR-332, FR-334, FR-335, FR-348 (13 / 34); T5 adds FR-327, FR-328, FR-329, FR-333, FR-347, FR-353, FR-354 (20 / 27). M2 T2 adds FR-316, FR-319, FR-320, FR-336, FR-338, FR-349 (26 / 21); M2 T3 adds FR-342, FR-344 (28 / 19); M2 T4 adds NFR-59, NFR-60 (30 / 17).
     expect(PENDING_009).toHaveLength(47 - DONE_009.length);
     expect(new Set([...PENDING_009, ...DONE_009]).size).toBe(47);
     expect([...PENDING_009, ...DONE_009].sort()).toStrictEqual([...literal].sort());
@@ -443,6 +443,32 @@ describe('traceability', () => {
     expect(DONE_009.length).toBeGreaterThanOrEqual(20);
     expect(DONE_009.length + PENDING_009.length).toBe(47);
     // M1 target: 20 done / 27 pending (T6 pins the lists above at that state; M2 moves ids out of the 27).
+  });
+
+  it('NFR-13 NFR-19 M2 closing state of spec 009: 30 ids done and 17 pending, both as literal lists', () => {
+    // Literal lists, independent of DONE_009 and PENDING_009: the tour core, decisions, driver and goldens are done.
+    const doneByM2 = [
+      'FR-316', 'FR-318', 'FR-319', 'FR-320', 'FR-321', 'FR-322', 'FR-323', 'FR-324', 'FR-325', 'FR-327',
+      'FR-328', 'FR-329', 'FR-331', 'FR-332', 'FR-333', 'FR-334', 'FR-335', 'FR-336', 'FR-338', 'FR-342',
+      'FR-343', 'FR-344', 'FR-346', 'FR-347', 'FR-348', 'FR-349', 'FR-353', 'FR-354', 'NFR-59', 'NFR-60',
+    ];
+    const pendingAfterM2 = [
+      'FR-317', 'FR-326', 'FR-330', 'FR-337', 'FR-339', 'FR-340', 'FR-341', 'FR-345', 'FR-350', 'FR-351',
+      'FR-352', 'FR-355', 'NFR-58', 'NFR-61', 'NFR-62', 'NFR-63', 'NFR-64',
+    ];
+    expect(doneByM2).toHaveLength(30);
+    expect(pendingAfterM2).toHaveLength(17);
+    expect(new Set([...doneByM2, ...pendingAfterM2]).size).toBe(47);
+    const used = tracedIds(testSources);
+    for (const id of doneByM2) {
+      expect(DONE_009, id).toContain(id);
+      expect(PENDING_009, id).not.toContain(id);
+      expect(used.has(id), id).toBe(true);
+    }
+    // The ids still pending after M2 are done or pending, never both (M3 to M5 move them one by one).
+    for (const id of pendingAfterM2) expect(DONE_009.includes(id) !== PENDING_009.includes(id), id).toBe(true);
+    expect(DONE_009.length).toBeGreaterThanOrEqual(30);
+    expect(DONE_009.length + PENDING_009.length).toBe(47);
   });
 
   it('NFR-13 NFR-19 no pending id of spec 009 is already traced by a test title', () => {

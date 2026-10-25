@@ -88,6 +88,20 @@ function dwellOf(i: number, count: number, timing: TourTiming): number {
   return timing.dwellMin + Math.floor(((timing.dwellMax - timing.dwellMin) * (i - 1) ** 2) / (count - 2) ** 2);
 }
 
+/**
+ * D of a tour at nominal speed for a set of `setSize` factions: the sum of the dwells, the hold and the fade
+ * (or hold plus fade for the still tour). The decisions of `tour-plan.ts` compare their budget with it.
+ */
+export function nominalEnd(kind: TourKind, setSize: number, still = false): number {
+  if (setSize < 2) throw new RangeError('a tour needs at least two factions');
+  if (still) return TOUR_PARAMS.still.hold + TOUR_PARAMS.still.fade;
+  const timing = kind === 'absorber' ? TOUR_PARAMS.absorber : TOUR_PARAMS.victim;
+  const count = stopCount(kind, setSize);
+  let end = timing.hold + timing.fade;
+  for (let i = 1; i < count; i++) end += dwellOf(i, count, timing);
+  return end;
+}
+
 /** The camera legs (FR-331, FR-332, FR-348); every duration is scaled like the rest of the tour. */
 function legsOf(spec: TourSpec, lastStop: number, scale: (x: number) => number): Leg[] {
   if (spec.kind === 'victim') {
