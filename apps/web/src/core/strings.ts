@@ -64,6 +64,12 @@ export const STRINGS = {
   liveStageHalted: 'Partida detenida.',
   liveCountdown: 'Próximo paso en {time}',
   liveVictim: 'Víctima de la ronda: {name}.',
+  // Reveal tours (spec 009): the victim line while the tour has not stopped on it, the dev-only report of a skipped tour, the skip control.
+  liveRevealing: 'revelando…',
+  liveVictimRevealing: 'Víctima de la ronda: {text}',
+  liveRevealMismatch: 'Se omite el recorrido de revelación: los participantes no coinciden con el estado mostrado.',
+  tourSkip: 'Saltar',
+  recordPartial: 'Eliminada: {eliminated} · Absorbida por: {absorber}',
   liveWinner: 'Ganadora de la partida: {name}.',
   liveHaltMapChanged: 'La partida se ha detenido porque el mapa ha cambiado.',
   liveHaltIsolatedFaction: 'La partida se ha detenido porque una facción ha quedado aislada.',

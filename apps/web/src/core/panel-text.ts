@@ -14,10 +14,26 @@ export const roundStatus = (scene: Scene): string =>
 
 export const livingLine = (scene: Scene): string => fillTemplate(STRINGS.livingLine, { living: scene.living });
 
-/** The record of round N, or the "no record" text at round 0. */
-export function recordLine(scene: Scene, presentation: PresentationData): string {
+/** What a running tour hides of the record (D12): `revealing` = before the victim's stop, `absorbing` = until the absorber tour ends. */
+export interface RecordTour {
+  readonly revealing?: boolean;
+  readonly absorbing?: boolean;
+}
+
+/**
+ * The record of round N, or the "no record" text at round 0. During a tour it shows "revelando..." instead of what the tour has not
+ * revealed yet: the victim before its stop, the absorber until the absorber tour ends; the transferred count (the victim's size)
+ * is hidden as long as either is hidden.
+ */
+export function recordLine(scene: Scene, presentation: PresentationData, tour?: RecordTour): string {
   const summary = roundSummary(scene, presentation);
   if (summary === undefined) return STRINGS.noRecord;
+  if (tour?.revealing === true || tour?.absorbing === true) {
+    return fillTemplate(STRINGS.recordPartial, {
+      eliminated: tour.revealing === true ? STRINGS.liveRevealing : summary.eliminated,
+      absorber: STRINGS.liveRevealing,
+    });
+  }
   return fillTemplate(STRINGS.recordLine, {
     eliminated: summary.eliminated,
     absorber: summary.absorber,

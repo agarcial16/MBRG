@@ -22,7 +22,7 @@ Titles: FR-317, FR-339, FR-340, NFR-61 first named in T2; FR-337, FR-345, FR-350
   - Mutation proofs: candidates read after `victim` is cleared; tour kept on the mismatch path; budget of k = T not nominal.
   - Done when: tests green; 37 / 10. Size: M (about 450).
 
-- [ ] **T4. Panel texts during tours and the new strings.** FR-330, NFR-64
+- [x] **T4. Panel texts during tours and the new strings.** FR-330, NFR-64
   - Depends on: T3; A2 decided.
   - Files: `apps/web/src/core/{live-view,live-text,panel-text,strings}.ts`, `apps/web/test/{live-view-tour,panel-text}.test.ts`, `apps/web/test/strings-language.test.ts` (lists grow).
   - Tests first: `panelView(model, at, factions, { revealing: true })` contains "revelando…" and no faction name of any participant in the victim line (and nowhere else of the view); `revealing: false` shows the name (D19, also reduced motion and late join); stage and countdown unchanged by tours; A2: with `absorbing: true` the legend uses the owners of k - 1 and the round line says k; the debug record line hides the victim before the result and the absorber during the absorber tour; new Spanish strings (revealing, skip, `reveal` messages, mismatch line of A3, tour timing labels) pass the language scan; `FR-343 (panel)`: still tours never set `revealing`; the tests of the FR-320 mismatch line (A3) use part-named titles such as `FR-320 (panel)` (FR-320 is closed in M2).
