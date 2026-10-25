@@ -7,7 +7,7 @@ Titles: FR-316, FR-319, FR-320, FR-336, FR-338, FR-349 first named in T2; FR-342
   - Files: `specs/009-reveal-animation/tasks-M2.md` (DRAFT marker removed), traceability comments.
   - Done when: suite green; 20 / 27. Size: S (about 30).
 
-- [ ] **T2. When a tour plays: freshness, participants, budget, manual timing, reduced motion.** FR-316, FR-319, FR-320, FR-336, FR-338, FR-349
+- [x] **T2. When a tour plays: freshness, participants, budget, manual timing, reduced motion.** FR-316, FR-319, FR-320, FR-336, FR-338, FR-349
   - Depends on: T1.
   - Files: `apps/web/src/core/tour-plan.ts` (new), `apps/web/test/tour-plan.test.ts` (new).
   - Tests first (plan 4.7): victim plays for an event with age 0 and 5,000, not 5,001; never for public data (also a halted match's kept victim fields); not when `displayed !== k - 1`; participants differing from the held owners, a victim outside them, or n < 2 -> skip `mismatch`; budget = c2 - estimate - 1,000; `scaleFor`: >= D nominal, ratio 0.5 exact plays compressed, below skips; timing `manual` or `c2 === null` nominal (`FR-338`); absorber: age from `appliedAt`, d >= 2 and absorber among candidates, budget appliedAt + (I - L1 - L2) x 1,000 - estimate - 1,000 - Dt (A11; the edge-case figures 2,206 + Dt and 3,411 + Dt reproduced), k = T nominal, no `schedule` needed; reduced motion: victim still tour (budget rule with D = 1,800, A5), absorber none; ages never negative (estimate below the instant).
