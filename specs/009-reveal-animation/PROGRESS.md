@@ -89,3 +89,8 @@ Per-task log: what changed, tests run and results, what is untested, next step. 
 - Untested in M2 (by design): use of the decisions and the driver by the live model, the map view and the debug scene (M3, M4); browser parity of the frame digests (M4, see the T4 finding); marker and indicator in the pins (no tiny faction on the dev map).
 - Notes for the reviewer: (1) the goldens are split in two files per A13; (2) T3 and T4 wrote the module before the first test run (mutants show the red state); (3) the corrected T4 note on browser parity (start camera, address camera, area; not label aspects); (4) `viewChoice` and `scaleFor` expect the caller to pass the raw available time (`budget`) from the decisions; (5) a stale reveal is `not-fresh`, never `mismatch`.
 - Next step: review and PR of M2 (not opened by the implementer), then M3 T1.
+
+## 2026-10-26 — M3 T1 (branch, bookkeeping)
+- Branch `feat/009-m3-tour-wiring` cut from `rewrite` at 9b8d2e3 (M2 merged, #43). DRAFT marker of `tasks-M3.md` replaced by the approval line (user, 2026-10-25) and the branch checkpoint (stop at 2,760 changed lines); `tasks.md`: M2 row "done (merged, #43)", M3 row "in progress". No code, no ledger move: 30 / 17.
+- Tests: `npm test` 226 files, 3769 passed, 4 skipped; typecheck clean. Size: about 8 changed doc lines.
+- Next step: T2 (victim tour effects in the live model).

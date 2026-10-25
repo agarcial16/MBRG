@@ -1,9 +1,9 @@
 ### M3 — Live model, panel texts, debug address (`feat/009-m3-tour-wiring`; 30 / 17 -> 41 / 6)
-**Status: DRAFT (planner, 2026-10-25). Not approved.** Plan sections 6, 7, 9. Rules of `tasks.md` apply. Estimate about 1,840 changed lines. Branch from `rewrite` after M2 is merged. Needs A2, A3, A6 decided (panel during tours, live mismatch report, frozen values).
+**Status: approved by the user on 2026-10-25.** Plan sections 6, 7, 9. Rules of `tasks.md` apply. Estimate about 1,840 changed lines; checkpoint: stop and report at 2,760 for the branch. Branch cut from `rewrite` after M2 is merged. A2, A3, A6 are decided (spec D12, D13, D15).
 
 Titles: FR-317, FR-339, FR-340, NFR-61 first named in T2; FR-337, FR-345, FR-350 in T3; FR-330, NFR-64 in T4; FR-351, FR-352 in T5.
 
-- [ ] **T1. Branch and bookkeeping.**
+- [x] **T1. Branch and bookkeeping.**
   - Done when: suite green; 30 / 17. Size: S (about 30).
 
 - [ ] **T2. Victim tour effects in the live model, anti-spoiler proofs.** FR-317, FR-339, FR-340, NFR-61
