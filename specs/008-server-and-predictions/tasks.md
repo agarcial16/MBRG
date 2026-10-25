@@ -27,7 +27,7 @@ One file per milestone; read only the active one plus the rules above. Do not re
 | M4, M4' | `tasks-M4.md` | approved by the user (2026-10-23; plan section 20, G1 to G10, spec clarification D29); merged (PR #36, #37) |
 | M5 | `tasks-M5.md` | approved by the user (2026-10-24; plan section 21, H1 to H12, spec clarifications D30 to D32); closed after T4 by the user (2026-10-24, T4 overrun accepted), T4c done, closed at 91 / 5 (merged, PR #38) |
 | M5b | `tasks-M5.md` (M5b section) | approved; branch `feat/008-m5-2-live-transport` (T5, T6a, T6b, closing T7; old T6 split by the user on 2026-10-24; 93 / 3); done, closed at 93 / 3 (PR waits for review) |
-| M5' | `tasks-M5.md` (M5' section) | approved; branch `feat/008-m5-3-live-viewer` after M5b is merged (96 / 0) |
+| M5' | `tasks-M5.md` (M5' section) | approved; branch `feat/008-m5-3-live-viewer` after M5b is merged; T1' to T6' done, T7' docs part done, closed at 96 / 0 (screenshots, acceptance and spec status `implemented` wait for the user; PR waits for review) |
 
 Progress per task lives in `specs/008-server-and-predictions/PROGRESS.md`.
 ## Later milestones (headings only; detailed later, at most 10 tasks each)

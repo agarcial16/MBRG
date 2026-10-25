@@ -9,3 +9,4 @@ tools/build-map/out/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+.env.local

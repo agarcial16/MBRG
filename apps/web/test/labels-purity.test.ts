@@ -77,9 +77,9 @@ describe('NFR-33 the label and transition core sources are pure', () => {
 });
 
 describe('NFR-33 the clock is read only by the part that drives the animation', () => {
-  it('NFR-33 only ui/main.ts and ui/frame-loop.ts import the clock module', () => {
+  it('NFR-33 (live clock) only ui/main.ts, ui/frame-loop.ts, ui/live-main.ts and ui/client-main.ts import the clock module (the live runner gets its clock injected)', () => {
     const importers = sources.filter(([, src]) => importsClock(src)).map(([path]) => path).sort();
-    expect(importers).toStrictEqual(['ui/frame-loop.ts', 'ui/main.ts']);
+    expect(importers).toStrictEqual(['ui/client-main.ts', 'ui/frame-loop.ts', 'ui/live-main.ts', 'ui/main.ts']);
   });
 
   it('NFR-33 a planted import of the clock is recognised', () => {

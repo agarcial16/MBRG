@@ -112,7 +112,7 @@ Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.
 
 ## M5' (`feat/008-m5-3-live-viewer`, from `rewrite` after M5b is merged; T1' to T7'; 93 / 3 -> 96 / 0)
 
-- [ ] **T1'. Branch and bookkeeping targets.** NFR-55
+- [x] **T1'. Branch and bookkeeping targets.** NFR-55
   - Depends on: M5b merged.
   - Files: `packages/sim/test/traceability.test.ts` (comments: T4' 95 / 1, T5' 96 / 0).
   - Note: the M5' sizes below are the first estimates; re-estimate them here from the measured M5 and M5b ratios and report them before T2'.
@@ -120,7 +120,7 @@ Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.
   - Done when: suite, typecheck, `CI=1` green; no id moved.
   - Size: S (about 30).
 
-- [ ] **T2'. Extract the drawing shell; the debug scene unchanged.** FR-156 (map view); FR-176 (map view); FR-161 (live modules); NFR-27 (before and after)
+- [x] **T2'. Extract the drawing shell; the debug scene unchanged.** FR-156 (map view); FR-176 (map view); FR-161 (live modules); NFR-27 (before and after)
   - Depends on: T1'; H5 approved (if the alternative is chosen, this task becomes "no change" and T3' duplicates the shell).
   - Files: `apps/web/src/ui/{map-view,main}.ts` (new, edit), `apps/web/test/map-view-scan.test.ts` (new: `map-view.ts` names no seed or round count, imports neither the sim nor the scene module, avoids the banned words of FR-155).
   - Tests first: the new scan; every 004 to 007 test passes unedited (the meaning of the debug scene is unchanged).
@@ -130,7 +130,7 @@ Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.
   - Done when: tests green; the pairs reviewed by the user; no id moved.
   - Size: M (about 550, mostly moved lines).
 
-- [ ] **T3'. The live scene in the browser: entry, shell, panel, timers, runner.** FR-303 (shell); FR-304 (shell); FR-305 (shell); FR-306 (entry); FR-307 (shell); FR-155 (live timers); NFR-33 (live clock)
+- [x] **T3'. The live scene in the browser: entry, shell, panel, timers, runner.** FR-303 (shell); FR-304 (shell); FR-305 (shell); FR-306 (entry); FR-307 (shell); FR-155 (live timers); NFR-33 (live clock)
   - Depends on: T2'.
   - Files: `apps/web/src/ui/{entry,live-main,live-panel,live-runner,live-timer,live-config}.ts` (new), `apps/web/index.html` (script `/src/ui/entry.ts`), `apps/web/test/{live-runner,live-entry}.test.ts` (new), `apps/web/test/anti-spoiler.test.ts` (FR-155: timers only in `ui/live-timer.ts`) and `apps/web/test/labels-purity.test.ts` (NFR-33: the exact clock-importer list) (both D30).
   - Tests first (Node, fake server of M5b T6, fake timers, no DOM): the runner executes `reduce` effects in order and feeds the results back: a whole dev-map match from round 0 to T draws N at load, plays one step per `round-applied`, writes the address of D31 with `history.replaceState` (a stub), shows the notice and keeps the last drawn round while the fake server is down, reconnects with the header, closes the stream at the finish; `entry.ts` chooses the scene of each FR-306 case and imports `./main` only when `import.meta.env.DEV` (a source scan of the guard); timers only in `ui/live-timer.ts`; the countdown refreshes once per second from the estimate.
@@ -141,7 +141,7 @@ Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.
   - Done when: tests green; mutations caught; no id moved. Checkpoint: about 1,300 changed lines on the branch here at most.
   - Size: L (about 650).
 
-- [ ] **T4'. Production build output: no debug scene, no web test client, no credential.** FR-309, FR-311 (close); FR-306 (production build)
+- [x] **T4'. Production build output: no debug scene, no web test client, no credential.** FR-309, FR-311 (close); FR-306 (production build)
   - Depends on: T3'.
   - Files: `apps/web/test/build-output.test.ts` (new; explicit timeout), `apps/web/src/ui/main.ts` (one marker line `data-mbrg-scene="debug"` if T2' did not add it), `packages/sim/test/traceability.test.ts` (FR-309, FR-311 out: 95 / 1; the planted id FR-309 becomes FR-310).
   - Tests first (plan 21.10): the Vite build API into a temporary folder with `VITE_MBRG_WEB_CREDENTIAL` set to a planted value: no file contains the planted value; no `map.json`, `ids.png` or `presentation.json` copy; no `data-mbrg-scene` value `debug` or `client`; no `client.html`; the emitted entry has no reference to the sim exports' error kinds that only the debug path uses (a code marker list); the development server (`import.meta.env.DEV` true) still offers the debug scene for a seed-only address (the T3' entry test); the debug scene never connects to the server (the M5b T6 scan, re-run here by name).
@@ -150,7 +150,7 @@ Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.
   - Done when: tests green; mutations caught; FR-309, FR-311 moved (95 / 1).
   - Size: M (about 250).
 
-- [ ] **T5'. The web test client page.** FR-310 (close); NFR-56 (web test client); FR-282 (client request ids); FR-284 (client player ids)
+- [x] **T5'. The web test client page.** FR-310 (close); NFR-56 (web test client); FR-282 (client request ids); FR-284 (client player ids)
   - Depends on: T4'; H7, H9 approved.
   - Note (M5b review): `requestId()` (add it to `ui/web-crypto.ts`, the only `crypto` user) is built here for the client request ids (FR-282); `live-net.ts` has no use for it.
   - Files: `apps/web/client.html` (new), `apps/web/src/ui/client-main.ts` (new), `apps/web/src/core/{client-form,strings}.ts` (new, edit), `apps/web/test/{client-form,client-html}.test.ts` (new), `apps/web/test/strings-language.test.ts` (new names in its lists, D30), `.gitignore` (`.env.local`), `packages/sim/test/traceability.test.ts` (FR-310 out: 96 / 0; both planted-id tests replaced by "the pending set is empty" and a detection test over a synthetic list).
@@ -161,7 +161,7 @@ Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.
   - Done when: tests green; mutations caught; FR-310 moved (96 / 0); `rg` finds it.
   - Size: L (about 550).
 
-- [ ] **T6'. Real-server proofs and the local-run fixture.** FR-303 (real server); FR-307 (real server); FR-308 (real server); FR-310 (real server); NFR-52 (viewer over the network)
+- [x] **T6'. Real-server proofs and the local-run fixture.** FR-303 (real server); FR-307 (real server); FR-308 (real server); FR-310 (real server); NFR-52 (viewer over the network)
   - Depends on: T5'; H6, H12 approved.
   - Note (M5b review, FR-308): the real-server proofs include the runner order of T3': the map files are verified once before the first `public` input; with a served file changed by one byte nothing is drawn and `digest-mismatch` is shown outside the model. `requestId()` of `ui/web-crypto.ts` is built in T5' (web test client), not here.
   - Files: `apps/server/test/{viewer-live,viewer-live-child,client-live}.test.ts` (new), `apps/server/test/fixtures/dev-live-server.ts` (new, hand-run), `apps/server/test/helpers/main-child.ts` (a fixed port option, if needed).
@@ -175,6 +175,7 @@ Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.
   - Depends on: T1' to T6'.
   - Files: `packages/sim/test/traceability.test.ts` (closing-state test retitled to M5': 96 / 0, the pending set empty), `spec.md` (status `implemented` only after the user's acceptance), `plan.md` (sections 11 and 13: M5' closing summary, figures), `tasks.md`, `PROGRESS.md`, `MEMORY.md` (local).
   - Steps: the screenshot set of plan 21.14 at 1920 x 1080 from the T6' fixture (live viewer at round 0, round 1 in phase 1, phase 2 and applied, round T, a halted match, the connection notice, the unknown-match and `need-match` messages; the web test client), listed with their addresses in the PR and reviewed by the user; the browser figures of H11 on the reference PC (pane visible); process checks as M5b T7 plus `npm run build` and the T4' test; `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server/src` clean.
+  - Status (2026-10-25): the docs and ledger part is done (retitled test, plan 11 and 13, PROGRESS, MEMORY; commit `test: pin the spec 008 pending set after M5'`); the coordinator did the browser pass. Left open for the user's acceptance: screenshots, `spec.md` status `implemented`.
   - Commit: `test: close the spec 008 pending set after M5'`.
   - Done when: CI green; counts 96 / 0; screenshots accepted by the user; spec 008 marked `implemented` with the user's OK; `MEMORY.md` updated (next: plan spec 009).
   - Size: S (about 100).

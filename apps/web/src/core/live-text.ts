@@ -4,7 +4,7 @@ import type { HaltReason, PublicSchedule, Stage, Timing } from '@mbrg/protocol';
 import { STRINGS, fillTemplate } from './strings';
 
 /** The error kinds of the live scene: English identifiers shown inside Spanish messages (NFR-28). */
-export type LiveErrorKind = 'unknown-match' | 'digest-mismatch' | 'insecure-origin' | 'both' | 'need-match' | 'bad-match';
+export type LiveErrorKind = 'unknown-match' | 'digest-mismatch' | 'insecure-origin' | 'both' | 'need-match' | 'bad-match' | 'failure';
 
 const STAGE_TEXTS: Readonly<Record<Stage, string>> = {
   'phase-1': STRINGS.liveStagePhase1,
@@ -25,6 +25,7 @@ const ERROR_TEXTS: Readonly<Record<LiveErrorKind, string>> = {
   both: STRINGS.liveErrorBoth,
   'need-match': STRINGS.liveErrorNeedMatch,
   'bad-match': STRINGS.liveErrorBadMatch,
+  failure: STRINGS.liveErrorFailure,
 };
 
 /** The title of the live scene. */

@@ -187,6 +187,8 @@ const PROGRESS_DECLARATION = /\buniform\s+(?:\w+\s+)*?uProgress\s*;/;
 
 /** Exception 1: the whole word `transition` (the address parameter and its handling). */
 const TRANSITION_FILES = ['core/address.ts', 'core/playback.ts', 'ui/main.ts', 'ui/url.ts'];
+/** D30 of spec 008: the only module that arms a timer (the live runner's retry timer and panel refresh). */
+const TIMER_FILE = 'ui/live-timer.ts';
 /** Exception 4: the only user of the animation frame API. */
 const FRAME_LOOP_FILE = 'ui/frame-loop.ts';
 /** Exception 3: the only file that may declare the progress uniform, once. */
@@ -200,7 +202,7 @@ const PROGRESS_FILE = 'render/shader.ts';
 function animationViolations(path: string, src: string, frameLoopExists = true): string[] {
   const found: string[] = [];
   const code = codeOnly(src);
-  const timer = BANNED_WORDS.exec(code);
+  const timer = BANNED_WORDS.exec(path === TIMER_FILE ? code.replace(/\bsetTimeout\b/g, '') : code);
   if (timer) found.push(`timer or animation ${timer[1]}`);
   if (TRANSITION_WORD.test(code) && !TRANSITION_FILES.includes(path)) found.push('transition outside its files');
   if (LERP_WORD.test(code) && !path.startsWith('core/')) found.push('lerp outside src/core');
@@ -237,6 +239,21 @@ describe('FR-155 a round change is drawn at once, without animation', () => {
       ['core/scene.ts', 'const transitions = [];'],
     ];
     for (const [path, src] of planted) expect(animationViolations(path, src), `${path}: ${src}`).not.toStrictEqual([]);
+  });
+
+  it('FR-155 (live timers) setTimeout is accepted only in ui/live-timer.ts; setInterval and the other banned words stay banned there', () => {
+    expect(animationViolations('ui/live-timer.ts', 'const id = setTimeout(fn, ms);')).toStrictEqual([]);
+    for (const path of ['ui/live-runner.ts', 'ui/live-main.ts', 'ui/main.ts', 'core/live-model.ts', 'ui/web-crypto.ts']) {
+      expect(animationViolations(path, 'const id = setTimeout(fn, ms);'), path).not.toStrictEqual([]);
+    }
+    for (const src of ['setInterval(fn, 1);', 'el.animate(f, 1);', 'requestAnimationFrame(f);']) {
+      expect(animationViolations('ui/live-timer.ts', src), src).not.toStrictEqual([]);
+    }
+    const timer = sources.find(([p]) => p === TIMER_FILE);
+    expect(timer).toBeDefined();
+    expect(/\bsetTimeout\b/.test(codeOnly(timer![1]))).toBe(true);
+    // Every other source is free of timers (the all-sources test above), so the live timer is the only user.
+    expect(sources.filter(([p, src]) => /\bsetTimeout\b/.test(codeOnly(src)) && p !== TIMER_FILE)).toStrictEqual([]);
   });
 
   it('NFR-35 exception 1: the word transition is accepted only in address, playback, main and url', () => {

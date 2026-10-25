@@ -3,7 +3,7 @@
  * replies and frames of `scripted-match.ts` and the dev map files, records every request, and lets a test answer any status,
  * drop a request or end/fail the event stream. Web standard types only (DOM lib), so it runs in the viewer's Node tests.
  */
-import { encodeError, encodeRecord, encodeState, mapDigestBytes, roundNotApplied, type ErrorReply, type MapFileName } from '@mbrg/protocol';
+import { encodeError, encodeRecord, encodeState, mapDigestBytes, roundNotApplied, type ErrorReply, type MapFileName, type PublicMatch } from '@mbrg/protocol';
 import { DEV_MAP_TEXT, DEV_PRESENTATION_TEXT, devPngBytes } from './dev-map';
 import { MATCH_ID, publicAt, recordReply, stateReply, type Scripted } from './scripted-match';
 
@@ -15,6 +15,8 @@ export interface LoggedRequest {
   readonly query: string;
   readonly headers: Readonly<Record<string, string>>;
   readonly credentials: RequestCredentials | undefined;
+  readonly method: string;
+  readonly body: string | undefined;
   /** The round a state or record path names, otherwise undefined. */
   readonly round: number | undefined;
 }
@@ -31,6 +33,8 @@ export interface FakeServer {
   readonly files: Record<MapFileName, Uint8Array>;
   /** The digest of the original dev map files, as the public data announces it. */
   readonly mapDigest: string;
+  /** Fields merged into the public data (for example a clock timing and its schedule). */
+  publicExtra: Partial<PublicMatch>;
   /** Replies for the next requests, one each, in order, before any route answers. */
   readonly forced: Forced[];
   /** Pushes text to the stream that was opened last. */
@@ -70,6 +74,7 @@ export async function createFakeServer(s: Scripted, n = 0): Promise<FakeServer> 
     n,
     files,
     mapDigest,
+    publicExtra: {},
     requests,
     forced,
     fetch: (input, init) => {
@@ -78,7 +83,7 @@ export async function createFakeServer(s: Scripted, n = 0): Promise<FakeServer> 
       new Headers(init?.headers).forEach((value, key) => (headers[key] = value));
       const parts = url.pathname.split('/').filter((x) => x !== '');
       const roundText = parts[0] === 'matches' && (parts[2] === 'states' || parts[2] === 'records') ? parts[3] : undefined;
-      requests.push({ url: input, path: url.pathname, query: url.search, headers, credentials: init?.credentials, round: roundText === undefined ? undefined : Number(roundText) });
+      requests.push({ url: input, path: url.pathname, query: url.search, headers, credentials: init?.credentials, method: init?.method ?? 'GET', body: typeof init?.body === 'string' ? init.body : undefined, round: roundText === undefined ? undefined : Number(roundText) });
       const next = forced.shift();
       if (next === 'network') return Promise.reject(new TypeError('network error'));
       if (next !== undefined) return Promise.resolve(new Response(next.body ?? '', { status: next.status, headers: next.headers }));
@@ -89,7 +94,7 @@ export async function createFakeServer(s: Scripted, n = 0): Promise<FakeServer> 
       if (parts[0] !== 'matches' || parts[1] !== MATCH_ID) {
         return Promise.resolve(errorReply({ kind: parts[0] === 'matches' ? 'unknown-match' : 'unknown-path' }, 404));
       }
-      if (parts.length === 2) return Promise.resolve(json(JSON.stringify(publicAt(s, server.n, { mapDigest: server.mapDigest }))));
+      if (parts.length === 2) return Promise.resolve(json(JSON.stringify(publicAt(s, server.n, { mapDigest: server.mapDigest, ...server.publicExtra }))));
       if (parts[2] === 'states' || parts[2] === 'records') {
         const round = Number(roundText);
         const known = parts[2] === 'states' ? round >= 0 : round >= 1;
