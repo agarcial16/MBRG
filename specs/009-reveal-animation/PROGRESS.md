@@ -6,3 +6,10 @@ Per-task log: what changed, tests run and results, what is untested, next step. 
 - Tests run: none (no code).
 - Waiting for: the user's approval of the plan, the tasks and the spec amendments A1, A2, A3, A5, A6, A7 (plan section 16).
 - Next step: record the approved amendments in `spec.md`, then M1 T1.
+
+## 2026-10-25 — M1 T1 (branch, docs, bookkeeping targets)
+- User approved plan, tasks and amendments A1, A2, A3, A5, A6, A7 (2026-10-25). Recorded in `spec.md` as D11 (A1), D12 (A2), D13 (A3), D14 (A5), D15 (A6), D16 (A7), with the Status line, the numbering line and the replaced FR text (Definitions "Elapsed time", FR-316, FR-320, FR-330, FR-336, FR-342, FR-343, FR-345, FR-351, edge case "Tab hidden"). No id or approved status changed. DRAFT markers removed from `plan.md`, `tasks.md` (the M1 row) and `tasks-M1.md`; M2 to M5 files keep theirs until their own first task.
+- `traceability.test.ts`: ranges 1..355 and 1..64 (419 ids, 417 expected), `FR-356` and `NFR-65` are not ids, pinned literal `PENDING_009` (47 ids), the traced-id check skips both pending lists, "no pending 009 id already traced", planted-id detection over a synthetic list.
+- Tests: `npm test` 217 files, 3617 passed, 4 skipped; typecheck clean. Mutation proof: dropping FR-316 from `PENDING_009` -> 2 failures (every id traced, pinned list); restored. Titles-rule `rg`: nothing.
+- Ledger 0 / 47. Size: about 80 changed test lines.
+- Not tested: nothing pending. Next step: T2 (animation key, hash, stream, stops).
