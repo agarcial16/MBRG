@@ -141,7 +141,7 @@ Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.
   - Done when: tests green; mutations caught; no id moved. Checkpoint: about 1,300 changed lines on the branch here at most.
   - Size: L (about 650).
 
-- [ ] **T4'. Production build output: no debug scene, no web test client, no credential.** FR-309, FR-311 (close); FR-306 (production build)
+- [x] **T4'. Production build output: no debug scene, no web test client, no credential.** FR-309, FR-311 (close); FR-306 (production build)
   - Depends on: T3'.
   - Files: `apps/web/test/build-output.test.ts` (new; explicit timeout), `apps/web/src/ui/main.ts` (one marker line `data-mbrg-scene="debug"` if T2' did not add it), `packages/sim/test/traceability.test.ts` (FR-309, FR-311 out: 95 / 1; the planted id FR-309 becomes FR-310).
   - Tests first (plan 21.10): the Vite build API into a temporary folder with `VITE_MBRG_WEB_CREDENTIAL` set to a planted value: no file contains the planted value; no `map.json`, `ids.png` or `presentation.json` copy; no `data-mbrg-scene` value `debug` or `client`; no `client.html`; the emitted entry has no reference to the sim exports' error kinds that only the debug path uses (a code marker list); the development server (`import.meta.env.DEV` true) still offers the debug scene for a seed-only address (the T3' entry test); the debug scene never connects to the server (the M5b T6 scan, re-run here by name).

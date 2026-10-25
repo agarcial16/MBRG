@@ -36,6 +36,8 @@ const canvas = document.getElementById('map') as HTMLCanvasElement;
 const labelCanvas = document.getElementById('labels') as HTMLCanvasElement;
 const panelContainer = document.getElementById('panel') as HTMLElement;
 document.title = STRINGS.debugTitle;
+// The marker the production build check looks for: the debug scene must never reach a production page (FR-309).
+document.documentElement.setAttribute('data-mbrg-scene', 'debug');
 
 /** Frame intervals longer than this end an interaction instead of being measured. */
 const INTERACTION_GAP_MS = 250;
