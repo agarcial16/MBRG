@@ -1,4 +1,4 @@
-// Animation key, hash and stream of the reveal tours (spec 009 D8, plan 4.1). Pure and public-data only:
+// Tour key, hash and stream of the reveal tours (spec 009 D8, plan 4.1). Pure and public-data only:
 // the key text is built from the match id (or the word `debug`) and the round, never from a secret.
 
 export type TourKind = 'victim' | 'absorber';
@@ -17,7 +17,7 @@ export function fnv1a32(text: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
     const b = text.charCodeAt(i);
-    if (b > 0x7f) throw new RangeError('the animation key is ASCII only');
+    if (b > 0x7f) throw new RangeError('the tour key is ASCII only');
     h = Math.imul(h ^ b, 0x01000193) >>> 0;
   }
   return h;

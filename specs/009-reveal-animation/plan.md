@@ -184,6 +184,8 @@ The user accepts the look and the values δmax, dmin, dmax, Dhold, Dfade, H (con
 | M4 | `feat/009-m4-tour-drawing` | shading reference and shader, overlay, map view driver, debug shell, skip, figures, debug screenshots | FR-326, FR-355; FR-341; NFR-58, NFR-62 | 46 / 1 |
 | M5 | `feat/009-m5-live-tours` | live shell, real-server proofs, local live run, live screenshots, close | NFR-63 | 47 / 0 |
 
+**M1 result (2026-10-25):** done on `feat/009-m1-tour-core`, ledger 20 / 27, about 1,620 changed lines in `apps` and `packages` against the estimate of 2,240 (per task in `PROGRESS.md`). The Tour carries `legs`, `boxes` and, for an absorber tour, `victim`; `TourSpec` gained `boxes?`, `victim?`, `budget?`, `still?` (names final).
+
 Sizes (changed lines, src + tests; docs and golden JSON apart):
 | Task | Est. | Task | Est. | Task | Est. |
 |---|---|---|---|---|---|

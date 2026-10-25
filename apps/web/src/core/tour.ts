@@ -17,7 +17,7 @@ export interface StopsInput {
   readonly sigma: number;
 }
 
-/** H: 12 stops for a victim tour with three or more participants, 6 with two, 6 for an absorber tour. */
+/** H: 12 stops for a victim tour with 3 or more participants, 6 with two, 6 for an absorber tour. */
 export function stopCount(kind: TourKind, setSize: number): number {
   if (setSize < 2) throw new RangeError('a tour needs at least two factions');
   if (kind === 'absorber') return TOUR_PARAMS.absorber.stops;

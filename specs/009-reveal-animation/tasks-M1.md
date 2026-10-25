@@ -48,7 +48,7 @@ Titles: FR-318, FR-321, FR-322 first named in T2; FR-323, FR-324, FR-325, FR-343
   - Done when: tests green; 20 / 27.
   - Size: L (about 600).
 
-- [ ] **T6. Close M1.**
+- [x] **T6. Close M1.**
   - Depends on: T5.
   - Files: `packages/sim/test/traceability.test.ts` (closing state: the 20 ids done, the 27 others as a literal list in the body), `specs/009-reveal-animation/{PROGRESS,plan}.md`, `MEMORY.md` (local).
   - Tests first: the closing-state test pins 20 / 27.
