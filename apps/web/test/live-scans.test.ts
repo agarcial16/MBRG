@@ -65,6 +65,24 @@ describe('FR-161 (live modules) the live viewer and the debug scene stay apart',
     expect(files(/\bcrypto\b/)).toStrictEqual(['ui/web-crypto.ts']);
   });
 
+  it('FR-161 (live modules) the live scene hands the transport a bound fetch (a bare reference throws Illegal invocation in a browser)', () => {
+    const main = sources.find(([path]) => path === 'ui/live-main.ts');
+    expect(main).toBeDefined();
+    const code = codeOnly(main![1]);
+    expect(code).toMatch(/\bfetch\s*:\s*fetch\.bind\(globalThis\)/);
+    expect(code).not.toMatch(/\bfetch\s*\(/);
+    // A bare reference (`fetch: fetch`) is what this scan would not accept.
+    expect(/\bfetch\s*:\s*fetch\.bind\(globalThis\)/.test(codeOnly('createLiveNet({ base, fetch: fetch, x })'))).toBe(false);
+  });
+
+  it('FR-303 (shell) the runner and the live model touch no DOM, history or location: the scene is reached only through its port', () => {
+    for (const path of ['ui/live-runner.ts', 'core/live-model.ts', 'core/live-view.ts', 'ui/live-timer.ts']) {
+      const source = sources.find(([p]) => p === path);
+      expect(source, path).toBeDefined();
+      expect(codeOnly(source![1]).match(/\b(?:document|window|history|location|localStorage|navigator)\b/g) ?? [], path).toStrictEqual([]);
+    }
+  });
+
   it('NFR-55 (viewer scans) each scan flags a planted violation and lets plain code through', () => {
     expect(liveImportViolations("import { getState } from '@mbrg/sim';")).toStrictEqual(['sim import @mbrg/sim']);
     expect(liveImportViolations("import type { MatchState } from '@mbrg/sim/types';")).toHaveLength(1);

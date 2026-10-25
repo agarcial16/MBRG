@@ -130,7 +130,7 @@ Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.
   - Done when: tests green; the pairs reviewed by the user; no id moved.
   - Size: M (about 550, mostly moved lines).
 
-- [ ] **T3'. The live scene in the browser: entry, shell, panel, timers, runner.** FR-303 (shell); FR-304 (shell); FR-305 (shell); FR-306 (entry); FR-307 (shell); FR-155 (live timers); NFR-33 (live clock)
+- [x] **T3'. The live scene in the browser: entry, shell, panel, timers, runner.** FR-303 (shell); FR-304 (shell); FR-305 (shell); FR-306 (entry); FR-307 (shell); FR-155 (live timers); NFR-33 (live clock)
   - Depends on: T2'.
   - Files: `apps/web/src/ui/{entry,live-main,live-panel,live-runner,live-timer,live-config}.ts` (new), `apps/web/index.html` (script `/src/ui/entry.ts`), `apps/web/test/{live-runner,live-entry}.test.ts` (new), `apps/web/test/anti-spoiler.test.ts` (FR-155: timers only in `ui/live-timer.ts`) and `apps/web/test/labels-purity.test.ts` (NFR-33: the exact clock-importer list) (both D30).
   - Tests first (Node, fake server of M5b T6, fake timers, no DOM): the runner executes `reduce` effects in order and feeds the results back: a whole dev-map match from round 0 to T draws N at load, plays one step per `round-applied`, writes the address of D31 with `history.replaceState` (a stub), shows the notice and keeps the last drawn round while the fake server is down, reconnects with the header, closes the stream at the finish; `entry.ts` chooses the scene of each FR-306 case and imports `./main` only when `import.meta.env.DEV` (a source scan of the guard); timers only in `ui/live-timer.ts`; the countdown refreshes once per second from the estimate.
