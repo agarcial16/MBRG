@@ -23,7 +23,7 @@ Titles: FR-316, FR-319, FR-320, FR-336, FR-338, FR-349 first named in T2; FR-342
   - Mutation proofs: t from the first frame instead of the handling reading; second tour started at its first frame; result hook every frame.
   - Done when: tests green; 28 / 19. Size: M (about 450).
 
-- [ ] **T4. Goldens and purity scan.** NFR-59, NFR-60
+- [x] **T4. Goldens and purity scan.** NFR-59, NFR-60
   - Depends on: T3.
   - Files: `apps/web/src/core/tour-digest.ts` (new), `apps/web/test/golden/{tours.json,generate-tours.ts}` (new; generator hand-run, re-implements plan 4.1 to 4.3 without importing `src`), `apps/web/test/{tour-golden,tour-scans}.test.ts` (new).
   - Tests first: for the dev map, seed 1, debug keys and the match id `Ab3dE5fG7hI9jK1m`: every round's σ, stops, instants, D of both tours equal the golden; frame digests at t = 0, 400, 1,000, τ_H - 1, τ_H, τ_H + 800, D - 1, D at 1920 x 1080 equal the pinned regression values (stated in the file); the purity scan of every `core/tour-*.ts` (no DOM, three, clock, timers, `Math.random`, `@mbrg/sim`, protocol record types; no banned word; no `seed` identifier) with planted violations flagged and plain code accepted.
