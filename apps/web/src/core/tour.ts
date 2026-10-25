@@ -39,7 +39,11 @@ export function drawStops(input: StopsInput): number[] {
   for (let i = count - 2; i >= 0; i--) {
     const used = new Set(stops.slice(i + 1));
     let eligible = set.filter((f) => !used.has(f));
-    if (eligible.length === 0) eligible = set.filter((f) => f !== stops[i + 1]);
+    if (eligible.length === 0) {
+      // Everyone was shown: repeat, never the same faction twice in a row and, if possible, never the result.
+      eligible = set.filter((f) => f !== stops[i + 1] && f !== input.result);
+      if (eligible.length === 0) eligible = set.filter((f) => f !== stops[i + 1]);
+    }
     stops[i] = eligible[pick(stream, eligible.length)]!;
   }
   return stops;

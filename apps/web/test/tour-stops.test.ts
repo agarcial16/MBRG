@@ -23,8 +23,8 @@ function checkStops(stops: readonly number[], set: readonly number[], result: nu
     }
     seen.add(s);
   }
-  // With at least H factions the result is shown once, at the end.
-  if (new Set(set).size >= count) expect(stops.filter((s) => s === result)).toHaveLength(1);
+  // With at least three factions the result is shown once, at the end (D17); with two the stops alternate.
+  if (new Set(set).size >= 3) expect(stops.filter((s) => s === result)).toHaveLength(1);
 }
 
 const range = (n: number): number[] => Array.from({ length: n }, (_, i) => 10 + i * 3);
@@ -51,6 +51,21 @@ describe('tour stops', () => {
     expect(drawStops({ kind: 'victim', result: 2, set: [1, 2], sigma: 4000000007 })).toStrictEqual([1, 2, 1, 2, 1, 2]);
     expect(drawStops({ kind: 'victim', result: 1, set: [2, 1], sigma: 17 })).toStrictEqual([2, 1, 2, 1, 2, 1]);
     expect(drawStops({ kind: 'absorber', result: 8, set: [5, 8], sigma: 9 })).toStrictEqual([5, 8, 5, 8, 5, 8]);
+  });
+
+  it('FR-322 three factions: the two decoys alternate and the result appears only at the end (hand-derived)', () => {
+    for (const sigma of [1, 2, 3, 99, 1234567891, 3000000019]) {
+      for (const result of [1, 2, 3]) {
+        const stops = drawStops({ kind: 'victim', result, set: [1, 2, 3], sigma });
+        const decoys = [1, 2, 3].filter((f) => f !== result);
+        expect(stops).toHaveLength(12);
+        expect(stops[11]).toBe(result);
+        // Eleven decoy stops, alternating: s_11 is either decoy, then the other, and so on.
+        const head = stops.slice(0, 11);
+        expect(head.every((s) => decoys.includes(s))).toBe(true);
+        head.forEach((s, i) => expect(s).toBe(i % 2 === 0 ? head[10]! : decoys.find((d) => d !== head[10])!));
+      }
+    }
   });
 
   it('FR-322 the stops equal the independent backwards reference on varied sets and two sigma', () => {
