@@ -16,9 +16,11 @@ import {
   type Timing,
 } from '@mbrg/protocol';
 import { WATCHDOG_MS, retryDelay } from './live-retry';
-import { applyRecord, canRequest, digestTextOf, ownersOf, stepDataOf, type Owners } from './live-rounds';
+import { applyRecord, canRequest, digestTextOf, livingOf, ownersOf, stepDataOf, type Owners } from './live-rounds';
 import { navigate, type NavAction } from './navigation';
 import type { StepData } from './step';
+import { fnv1a32, keyText } from './tour-key';
+import { victimTourDecision } from './tour-plan';
 
 /** The largest reported time received and the instant it arrived: the countdown estimate runs from it (FR-302). */
 export interface Reported {
@@ -108,6 +110,8 @@ export interface LiveModel {
   readonly streamed: boolean;
   /** The displayed round is N (a spectator who follows the live round). */
   readonly following: boolean;
+  /** A victim tour was started and nothing has completed it yet (the map view knows when it ends by itself). */
+  readonly touring: boolean;
 }
 
 export type LiveInput =
@@ -132,7 +136,15 @@ export type LiveEffect =
   | { readonly type: 'arm-timer'; readonly until: number }
   | { readonly type: 'hash-state'; readonly text: string }
   | { readonly type: 'draw'; readonly round: number; readonly owners: Owners }
-  | { readonly type: 'play-step'; readonly from: number; readonly to: number; readonly data: StepData };
+  | { readonly type: 'play-step'; readonly from: number; readonly to: number; readonly data: StepData }
+  /**
+   * FR-317: start the victim tour of round `round`. Only what the reveal made public: the victim, the participants, sigma
+   * of `<match id>:<round>` and, with a running clock, the milliseconds available (before the view's own scaling). There
+   * is no field for an absorber, a record, a state of the round or a round seed.
+   */
+  | { readonly type: 'victim-tour'; readonly round: number; readonly victim: number; readonly living: readonly number[]; readonly sigma: number; readonly budget?: number }
+  /** FR-339: complete the running tour at once (its final state). */
+  | { readonly type: 'complete-tour' };
 
 export interface LiveResult {
   readonly model: LiveModel;
@@ -176,6 +188,7 @@ export function startLive(matchId: string): LiveResult {
     lastByteAt: 0,
     streamed: false,
     following: true,
+    touring: false,
   };
   return { model, effects: [{ type: 'read-public' }] };
 }
@@ -372,6 +385,41 @@ function drain(out: LiveResult, at: number): LiveResult {
   return current;
 }
 
+const completeIfTouring = (model: LiveModel): LiveEffect[] => (model.touring ? [{ type: 'complete-tour' }] : []);
+
+/**
+ * FR-316 FR-317 FR-339: the victim reveal of round k has been consumed (`model` already holds its victim and the raised
+ * estimate). A fresh one with matching participants starts the tour, after completing a tour that may still run; one
+ * that plays nothing still completes it. Nothing here reads the record, the absorber or any state of round k.
+ */
+function victimTour(model: LiveModel, e: Extract<MatchEvent, { type: 'victim-revealed' }>, at: number): LiveResult {
+  const shown = model.displayed === undefined ? undefined : model.held.get(model.displayed);
+  const decision = victimTourDecision({
+    source: 'event',
+    halted: model.stage === 'halted' || model.haltReason !== undefined,
+    round: e.round,
+    displayed: model.displayed,
+    estimate: estimateAt(model, at),
+    revealedAt: e.revealedAt,
+    living: e.living,
+    displayedLiving: shown === undefined ? [] : livingOf(shown),
+    victim: e.victim,
+    timing: model.timing,
+    c2: e.c2,
+  });
+  const complete = completeIfTouring(model);
+  if (!decision.play) return result(model.touring ? { ...model, touring: false } : model, complete);
+  const start: LiveEffect = {
+    type: 'victim-tour',
+    round: e.round,
+    victim: e.victim,
+    living: e.living,
+    sigma: fnv1a32(keyText(model.matchId, e.round, 'victim')),
+    ...(decision.budget === undefined ? {} : { budget: decision.budget }),
+  };
+  return result({ ...model, touring: true }, [...complete, start]);
+}
+
 /** One frame whose number is the next one: updates the fields it sets; `round-applied` starts the check of its round. */
 function consume(model: LiveModel, frame: Frame, at: number): LiveResult {
   // An accepted frame is a success: the schedule starts over.
@@ -387,21 +435,27 @@ function consume(model: LiveModel, frame: Frame, at: number): LiveResult {
       const victim: PublicVictim = {
         round: e.round, victim: e.victim, candidates: e.candidates, living: e.living, revealedAt: e.revealedAt, c2: e.c2, a: e.a, seq: e.seq,
       };
-      return result(raise({ ...m, victim }, e.reportedTime, at));
+      // The estimate of the decision includes the event's own reported time (plan 4.7).
+      return victimTour(raise({ ...m, victim }, e.reportedTime, at), e, at);
     }
     case 'schedule':
       return result(raise({ ...m, stage: e.stage, schedule: e.schedule }, e.reportedTime, at));
     case 'match-finished':
       return result(raise(withoutStream({ ...m, stage: 'finished', winner: e.winner, schedule: undefined, phase: 'closed' }), e.reportedTime, at), [{ type: 'close-stream' }]);
     case 'match-halted':
-      return result(raise(withoutStream({ ...m, stage: 'halted', haltReason: e.reason, schedule: undefined, phase: 'closed' }), e.reportedTime, at), [{ type: 'close-stream' }]);
+      return result(raise(withoutStream({ ...m, stage: 'halted', haltReason: e.reason, schedule: undefined, phase: 'closed', touring: false }), e.reportedTime, at), [
+        ...completeIfTouring(m),
+        { type: 'close-stream' },
+      ]);
     case 'round-applied': {
       const base = m.held.get(m.applied);
       if (e.round !== m.applied + 1 || base === undefined) return resync(model, at);
       const applying: Applying = { round: e.round, record: e.record, digest: e.stateDigest, step: 'hash' };
+      // The victim tour is over for the model: the map view completes it before it draws the round (FR-339).
+      const idle: LiveModel = m.touring ? { ...m, touring: false } : m;
       const next = applyRecord(base, e.record);
-      if (next === 'mismatch') return readInstead(m, applying);
-      return result({ ...m, applying }, [{ type: 'hash-state', text: digestTextOf(next, e.round) }]);
+      if (next === 'mismatch') return readInstead(idle, applying);
+      return result({ ...idle, applying }, [{ type: 'hash-state', text: digestTextOf(next, e.round) }]);
     }
   }
 }

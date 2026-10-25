@@ -6,7 +6,7 @@ Titles: FR-317, FR-339, FR-340, NFR-61 first named in T2; FR-337, FR-345, FR-350
 - [x] **T1. Branch and bookkeeping.**
   - Done when: suite green; 30 / 17. Size: S (about 30).
 
-- [ ] **T2. Victim tour effects in the live model, anti-spoiler proofs.** FR-317, FR-339, FR-340, NFR-61
+- [x] **T2. Victim tour effects in the live model, anti-spoiler proofs.** FR-317, FR-339, FR-340, NFR-61
   - Depends on: T1.
   - Files: `apps/web/src/core/live-model.ts`, `apps/web/test/live-model-tour.test.ts` (new), `apps/web/test/live-model.test.ts` (key list grows, meaning unchanged), `apps/web/test/helpers/scripted-match.ts` (clock settings with short L1, replay ages).
   - Tests first: a fresh `victim-revealed` emits one `victim-tour` with round, victim, living, σ of `<match id>:<k>` and budget; a stale replay (age 5,001), a public read, a browsing spectator, a halted match emit none; a second victim reveal emits `complete-tour` first; `match-halted` emits `complete-tour`; twins: two scripted matches equal up to the absorber give byte-equal effects and models until `round-applied`; no effect or model field names the absorber before the `round-applied` frame (fake stream); no request for a round above N during a tour (request log); the effect type has exactly its keys (no absorber, record, state, seed).

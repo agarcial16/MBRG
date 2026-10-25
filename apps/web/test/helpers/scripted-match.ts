@@ -93,12 +93,15 @@ export function publicAt(s: Scripted, n: number, extra: Partial<PublicMatch> = {
   return JSON.parse(encodePublicMatch({ ...base, ...extra })) as PublicMatch;
 }
 
-/** The 8 events of round k (the last one is match-finished after the last round), as the JSON the stream carries. */
-export function eventsOfRound(s: Scripted, k: number): unknown[] {
+/** Events as the JSON the stream carries (built with the protocol encoder and read back). */
+export const wire = (list: readonly MatchEvent[]): unknown[] => list.map((e) => JSON.parse(encodeEvent(e)) as unknown);
+
+/** The 8 events of round k as typed values (the last one is match-finished after the last round). */
+export function matchEventsOfRound(s: Scripted, k: number): MatchEvent[] {
   const a = seqOfRound(k);
   const record = s.records[k - 1] as RecordReply;
   const rt = 5000 + k * 100;
-  const list: MatchEvent[] = [
+  return [
     { type: 'phase-closed', seq: a, round: k, phase: 1, at: rt },
     { type: 'victim-revealed', seq: a + 1, round: k, victim: record.eliminated, candidates: [record.absorber], living: s.living[k - 1] as number[], revealedAt: rt, c2: null, a: null, reportedTime: rt + 1 },
     { type: 'schedule', seq: a + 2, stage: 'phase-2', reportedTime: rt + 2 },
@@ -110,8 +113,10 @@ export function eventsOfRound(s: Scripted, k: number): unknown[] {
       ? { type: 'match-finished', seq: a + 7, winner: record.absorber, matchSecret: hex('5'), rule: 'rule text', reportedTime: rt + 7 }
       : { type: 'schedule', seq: a + 7, stage: 'phase-1', reportedTime: rt + 7 },
   ];
-  return list.map((e) => JSON.parse(encodeEvent(e)) as unknown);
 }
+
+/** The 8 events of round k (the last one is match-finished after the last round), as the JSON the stream carries. */
+export const eventsOfRound = (s: Scripted, k: number): unknown[] => wire(matchEventsOfRound(s, k));
 
 /** Every event from round `from` to round `to`, in order. */
 export const eventsFrom = (s: Scripted, from: number, to: number): unknown[] =>
