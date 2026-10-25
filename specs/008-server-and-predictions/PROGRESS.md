@@ -414,3 +414,9 @@ Plan after T1': T2' pipeline + commands (FR-280, 298; 75/21), T3' reads/CORS wir
 - Size: about 640 changed lines against about 750 (all tests, helpers and the fixture): 0.85x.
 - Untested: any browser behaviour (CORS preflight from `localhost:5173` for the credentialed calls, the real `crypto.subtle`, the WebGL scene, the address rewrite); NFR-52's browser half is the coordinator's.
 - Next step: T7' (the coordinator: screenshots, browser figures, closing).
+
+### M5' T7' - Close M5' and spec 008 (docs and ledger part)
+- Changed: `packages/sim/test/traceability.test.ts` (the closing-state test is retitled to the M5' closing state, 96 done / 0 pending; the planted-id replacement tests of T5' were checked and kept), `plan.md` sections 11 and 13 (M5' closing state, summary, sizes, decisions, open points, process slips, browser pass facts), `tasks-M5.md` (status note), `MEMORY.md`. No id moved (96 / 0). `spec.md` status NOT changed (it becomes `implemented` only after the user's acceptance).
+- Browser work was done by the coordinator on 2026-10-25 (facts in plan section 13); not run here.
+- Not browser-tested: production build in a browser, insecure-origin path, reconnection after a restart in a browser, real-size maps.
+- Next step: the user's acceptance (screenshots, PR), then spec.md `implemented`, then plan spec 009.

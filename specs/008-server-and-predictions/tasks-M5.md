@@ -175,6 +175,7 @@ Sizes re-estimated from the measured M5 T4 ratio (src about 1.6x, tests about 2.
   - Depends on: T1' to T6'.
   - Files: `packages/sim/test/traceability.test.ts` (closing-state test retitled to M5': 96 / 0, the pending set empty), `spec.md` (status `implemented` only after the user's acceptance), `plan.md` (sections 11 and 13: M5' closing summary, figures), `tasks.md`, `PROGRESS.md`, `MEMORY.md` (local).
   - Steps: the screenshot set of plan 21.14 at 1920 x 1080 from the T6' fixture (live viewer at round 0, round 1 in phase 1, phase 2 and applied, round T, a halted match, the connection notice, the unknown-match and `need-match` messages; the web test client), listed with their addresses in the PR and reviewed by the user; the browser figures of H11 on the reference PC (pane visible); process checks as M5b T7 plus `npm run build` and the T4' test; `git diff --exit-code rewrite -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server/src` clean.
+  - Status (2026-10-25): the docs and ledger part is done (retitled test, plan 11 and 13, PROGRESS, MEMORY; commit `test: pin the spec 008 pending set after M5'`); the coordinator did the browser pass. Left open for the user's acceptance: screenshots, `spec.md` status `implemented`.
   - Commit: `test: close the spec 008 pending set after M5'`.
   - Done when: CI green; counts 96 / 0; screenshots accepted by the user; spec 008 marked `implemented` with the user's OK; `MEMORY.md` updated (next: plan spec 009).
   - Size: S (about 100).
