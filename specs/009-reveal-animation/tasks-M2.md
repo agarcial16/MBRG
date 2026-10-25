@@ -31,6 +31,6 @@ Titles: FR-316, FR-319, FR-320, FR-336, FR-338, FR-349 first named in T2; FR-342
   - Mutation proofs: one constant of the generator changed in `src` (golden fails); a planted `Math.random` in a tour module (scan fails).
   - Done when: tests green; generator output equals the committed JSON byte for byte when re-run; 30 / 17. Size: L (about 650 + JSON).
 
-- [ ] **T5. Close M2.**
+- [x] **T5. Close M2.**
   - Files: traceability closing state 30 / 17, PROGRESS, plan figures, `MEMORY.md` (local).
   - Done when: suite, typecheck, `CI=1` green; scope diff clean; PR opened. Size: S (about 60).

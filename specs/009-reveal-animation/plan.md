@@ -186,6 +186,7 @@ The user accepts the look and the values δmax, dmin, dmax, Dhold, Dfade, H (con
 
 **M1 result (2026-10-25):** done on `feat/009-m1-tour-core`, ledger 20 / 27, about 1,620 changed lines in `apps` and `packages` against the estimate of 2,240 (per task in `PROGRESS.md`). The Tour carries `legs`, `boxes` and, for an absorber tour, `victim`; `TourSpec` gained `boxes?`, `victim?`, `budget?`, `still?` (names final).
 **M1 review outcome (2026-10-25):** the reviewer's findings were fixed on the same branch: D17 (FR-322 fallback keeps the result out of repeated stops), the FR-343 parenthetical, an absorber `TourSpec` without `victim` is refused, doc alignments.
+**M2 result (2026-10-25):** done on `feat/009-m2-tour-decisions`, ledger 30 / 17, about 1,370 changed lines in `apps` and `packages` (src + tests, golden JSON apart) against the estimate of 1,740 (per task in `PROGRESS.md`). New modules: `core/tour-plan.ts` (decisions; names `victimTourDecision`, `absorberTourDecision`, `scaleFor`, `viewChoice`), `core/tour-playback.ts` (`startTourRun`, `tourRunAt`, `completeTourRun`, `motionChangedTourRun`), `core/tour-digest.ts`; `core/tour.ts` gained `nominalEnd`. The goldens are split in `tours.json` (independent) and `tour-frame-pins.json` (regression pins, A13). Open for M4: browser parity of the digests depends on the label aspects (PROGRESS, M2 T4).
 
 Sizes (changed lines, src + tests; docs and golden JSON apart):
 | Task | Est. | Task | Est. | Task | Est. |
