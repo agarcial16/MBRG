@@ -1,9 +1,9 @@
 ### M2 — Decisions, tour playback driver, goldens (`feat/009-m2-tour-decisions`; 20 / 27 -> 30 / 17)
-**Status: DRAFT (planner, 2026-10-25). Not approved.** Plan sections 4.3, 4.7, 10, 11. Rules of `tasks.md` apply. Estimate about 1,740 changed lines (golden JSON apart). Branch from `rewrite` after M1 is merged.
+**Status: approved by the user on 2026-10-25.** Plan sections 4.3, 4.7, 10, 11. Rules of `tasks.md` apply. Estimate about 1,740 changed lines (golden JSON apart); checkpoint: stop and report at 2,610 for the branch. Branch cut from `rewrite` after M1 is merged.
 
 Titles: FR-316, FR-319, FR-320, FR-336, FR-338, FR-349 first named in T2; FR-342, FR-344 in T3; NFR-59, NFR-60 in T4.
 
-- [ ] **T1. Branch and bookkeeping.**
+- [x] **T1. Branch and bookkeeping.**
   - Files: `specs/009-reveal-animation/tasks-M2.md` (DRAFT marker removed), traceability comments.
   - Done when: suite green; 20 / 27. Size: S (about 30).
 

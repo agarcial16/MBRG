@@ -52,3 +52,8 @@ Per-task log: what changed, tests run and results, what is untested, next step. 
 - D17 (user-approved) recorded in `spec.md` (FR-322 fallback and closing sentence, edge case "Three alive", Status and numbering lines), plan 4.2 and `tasks-M1.md` T2 wording. Code: the fallback of `drawStops` and of the test reference excludes the result when another faction exists (n = 2 alternation and n >= H unchanged). Tests: `checkStops` condition `size >= 3`, a new hand case with three factions (decoys alternate, result only at the end), the seeds 1..100 dev-map property. Mutant "drop the result exclusion": 4 failures (the 3-faction case, the property tests, the reference comparison); restored.
 - FR-343 parenthetical now reads "(Dhold + Dfade, the fade-in inside the hold)". Spec 008 text in the Context and Depends-on of the 009 spec now says implemented. `buildTour` throws a RangeError for an absorber tour without `victim` (test; mutant removing the throw: 1 failure; restored); the timing test helper now passes a victim.
 - Docs: `tasks.md` M1 row "done (review fixed; PR pending)", scope rule diff list narrowed to the T6 list (the traceability test lives in `packages/sim/test`), MEMORY.md 008 line updated, plan M1 review note.
+
+## 2026-10-25 — M2 T1 (branch, bookkeeping)
+- Branch `feat/009-m2-tour-decisions` cut from `rewrite` at ca05fc6 (M1 merged). DRAFT marker of `tasks-M2.md` replaced by the approval line (user, 2026-10-25) and the branch checkpoint (stop at 2,610 changed lines); the M2 row of `tasks.md` now reads "in progress". No code, no ledger move: 20 / 27.
+- Tests: `npm test` 222 files, 3703 passed, 4 skipped; typecheck clean. Size: about 6 changed doc lines.
+- Next step: T2 (when a tour plays).
