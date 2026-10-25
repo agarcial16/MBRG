@@ -7,7 +7,7 @@ Plan: `specs/009-reveal-animation/plan.md`. Spec: `specs/009-reveal-animation/sp
 - **Delivery**: each milestone on its own branch (plan section 14) cut from an up-to-date `rewrite`, after the previous milestone is merged; one PR into `rewrite`, squash merge only with the user's OK and CI green. Never push to `main` or `rewrite`. One commit per task unless stated (English, conventional prefix, one line <= 72 chars).
 - **Tests first**: write them, see them fail (red) for the right reason, then code. Prove guards by temporary mutation: back the file up first, use the FULL `npm test` (never a filtered run), one mutation chain at a time, in the foreground with a timeout; restore only your own backups; a surviving mutant means a missing test (use non-round constants).
 - **Before each commit**: `npm test`, `npm run typecheck` and `$env:CI='1'; npm test` (PowerShell) green. Quote the path (it contains spaces).
-- **Scope**: no new dependency; no change to the map format, the presentation data, the id image, `MatchState`, `RoundRecord`, `packages/*`, `apps/server/src`, `tools/*`, `maps/dev` or any golden of 001 to 008 (each closing task runs `git diff --exit-code rewrite -- packages apps/server/src tools maps` and checks that no earlier golden file changed). Earlier tests are edited only as plan section 13 lists, with the meaning stated in the commit body.
+- **Scope**: no new dependency; no change to the map format, the presentation data, the id image, `MatchState`, `RoundRecord`, `packages/*`, `apps/server/src`, `tools/*`, `maps/dev` or any golden of 001 to 008 (each closing task runs `git diff --exit-code rewrite -- packages/shared packages/sim/src packages/protocol apps/server/src tools maps` and checks that no earlier golden file changed). Earlier tests are edited only as plan section 13 lists, with the meaning stated in the commit body.
 - **Purity**: tour modules live in `apps/web/src/core`, pure (no DOM, three, clock, timers, randomness other than the σ stream). Only the shells route clock readings; no new importer of `ui/clock.ts`, no timer, no `requestAnimationFrame` outside `ui/frame-loop.ts`.
 - **Naming rule** (FR-155 scan): no identifier or code text with `animate`, `animation(s)`, `tween(s)`, `keyframes`, `transitions`, `setTimeout`, `setInterval`; the word `transition` only in `core/address.ts`, `core/playback.ts`, `ui/main.ts`, `ui/url.ts`; no identifier containing `seed` in tour or live modules (the animation key is `sigma`); shader uniforms `uDim`, `uLit` only. Spanish strings and comments may use any word.
 - **Language**: code, comments, docs in English; every visible text in `core/strings.ts`, Spanish (NFR-64).
@@ -21,7 +21,7 @@ Plan: `specs/009-reveal-animation/plan.md`. Spec: `specs/009-reveal-animation/sp
 Read only the active one plus these rules.
 | Milestone | File | Branch | Closes | Ledger after | Status |
 |---|---|---|---|---|---|
-| M1 | `tasks-M1.md` | `feat/009-m1-tour-core` | 20 ids (pure tour core) | 20 / 27 | approved |
+| M1 | `tasks-M1.md` | `feat/009-m1-tour-core` | 20 ids (pure tour core) | 20 / 27 | done (review fixed; PR pending) |
 | M2 | `tasks-M2.md` | `feat/009-m2-tour-decisions` | 10 ids (decisions, driver, goldens) | 30 / 17 | DRAFT |
 | M3 | `tasks-M3.md` | `feat/009-m3-tour-wiring` | 11 ids (live model, panel, debug address) | 41 / 6 | DRAFT |
 | M4 | `tasks-M4.md` | `feat/009-m4-tour-drawing` | 5 ids (drawing, debug shell, figures, screenshots) | 46 / 1 | DRAFT |
