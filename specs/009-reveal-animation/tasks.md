@@ -21,8 +21,8 @@ Plan: `specs/009-reveal-animation/plan.md`. Spec: `specs/009-reveal-animation/sp
 Read only the active one plus these rules.
 | Milestone | File | Branch | Closes | Ledger after | Status |
 |---|---|---|---|---|---|
-| M1 | `tasks-M1.md` | `feat/009-m1-tour-core` | 20 ids (pure tour core) | 20 / 27 | done (review fixed; PR pending) |
-| M2 | `tasks-M2.md` | `feat/009-m2-tour-decisions` | 10 ids (decisions, driver, goldens) | 30 / 17 | done (PR pending) |
+| M1 | `tasks-M1.md` | `feat/009-m1-tour-core` | 20 ids (pure tour core) | 20 / 27 | done (merged, #42) |
+| M2 | `tasks-M2.md` | `feat/009-m2-tour-decisions` | 10 ids (decisions, driver, goldens) | 30 / 17 | done, PR pending |
 | M3 | `tasks-M3.md` | `feat/009-m3-tour-wiring` | 11 ids (live model, panel, debug address) | 41 / 6 | DRAFT |
 | M4 | `tasks-M4.md` | `feat/009-m4-tour-drawing` | 5 ids (drawing, debug shell, figures, screenshots) | 46 / 1 | DRAFT |
 | M5 | `tasks-M5.md` | `feat/009-m5-live-tours` | NFR-63 (live shell, real-server proofs, close) | 47 / 0 | DRAFT |

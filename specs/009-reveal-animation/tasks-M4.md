@@ -29,7 +29,7 @@ Titles: FR-326, FR-355 first named in T2; FR-341 in T4; NFR-58, NFR-62 in T5. Pa
 - [ ] **T5. Figures, review rounds, screenshots.** NFR-58, NFR-62
   - Files: `apps/web/src/ui/{main,panel}.ts` (tour figures), `apps/web/src/core/{perf,panel-text}.ts`, `apps/web/test/{tour-review,perf}.test.ts` (new / edit), `.claude/review/009-m4-tours.html` (not in git).
   - Tests first: tour figures text (median, 95th percentile over the tour's frames only, first-frame latency, layouts during the tour); a test finds the NFR-62 rounds for seed 1 (first with d >= 3, one with d = 2, the smallest victim by area and whether it is tiny at the overview) and pins them; the tour paint path computes no layout (`NFR-58` pure part).
-  - Browser (pane visible; kill only our PIDs; check :5173 first): the figures of plan section 10, three runs, rounds 1 to T; the frame digests shown while frozen equal `tours.json` for the NFR-62 frames; the screenshot page of plan section 12 items 1 and 2.
+  - Browser (pane visible; kill only our PIDs; check :5173 first): the figures of plan section 10, three runs, rounds 1 to T; the frame digests shown while frozen equal `tour-frame-pins.json` for the NFR-62 frames, using pins computed under the frozen debug-scene rules (PROPOSED in the plan M2 result note, approved by the user with the M4 tasks); the screenshot page of plan section 12 items 1 and 2.
   - Commit: `feat(web): measure reveal tours in the debug panel`.
   - Done when: tests green; figures within budget or reported; the user reviewed the page; 46 / 1. Size: M (about 450).
 

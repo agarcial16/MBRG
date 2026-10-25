@@ -25,7 +25,7 @@ Titles: FR-316, FR-319, FR-320, FR-336, FR-338, FR-349 first named in T2; FR-342
 
 - [x] **T4. Goldens and purity scan.** NFR-59, NFR-60
   - Depends on: T3.
-  - Files: `apps/web/src/core/tour-digest.ts` (new), `apps/web/test/golden/{tours.json,generate-tours.ts}` (new; generator hand-run, re-implements plan 4.1 to 4.3 without importing `src`), `apps/web/test/{tour-golden,tour-scans}.test.ts` (new).
+  - Files: `apps/web/src/core/tour-digest.ts` (new), `apps/web/test/golden/{tours.json,generate-tours.ts,tours-model.ts}` (new; independent values; the hand-run generator and its model re-implement plan 4.1 to 4.3 without importing `src`), `apps/web/test/golden/{tour-frame-pins.json,generate-tour-frame-pins.ts}` and `apps/web/test/helpers/tour-pins.ts` (new; regression pins written by the code under test, A13), `apps/web/test/{tour-golden,tour-scans}.test.ts` (new; the digest tests live in `tour-golden.test.ts`).
   - Tests first: for the dev map, seed 1, debug keys and the match id `Ab3dE5fG7hI9jK1m`: every round's σ, stops, instants, D of both tours equal the golden; frame digests at t = 0, 400, 1,000, τ_H - 1, τ_H, τ_H + 800, D - 1, D at 1920 x 1080 equal the pinned regression values (stated in the file); the purity scan of every `core/tour-*.ts` (no DOM, three, clock, timers, `Math.random`, `@mbrg/sim`, protocol record types; no banned word; no `seed` identifier) with planted violations flagged and plain code accepted.
   - Commit: `test(web): pin the reveal tours in goldens`.
   - Mutation proofs: one constant of the generator changed in `src` (golden fails); a planted `Math.random` in a tour module (scan fails).
@@ -33,4 +33,4 @@ Titles: FR-316, FR-319, FR-320, FR-336, FR-338, FR-349 first named in T2; FR-342
 
 - [x] **T5. Close M2.**
   - Files: traceability closing state 30 / 17, PROGRESS, plan figures, `MEMORY.md` (local).
-  - Done when: suite, typecheck, `CI=1` green; scope diff clean; PR opened. Size: S (about 60).
+  - Done when: suite, typecheck, `CI=1` green; scope diff clean; PR opened by the coordinator after the review. Size: S (about 60).
