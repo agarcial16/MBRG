@@ -26,8 +26,9 @@ export function stopCount(kind: TourKind, setSize: number): number {
 
 /**
  * The stops s_1 ... s_H, drawn backwards from s_H = result with the stream of sigma. The set is sorted
- * ascending first, so the input order does not matter. For i = H-1 down to 1, s_i is drawn from the set
- * minus s_{i+1} ... s_H, or from the set minus s_{i+1} when that is empty.
+ * ascending first, so the input order does not matter. For i = H-1 down to 1, s_i is drawn from the set minus
+ * s_{i+1}, minus the stops s_{i+1} ... s_{H-1} already drawn (the result s_H does not count as shown), or,
+ * when that is empty, from the set minus s_{i+1} (D17: every faction of the set alternates before any repeats).
  */
 export function drawStops(input: StopsInput): number[] {
   const set = [...new Set(input.set)].sort((a, b) => a - b);
@@ -37,13 +38,9 @@ export function drawStops(input: StopsInput): number[] {
   const stops = new Array<number>(count);
   stops[count - 1] = input.result;
   for (let i = count - 2; i >= 0; i--) {
-    const used = new Set(stops.slice(i + 1));
-    let eligible = set.filter((f) => !used.has(f));
-    if (eligible.length === 0) {
-      // Everyone was shown: repeat, never the same faction twice in a row and, if possible, never the result.
-      eligible = set.filter((f) => f !== stops[i + 1] && f !== input.result);
-      if (eligible.length === 0) eligible = set.filter((f) => f !== stops[i + 1]);
-    }
+    const shown = new Set(stops.slice(i + 1, count - 1));
+    let eligible = set.filter((f) => f !== stops[i + 1] && !shown.has(f));
+    if (eligible.length === 0) eligible = set.filter((f) => f !== stops[i + 1]);
     stops[i] = eligible[pick(stream, eligible.length)]!;
   }
   return stops;
@@ -59,6 +56,8 @@ export interface TourSpec extends StopsInput {
   readonly victim?: number;
   /** Framing box of every faction the camera may frame (the victim and the set); absent = no camera legs. */
   readonly boxes?: ReadonlyMap<number, Box>;
+  /** A victim tour with no absorber tour after it, in the last round: the camera eases back to the overview at its end (D20). */
+  readonly overviewAfter?: true;
 }
 
 /** One easing of the camera: from instant `from`, over `duration` ms, to the overview or to the framing of factions. */
@@ -102,17 +101,27 @@ export function nominalEnd(kind: TourKind, setSize: number, still = false): numb
   return end;
 }
 
-/** The camera legs (FR-331, FR-332, FR-348); every duration is scaled like the rest of the tour. */
-function legsOf(spec: TourSpec, lastStop: number, scale: (x: number) => number): Leg[] {
+/**
+ * The camera legs (FR-331, FR-332, FR-348, FR-334); every duration is scaled like the rest of the tour. The
+ * absorber tour frames the victim and the candidates, then eases back to the overview over the last `cameraIn`
+ * ms of the tour, so the camera is at the overview once the absorption is over.
+ */
+function legsOf(spec: TourSpec, lastStop: number, end: number, scale: (x: number) => number): Leg[] {
   if (spec.kind === 'victim') {
-    return [
+    const legs: Leg[] = [
       { from: 0, duration: scale(TOUR_PARAMS.cameraIn), to: 'overview' },
       { from: lastStop, duration: scale(TOUR_PARAMS.cameraOut), to: [spec.result] },
     ];
+    if (spec.overviewAfter === true) legs.push({ from: end - scale(TOUR_PARAMS.cameraIn), duration: scale(TOUR_PARAMS.cameraIn), to: 'overview' });
+    return legs;
   }
   if (spec.victim === undefined) return [];
   const candidates = [...new Set(spec.set)].sort((a, b) => a - b);
-  return [{ from: 0, duration: scale(TOUR_PARAMS.cameraAbsorber), to: [spec.victim, ...candidates] }];
+  const back = scale(TOUR_PARAMS.cameraIn);
+  return [
+    { from: 0, duration: scale(TOUR_PARAMS.cameraAbsorber), to: [spec.victim, ...candidates] },
+    { from: end - back, duration: back, to: 'overview' },
+  ];
 }
 
 /** Builds the stops, the instants, the hold, the fade and D, scaled by the budget when it is below D. */
@@ -148,14 +157,15 @@ export function buildTour(spec: TourSpec): Tour {
   const at = [0];
   for (const d of dwells) at.push(at[at.length - 1]! + d);
   const lastStop = at[at.length - 1]!;
+  const end = lastStop + hold + fade;
   return {
     kind: spec.kind,
     stops,
     at,
     hold,
     fade,
-    end: lastStop + hold + fade,
-    legs: spec.still === true || spec.boxes === undefined ? [] : legsOf(spec, lastStop, scale),
+    end,
+    legs: spec.still === true || spec.boxes === undefined ? [] : legsOf(spec, lastStop, end, scale),
     boxes: spec.boxes ?? new Map(),
     ...(spec.kind === 'absorber' && spec.victim !== undefined ? { victim: spec.victim } : {}),
   };

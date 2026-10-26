@@ -225,6 +225,14 @@ describe('tour camera legs', () => {
     }
   });
 
+  it('FR-334 D20 a last-round victim tour with no absorber tour eases back to the overview over the last 800 ms', () => {
+    const tour = victimTour({ overviewAfter: true });
+    expect(tour.legs[2]).toStrictEqual({ from: tour.end - 800, duration: 800, to: 'overview' });
+    expect(cameraAt(tour, tour.end - 400, AREA, BIG_IMAGE, START)).not.toStrictEqual(OVERVIEW);
+    expect(cameraAt(tour, tour.end, AREA, BIG_IMAGE, START)).toStrictEqual(OVERVIEW);
+    expect(cameraAt(tour, tour.end + 60000, AREA, BIG_IMAGE, START)).toStrictEqual(OVERVIEW);
+  });
+
   it('FR-331 FR-332 the legs of a scaled tour are floored with the same factor (budget 2,700 ms)', () => {
     const tour = victimTour({ budget: 2700 });
     expect(tour.legs).toStrictEqual([
@@ -243,7 +251,7 @@ describe('tour camera legs', () => {
 
   it('FR-348 the absorber tour eases over 800 ms to the framing of the victim and all candidates', () => {
     const tour = absorberTour();
-    expect(tour.legs).toStrictEqual([{ from: 0, duration: 800, to: [7, 8, 9] }]);
+    expect(tour.legs.slice(0, 1)).toStrictEqual([{ from: 0, duration: 800, to: [7, 8, 9] }]);
     // Union of the boxes of 7, 8 and 9: columns 20..340, rows 10..150, 320 x 140: asks 0.78, raised to the fit scale.
     const target = { x: 180, y: 80, scale: 1.25 };
     const from = VICTIM_FRAMING;
@@ -252,11 +260,22 @@ describe('tour camera legs', () => {
     expect([mid.x, mid.y]).toStrictEqual([160, 75]);
     expect(mid.scale).toBeCloseTo(Math.sqrt(1.875), 12);
     expect(cameraAt(tour, 800, AREA, BIG_IMAGE, from)).toStrictEqual(target);
-    expect(cameraAt(tour, tour.end + 9999, AREA, BIG_IMAGE, from)).toStrictEqual(target);
+    expect(cameraAt(tour, tour.end - 800, AREA, BIG_IMAGE, from)).toStrictEqual(target);
+  });
+
+  it('FR-334 the absorber tour ends at the overview: the camera eases back over the last 800 ms', () => {
+    const tour = absorberTour();
+    expect(tour.legs[1]).toStrictEqual({ from: tour.end - 800, duration: 800, to: 'overview' });
+    const from = VICTIM_FRAMING;
+    expect(cameraAt(tour, tour.end - 400, AREA, BIG_IMAGE, from)).not.toStrictEqual(OVERVIEW);
+    expect(cameraAt(tour, tour.end, AREA, BIG_IMAGE, from)).toStrictEqual(OVERVIEW);
+    expect(cameraAt(tour, tour.end + 9999, AREA, BIG_IMAGE, from)).toStrictEqual(OVERVIEW);
   });
 
   it('FR-348 the absorber leg is floored with the factor of its tour (budget 1,500 ms)', () => {
-    expect(absorberTour({ budget: 1500 }).legs).toStrictEqual([{ from: 0, duration: 497, to: [7, 8, 9] }]);
+    expect(absorberTour({ budget: 1500 }).legs[0]).toStrictEqual({ from: 0, duration: 497, to: [7, 8, 9] });
+    const scaled = absorberTour({ budget: 1500 });
+    expect(scaled.legs[1]).toStrictEqual({ from: scaled.end - 497, duration: 497, to: 'overview' });
   });
 
   it('FR-335 after a resize the same elapsed time clamps the start to the new area and recomputes the targets', () => {

@@ -114,11 +114,10 @@ describe('tour goldens (independent values)', () => {
         expect(tour.stops.at(-1), label).toBe(result);
         for (let i = 1; i < tour.stops.length; i++) expect(tour.stops[i], label).not.toBe(tour.stops[i - 1]);
         for (const s of tour.stops) expect(set, label).toContain(s);
-        // Read backwards, the first min(|set|, H) stops are distinct.
+        // Read backwards from the stop before the result, the first min(|set|, H) - 1 stops are distinct (D17).
         const back = [...tour.stops].reverse();
-        const first = back.slice(0, Math.min(set.length, back.length));
+        const first = back.slice(1, Math.min(set.length, back.length));
         expect(new Set(first).size, label).toBe(first.length);
-        if (set.length >= 3) expect(tour.stops.slice(0, -1), label).not.toContain(result);
       }
     }
   });

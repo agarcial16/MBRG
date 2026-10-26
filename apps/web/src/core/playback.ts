@@ -107,8 +107,16 @@ export function frame(state: PlaybackState, nowMs: number, durationMs: number): 
   return { state, drawing: { shape: 'whole' }, finished: false };
 }
 
-/** The reduced-motion preference changed: a running step completes at once (FR-184). */
-export function motionChanged(state: PlaybackState): { state: PlaybackState; completed: boolean } {
+/**
+ * A running step completes at once (005 FR-184, FR-183); with none running the state is returned as it is. A reveal tour
+ * that starts (spec 009 FR-340) uses it before the tour's first frame.
+ */
+export function completeRunning(state: PlaybackState): { state: PlaybackState; completed: boolean } {
   if (state.running === undefined) return { state, completed: false };
   return { state: { displayed: state.displayed, running: undefined, frozen: undefined }, completed: true };
+}
+
+/** The reduced-motion preference changed: a running step completes at once (FR-184). */
+export function motionChanged(state: PlaybackState): { state: PlaybackState; completed: boolean } {
+  return completeRunning(state);
 }

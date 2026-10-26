@@ -4,6 +4,7 @@
 // relative to the camera, so float32 keeps its precision at the largest scale (plan section 15).
 // While a colour front is on (`uFrontOn`), the same shader is a line-by-line port of `shadeTransition` in
 // `core/transition-shade.ts` (FR-179, FR-180): same names, same order of tests, same comparison in float32.
+// While a reveal tour dims the map (`uDim` above 0), the last step is a port of `shadeTour` in `core/tour-shade.ts`.
 import { BORDER_PRIORITY, EDGE_BIAS, WIDTH_LEVELS } from '../core/borders';
 import { TRANSITION_PRIORITY } from '../core/transition-shade';
 
@@ -56,6 +57,8 @@ uniform sampler2D uFront;   // R32F, normalised front distance of the units of t
 uniform vec4 uFrontBox;     // x0, y0, width, height of the front texture, in map units
 uniform int uFrontOn;       // 1 while a front is drawn, 0 for the plain drawing
 uniform float uProgress;    // forward fraction f of the step, in [0, 1)
+uniform float uDim;         // dim of a reveal tour, 0 for the plain drawing
+uniform ivec2 uLit;         // faction indices drawn as they are during a tour dim (a missing one is 0)
 
 layout(location = 0) out highp vec4 outColor;
 
@@ -201,6 +204,10 @@ void main() {
   } else if (border >= 0) {
     color = uBorderColors[border];
   }
+  // Reveal tour (FR-326, port of shadeTour in core/tour-shade.ts): a pixel of an unlit map unit is dimmed after the
+  // colour is final; the gate keeps the drawing without a tour exactly as it was (FR-355).
+  int unitOwner = byteAt(uOwners, a);
+  if (uDim > 0.0 && !(fillKind == 1 && (unitOwner == uLit.x || unitOwner == uLit.y) && unitOwner != 0)) color = floor(floor(color * 255.0 + 0.5) * (1.0 - uDim) + 0.5) / 255.0;
   outColor = vec4(color, 1.0);
 }
 `;

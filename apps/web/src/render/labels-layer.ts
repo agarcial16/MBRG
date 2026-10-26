@@ -9,14 +9,25 @@ import { GLYPH_REFERENCE_PX, arcGlyphs, glyphOffsets, straightMatrix } from '../
 import { drawable, frameOf, labelAlpha, screenBox } from '../core/label-frame';
 import type { AnyLabelDraw, LabelDraw, ShapedDraw } from '../core/label-frame';
 import { LABEL_PARAMS, fontString } from '../core/label-params';
+import type { Indicator, Marker } from '../core/tour-frame';
+import { TOUR_PARAMS } from '../core/tour-params';
 import { deviceSize } from './map-scene';
 import type { MapView } from './map-scene';
+
+/** What a reveal tour adds over the labels (spec 009 FR-329, FR-333): the marker ring and the edge triangle. */
+export interface TourOverlay {
+  readonly marker?: Marker;
+  readonly indicator?: Indicator;
+}
 
 export interface LabelLayer {
   /** Sizes the canvas for a drawing area in CSS pixels and a device pixel ratio. */
   resize(vp: Viewport, dpr: number): void;
-  /** Clears the layer and draws the labels in the order given, skipping those that are not drawable. */
-  draw(labels: readonly AnyLabelDraw[], view: MapView): void;
+  /**
+   * Clears the layer and draws the labels in the order given, skipping those that are not drawable; the tour overlay,
+   * when given, is drawn after every text and never with a label opacity (FR-329, FR-333).
+   */
+  draw(labels: readonly AnyLabelDraw[], view: MapView, overlay?: TourOverlay): void;
 }
 
 /** Halo width in CSS pixels: the stroke is centred on the outline, so 2 gives 1 pixel outside the glyph. */
@@ -131,6 +142,44 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
     }
   };
 
+  // Marker ring: white 2 px over black 4 px (a 1 px black halo). Edge triangle: filled white with a 1 px black halo.
+  const drawOverlay = (overlay: TourOverlay): void => {
+    ctx.globalAlpha = 1;
+    ctx.lineJoin = 'round';
+    const marker = overlay.marker;
+    if (marker !== undefined) {
+      ctx.beginPath();
+      ctx.arc(marker.x, marker.y, marker.r, 0, 2 * Math.PI);
+      ctx.lineWidth = TOUR_PARAMS.markerWidthPx + 2;
+      ctx.strokeStyle = LEADER_BLACK_RGB;
+      ctx.stroke();
+      ctx.lineWidth = TOUR_PARAMS.markerWidthPx;
+      ctx.strokeStyle = LEADER_WHITE_RGB;
+      ctx.stroke();
+    }
+    const indicator = overlay.indicator;
+    if (indicator !== undefined) {
+      const size = TOUR_PARAMS.indicatorPx;
+      const dx = Math.cos(indicator.angle);
+      const dy = Math.sin(indicator.angle);
+      // The tip is on the border (inset by the size) and points along the angle; the base lies behind it.
+      const bx = indicator.x - dx * size;
+      const by = indicator.y - dy * size;
+      const nx = (-dy * size) / 2;
+      const ny = (dx * size) / 2;
+      ctx.beginPath();
+      ctx.moveTo(indicator.x, indicator.y);
+      ctx.lineTo(bx + nx, by + ny);
+      ctx.lineTo(bx - nx, by - ny);
+      ctx.closePath();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = LEADER_BLACK_RGB;
+      ctx.stroke();
+      ctx.fillStyle = LEADER_WHITE_RGB;
+      ctx.fill();
+    }
+  };
+
   return {
     resize(vp: Viewport, dpr: number): void {
       const size = deviceSize(vp, dpr);
@@ -138,7 +187,7 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
       canvas.width = size.width;
       canvas.height = size.height;
     },
-    draw(labels: readonly AnyLabelDraw[], view: MapView): void {
+    draw(labels: readonly AnyLabelDraw[], view: MapView, overlay?: TourOverlay): void {
       const { camera, viewport, dpr } = view;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, viewport.width, viewport.height);
@@ -155,6 +204,7 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
         if (isBox(label)) drawBox(label, view);
         else drawShaped(label, view);
       }
+      if (overlay !== undefined) drawOverlay(overlay);
     },
   };
 }

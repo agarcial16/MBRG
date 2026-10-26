@@ -78,6 +78,18 @@ export interface MapScene {
    * changes a uniform.
    */
   setFront(front: MapFront | undefined): void;
+  /**
+   * Dims every map unit that is not land of a lit faction (FR-326), or draws the plain map again when called
+   * with undefined or a dim of 0 (FR-355). Lit factions are faction indices, at most two. It changes two
+   * uniforms and uploads nothing; it is given lit indices and a dim, never a result (FR-353).
+   */
+  setTour(tour: MapTour | undefined): void;
+}
+
+/** What the drawing gets of a reveal tour frame: the lit faction indices and the dim in 0..1. */
+export interface MapTour {
+  lit: readonly number[];
+  dim: number;
 }
 
 /** Size of the drawing surface in device pixels: round(width x dpr) by round(height x dpr). */
@@ -147,6 +159,8 @@ export function createMapScene(index: EntryIndex, factionColors: readonly Rgb[],
       uFrontBox: { value: new Vector4() },
       uFrontOn: { value: 0 },
       uProgress: { value: 0 },
+      uDim: { value: 0 },
+      uLit: { value: new Vector2() },
       uImage: { value: new Vector2(index.width, index.height) },
       uCenterCell: { value: new Vector2() },
       uCenterFrac: { value: new Vector2() },
@@ -229,6 +243,20 @@ export function createMapScene(index: EntryIndex, factionColors: readonly Rgb[],
       }
       u.uProgress!.value = forward;
       u.uFrontOn!.value = 1;
+    },
+    setTour(tour: MapTour | undefined): void {
+      if (tour === undefined) {
+        u.uDim!.value = 0;
+        (u.uLit!.value as Vector2).set(0, 0);
+        return;
+      }
+      const { lit, dim } = tour;
+      if (!(dim >= 0 && dim <= 1)) throw new RangeError(`tour dim ${dim} is not in 0..1`);
+      if (lit.length > 2) throw new RangeError(`a tour lights at most 2 factions, got ${lit.length}`);
+      for (const f of lit) if (!Number.isInteger(f) || f < 0 || f > 255) throw new RangeError(`lit faction index ${f} is not a byte`);
+      u.uDim!.value = dim;
+      // One lit faction fills both slots; a missing one is 0, the index of no owner (never lit).
+      (u.uLit!.value as Vector2).set(lit[0] ?? 0, lit[1] ?? lit[0] ?? 0);
     },
   };
 }

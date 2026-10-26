@@ -15,6 +15,7 @@ import { LABEL_PARAMS, fontString } from '../src/core/label-params';
 import { THEME, toMapTheme } from '../src/core/theme';
 import { TRANSITION_PRIORITY } from '../src/core/transition-shade';
 import { attachLabelLayer } from '../src/render/labels-layer';
+import type { TourOverlay } from '../src/render/labels-layer';
 import { createMapScene } from '../src/render/map-scene';
 import type { MapFront, MapScene, MapView } from '../src/render/map-scene';
 import { FRAGMENT_SHADER } from '../src/render/shader';
@@ -520,7 +521,7 @@ describe('FR-175 the label layer draws horizontal text in its exact box at the d
     expectTypeOf(attachLabelLayer).parameters.toEqualTypeOf<[HTMLCanvasElement]>();
     expectTypeOf<ReturnType<typeof attachLabelLayer>>().toHaveProperty('resize');
     expectTypeOf<ReturnType<typeof attachLabelLayer>['resize']>().parameters.toEqualTypeOf<[Viewport, number]>();
-    expectTypeOf<ReturnType<typeof attachLabelLayer>['draw']>().parameters.toEqualTypeOf<[readonly AnyLabelDraw[], MapView]>();
+    expectTypeOf<ReturnType<typeof attachLabelLayer>['draw']>().parameters.toEqualTypeOf<[readonly AnyLabelDraw[], MapView, (TourOverlay | undefined)?]>();
     expect(true).toBe(true);
   });
 

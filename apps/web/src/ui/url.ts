@@ -4,6 +4,6 @@
 import { formatAddress } from '../core/address';
 import type { Camera } from '../core/camera';
 
-export function syncAddress(seed: number, round: number, camera: Camera, transition?: string): void {
-  history.replaceState(null, '', formatAddress(seed, round, camera, transition));
+export function syncAddress(seed: number, round: number, camera: Camera, transition?: string, reveal?: string): void {
+  history.replaceState(null, '', formatAddress(seed, round, camera, transition, reveal));
 }

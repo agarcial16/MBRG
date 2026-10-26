@@ -13,9 +13,9 @@ function checkStops(stops: readonly number[], set: readonly number[], result: nu
   for (const s of stops) expect(set).toContain(s);
   for (let i = 1; i < count; i++) expect(stops[i]).not.toBe(stops[i - 1]);
   expect(stops[count - 2]).not.toBe(result);
-  // Read from the end: no faction repeats before every faction of the set has been shown.
+  // Read from the stop before the result: no faction repeats before every faction of the set has been shown.
   const seen = new Set<number>();
-  for (let i = count - 1; i >= 0; i--) {
+  for (let i = count - 2; i >= 0; i--) {
     const s = stops[i]!;
     if (seen.has(s)) {
       expect(seen.size).toBe(new Set(set).size);
@@ -23,8 +23,6 @@ function checkStops(stops: readonly number[], set: readonly number[], result: nu
     }
     seen.add(s);
   }
-  // With at least three factions the result is shown once, at the end (D17); with two the stops alternate.
-  if (new Set(set).size >= 3) expect(stops.filter((s) => s === result)).toHaveLength(1);
 }
 
 const range = (n: number): number[] => Array.from({ length: n }, (_, i) => 10 + i * 3);
@@ -53,19 +51,23 @@ describe('tour stops', () => {
     expect(drawStops({ kind: 'absorber', result: 8, set: [5, 8], sigma: 9 })).toStrictEqual([5, 8, 5, 8, 5, 8]);
   });
 
-  it('FR-322 three factions: the two decoys alternate and the result appears only at the end (hand-derived)', () => {
+  it('FR-322 three factions: every faction alternates before the result ends the tour (D17)', () => {
     for (const sigma of [1, 2, 3, 99, 1234567891, 3000000019]) {
       for (const result of [1, 2, 3]) {
         const stops = drawStops({ kind: 'victim', result, set: [1, 2, 3], sigma });
-        const decoys = [1, 2, 3].filter((f) => f !== result);
         expect(stops).toHaveLength(12);
         expect(stops[11]).toBe(result);
-        // Eleven decoy stops, alternating: s_11 is either decoy, then the other, and so on.
-        const head = stops.slice(0, 11);
-        expect(head.every((s) => decoys.includes(s))).toBe(true);
-        head.forEach((s, i) => expect(s).toBe(i % 2 === 0 ? head[10]! : decoys.find((d) => d !== head[10])!));
+        // The first eleven stops cover all three factions, the result among them, with no stop equal to its neighbour.
+        expect(new Set(stops.slice(0, 11))).toStrictEqual(new Set([1, 2, 3]));
+        for (let i = 1; i < 12; i++) expect(stops[i]).not.toBe(stops[i - 1]);
       }
     }
+  });
+
+  it('FR-322 three factions with sigma 1 give the pinned stops, the same as the independent reference', () => {
+    const stops = drawStops({ kind: 'victim', result: 3, set: [1, 2, 3], sigma: 1 });
+    expect(stops).toStrictEqual([1, 3, 1, 2, 3, 1, 3, 2, 3, 1, 2, 3]);
+    expect(stops).toStrictEqual(referenceStops('victim', 3, [1, 2, 3], 1));
   });
 
   it('FR-322 the stops equal the independent backwards reference on varied sets and two sigma', () => {
@@ -98,14 +100,14 @@ describe('tour stops', () => {
     }
   });
 
-  it('FR-322 twelve factions show all twelve once and 70 factions show 11 decoys, none the result', () => {
+  it('FR-322 twelve factions show all twelve once and 70 factions show 11 different factions before the result', () => {
     const twelve = range(12);
     const all = drawStops({ kind: 'victim', result: twelve[4]!, set: twelve, sigma: 123456791 });
     expect(new Set(all).size).toBe(12);
     const seventy = range(70);
     const many = drawStops({ kind: 'victim', result: seventy[33]!, set: seventy, sigma: 123456791 });
     expect(new Set(many).size).toBe(12);
-    expect(many.slice(0, 11)).not.toContain(seventy[33]);
+    expect(new Set(many.slice(0, 11)).size).toBe(11);
   });
 
   it('FR-322 over every round of the dev map for seeds 1 to 100 both tours keep the properties', () => {

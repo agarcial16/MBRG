@@ -10,7 +10,7 @@
       "round": 1,
       "victim": {
         "instants": [0, 400, 1000, 3548, 3549, 4349, 5348, 5349],
-        "digests": ["5091f695", "c56d467e", "804d1764", "a6b4ce77", "9dc9d7c5", "9efb414e", "bb2a0075", "dac15cc0"]
+        "digests": ["5091f695", "c56d467e", "d077fb21", "a6b4ce77", "9dc9d7c5", "9efb414e", "bb2a0075", "dac15cc0"]
       },
       "absorber": null
     },
@@ -18,7 +18,7 @@
       "round": 2,
       "victim": {
         "instants": [0, 400, 1000, 3548, 3549, 4349, 5348, 5349],
-        "digests": ["4e2ffb91", "10e6ba98", "d077fb21", "a6b4ce77", "66547cf9", "e3e1fb79", "1ef5bfc4", "e7372345"]
+        "digests": ["4e2ffb91", "c56d467e", "d077fb21", "a6b4ce77", "66547cf9", "e3e1fb79", "1ef5bfc4", "e7372345"]
       },
       "absorber": null
     },
@@ -26,11 +26,11 @@
       "round": 3,
       "victim": {
         "instants": [0, 400, 1000, 3548, 3549, 4349, 5348, 5349],
-        "digests": ["0045dc27", "7a2ad239", "804d1764", "a6b4ce77", "cd8954ca", "8fdcf4bb", "67c09d37", "31897e0b"]
+        "digests": ["0045dc27", "7a2ad239", "d077fb21", "a6b4ce77", "cd8954ca", "8fdcf4bb", "67c09d37", "31897e0b"]
       },
       "absorber": {
         "instants": [0, 400, 1000, 1310, 1311, 2111, 2410, 2411],
-        "digests": ["788b5762", "da1a7983", "bf49c525", "bf49c525", "abb215b3", "abb215b3", "2d619beb", "73c7e82b"]
+        "digests": ["788b5762", "da1a7983", "bf49c525", "bf49c525", "abb215b3", "3e083d2d", "a71b1b9a", "1c739f58"]
       }
     },
     {

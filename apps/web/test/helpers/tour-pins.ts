@@ -109,3 +109,61 @@ export function framePinsText(map: MapData, png: IdPng, rounds: readonly GoldenR
   };
   return compactJson(doc) + '\n';
 }
+
+// ---- Pins under the frozen debug-scene rules (A13, approved 2026-10-26) ----
+// What the browser draws for `?seed=1&round=N&reveal=victim:<t>` / `absorber:<t>` at exactly 1920 x 1080 with no address camera:
+// the start camera is the overview (victim tour) or the victim framing (absorber tour), the framing boxes come from the label
+// sets, and the frame goes through the same session code as the map view (`freezeSession`, `paintSession`).
+import { framePinsAspects } from './tour-pins-boxes';
+import type { BoxSource } from './tour-pins-boxes';
+import { frozenStart, freezeSession, paintSession, planTours } from '../../src/core/tour-session';
+import type { TourRequest } from '../../src/core/tour-session';
+import { revealRequests } from '../../src/core/debug-reveal';
+import { initialCamera } from '../../src/core/camera';
+
+export type { BoxSource } from './tour-pins-boxes';
+
+/** The digests of both frozen tours of a round at the pinned instants, with framing boxes from `source`. */
+export function debugPinnedRound(map: MapData, png: IdPng, round: GoldenRound, source: BoxSource): PinnedRound {
+  const index = buildEntryIndex(map, png.width, png.height, png.values);
+  const factionIndex = factionIndexOf(map);
+  const state = getState(map, 1, round.round - 1);
+  if (!state.ok) throw new Error('state');
+  const table = ownerTable(index, new Map(state.value.owners), factionIndex);
+  const boxes = framePinsAspects(index, table, factionIndex, source);
+  const boxesOf = (factions: readonly number[]): Map<number, Box> => {
+    const out = new Map<number, Box>();
+    for (const f of factions) {
+      const box = framingBoxOf(boxes, table, [f]);
+      if (box !== undefined) out.set(f, box);
+    }
+    return out;
+  };
+  const image = { w: png.width, h: png.height };
+  const requests = revealRequests(
+    { round: round.round, living: round.participants, victim: round.victim, absorber: round.absorber, candidates: round.candidates },
+    factionIndex,
+  );
+  const pinned = (request: TourRequest): PinnedTour => {
+    const tour = planTours([request], false, boxesOf).tours[0]!;
+    const instants = pinInstants(tour);
+    const start = frozenStart(request, boxesOf);
+    const current = initialCamera(image, PIN_AREA);
+    return {
+      instants,
+      digests: instants.map((t) => frameDigest(paintSession(freezeSession(tour, false, t, start, false), 0, { area: PIN_AREA, image, current }).frame)),
+    };
+  };
+  return { round: round.round, victim: pinned(requests.victim), absorber: requests.absorber === undefined ? null : pinned(requests.absorber) };
+}
+
+/** The text of `tour-frame-pins-debug.json`. */
+export function debugFramePinsText(map: MapData, png: IdPng, rounds: readonly GoldenRound[]): string {
+  const doc = {
+    note:
+      'REGRESSION PINS of spec 009 (NFR-59, A13) under the frozen debug-scene rules, not independent values: the digests are written by the code under test (generate-tour-frame-pins-debug.ts) and are what the debug panel shows for reveal=victim:<t> or reveal=absorber:<t> in a browser with a drawing area of exactly 1920 x 1080 CSS px and no address camera. Dev map, debug seed 1, debug keys, start camera = the overview (victim tour, leg 1 skipped) or the victim framing (absorber tour), framing boxes from the label-set pieces (independent of the label aspects). tour-frame-pins.json (fixed start camera 2.5 fit) stays as an extra case.',
+    area: PIN_AREA,
+    rounds: rounds.map((r) => debugPinnedRound(map, png, r, { aspect: PIN_ASPECT })),
+  };
+  return compactJson(doc) + '\n';
+}

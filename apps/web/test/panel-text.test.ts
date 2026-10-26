@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { getRounds, getState, ownerOf, totalRounds } from '@mbrg/sim';
 import { buildEntryIndex } from '../src/core/entries';
-import { legendLine, livingLine, perfLines, pointerLines, recordLine, roundStatus, seedLine } from '../src/core/panel-text';
-import { frameStats } from '../src/core/perf';
+import { legendLine, livingLine, perfLines, pointerLines, recordLine, roundStatus, seedLine, tourFiguresLine } from '../src/core/panel-text';
+import { frameStats, tourFrameStats } from '../src/core/perf';
 import { pointerInfo, sceneAt } from '../src/core/scene';
 import { STRINGS } from '../src/core/strings';
 import { DEV_MAP, DEV_PRESENTATION, devPngBytes } from './helpers/dev-map';
@@ -210,5 +210,24 @@ describe('FR-190 the labels and front time of the last round change', () => {
     expect(withLabels[3]).toContain('47.3');
     expect(withLabels[3]).toContain(STRINGS.perfLabels.split('{')[0]!);
     expect(perfLines({ labels: 0, frames: frameStats([]) })).toHaveLength(4);
+  });
+});
+
+describe('NFR-58 (pure part) the figures of one tour in the debug panel', () => {
+  it('NFR-58 (pure part) the tour statistics cover EVERY frame of the tour, not the last 120', () => {
+    // 300 frames: the first 200 are slow (40 ms), the last 100 fast (16.5 ms). A window of 120 would hide the slow ones.
+    const samples = [...Array.from({ length: 200 }, () => 40), ...Array.from({ length: 100 }, () => 16.5)];
+    expect(frameStats(samples).median).toBe(16.5);
+    const whole = tourFrameStats(samples);
+    expect(whole).toStrictEqual({ count: 300, median: 40, p95: 40 });
+    expect(tourFrameStats([])).toStrictEqual({ count: 0, median: 0, p95: 0 });
+    expect(tourFrameStats([17.25, 16.5, 33.4])).toStrictEqual({ count: 3, median: 17.25, p95: 33.4 });
+  });
+
+  it('NFR-58 (pure part) the figures line shows median, 95th percentile, frame count, first-frame latency and layouts, in Spanish', () => {
+    const line = tourFiguresLine({ frames: { count: 837, median: 16.7, p95: 16.8 }, firstFrameMs: 12.4, layouts: 1 });
+    expect(line).toBe('Recorrido: mediana 16.7 ms, p95 16.8 ms (837 fotogramas), primer fotograma 12.4 ms, diseños 1');
+    expect(tourFiguresLine({ frames: { count: 0, median: 0, p95: 0 }, firstFrameMs: undefined, layouts: 0 })).toContain('mediana ');
+    expect(STRINGS.tourFigures).toContain('{median}');
   });
 });
