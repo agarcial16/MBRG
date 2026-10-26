@@ -145,6 +145,8 @@ Places where the victim or the absorber could show early, and how each is closed
 | Camera before τ_H | leg 2 starts at τ_H; leg 1 targets the overview | cameraAt at τ_H - 1 equals the leg-1 value |
 | Legend counts during the absorber tour (absorber's count jumps) | A2: legend follows the drawn state k - 1 until the tour ends | panelView with `absorbing` |
 | Debug record line, pointer readout | A2 | panel-text tests |
+| Debug panel legend (M4 T4; found in the M3 review) | The legend comes from the scene of round N: with `reveal=on` or a frozen value it would mark the victim eliminated and show the absorber's new count before either tour stops. The debug legend follows the drawn state (N - 1) or is hidden until the tours stop | debug shell test: legend rows during the victim and the absorber tour equal those of N - 1, and those of N after the chain ends |
+| Round-k step data and prepared label layout during the absorber tour (M4 T3; M3 review) | `StepData` of the record and the round-k label layout may be built early (PD11) but are not drawn or shown before the end frame; the tour draws the held view of k - 1 | map-view test: until the end frame the painted owners, labels and legend are those of k - 1; `completeTour` with no tour running is a no-op |
 | Render inputs | `setTour` gets lit indices and dim only (FR-353) | type-level key test, render scan |
 | Inputs of the victim tour | `TourSpec`/effect have no absorber, record, state of k, seed | key tests; twins: two scripted matches equal up to the absorber give byte-equal victim-tour effects and frames |
 | Requests during a tour | `canRequest` (N only) | fake-server request log over a whole match with tours |
