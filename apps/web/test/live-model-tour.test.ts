@@ -467,6 +467,50 @@ describe('FR-345 the absorber tour starts with the round step', () => {
   });
 });
 
+describe('FR-339 an absorber reveal completes a running victim tour', () => {
+  it('FR-339 round-applied during a victim tour emits complete-tour before anything else, on the hash path and on the mismatch paths', async () => {
+    const s = await scripted();
+    const list = roundOf(s, 1);
+    const run = async (d: Driver): Promise<LiveEffect[]> => {
+      await feedList(d, list.slice(0, 5), sequence(10_100, 5));
+      expect(d.model.touring).toBe(true);
+      return feedAt(d, wire([list[5] as MatchEvent])[0], 10_105);
+    };
+    const hashing = new Driver(s);
+    hashing.defer = true;
+    await hashing.load(0);
+    expect(types(await run(hashing))).toStrictEqual(['complete-tour', 'hash-state']);
+    expect(hashing.model.touring).toBe(false);
+    // Digest mismatch: the state is read instead, after the tour was completed.
+    const corrupt = new Driver(s);
+    corrupt.corrupt = true;
+    await corrupt.load(0);
+    expect(types(await run(corrupt))[0]).toBe('complete-tour');
+    // Record that does not fit the held owners: mismatch at receipt.
+    const bad = new Driver(s);
+    bad.holdReads = true;
+    await bad.load(0);
+    await feedList(bad, list.slice(0, 5), sequence(10_100, 5));
+    const wrong = { ...(list[5] as Extract<MatchEvent, { type: 'round-applied' }>) };
+    wrong.record = { ...wrong.record, transferred: [...wrong.record.transferred, 999_999_999] };
+    expect(types(await feedAt(bad, wire([wrong])[0], 10_105))).toStrictEqual(['complete-tour', 'read-state']);
+  });
+
+  it('FR-339 round-applied emits no complete-tour when no tour was started', async () => {
+    const s = await scripted();
+    const list = roundOf(s, 1);
+    const d = new Driver(s);
+    d.defer = true;
+    await d.load(0);
+    // A stale reveal plays nothing, so nothing is running.
+    await feedList(d, list.slice(0, 1), [10_100]);
+    await feedAt(d, reveal(s, 1, { revealedAt: 3999, reportedTime: 9000 }), 10_107);
+    expect(d.model.touring).toBe(false);
+    await feedList(d, list.slice(2, 5), [10_108, 10_109, 10_110]);
+    expect(types(await feedAt(d, wire([list[5] as MatchEvent])[0], 10_111))).toStrictEqual(['hash-state']);
+  });
+});
+
 describe('FR-337 the tours change nothing else in the model', () => {
   it('FR-337 over a whole match the model and the effects equal those of a match without absorber tours, minus the tour fields', async () => {
     const s = await scripted();

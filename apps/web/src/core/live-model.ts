@@ -494,11 +494,15 @@ function consume(model: LiveModel, frame: Frame, at: number): LiveResult {
       const base = m.held.get(m.applied);
       if (e.round !== m.applied + 1 || base === undefined) return resync(model, at);
       const applying: Applying = { round: e.round, record: e.record, digest: e.stateDigest, step: 'hash', tour: absorberTour(m, e, at) };
-      // The victim tour is over for the model: the map view completes it before it draws the round (FR-339).
+      // FR-339: a running tour ends at once when the absorber reveal arrives, also when the round is then read instead.
+      const complete = completeIfTouring(m);
       const idle: LiveModel = m.touring ? { ...m, touring: false } : m;
       const next = applyRecord(base, e.record);
-      if (next === 'mismatch') return readInstead(idle, applying);
-      return result({ ...idle, applying }, [{ type: 'hash-state', text: digestTextOf(next, e.round) }]);
+      if (next === 'mismatch') {
+        const read = readInstead(idle, applying);
+        return result(read.model, [...complete, ...read.effects]);
+      }
+      return result({ ...idle, applying }, [...complete, { type: 'hash-state', text: digestTextOf(next, e.round) }]);
     }
   }
 }
