@@ -12,7 +12,7 @@ Titles: NFR-63 first named in T4. Parts: `FR-316 (shell)`, `FR-330 (shell)`, `FR
   - Mutation proofs: `show` before the effects; `revealing` cleared at the tour start.
   - Done when: tests green; no id moved. Size: M (about 600).
 
-- [ ] **T3. Real-server proofs.** (parts: FR-316, FR-319, FR-336, FR-345, FR-349 (real server))
+- [x] **T3. Real-server proofs.** (parts: FR-316, FR-319, FR-336, FR-345, FR-349 (real server))
   - Files: `apps/server/test/viewer-tour.test.ts` (new; harness of M3, fake clock, in-memory store, port 0).
   - Tests first: a clock match, a viewer subscribed before C1 gets one victim tour with the nominal budget; a viewer that reads the public data in phase 2 gets none and shows the name at once; L1 = 5 s -> compressed, L1 = 3 s -> skipped; the application with L2 = 0 and with L2 = 2 s gives `play-step` with an absorber tour after the C2 close; manual timing gives nominal tours; a halt during a tour completes it; no request above N in the request log.
   - Commit: `test(server): prove the reveal tours against the real server`.

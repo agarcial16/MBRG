@@ -239,3 +239,12 @@ Per-task log: what changed, tests run and results, what is untested, next step. 
 - Not tested (needs the browser, T4): the live drawing of the tours, the skip button and Escape on screen, the panel texts during a real tour, the address writes.
 - Size: about 340 changed lines (estimate 600).
 - Next step: T3 (real-server proofs).
+
+## 2026-10-26 — M5 T3 (real-server proofs)
+- New `apps/server/test/viewer-tour.test.ts` (6 tests; harness of 008 H6: fake clock, in-memory store, port 0, Node `fetch`, headless viewer with a frozen manual clock so every reveal is fresh). `helpers/viewer-kit.ts`: `RecordingScene` records `victimTours` (effect + reading), `absorberTours` (`to`, tour, reading) and `completes`.
+- Proved: a viewer subscribed before C1 gets one victim tour (round, victim and living equal the published reveal; nominal budget under L1 = 30 s) and none later in the round; a viewer reading the public data in phase 2 gets none and the panel names the victim at once; L1 = 5 s -> compressed (`scaleFor` with a budget), L1 = 3 s -> skipped; L2 = 2 s and L2 = 0 give an absorber tour on exactly the rounds with two or more candidates (victim, candidates and absorber equal the server's, none above N); manual timing gives tours with no budget; a halt (map-changed) during a tour emits `complete-tour` and clears `touring`.
+- Finding: the absorber budget under a frozen viewer clock is inflated by the lag of the estimate behind the application instant, so the test pins only a lower bound (gap - 3,000 ms) and that the tour plays at nominal speed; exact budgets are covered by the model tests.
+- `npm test` 238 files, 3963 passed, 4 skipped (6 new); typecheck clean; `CI=1 npm test` same. Mutant (full suite, restored): the 1,000 ms margin removed from the victim budget in `core/tour-plan.ts`: 5 failures, 2 of them real-server tests (`viewer-tour`). Scope check clean. Ledger 46 / 1.
+- Not done: a child-process test (no process is spawned); the explicit `L1` of the reconnect case is covered by 008 tests.
+- Size: about 190 changed lines (estimate 500).
+- Next step: T4 (local live run, screenshots, figures, close).

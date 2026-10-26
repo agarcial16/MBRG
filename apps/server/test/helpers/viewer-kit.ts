@@ -1,5 +1,5 @@
 import type { PublicMatch } from '@mbrg/protocol';
-import type { LiveModel } from '../../../web/src/core/live-model';
+import type { AbsorberTour, LiveEffect, LiveModel } from '../../../web/src/core/live-model';
 import { createLiveNet } from '../../../web/src/ui/live-net';
 import type { FetchLike } from '../../../web/src/ui/live-net';
 import { startRunner } from '../../../web/src/ui/live-runner';
@@ -54,6 +54,10 @@ export class RecordingScene implements LivePort {
   opens = 0;
   draws: number[] = [];
   steps: { from: number; to: number }[] = [];
+  /** The tours the runner asked for (spec 009): the effect or tour as the model made it, and the reading it was started at. */
+  victimTours: { effect: Extract<LiveEffect, { type: 'victim-tour' }>; at: number }[] = [];
+  absorberTours: { to: number; tour: AbsorberTour; at: number }[] = [];
+  completes: number[] = [];
   failures: string[] = [];
   /** The round the address asks for; default N. */
   roundAsked: ((applied: number) => number) | undefined;
@@ -64,11 +68,16 @@ export class RecordingScene implements LivePort {
   draw(round: number): void {
     this.draws.push(round);
   }
-  playStep(from: number, to: number): void {
+  playStep(from: number, to: number, _data?: unknown, tour?: AbsorberTour, at = 0): void {
     this.steps.push({ from, to });
+    if (tour !== undefined) this.absorberTours.push({ to, tour, at });
   }
-  startVictimTour(): void {}
-  completeTour(): void {}
+  startVictimTour(effect: Extract<LiveEffect, { type: 'victim-tour' }>, at: number): void {
+    this.victimTours.push({ effect, at });
+  }
+  completeTour(at: number): void {
+    this.completes.push(at);
+  }
   show(): void {}
   fail(message: string): void {
     this.failures.push(message);
