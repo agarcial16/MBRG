@@ -1,7 +1,7 @@
 // The debug scene's side of the reveal tours (spec 009 FR-351, A2, D12): the tour requests of a round from the sim's inputs, what
 // the panel hides while a tour runs, and the digest line of the frame on screen. Pure; the shell (`ui/main.ts`) only routes.
 import type { FactionId } from '@mbrg/shared';
-import { frameDigest } from './tour-digest';
+import { frameDigest, frameText } from './tour-digest';
 import type { TourFrame } from './tour-frame';
 import { fnv1a32, keyText } from './tour-key';
 import type { TourKind } from './tour-key';
@@ -64,4 +64,9 @@ export function drawnScene(scene: Scene, previous: Scene | undefined, state: { r
 /** The panel line with the digest of the tour frame actually drawn, or undefined when the last drawing was not a tour frame. */
 export function digestLine(frame: TourFrame | undefined): string | undefined {
   return frame === undefined ? undefined : fillTemplate(STRINGS.tourDigest, { value: frameDigest(frame) });
+}
+
+/** The canonical text behind the digest, to see which part differs when a browser digest does not match a pin. */
+export function frameTextLine(frame: TourFrame | undefined): string | undefined {
+  return frame === undefined ? undefined : fillTemplate(STRINGS.tourFrameText, { value: frameText(frame) });
 }

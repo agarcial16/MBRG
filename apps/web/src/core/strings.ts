@@ -72,6 +72,8 @@ export const STRINGS = {
   liveRevealMismatch: 'Se omite el recorrido de revelación: los participantes no coinciden con el estado mostrado.',
   tourSkip: 'Saltar',
   tourDigest: 'Huella del fotograma: {value}',
+  tourFrameText: 'Fotograma: {value}',
+  tourFigures: 'Recorrido: mediana {median}, p95 {p95} ({size} fotogramas), primer fotograma {ms}, diseños {count}',
   recordPartial: 'Eliminada: {eliminated} · Absorbida por: {absorber}',
   liveWinner: 'Ganadora de la partida: {name}.',
   liveHaltMapChanged: 'La partida se ha detenido porque el mapa ha cambiado.',

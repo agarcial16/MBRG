@@ -140,6 +140,8 @@ export interface MapView {
   userCamera(next: Camera): void;
   /** The tour frame of the last drawing, or undefined when it was not a tour frame (the debug panel shows its digest). */
   tourFrame(): TourFrame | undefined;
+  /** Label layouts computed since the last tour began (0 for a victim tour, 1 for an absorber tour: the round-k layout). */
+  tourLayouts(): number;
 }
 
 export function createMapView(input: MapViewInput): MapView {
@@ -170,7 +172,11 @@ export function createMapView(input: MapViewInput): MapView {
     CENTRE_PARAMS,
   );
 
+  // Layouts computed while a tour is on screen (the debug panel shows it: 0 for a victim tour, 1 for an absorber tour).
+  let counting = false;
+  let tourLayouts = 0;
   const viewOf = (table: Uint8Array, previous?: RoundView): RoundView => {
+    if (counting) tourLayouts++;
     const layout = placeCentredFactions(pieces, table, factionAspects, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS, previous?.layout);
     const placement = { factions: layout.placed, territories: territoryLayout.placed };
     const labels = roundLabels(texts, table, layout.boxes, territoryLayout.boxes, placement);
@@ -263,6 +269,7 @@ export function createMapView(input: MapViewInput): MapView {
   // What a tour frame draws: the held view of the displayed round (never round k), the dim, the label factors, the overlay, the camera.
   const applyTour = (out: SessionPaint): boolean => {
     session = out.session;
+    if (out.session === undefined) counting = false;
     if (out.prepare && held !== undefined && heldViews === undefined) heldViews = self.prepare(held.owners, held.data, true);
     if (out.ended) reported = undefined;
     if (out.ended && out.step !== undefined && held !== undefined) {
@@ -377,6 +384,8 @@ export function createMapView(input: MapViewInput): MapView {
       heldViews = undefined;
       reported = undefined;
       motionPending = false;
+      counting = true;
+      tourLayouts = 0;
       session = beginSession(plan, handlingMs, { camera }, then !== undefined);
       paint(handlingMs);
       loop.request();
@@ -388,6 +397,8 @@ export function createMapView(input: MapViewInput): MapView {
       held = undefined;
       heldViews = undefined;
       reported = undefined;
+      counting = true;
+      tourLayouts = 0;
       session = freezeSession(plan.tours[0]!, false, t, frozenStart(request, boxesOf), taken);
       paint(0);
       return true;
@@ -398,6 +409,7 @@ export function createMapView(input: MapViewInput): MapView {
       applyTour(out);
     },
     tourFrame: () => lastFrame,
+    tourLayouts: () => tourLayouts,
     userCamera: (next) => {
       session = takeCamera(session);
       camera = next;

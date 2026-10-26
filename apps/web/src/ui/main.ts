@@ -15,11 +15,12 @@ import { factionIndexOf } from '../core/entries';
 import type { Camera, ScreenPoint, Viewport } from '../core/camera';
 import { capabilityMessage, checkCapabilities } from '../core/capabilities';
 import { assignFactionColors, paletteMessage } from '../core/colors';
-import { debugTourState, digestLine, drawnScene, revealRequests } from '../core/debug-reveal';
+import { debugTourState, digestLine, drawnScene, frameTextLine, revealRequests } from '../core/debug-reveal';
 import { navigate, parseTypedRound, typedRoundMessage } from '../core/navigation';
 import type { NavAction } from '../core/navigation';
 import { checkPackage, packageErrorMessage } from '../core/package';
-import { appendSample, frameStats } from '../core/perf';
+import { appendSample, frameStats, tourFrameStats } from '../core/perf';
+import { tourFiguresLine } from '../core/panel-text';
 import { startPlayback } from '../core/playback';
 import { pointerInfo, revealInputs, sceneAt, sceneErrorMessage } from '../core/scene';
 import type { Scene } from '../core/scene';
@@ -125,6 +126,9 @@ async function start(): Promise<void> {
   let frozenText = address.transition?.text;
   let tourState = { revealing: false, absorbing: false };
   let skippable = false;
+  let tourFrames: number[] = [];
+  let lastTourReading: number | undefined;
+  let firstTourFrameMs: number | undefined;
   const showTimings = (): void => {
     const timings = { frames: frameStats(frames) };
     panel.showTimings({
@@ -155,6 +159,12 @@ async function start(): Promise<void> {
     onFrame: (t) => {
       if (lastFrame !== undefined && t - lastFrame < INTERACTION_GAP_MS) frames = appendSample(frames, t - lastFrame);
       lastFrame = t;
+      // The frames of the running tour only, kept whole (NFR-58): the figures are over the whole tour, not a window.
+      if (skippable) {
+        if (lastTourReading !== undefined) tourFrames.push(t - lastTourReading);
+        lastTourReading = t;
+        panel.showTour(skippable, tourLines());
+      }
       showTimings();
     },
     onResize: () => sync(),
@@ -184,11 +194,20 @@ async function start(): Promise<void> {
   // Round change (FR-154, FR-155, FR-176 to FR-178, FR-183, FR-186, FR-194): everything in one synchronous step.
   // The panel: round N from `scene`; while a tour hides anything the legend, the living count and the pointer follow the drawn state
   // N - 1 (A2, D12), the record line hides the victim and the absorber, and a frozen tour shows the digest of the frame drawn.
+  // The tour figures (NFR-58) while a run goes or after it; the digest and the frame text of a frozen tour.
+  const tourLines = (): string[] => {
+    if (frozenRequest !== undefined) {
+      const frame = view.tourFrame();
+      return [digestLine(frame), frameTextLine(frame)].filter((l): l is string => l !== undefined);
+    }
+    if (firstTourFrameMs === undefined) return [];
+    return [tourFiguresLine({ frames: tourFrameStats(tourFrames), firstFrameMs: firstTourFrameMs, layouts: view.tourLayouts() })];
+  };
   const refresh = (): void => {
     const drawn = drawnScene(scene, previousScene, tourState);
     panel.showScene(scene, drawn === scene ? undefined : drawn, tourState);
     panel.showCounts(view.counts());
-    panel.showTour(skippable, frozenRequest === undefined ? undefined : digestLine(view.tourFrame()));
+    panel.showTour(skippable, tourLines());
     showPointer();
   };
   const showRound = (n: number): void => {
@@ -248,7 +267,13 @@ async function start(): Promise<void> {
         scene = next;
         previousScene = before;
         const list = requests.absorber === undefined ? [requests.victim] : [requests.victim, requests.absorber];
-        if (view.beginTour(list, started, { target: n, owners: next.owners, data })) {
+        tourFrames = [];
+        lastTourReading = undefined;
+        firstTourFrameMs = undefined;
+        const began = view.beginTour(list, started, { target: n, owners: next.owners, data });
+        // The first tour frame is drawn inside beginTour: its latency is the time from the handling reading to its return (NFR-58).
+        if (began) firstTourFrameMs = now() - started;
+        if (began) {
           typedMessage = undefined;
           if (outcome.unfroze) frozenText = undefined;
           refresh();

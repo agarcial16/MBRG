@@ -83,8 +83,8 @@ describe('FR-344 (shell) a change of the reduced-motion preference completes a r
   });
 });
 
-describe('the tour paint path computes no layout', () => {
-  it('no layout function is called by paint (tour branch), applyTour (outside the prepare signal), freezeTour or completeTour', () => {
+describe('NFR-58 (pure part) the tour paint path computes no layout', () => {
+  it('NFR-58 (pure part) no layout function is called by paint (tour branch), applyTour (outside the prepare signal), freezeTour or completeTour', () => {
     const c = code();
     const apply = bodyOf(c, 'const applyTour = (out: SessionPaint): boolean =>');
     // The round-k views: asked for on the session's signal, or once at the hand-over when they are missing.
@@ -152,5 +152,15 @@ describe('the overlay and the dim reach the drawing', () => {
     const paintBody = bodyOf(c, 'const paint = (nowMs: number): boolean =>');
     expect(paintBody).toContain('mapScene.setTour(undefined);');
     expect(paintBody).toContain('present(drawn);');
+  });
+});
+
+describe('NFR-58 (pure part) the layouts of a tour are counted for the panel', () => {
+  it('NFR-58 (pure part) viewOf counts a layout while a tour is on screen; a tour start resets the count and the end of the session stops it', () => {
+    const c = code();
+    expect(bodyOf(c, 'const viewOf = (')).toMatch(/if \(counting\) tourLayouts\+\+;/);
+    expect([...c.matchAll(/counting = true;\s*tourLayouts = 0;/g)]).toHaveLength(2);
+    expect(bodyOf(c, 'const applyTour = (out: SessionPaint): boolean =>')).toContain('if (out.session === undefined) counting = false;');
+    expect(c).toContain('tourLayouts: () => tourLayouts,');
   });
 });

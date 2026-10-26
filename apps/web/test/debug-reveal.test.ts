@@ -213,3 +213,15 @@ describe('FR-341 the skip control and the shell wiring', () => {
     expect(main).toMatch(/const setCamera = \(next: Camera\): void => \{\s*view\.userCamera\(next\);/);
   });
 });
+
+describe('the frame text behind the digest (a browser digest that differs from a pin can be diagnosed)', () => {
+  it('FR-351 (frozen drawing) frameTextLine is the canonical text of the frame drawn, and nothing without a frame', async () => {
+    const { frameTextLine } = await import('../src/core/debug-reveal');
+    const { frameText } = await import('../src/core/tour-digest');
+    const r = golden[0]!;
+    const tour = planTours([revealRequests(inputsOf(r), factionIndex).victim], false, none).tours[0]!;
+    const frame = paintSession(freezeSession(tour, false, 1000, { overview: true }, false), 0, VIEW).frame;
+    expect(frameTextLine(frame)).toBe(`Fotograma: ${frameText(frame)}`);
+    expect(frameTextLine(undefined)).toBeUndefined();
+  });
+});

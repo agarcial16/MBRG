@@ -25,7 +25,7 @@ export interface Panel {
    */
   showScene(scene: Scene, drawn?: Scene, tour?: RecordTour): void;
   /** The skip button while a tour runs, and the digest line of the frame drawn (undefined hides it). */
-  showTour(skippable: boolean, digest: string | undefined): void;
+  showTour(skippable: boolean, lines: readonly string[]): void;
   showPointer(info: PointerInfo | undefined): void;
   showTimings(timings: Timings): void;
   /** The label counts of the displayed state (FR-214). */
@@ -143,9 +143,9 @@ export function createPanel(
       last.disabled = state.lastDisabled;
       input.value = String(scene.round);
     },
-    showTour(skippable: boolean, line: string | undefined): void {
+    showTour(skippable: boolean, lines: readonly string[]): void {
       skip.hidden = !skippable;
-      writeLines(digest, line === undefined ? [] : [line]);
+      writeLines(digest, lines);
     },
     showPointer(info: PointerInfo | undefined): void {
       writeLines(pointer, pointerLines(info));

@@ -77,6 +77,23 @@ export const labelCountsLine = (c: { faction: Counts; territory: Counts }): stri
     fillTemplate(STRINGS.labelCountsTerritory, { value: countsText(c.territory) }),
   ].join(' | ');
 
+/** The figures of one tour (NFR-58): frame times over the tour's frames only, the first frame's latency and the layouts computed. */
+export interface TourFigures {
+  readonly frames: FrameStats;
+  /** First tour frame reading minus the handling reading, in ms; undefined before it is known. */
+  readonly firstFrameMs: number | undefined;
+  readonly layouts: number;
+}
+
+export const tourFiguresLine = (f: TourFigures): string =>
+  fillTemplate(STRINGS.tourFigures, {
+    median: ms(f.frames.count > 0 ? f.frames.median : undefined),
+    p95: ms(f.frames.count > 0 ? f.frames.p95 : undefined),
+    size: f.frames.count,
+    ms: ms(f.firstFrameMs),
+    count: f.layouts,
+  });
+
 export interface Timings {
   /** Page start to the first drawn frame, ms. */
   load?: number;

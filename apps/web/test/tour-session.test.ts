@@ -162,7 +162,7 @@ describe('FR-340 (completeRunning) FR-345 the round step follows the last tour a
   });
 });
 
-describe('the round-k views are asked for on the second painted frame, once, and only when a step follows', () => {
+describe('NFR-58 (pure part) the round-k views are asked for on the second painted frame, once, and only when a step follows', () => {
   it('prepare is false on the first frame and true on the second', () => {
     const s = begun([absorberRequest], true);
     const first = paintSession(s, T0, view());

@@ -20,7 +20,15 @@ export function appendSample(samples: readonly number[], ms: number): number[] {
 
 /** Median and 95th percentile of the last FRAME_WINDOW samples; all zero when there are none. */
 export function frameStats(samples: readonly number[]): FrameStats {
-  const recent = samples.length > FRAME_WINDOW ? samples.slice(samples.length - FRAME_WINDOW) : samples;
+  return statsOf(samples.length > FRAME_WINDOW ? samples.slice(samples.length - FRAME_WINDOW) : samples);
+}
+
+/** The same statistics over EVERY sample given: the frames of one whole tour (NFR-58), not a window. */
+export function tourFrameStats(samples: readonly number[]): FrameStats {
+  return statsOf(samples);
+}
+
+function statsOf(recent: readonly number[]): FrameStats {
   const count = recent.length;
   if (count === 0) return { count: 0, median: 0, p95: 0 };
   const sorted = [...recent].sort((a, b) => a - b);
