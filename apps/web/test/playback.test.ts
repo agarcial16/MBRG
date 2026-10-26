@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { controlsState, navigate, parseTypedRound } from '../src/core/navigation';
 import type { NavAction } from '../src/core/navigation';
-import { frame, motionChanged, request, startPlayback } from '../src/core/playback';
+import { completeRunning, frame, motionChanged, request, startPlayback } from '../src/core/playback';
 import type { PlaybackState } from '../src/core/playback';
 import { forwardOf, progressAt } from '../src/core/progress';
 
@@ -324,5 +324,28 @@ describe('FR-191 FR-194 the frozen progress and round changes', () => {
     const f = frame(s, 123, DT);
     expect(f.state).toBe(s);
     expect(motionChanged(f.state).state).toBe(s);
+  });
+});
+
+describe('FR-340 (completeRunning) a tour that starts completes a running round step at once', () => {
+  it('FR-340 (completeRunning) a running step ends: the displayed round stays, nothing runs, nothing is frozen', () => {
+    const running = ask(startPlayback(3), 4, 2000).state;
+    expect(running.running).toBeDefined();
+    const out = completeRunning(running);
+    expect(out.completed).toBe(true);
+    expect(out.state).toStrictEqual({ displayed: 4, running: undefined, frozen: undefined });
+  });
+
+  it('FR-340 (completeRunning) with no step running it returns the same state and completes nothing', () => {
+    for (const s of [startPlayback(3), startPlayback(3, 0.25)]) {
+      const out = completeRunning(s);
+      expect(out.completed).toBe(false);
+      expect(out.state).toBe(s);
+    }
+  });
+
+  it('FR-340 (completeRunning) is the same rule as a change of the motion preference (005 FR-184)', () => {
+    const running = ask(startPlayback(5), 4, 777).state;
+    expect(completeRunning(running)).toStrictEqual(motionChanged(running));
   });
 });

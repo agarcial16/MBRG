@@ -12,7 +12,7 @@ Titles: FR-326, FR-355 first named in T2; FR-341 in T4; NFR-58, NFR-62 in T5. Pa
   - Mutation proofs: dim applied to lit units too; border pixel lit by its neighbour's unit; sea counted as lit; the gate removed from the shader text (caught by the port check).
   - Done when: tests green; 43 / 4. Size: M (about 500).
 
-- [ ] **T3. Overlay and the map view driver.** (parts: FR-329, FR-333, FR-335, FR-340, FR-342, FR-344 (shell))
+- [x] **T3. Overlay and the map view driver.** (parts: FR-329, FR-333, FR-335, FR-340, FR-342, FR-344 (shell))
   - Files: `apps/web/src/render/labels-layer.ts`, `apps/web/src/ui/map-view.ts`, `apps/web/src/core/playback.ts` (`completeRunning`), `apps/web/test/{map-view-tour-scan,playback}.test.ts`.
   - Tests first: `completeRunning` (pure); overlay draw log with a fake 2D context (ring black 4 under white 2, triangle with halo, drawn after the texts, never with a label alpha); map-view scan: the tour paint path calls no layout function (NFR-58 pure part is named in M4 T5), `userCamera` marks taken and the tour's camera does not, the reduced-motion watcher completes a tour, `beginTour` completes a running step first; **strict test: `completeTour` with no tour running is a no-op** (it must not complete a plain 005 step, e.g. after a stale or mismatched reveal under fast manual timing); **guard (plan section 9): until the end frame of an absorber tour the painted owners, labels and legend are those of k - 1 (round-k `StepData` and prepared layout are never shown early).**
   - Commit: `feat(web): draw reveal tours in the map view`.
