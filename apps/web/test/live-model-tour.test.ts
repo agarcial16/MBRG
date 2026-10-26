@@ -7,6 +7,7 @@ import { fnv1a32 } from '../src/core/tour-key';
 import {
   Driver,
   eventsFrom,
+  eventsOfRound,
   matchEventsOfRound,
   publicAt,
   requestRounds,
@@ -537,5 +538,34 @@ describe('FR-337 the tours change nothing else in the model', () => {
     // The countdown: the reported time and the schedule are the same.
     expect(withTours.model.reported).toStrictEqual(without.model.reported);
     expect(withTours.model.schedule).toStrictEqual(without.model.schedule);
+  });
+});
+
+describe('FR-320 (shell) the model carries the skip of a mismatching reveal', () => {
+  it('FR-320 (shell) a mismatch sets `skipped`; a played tour and a stale reveal leave it false; the next application clears it', async () => {
+    const s = await scripted();
+    const living = s.living[0] as number[];
+    const victim = s.records[0]?.eliminated as number;
+    const other = living.find((f) => f !== victim) as number;
+    const mismatching = reveal(s, 1, { living: living.filter((f) => f !== other) });
+
+    const skipped = await ready(s);
+    expect((await ready(s)).model.skipped).toBe(false);
+    await feedAt(skipped, mismatching, 10_100);
+    expect(skipped.model.skipped).toBe(true);
+    // The line lives until the round changes: the rest of the round keeps it, the application of the round clears it.
+    await skipped.events(eventsOfRound(s, 1).slice(2, 5));
+    expect(skipped.model.skipped).toBe(true);
+    await skipped.events(eventsOfRound(s, 1).slice(5, 6));
+    expect(skipped.model.applied).toBe(1);
+    expect(skipped.model.skipped).toBe(false);
+
+    const played = await ready(s);
+    await feedAt(played, reveal(s, 1), 10_100);
+    expect(played.model.skipped).toBe(false);
+
+    const stale = await ready(s);
+    await feedAt(stale, reveal(s, 1), 20_300);
+    expect(stale.model.skipped).toBe(false);
   });
 });

@@ -206,7 +206,7 @@ describe('FR-310 (web test client) the calls to the server', () => {
     startRunner({
       matchId: MATCH_ID,
       net: createLiveNet({ base: BASE, fetch: server.fetch }),
-      port: { open: async (m) => ({ ok: true, round: m.appliedRounds }), draw: () => undefined, playStep: () => undefined, show: () => undefined, fail: () => undefined },
+      port: { open: async (m) => ({ ok: true, round: m.appliedRounds }), draw: () => undefined, playStep: () => undefined, startVictimTour: () => undefined, completeTour: () => undefined, show: () => undefined, fail: () => undefined },
       now: () => 1,
       after: () => () => undefined,
       onFrame: (data) => seen.push(data),

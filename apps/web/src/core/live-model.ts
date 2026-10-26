@@ -124,6 +124,8 @@ export interface LiveModel {
   readonly following: boolean;
   /** A victim tour was started and nothing has completed it yet (the map view knows when it ends by itself). */
   readonly touring: boolean;
+  /** The victim reveal of the round on show was skipped for a participant mismatch (FR-320): the development panel reports it until the round changes. */
+  readonly skipped: boolean;
 }
 
 export type LiveInput =
@@ -201,6 +203,7 @@ export function startLive(matchId: string): LiveResult {
     streamed: false,
     following: true,
     touring: false,
+    skipped: false,
   };
   return { model, effects: [{ type: 'read-public' }] };
 }
@@ -364,6 +367,7 @@ function commit(model: LiveModel, applying: Applying, at: number): LiveResult {
     held: new Map(model.held).set(applying.round, owners),
     records: new Map(model.records).set(applying.round, applying.record),
     victim: undefined,
+    skipped: false,
     applying: undefined,
     displayed: follow ? applying.round : model.displayed,
   };
@@ -385,6 +389,7 @@ function readInstead(model: LiveModel, applying: Applying): LiveResult {
       ...model,
       applied: applying.round,
       victim: undefined,
+      skipped: false,
       applying: { ...applying, step: 'read', tour: undefined },
     },
     [{ type: 'read-state', round: applying.round }],
@@ -424,7 +429,8 @@ function victimTour(model: LiveModel, e: Extract<MatchEvent, { type: 'victim-rev
     c2: e.c2,
   });
   const complete = completeIfTouring(model);
-  if (!decision.play) return result(model.touring ? { ...model, touring: false } : model, complete);
+  const skipped = !decision.play && decision.reason === 'mismatch';
+  if (!decision.play) return result(model.touring || skipped !== model.skipped ? { ...model, touring: false, skipped } : model, complete);
   const start: LiveEffect = {
     type: 'victim-tour',
     round: e.round,
@@ -433,7 +439,7 @@ function victimTour(model: LiveModel, e: Extract<MatchEvent, { type: 'victim-rev
     sigma: fnv1a32(keyText(model.matchId, e.round, 'victim')),
     ...(decision.budget === undefined ? {} : { budget: decision.budget }),
   };
-  return result({ ...model, touring: true }, [...complete, start]);
+  return result({ ...model, touring: true, skipped: false }, [...complete, start]);
 }
 
 /**

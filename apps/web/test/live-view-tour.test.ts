@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { STRINGS } from '../src/core/strings';
 import type { LiveModel } from '../src/core/live-model';
-import { panelTourState, panelView, type LivePanelView } from '../src/core/live-view';
+import { absorberRequestOf, liveTourPanel, panelTourState, panelView, tourReportOf, victimRequestOf, type LivePanelView } from '../src/core/live-view';
 import { skipLabel } from '../src/core/live-text';
 import { DEV_PRESENTATION } from './helpers/dev-map';
 import { Driver, eventsOfRound, scripted, type Scripted } from './helpers/scripted-match';
@@ -163,5 +163,81 @@ describe('NFR-64 the skip label, and FR-330 the sources that write the panel', (
     // The live panel writes the victim line only through the one `write(victim, view.victim)` call.
     expect(live.match(/view\.victim/g)).toHaveLength(1);
     expect(live).toMatch(/write\(victim, view\.victim\)/);
+  });
+});
+
+describe('FR-330 (shell) the live tour requests and the panel state the shell builds', () => {
+  const index = new Map(factions.map((f, i) => [f.id, i]));
+  const idx = (id: number): number => index.get(id) as number;
+
+  it('FR-330 (shell) the victim request maps ids to view indices and carries sigma and the budget; the last round without two candidates returns to the overview (D20)', async () => {
+    const s = await scripted();
+    const model = await revealed(s, s.total);
+    const victim = s.records[s.total - 1]?.eliminated as number;
+    const effect = { type: 'victim-tour', round: s.total, victim, living: s.living[s.total - 1] as number[], sigma: 123_456, budget: 4_321 } as const;
+    expect(model.victim?.candidates).toHaveLength(1);
+    expect(victimRequestOf(effect, model, index)).toStrictEqual({
+      kind: 'victim',
+      result: idx(victim),
+      set: effect.living.map(idx),
+      sigma: 123_456,
+      budget: 4_321,
+      overviewAfter: true,
+    });
+    const earlier = await revealed(s, 1);
+    const first = victimRequestOf({ ...effect, round: 1, budget: undefined } as never, earlier, index);
+    expect(first).toBeDefined();
+    expect(first && 'overviewAfter' in first).toBe(false);
+    expect(first && 'budget' in first).toBe(false);
+    const two = { ...model, victim: { ...(model.victim as NonNullable<typeof model.victim>), candidates: [1, 2] } };
+    expect(victimRequestOf(effect, two, index) && 'overviewAfter' in (victimRequestOf(effect, two, index) as object)).toBe(false);
+  });
+
+  it('FR-330 (shell) a faction without a view index gives no request, never a thrown error', async () => {
+    const s = await scripted();
+    const model = await revealed(s, 1);
+    const victim = s.records[0]?.eliminated as number;
+    const effect = { type: 'victim-tour', round: 1, victim, living: [...(s.living[0] as number[]), 4_000_001], sigma: 1 } as const;
+    expect(victimRequestOf(effect, model, index)).toBeUndefined();
+    expect(absorberRequestOf({ victim, candidates: [victim, 4_000_001], absorber: victim, sigma: 1 }, index)).toBeUndefined();
+  });
+
+  it('FR-345 (shell) the absorber request names the victim, the candidates and the absorber by view index, with sigma and the budget', async () => {
+    const s = await scripted();
+    const living = s.living[0] as number[];
+    const [victim, absorber, other] = [living[0] as number, living[1] as number, living[2] as number];
+    expect(absorberRequestOf({ victim, candidates: [absorber, other], absorber, sigma: 77, budget: 2_900 }, index)).toStrictEqual({
+      kind: 'absorber',
+      result: idx(absorber),
+      victim: idx(victim),
+      set: [idx(absorber), idx(other)],
+      sigma: 77,
+      budget: 2_900,
+    });
+    const nominal = absorberRequestOf({ victim, candidates: [absorber, other], absorber, sigma: 77 }, index);
+    expect(nominal && 'budget' in nominal).toBe(false);
+  });
+
+  it('FR-330 (shell) a running tour keeps "revelando…" from its first report until its result shows; the end of the run clears the report', () => {
+    const status = { index: 0, tour: 'victim', still: false, resultShown: false, ended: false, runEnded: false } as const;
+    expect(panelTourState(tourReportOf(status))).toStrictEqual({ revealing: true, absorbing: false });
+    expect(panelTourState(tourReportOf({ ...status, resultShown: true }))).toStrictEqual({ revealing: false, absorbing: false });
+    expect(panelTourState(tourReportOf({ ...status, still: true }))).toStrictEqual({ revealing: false, absorbing: false });
+    expect(panelTourState(tourReportOf({ ...status, tour: 'absorber' }))).toStrictEqual({ revealing: false, absorbing: true });
+    expect(tourReportOf({ ...status, ended: true, runEnded: true })).toBeUndefined();
+  });
+
+  it('FR-320 (shell) the mismatch line shows in development builds only and only for a skipped reveal', async () => {
+    const s = await scripted();
+    const model = await revealed(s, 1);
+    expect(liveTourPanel({ ...model, skipped: true }, undefined, true)).toStrictEqual({ revealing: false, absorbing: false, mismatch: true });
+    expect(liveTourPanel({ ...model, skipped: true }, undefined, false).mismatch).toBe(false);
+    expect(liveTourPanel({ ...model, skipped: false }, undefined, true).mismatch).toBe(false);
+    const run = { tour: 'victim', still: false, resultShown: false, ended: false } as const;
+    expect(liveTourPanel(model, run, true)).toStrictEqual({ revealing: true, absorbing: false, mismatch: false });
+    const line = panelView({ ...model, skipped: true }, 10_000, factions, liveTourPanel({ ...model, skipped: true }, undefined, true)).mismatch;
+    const none = panelView({ ...model, skipped: true }, 10_000, factions, liveTourPanel({ ...model, skipped: true }, undefined, false)).mismatch;
+    expect(line).toBeTypeOf('string');
+    expect(none).toBeUndefined();
   });
 });

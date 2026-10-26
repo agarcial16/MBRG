@@ -67,6 +67,8 @@ export class RecordingScene implements LivePort {
   playStep(from: number, to: number): void {
     this.steps.push({ from, to });
   }
+  startVictimTour(): void {}
+  completeTour(): void {}
   show(): void {}
   fail(message: string): void {
     this.failures.push(message);

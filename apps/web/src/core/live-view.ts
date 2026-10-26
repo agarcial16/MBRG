@@ -1,10 +1,16 @@
 // What the live panel shows (FR-305, NFR-56): one pure function of the model and the instant. The countdown runs from the
 // reported-time estimate (the largest reported time plus the time elapsed since it arrived), never from the last reported
 // value alone (FR-302). No seed, no pointer readout, no results, and nothing about any round above N.
-import { estimateAt, type LiveModel } from './live-model';
+import { estimateAt, type AbsorberTour, type LiveEffect, type LiveModel } from './live-model';
 import { connectionNotice, countdownText, haltText, nextAnchor, revealMismatchLine, roundLine, stageText, victimLine, winnerLine } from './live-text';
 import { controlsState, type ControlsState } from './navigation';
 import { legendLine } from './panel-text';
+import type { TourKind } from './tour-key';
+import type { TourRequest, TourStatus } from './tour-session';
+
+// The tour kinds as constants: the `kind:` literal scan of the viewer-internal kinds (NFR-28) lists object literals only.
+const VICTIM_TOUR: TourKind = 'victim';
+const ABSORBER_TOUR: TourKind = 'absorber';
 
 /** A faction of the presentation data: its id and name. */
 export interface FactionName {
@@ -98,4 +104,47 @@ export function panelView(model: LiveModel, at: number, factions: readonly Facti
 export function clockDriven(model: LiveModel): boolean {
   if (model.fatal !== undefined) return false;
   return model.wait !== undefined || (model.timing !== 'manual' && nextAnchor(model.stage, model.schedule) !== undefined);
+}
+
+/** The report the panel keeps of the tour the map view announced; none once the whole run ended. */
+export function tourReportOf(status: TourStatus): TourReport | undefined {
+  return status.runEnded ? undefined : { tour: status.tour, still: status.still, resultShown: status.resultShown, ended: status.ended };
+}
+
+/** FR-330 FR-320: what the running tour asks of the live panel; the skip line is for development builds only (D13). */
+export function liveTourPanel(model: LiveModel, run: TourReport | undefined, dev: boolean): Required<TourPanel> {
+  return { ...panelTourState(run), mismatch: dev && model.skipped };
+}
+
+/**
+ * The victim tour request of a `victim-tour` effect (FR-317): faction ids become the view's indices. The camera returns to the
+ * overview when the tour of the last round has no absorber tour after it (D20: fewer than two candidates). A faction the view
+ * does not know gives no request.
+ */
+export function victimRequestOf(
+  effect: Extract<LiveEffect, { type: 'victim-tour' }>,
+  model: LiveModel,
+  index: ReadonlyMap<number, number>,
+): TourRequest | undefined {
+  const result = index.get(effect.victim);
+  const set = effect.living.map((f) => index.get(f));
+  if (result === undefined || set.some((i) => i === undefined)) return undefined;
+  const last = effect.round === model.totalRounds && (model.victim?.candidates.length ?? 0) < 2;
+  return {
+    kind: VICTIM_TOUR,
+    result,
+    set: set as number[],
+    sigma: effect.sigma,
+    ...(effect.budget === undefined ? {} : { budget: effect.budget }),
+    ...(last ? { overviewAfter: true as const } : {}),
+  };
+}
+
+/** The absorber tour request of the tour a `play-step` effect carries (FR-345); a faction the view does not know gives none. */
+export function absorberRequestOf(tour: AbsorberTour, index: ReadonlyMap<number, number>): TourRequest | undefined {
+  const result = index.get(tour.absorber);
+  const victim = index.get(tour.victim);
+  const set = tour.candidates.map((f) => index.get(f));
+  if (result === undefined || victim === undefined || set.some((i) => i === undefined)) return undefined;
+  return { kind: ABSORBER_TOUR, result, victim, set: set as number[], sigma: tour.sigma, ...(tour.budget === undefined ? {} : { budget: tour.budget }) };
 }

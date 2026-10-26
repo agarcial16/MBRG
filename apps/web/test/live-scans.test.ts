@@ -112,3 +112,41 @@ describe('FR-161 (live modules) the live viewer and the debug scene stay apart',
     expect(seedIdentifiers("params.has('seed'); // seed in a comment\nconst note = 'seed';")).toStrictEqual([]);
   });
 });
+
+describe('FR-316 (shell) the live scene routes the tours and the user through the map view', () => {
+  const main = codeOnly(sources.find(([path]) => path === 'ui/live-main.ts')?.[1] ?? '');
+  const panel = codeOnly(sources.find(([path]) => path === 'ui/live-panel.ts')?.[1] ?? '');
+
+  it('FR-316 (shell) the scan sees the live scene and its panel (not vacuous)', () => {
+    expect(main).toContain('startLiveScene');
+    expect(panel).toContain('createLivePanel');
+  });
+
+  it('FR-316 (shell) both tours start at the reading of the feed that produced them (D11), never at a later reading', () => {
+    expect(main).toMatch(/view\.beginTour\(\[request\], at\)/);
+    expect(main).toMatch(/view\.beginTour\(\[request\], at, \{ target: to, owners: data\.later, data \}\)/);
+  });
+
+  it('FR-345 (shell) a step with no tour and an instant draw complete a running tour before they ask the view for a round', () => {
+    expect(main).toMatch(/view\.completeTour\(started\);\s*const outcome = view\.request\(round, started\);/);
+    expect(main).toMatch(/view\.completeTour\(started\);\s*const outcome = view\.request\(to, started\);/);
+  });
+
+  it('FR-330 (shell) the tour report feeds the panel: the result hook refreshes it at once and the skip control follows the run', () => {
+    expect(main).toMatch(/onTour: \(status\) => \{[\s\S]*?showSkip\(!status\.runEnded\)[\s\S]*?runner\?\.refreshPanel\(\)/);
+    expect(main).toMatch(/liveTourPanel\(model, tour, import\.meta\.env\.DEV\)/);
+  });
+
+  it('FR-341 (live) the skip button and the Escape key both complete the running tour', () => {
+    expect(main).toMatch(/onSkip: \(\) => view\?\.completeTour\(now\(\)\)/);
+    expect(main).toMatch(/onSkip: \(\) => created\.completeTour\(now\(\)\)/);
+    expect(panel).toMatch(/skipLabel\(\), handlers\.onSkip\)/);
+  });
+
+  it('FR-333 (shell) the camera is written to the address once, at the end of a run (A7); the user camera takes the tour camera', () => {
+    expect(main).toMatch(/if \(status\.runEnded\) syncAddress\(lastRound, created\.camera\(\)\)/);
+    expect(main.match(/syncAddress\(/g)?.length).toBeGreaterThan(0);
+    expect(main).not.toMatch(/\.setCamera\(/);
+    expect(main.match(/userCamera\(/g)).toHaveLength(2);
+  });
+});

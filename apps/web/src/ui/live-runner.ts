@@ -8,7 +8,7 @@
 //  - One retry timer with replace semantics: an `arm-timer` effect cancels the pending one; a `tick` with nothing due is harmless.
 //  - One stream at a time; a generation counter makes the callbacks of a stale stream ignored.
 import type { PublicMatch } from '@mbrg/protocol';
-import { reduce, startLive, type LiveEffect, type LiveInput, type LiveModel, type LiveRequest } from '../core/live-model';
+import { reduce, startLive, type AbsorberTour, type LiveEffect, type LiveInput, type LiveModel, type LiveRequest } from '../core/live-model';
 import type { Owners } from '../core/live-rounds';
 import { errorText } from '../core/live-text';
 import { clockDriven } from '../core/live-view';
@@ -23,7 +23,15 @@ export interface LivePort {
   /** Builds the scene from the verified map files; the round to show first (D31) or a message that ends the scene. */
   open(match: PublicMatch, files: MapFiles): Promise<{ readonly ok: true; readonly round: number } | { readonly ok: false; readonly message: string }>;
   draw(round: number, owners: Owners): void;
-  playStep(from: number, to: number, data: StepData): void;
+  /**
+   * Plays the step of a round; `tour` is the absorber tour that comes first (FR-345). `at` is the reading of the feed that
+   * produced the effect: a tour starts at it (D11), never at a later reading.
+   */
+  playStep(from: number, to: number, data: StepData, tour: AbsorberTour | undefined, at: number): void;
+  /** FR-316: starts the victim tour of a fresh reveal at the reading `at` of the feed (D11). */
+  startVictimTour(tour: Extract<LiveEffect, { type: 'victim-tour' }>, at: number): void;
+  /** FR-339: completes the running tour at once; it does nothing when none runs. */
+  completeTour(at: number): void;
   /** The model changed or a second passed: the panel is shown for the instant `at`. */
   show(model: LiveModel, at: number): void;
   /** The scene ends with one message and draws no map. */
@@ -45,6 +53,8 @@ export interface RunnerDeps {
 
 export interface LiveRunner {
   navigate(action: NavAction): void;
+  /** The map view reported a change of the running tour: the panel is shown again at once, with the current model. */
+  refreshPanel(): void;
   model(): LiveModel;
   stop(): void;
 }
@@ -97,7 +107,7 @@ export function startRunner(deps: RunnerDeps): LiveRunner {
     if (stopped) return;
     const out = reduce(model, input);
     model = out.model;
-    for (const effect of out.effects) run(effect);
+    for (const effect of out.effects) run(effect, input.at);
     if (model.fatal !== undefined) return end(errorText(model.fatal));
     deps.port.show(model, input.at);
     refresh();
@@ -181,7 +191,7 @@ export function startRunner(deps: RunnerDeps): LiveRunner {
     feed({ type: 'digest', at: deps.now(), digest: value });
   }
 
-  function run(effect: LiveEffect): void {
+  function run(effect: LiveEffect, at: number): void {
     switch (effect.type) {
       case 'read-public':
         loadPublic().catch(crash);
@@ -212,11 +222,20 @@ export function startRunner(deps: RunnerDeps): LiveRunner {
         deps.port.draw(effect.round, effect.owners);
         return;
       case 'play-step':
-        deps.port.playStep(effect.from, effect.to, effect.data);
+        deps.port.playStep(effect.from, effect.to, effect.data, effect.tour, at);
+        return;
+      case 'victim-tour':
+        deps.port.startVictimTour(effect, at);
+        return;
+      case 'complete-tour':
+        deps.port.completeTour(at);
         return;
     }
   }
 
-  for (const effect of started.effects) run(effect);
-  return { navigate: (action) => feed({ type: 'navigate', at: deps.now(), action }), model: () => model, stop };
+  for (const effect of started.effects) run(effect, deps.now());
+  const refreshPanel = (): void => {
+    if (!stopped) deps.port.show(model, deps.now());
+  };
+  return { navigate: (action) => feed({ type: 'navigate', at: deps.now(), action }), refreshPanel, model: () => model, stop };
 }

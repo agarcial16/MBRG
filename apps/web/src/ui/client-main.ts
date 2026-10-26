@@ -172,6 +172,8 @@ function start(): void {
       },
       draw: () => undefined,
       playStep: () => undefined,
+      startVictimTour: () => undefined,
+      completeTour: () => undefined,
       show: (next, at) => {
         model = next;
         const view = panelView(next, at, factions);
