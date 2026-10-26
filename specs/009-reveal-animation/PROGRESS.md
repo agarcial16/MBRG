@@ -255,3 +255,6 @@ Per-task log: what changed, tests run and results, what is untested, next step. 
 - LIMITS: the pane was hidden (rAF 1.5 fps), so frame statistics, first-frame latency and tour durations measured from the panel are NOT valid (the name appeared at 4.4 s instead of 3.5 s for that reason); no DevTools trace; short-L1 tours (compressed, skipped) and NFR-59 parity for victim rounds 2 and 4 and the other absorber instants were not checked in a browser. Mid-tour screenshots were not obtainable; the review page `.claude/review/009-m5-live.html` (not in git) holds 4 captures and these limits.
 - Observation: with a single candidate the camera stays on the victim until the next round change (already open from M4).
 - Next step: the user reviews the page and accepts the parameter values (or asks for a visible-pane re-run); then PR into `rewrite`; spec status `implemented` after the acceptance.
+
+## 2026-10-26 — Acceptance
+- The user accepted the M5 review page and the parameter values on 2026-10-26, knowing the limits recorded above (hidden pane: no valid frame figures; short-L1 tours and NFR-59 parity of victim rounds 2 and 4 not checked in a browser). Spec status: `implemented`. PR #48 is open into `rewrite`; the squash merge waits for CI and the user's OK.

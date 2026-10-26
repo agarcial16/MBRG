@@ -27,4 +27,6 @@ Read only the active one plus these rules.
 | M4 | `tasks-M4.md` | `feat/009-m4-tour-drawing` | 5 ids (drawing, debug shell, figures, screenshots) | 46 / 1 | done (merged, #47) |
 | M5 | `tasks-M5.md` | `feat/009-m5-live-tours` | NFR-63 (live shell, real-server proofs, close) | 47 / 0 | done, PR pending |
 
+Spec status: `implemented` (user acceptance of the M5 review page, 2026-10-26).
+
 Progress per task: `specs/009-reveal-animation/PROGRESS.md`. Spec status stays `approved` until the user accepts M5; it then becomes `implemented`.
