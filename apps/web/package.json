@@ -1,6 +1,6 @@
 {
   "name": "@mbrg/web",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,13 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@mbrg/protocol": "*",
     "@mbrg/shared": "*",
-    "@mbrg/sim": "*",
-    "three": "0.186.1"
+    "@mbrg/sim": "*"
   },
   "devDependencies": {
-    "@types/three": "0.186.0",
-    "vite": "8.3.4"
+    "vite": "^8.3.1"
   }
 }

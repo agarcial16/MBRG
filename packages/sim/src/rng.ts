@@ -1,35 +1,75 @@
-// Seeded PRNG (FR-52). sfc32 with integer-only arithmetic: bit-identical on any JS engine.
+/**
+ * mulberry32: small, fast, deterministic 32-bit PRNG.
+ *
+ * HARD RULE: the simulation must NEVER use `Math.random()` or `Date.now()`.
+ * Determinism is what makes matches shareable (seed), precomputable
+ * (round-by-round reveal for Discord) and forkable (influence abilities).
+ */
+export class Rng {
+  private state: number;
 
-/** Returns a uint32 on every call. */
-export type Rng = () => number;
+  constructor(seed: number) {
+    if (!Number.isInteger(seed)) {
+      throw new Error(`Rng seed must be an integer, got ${String(seed)}`);
+    }
+    this.state = seed >>> 0;
+  }
 
-export function sfc32(a: number, b: number, c: number, d: number): Rng {
-  a >>>= 0;
-  b >>>= 0;
-  c >>>= 0;
-  d >>>= 0;
-  return () => {
-    const t = (((a + b) >>> 0) + d) >>> 0;
-    d = (d + 1) >>> 0;
-    a = b ^ (b >>> 9);
-    b = (c + (c << 3)) >>> 0;
-    c = ((c << 21) | (c >>> 11)) >>> 0;
-    c = (c + t) >>> 0;
-    return t;
-  };
-}
+  /** Raw 32-bit draw. */
+  nextUint32(): number {
+    this.state = (this.state + 0x6d2b79f5) | 0;
+    let t = this.state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t = (t + Math.imul(t ^ (t >>> 7), t | 61)) ^ t;
+    return (t ^ (t >>> 14)) >>> 0;
+  }
 
-/** Independent stream for one round: depends only on (seed, round). Seed is a uint32. */
-export function roundRng(seed: number, round: number): Rng {
-  const rng = sfc32(0x9e3779b9, seed, round, 1);
-  for (let i = 0; i < 15; i++) rng();
-  return rng;
-}
+  /** Uniform float in [0, 1). */
+  float(): number {
+    return this.nextUint32() / 4294967296;
+  }
 
-/** Exactly uniform integer in [0, n) by rejection sampling on uint32. n in 1..2^32. */
-export function pickIndex(rng: Rng, n: number): number {
-  const limit = 0x100000000 - (0x100000000 % n);
-  let x = rng();
-  while (x >= limit) x = rng();
-  return x % n;
+  /** Uniform integer in [min, maxExclusive). */
+  int(min: number, maxExclusive: number): number {
+    if (!Number.isInteger(min) || !Number.isInteger(maxExclusive) || maxExclusive <= min) {
+      throw new Error(`Invalid integer range [${min}, ${maxExclusive})`);
+    }
+    return min + Math.floor(this.float() * (maxExclusive - min));
+  }
+
+  /** Uniform element of a non-empty array. */
+  pick<T>(items: readonly T[]): T {
+    if (items.length === 0) {
+      throw new Error('Cannot pick from an empty array');
+    }
+    return items[this.int(0, items.length)];
+  }
+
+  /** Index chosen with probability proportional to the weights (>= 0, sum > 0). */
+  weightedIndex(weights: readonly number[]): number {
+    if (weights.length === 0) {
+      throw new Error('Cannot pick from empty weights');
+    }
+    let total = 0;
+    for (const w of weights) {
+      if (!Number.isFinite(w) || w < 0) {
+        throw new Error(`Invalid weight: ${String(w)}`);
+      }
+      total += w;
+    }
+    if (total <= 0) {
+      throw new Error('Weights must sum to more than 0');
+    }
+    let roll = this.float() * total;
+    for (let i = 0; i < weights.length; i++) {
+      roll -= weights[i];
+      if (roll < 0) return i;
+    }
+    return weights.length - 1; // float rounding safety net
+  }
+
+  /** Current internal state (uint32) — persist it to resume or fork a match. */
+  snapshot(): number {
+    return this.state >>> 0;
+  }
 }
