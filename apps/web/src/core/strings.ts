@@ -71,6 +71,7 @@ export const STRINGS = {
   liveVictimRevealing: 'Víctima de la ronda: {text}',
   liveRevealMismatch: 'Se omite el recorrido de revelación: los participantes no coinciden con el estado mostrado.',
   tourSkip: 'Saltar',
+  tourDigest: 'Huella del fotograma: {value}',
   recordPartial: 'Eliminada: {eliminated} · Absorbida por: {absorber}',
   liveWinner: 'Ganadora de la partida: {name}.',
   liveHaltMapChanged: 'La partida se ha detenido porque el mapa ha cambiado.',

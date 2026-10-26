@@ -196,3 +196,41 @@ describe('FR-193 FR-194 the address keeps a frozen transition only when it is gi
     ]);
   });
 });
+
+describe('FR-341 Escape skips the running tour', () => {
+  /** A fake window that keeps its keydown listeners, and a fake canvas; `press` dispatches a key event. */
+  async function wired(withSkip: boolean) {
+    let keydown: ((e: unknown) => void) | undefined;
+    vi.stubGlobal('window', { addEventListener: (type: string, fn: (e: unknown) => void) => type === 'keydown' && (keydown = fn) });
+    const { attachInput } = await import('../src/ui/input');
+    const canvas = { style: {}, addEventListener: () => undefined } as unknown as HTMLCanvasElement;
+    const calls = { skip: 0, navigate: [] as string[] };
+    attachInput(canvas, {
+      image: { w: 10, h: 10 },
+      viewport: () => ({ width: 10, height: 10 }),
+      camera: () => ({ x: 0, y: 0, scale: 1 }),
+      setCamera: () => undefined,
+      pointerMoved: () => undefined,
+      navigate: (a) => calls.navigate.push(String(a)),
+      ...(withSkip ? { onSkip: () => calls.skip++ } : {}),
+    });
+    const press = (key: string, extra: Record<string, unknown> = {}): void =>
+      keydown!({ key, ctrlKey: false, altKey: false, metaKey: false, shiftKey: false, target: { tagName: 'INPUT' }, preventDefault: () => undefined, ...extra });
+    return { press, calls };
+  }
+
+  it('FR-341 Escape calls onSkip once, even from a text field, and is not a navigation key', async () => {
+    const { press, calls } = await wired(true);
+    press('Escape');
+    expect(calls.skip).toBe(1);
+    expect(calls.navigate).toStrictEqual([]);
+  });
+
+  it('FR-341 Escape with a modifier does nothing, and without a skip handler it is harmless', async () => {
+    const a = await wired(true);
+    a.press('Escape', { ctrlKey: true });
+    expect(a.calls.skip).toBe(0);
+    const b = await wired(false);
+    expect(() => b.press('Escape')).not.toThrow();
+  });
+});

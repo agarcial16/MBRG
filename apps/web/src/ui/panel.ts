@@ -6,6 +6,7 @@ import { controlsState } from '../core/navigation';
 import type { NavAction } from '../core/navigation';
 import { labelCountsLine, legendLine, livingLine, perfLines, pointerLines, recordLine, roundStatus, seedLine } from '../core/panel-text';
 import type { Timings } from '../core/panel-text';
+import type { RecordTour } from '../core/panel-text';
 import type { PointerInfo, Scene } from '../core/scene';
 import { STRINGS } from '../core/strings';
 
@@ -13,10 +14,18 @@ export interface PanelHandlers {
   onNavigate(action: NavAction): void;
   onTypedRound(text: string): void;
   onReset(): void;
+  /** The skip button of the reveal tours (spec 009 FR-341). */
+  onSkip(): void;
 }
 
 export interface Panel {
-  showScene(scene: Scene): void;
+  /**
+   * The displayed round N. While a tour hides anything, `drawn` (the state N - 1 the map shows) gives the legend and the living count,
+   * and `tour` hides the record line's victim and absorber (A2, D12).
+   */
+  showScene(scene: Scene, drawn?: Scene, tour?: RecordTour): void;
+  /** The skip button while a tour runs, and the digest line of the frame drawn (undefined hides it). */
+  showTour(skippable: boolean, digest: string | undefined): void;
   showPointer(info: PointerInfo | undefined): void;
   showTimings(timings: Timings): void;
   /** The label counts of the displayed state (FR-214). */
@@ -88,6 +97,9 @@ export function createPanel(
   });
   const reset = block(container, 'div', 'margin-bottom:8px');
   button(reset, STRINGS.controlReset, handlers.onReset);
+  const skip = button(reset, STRINGS.tourSkip, handlers.onSkip);
+  skip.hidden = true;
+  const digest = block(container, 'div', 'margin-bottom:8px;font-variant-numeric:tabular-nums');
 
   const record = block(container, 'div', 'margin-bottom:8px');
   const legendTitle = block(container, 'h2', 'margin:0 0 4px;font-size:13px');
@@ -108,12 +120,13 @@ export function createPanel(
   };
 
   return {
-    showScene(scene: Scene): void {
+    showScene(scene: Scene, drawn?: Scene, tour?: RecordTour): void {
+      const shown = drawn ?? scene;
       writeLines(header, [seedLine(scene), roundStatus(scene)]);
-      writeLines(living, [livingLine(scene)]);
-      writeLines(record, [recordLine(scene, presentation)]);
+      writeLines(living, [livingLine(shown)]);
+      writeLines(record, [recordLine(scene, presentation, tour)]);
       legend.replaceChildren(
-        ...scene.legend.map((row) => {
+        ...shown.legend.map((row) => {
           const item = document.createElement('li');
           const swatch = document.createElement('span');
           const rgb = colors.get(row.faction);
@@ -129,6 +142,10 @@ export function createPanel(
       next.disabled = state.nextDisabled;
       last.disabled = state.lastDisabled;
       input.value = String(scene.round);
+    },
+    showTour(skippable: boolean, line: string | undefined): void {
+      skip.hidden = !skippable;
+      writeLines(digest, line === undefined ? [] : [line]);
     },
     showPointer(info: PointerInfo | undefined): void {
       writeLines(pointer, pointerLines(info));

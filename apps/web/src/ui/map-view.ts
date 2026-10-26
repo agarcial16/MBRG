@@ -30,6 +30,7 @@ import { THEME, toMapTheme } from '../core/theme';
 import { framingBoxOf } from '../core/tour-camera';
 import type { Box } from '../core/tour-camera';
 import { tourLabelDraws } from '../core/tour-frame';
+import type { TourFrame } from '../core/tour-frame';
 import {
   beginSession,
   completeSession,
@@ -137,6 +138,8 @@ export interface MapView {
   completeTour(nowMs: number): void;
   /** The user's camera (pan, zoom, reset): changes the camera and takes it from a running tour (FR-333). */
   userCamera(next: Camera): void;
+  /** The tour frame of the last drawing, or undefined when it was not a tour frame (the debug panel shows its digest). */
+  tourFrame(): TourFrame | undefined;
 }
 
 export function createMapView(input: MapViewInput): MapView {
@@ -206,6 +209,7 @@ export function createMapView(input: MapViewInput): MapView {
   let heldViews: PreparedRound | undefined;
   let reported: TourStatus | undefined;
   let motionPending = false;
+  let lastFrame: TourFrame | undefined;
   const motion = watchMotion(() => {
     if (session !== undefined) {
       // A tour completes at the next frame, which brings the clock reading its step needs (FR-344).
@@ -283,6 +287,7 @@ export function createMapView(input: MapViewInput): MapView {
       ...(out.frame.indicator === undefined ? {} : { indicator: out.frame.indicator }),
     };
     present(tourLabelDraws(current.labels, out.frame.lit, out.frame.factors.other), overlay);
+    lastFrame = out.frame;
     if (out.ended) input.onTour?.(out.status);
     else report(out.status);
     return session !== undefined && session.run !== undefined;
@@ -312,6 +317,7 @@ export function createMapView(input: MapViewInput): MapView {
       drawn = current.draws;
     }
     mapScene.setTour(undefined);
+    lastFrame = undefined;
     present(drawn);
     return playback.running !== undefined;
   };
@@ -349,6 +355,8 @@ export function createMapView(input: MapViewInput): MapView {
       playback = outcome.state;
       current = prepared.round;
       stepView = prepared.step;
+      // A round change leaves a frozen tour (A6); a running one was completed by the caller.
+      if (session !== undefined && session.run === undefined) session = undefined;
       paint(startedMs);
       if (playback.running !== undefined) loop.request();
     },
@@ -389,6 +397,7 @@ export function createMapView(input: MapViewInput): MapView {
       if (out === undefined) return;
       applyTour(out);
     },
+    tourFrame: () => lastFrame,
     userCamera: (next) => {
       session = takeCamera(session);
       camera = next;

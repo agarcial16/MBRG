@@ -13,6 +13,8 @@ export interface InputTarget {
   /** The pointer position over the drawing area in CSS pixels, or undefined when it left. */
   pointerMoved(point: ScreenPoint | undefined): void;
   navigate(action: NavAction): void;
+  /** The skip key of the reveal tours (spec 009 FR-341): Escape. */
+  onSkip?(): void;
 }
 
 /** Wires drag, wheel, pointer readout and shortcuts to a target. */
@@ -57,6 +59,10 @@ export function attachInput(canvas: HTMLCanvasElement, target: InputTarget): voi
   );
   window.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+    if (e.key === 'Escape') {
+      target.onSkip?.();
+      return;
+    }
     const action = keyAction(e.key);
     if (action === undefined) return;
     if (!shortcutApplies((e.target as Element | null)?.tagName)) return;

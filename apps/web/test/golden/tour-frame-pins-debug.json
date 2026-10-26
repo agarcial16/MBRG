@@ -1,0 +1,44 @@
+{
+  "note": "REGRESSION PINS of spec 009 (NFR-59, A13) under the frozen debug-scene rules, not independent values: the digests are written by the code under test (generate-tour-frame-pins-debug.ts) and are what the debug panel shows for reveal=victim:<t> or reveal=absorber:<t> in a browser with a drawing area of exactly 1920 x 1080 CSS px and no address camera. Dev map, debug seed 1, debug keys, start camera = the overview (victim tour, leg 1 skipped) or the victim framing (absorber tour), framing boxes from the label-set pieces (independent of the label aspects). tour-frame-pins.json (fixed start camera 2.5 fit) stays as an extra case.",
+  "area": {
+    "width": 1920,
+    "height": 1080
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "victim": {
+        "instants": [0, 400, 1000, 3548, 3549, 4349, 5348, 5349],
+        "digests": ["85b7f684", "a6b4ce77", "804d1764", "a6b4ce77", "9dc9d7c5", "9efb414e", "bb2a0075", "dac15cc0"]
+      },
+      "absorber": null
+    },
+    {
+      "round": 2,
+      "victim": {
+        "instants": [0, 400, 1000, 3548, 3549, 4349, 5348, 5349],
+        "digests": ["0881f1cf", "d077fb21", "d077fb21", "a6b4ce77", "66547cf9", "e3e1fb79", "1ef5bfc4", "e7372345"]
+      },
+      "absorber": null
+    },
+    {
+      "round": 3,
+      "victim": {
+        "instants": [0, 400, 1000, 3548, 3549, 4349, 5348, 5349],
+        "digests": ["d78474a9", "804d1764", "804d1764", "a6b4ce77", "cd8954ca", "8fdcf4bb", "67c09d37", "31897e0b"]
+      },
+      "absorber": {
+        "instants": [0, 400, 1000, 1310, 1311, 2111, 2410, 2411],
+        "digests": ["42e13817", "928ea820", "bf49c525", "bf49c525", "abb215b3", "abb215b3", "2d619beb", "73c7e82b"]
+      }
+    },
+    {
+      "round": 4,
+      "victim": {
+        "instants": [0, 400, 1000, 1686, 1687, 2487, 3486, 3487],
+        "digests": ["2d89c78a", "804d1764", "804d1764", "804d1764", "39b2b4b8", "a081319d", "1ba8e4d5", "31897e0b"]
+      },
+      "absorber": null
+    }
+  ]
+}
