@@ -1,6 +1,6 @@
 import { stateText, type PublicMatch, encodeError } from '@mbrg/protocol';
 import { describe, expect, it } from 'vitest';
-import type { LiveModel } from '../src/core/live-model';
+import type { AbsorberTour, LiveModel } from '../src/core/live-model';
 import { errorText } from '../src/core/live-text';
 import { panelView } from '../src/core/live-view';
 import { createLiveNet, type FetchLike, type LiveNet, type StreamEnd, type StreamHandlers } from '../src/ui/live-net';
@@ -9,7 +9,7 @@ import type { After } from '../src/ui/live-timer';
 import { sha256Hex } from '../src/ui/web-crypto';
 import { DEV_PRESENTATION } from './helpers/dev-map';
 import { createFakeServer, frameText, type FakeServer } from './helpers/fake-server';
-import { MATCH_ID, eventsOfRound, lastSeqAt, scripted, type Scripted } from './helpers/scripted-match';
+import { MATCH_ID, eventsOfRound, lastSeqAt, matchEventsOfRound, scripted, wire, type Scripted } from './helpers/scripted-match';
 
 const BASE = 'http://server.test';
 const factions = DEV_PRESENTATION.factions.map((f) => ({ id: f.id, name: f.name }));
@@ -58,6 +58,11 @@ class RecordingPort implements LivePort {
   draws: number[] = [];
   steps: { from: number; to: number; eliminated: number; absorber: number }[] = [];
   shows: { model: LiveModel; at: number }[] = [];
+  /** Every call that matters for order, in order (FR-316, FR-339, FR-345). */
+  calls: string[] = [];
+  victimTours: { round: number; victim: number; at: number }[] = [];
+  absorberTours: { victim: number; absorber: number; candidates: readonly number[]; at: number | undefined }[] = [];
+  completes: number[] = [];
   failures: string[] = [];
   /** The round the address asks for, by default N (like an address without a round). */
   roundAsked: ((applied: number) => number) | undefined;
@@ -68,10 +73,21 @@ class RecordingPort implements LivePort {
   draw(round: number): void {
     this.draws.push(round);
   }
-  playStep(from: number, to: number, data: { eliminated: number; absorber: number }): void {
+  playStep(from: number, to: number, data: { eliminated: number; absorber: number }, tour?: AbsorberTour, at?: number): void {
     this.steps.push({ from, to, eliminated: data.eliminated, absorber: data.absorber });
+    this.calls.push(tour === undefined ? 'step' : 'step+tour');
+    if (tour !== undefined) this.absorberTours.push({ victim: tour.victim, absorber: tour.absorber, candidates: tour.candidates, at });
+  }
+  startVictimTour(tour: { round: number; victim: number }, at: number): void {
+    this.calls.push('victim-tour');
+    this.victimTours.push({ round: tour.round, victim: tour.victim, at });
+  }
+  completeTour(at: number): void {
+    this.calls.push('complete-tour');
+    this.completes.push(at);
   }
   show(model: LiveModel, at: number): void {
+    this.calls.push('show');
     this.shows.push({ model, at });
   }
   fail(message: string): void {
@@ -458,5 +474,64 @@ describe('FR-307 (shell) timers, reconnection and stream ownership', () => {
     const shows = manual.port.shows.length;
     await manual.clock.advance(5000);
     expect(manual.port.shows.length).toBe(shows);
+  });
+});
+
+/** The events of round k with two absorption candidates (the absorber and one more living faction), as the stream carries them. */
+function twoCandidates(s: Scripted, k: number): unknown[] {
+  const record = s.records[k - 1] as { eliminated: number; absorber: number };
+  const extra = (s.living[k - 1] as number[]).find((f) => f !== record.eliminated && f !== record.absorber) as number;
+  return wire(matchEventsOfRound(s, k).map((e) => (e.type === 'victim-revealed' ? { ...e, candidates: [record.absorber, extra] } : e)));
+}
+
+/** Pushes events one frame at a time and returns the calls the port received for each frame. */
+async function pushEach(h: Harness, events: readonly unknown[]): Promise<string[][]> {
+  const per: string[][] = [];
+  for (const event of events) {
+    const before = h.port.calls.length;
+    h.server.push(frameText(event));
+    await settle();
+    per.push(h.port.calls.slice(before));
+  }
+  return per;
+}
+
+describe('FR-316 (shell) the runner routes the tour effects to the port in the order of the model', () => {
+  it('FR-316 (shell) the victim tour reaches the port in the feed of the reveal, before the panel is shown, at the reading of that feed (D11)', async () => {
+    const h = await launch();
+    h.server.n = 1;
+    const frames = twoCandidates(h.s, 1);
+    const per = await pushEach(h, frames.slice(0, 2));
+    // A frame is a byte reading and then an event: the tour comes in the event's feed, right before its panel.
+    expect(per[0]?.at(-1)).toBe('show');
+    expect(per[0]).not.toContain('victim-tour');
+    expect(per[1]?.slice(-2)).toStrictEqual(['victim-tour', 'show']);
+    expect(h.port.victimTours).toStrictEqual([{ round: 1, victim: h.s.records[0]?.eliminated, at: h.port.shows.at(-1)?.at }]);
+    expect(h.port.victimTours[0]?.at).toBe(h.clock.now());
+  });
+
+  it('FR-345 (shell) the absorber tour reaches the port with the step, and the next reveal completes it first; the result hook shows the panel once', async () => {
+    const h = await launch();
+    h.server.n = 1;
+    const frames = twoCandidates(h.s, 1);
+    await pushEach(h, frames.slice(0, 5));
+    const applied = await pushEach(h, frames.slice(5, 6));
+    // The step needs the digest of the state: the tour and the step come in one call, followed by the panel of that feed.
+    expect(applied[0]?.slice(-2)).toStrictEqual(['step+tour', 'show']);
+    const record = h.s.records[0] as { eliminated: number; absorber: number };
+    expect(h.port.absorberTours).toHaveLength(1);
+    expect(h.port.absorberTours[0]).toMatchObject({ victim: record.eliminated, absorber: record.absorber });
+    expect(h.port.absorberTours[0]?.candidates).toHaveLength(2);
+    expect(h.port.absorberTours[0]?.at).toBe(h.port.shows.at(-1)?.at);
+    // Round 2: the reveal completes the running tour (it may still run), then starts the next one, before the panel.
+    await pushEach(h, frames.slice(6));
+    h.server.n = 2;
+    const second = await pushEach(h, twoCandidates(h.s, 2).slice(0, 2));
+    expect(second[1]?.slice(-3)).toStrictEqual(['complete-tour', 'victim-tour', 'show']);
+    // The map view's result hook: one panel refresh at the reading of the call, with the current model.
+    const before = h.port.shows.length;
+    h.runner.refreshPanel();
+    expect(h.port.shows).toHaveLength(before + 1);
+    expect(h.port.shows.at(-1)).toStrictEqual({ model: h.runner.model(), at: h.clock.now() });
   });
 });

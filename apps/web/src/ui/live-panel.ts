@@ -5,15 +5,19 @@ import type { Rgb } from '@mbrg/shared';
 import type { LivePanelView } from '../core/live-view';
 import type { NavAction } from '../core/navigation';
 import { STRINGS } from '../core/strings';
-import { liveTitle } from '../core/live-text';
+import { liveTitle, skipLabel } from '../core/live-text';
 
 export interface LivePanelHandlers {
   onNavigate(action: NavAction): void;
   onReset(): void;
+  /** FR-339: complete the running tour at once. */
+  onSkip(): void;
 }
 
 export interface LivePanel {
   update(view: LivePanelView): void;
+  /** The skip button shows while a tour runs (FR-339). */
+  showSkip(visible: boolean): void;
   /** Replaces the address notices (a round above N, an invalid parameter). */
   showMessages(messages: readonly string[]): void;
 }
@@ -55,6 +59,8 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const victim = block(container, 'div');
   const winner = block(container, 'div');
   const halt = block(container, 'div', 'color:#9b1c1c');
+  const skip = button(block(container, 'div', 'margin-top:6px'), skipLabel(), handlers.onSkip);
+  skip.style.display = 'none';
   const nav = block(container, 'div', 'display:flex;gap:4px;margin:8px 0 4px');
   const first = button(nav, STRINGS.controlFirst, () => handlers.onNavigate('first'));
   const previous = button(nav, STRINGS.controlPrevious, () => handlers.onNavigate('previous'));
@@ -96,6 +102,9 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
           return item;
         }),
       );
+    },
+    showSkip(visible: boolean): void {
+      skip.style.display = visible ? '' : 'none';
     },
     showMessages(list: readonly string[]): void {
       messages.replaceChildren(

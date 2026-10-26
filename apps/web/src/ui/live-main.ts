@@ -10,8 +10,8 @@ import { assignFactionColors, paletteMessage } from '../core/colors';
 import { liveProblemMessage, readLiveAddress } from '../core/live-address';
 import type { LiveAddress } from '../core/live-address';
 import { liveTitle } from '../core/live-text';
-import { panelView } from '../core/live-view';
-import type { FactionName } from '../core/live-view';
+import { absorberRequestOf, liveTourPanel, panelView, tourReportOf, victimRequestOf } from '../core/live-view';
+import type { FactionName, TourReport } from '../core/live-view';
 import { checkPackage, packageErrorMessage, parsePackage } from '../core/package';
 import type { PackageData } from '../core/package';
 import { THEME } from '../core/theme';
@@ -59,6 +59,8 @@ export function startLiveScene(matchId: string): void {
   let view: MapView | undefined;
   let runner: LiveRunner | undefined;
   let lastRound = 0;
+  // The tour on screen, as the map view reported it (FR-330): the panel hides the victim and keeps the old legend by it.
+  let tour: TourReport | undefined;
 
   const syncAddress = (round: number, camera: Camera): void => syncLiveAddress(matchId, round, camera);
 
@@ -84,10 +86,11 @@ export function startLiveScene(matchId: string): void {
       const address = readLiveAddress(window.location.search, match.appliedRounds, image, viewport);
       const panel = createLivePanel(panelContainer, colors.value, {
         onNavigate: (action) => runner?.navigate(action),
+        onSkip: () => view?.completeTour(now()),
         onReset: () => {
           if (view === undefined) return;
           const next = initialCamera(image, view.viewport());
-          view.setCamera(next);
+          view.userCamera(next);
           syncAddress(lastRound, next);
         },
       });
@@ -113,6 +116,14 @@ export function startLiveScene(matchId: string): void {
           viewport: { width: canvas.clientWidth, height: canvas.clientHeight },
           start: { round, owners, ...(address.camera === undefined ? {} : { camera: address.camera }) },
           onResize: () => syncAddress(lastRound, created.camera()),
+          onTour: (status) => {
+            tour = tourReportOf(status);
+            built?.panel.showSkip(!status.runEnded);
+            // The camera a tour moved is written to the address once, at the end of the run (A7).
+            if (status.runEnded) syncAddress(lastRound, created.camera());
+            // The result hook shows the panel on that very frame, not on the next refresh (PD9).
+            runner?.refreshPanel();
+          },
         });
         view = created;
         attachInput(canvas, {
@@ -120,11 +131,12 @@ export function startLiveScene(matchId: string): void {
           viewport: created.viewport,
           camera: created.camera,
           setCamera: (next) => {
-            created.setCamera(next);
+            created.userCamera(next);
             syncAddress(lastRound, next);
           },
           pointerMoved: () => undefined,
           navigate: (action) => runner?.navigate(action),
+          onSkip: () => created.completeTour(now()),
         });
         created.paint(now());
         syncAddress(round, created.camera());
@@ -132,25 +144,46 @@ export function startLiveScene(matchId: string): void {
       }
       // An instant change of the displayed round (a jump, or a state read from the server): no step data.
       const started = now();
+      view.completeTour(started);
       const outcome = view.request(round, started);
       if (outcome.change === 'none') return;
       view.commit(outcome, view.prepare(owners, undefined, true), started);
       syncAddress(round, view.camera());
     },
 
-    playStep(from, to, data) {
+    playStep(from, to, data, absorber, at) {
       lastRound = to;
       if (view === undefined) return;
+      const forward = to > from;
+      if (absorber !== undefined && forward) {
+        // The absorber tour first, from the reading of the feed (D11); the step follows it (FR-345).
+        const request = absorberRequestOf(absorber, view.owners);
+        const planned = view.request(to, at);
+        if (request !== undefined && planned.change === 'step' && view.beginTour([request], at, { target: to, owners: data.later, data })) {
+          syncAddress(to, view.camera());
+          return;
+        }
+      }
       const started = now();
+      view.completeTour(started);
       const outcome = view.request(to, started);
       if (outcome.change === 'none') return;
-      const forward = to > from;
       view.commit(outcome, view.prepare(forward ? data.later : data.earlier, outcome.change === 'step' ? data : undefined, forward), started);
       syncAddress(to, view.camera());
     },
 
+    startVictimTour(effect, at) {
+      if (view === undefined || runner === undefined) return;
+      const request = victimRequestOf(effect, runner.model(), view.owners);
+      if (request !== undefined) view.beginTour([request], at);
+    },
+
+    completeTour(at) {
+      view?.completeTour(at);
+    },
+
     show(model, at) {
-      built?.panel.update(panelView(model, at, built.factions));
+      built?.panel.update(panelView(model, at, built.factions, liveTourPanel(model, tour, import.meta.env.DEV)));
     },
 
     fail(message) {
