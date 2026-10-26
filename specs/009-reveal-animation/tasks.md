@@ -23,8 +23,8 @@ Read only the active one plus these rules.
 |---|---|---|---|---|---|
 | M1 | `tasks-M1.md` | `feat/009-m1-tour-core` | 20 ids (pure tour core) | 20 / 27 | done (merged, #42) |
 | M2 | `tasks-M2.md` | `feat/009-m2-tour-decisions` | 10 ids (decisions, driver, goldens) | 30 / 17 | done (merged, #43) |
-| M3 | `tasks-M3.md` | `feat/009-m3-tour-wiring` | 11 ids (live model, panel, debug address) | 41 / 6 | done, PR pending |
-| M4 | `tasks-M4.md` | `feat/009-m4-tour-drawing` | 5 ids (drawing, debug shell, figures, screenshots) | 46 / 1 | DRAFT |
+| M3 | `tasks-M3.md` | `feat/009-m3-tour-wiring` | 11 ids (live model, panel, debug address) | 41 / 6 | done (merged, #44) |
+| M4 | `tasks-M4.md` | `feat/009-m4-tour-drawing` | 5 ids (drawing, debug shell, figures, screenshots) | 46 / 1 | in progress |
 | M5 | `tasks-M5.md` | `feat/009-m5-live-tours` | NFR-63 (live shell, real-server proofs, close) | 47 / 0 | DRAFT |
 
 Progress per task: `specs/009-reveal-animation/PROGRESS.md`. Spec status stays `approved` until the user accepts M5; it then becomes `implemented`.
