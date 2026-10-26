@@ -34,6 +34,6 @@ Titles: FR-326, FR-355 first named in T2; FR-341 in T4; NFR-58, NFR-62 in T5. Pa
   - Commit: `feat(web): measure reveal tours in the debug panel`.
   - Done when: tests green; figures within budget or reported; the user reviewed the page; 46 / 1. Size: M (about 450).
 
-- [ ] **T6. Close M4.**
+- [x] **T6. Close M4.**
   - Files: traceability closing state 46 / 1, PROGRESS, plan figures, `MEMORY.md` (local).
   - Done when: suite, typecheck, `CI=1` green; scope diff clean; PR opened with figures and the review page reference. Size: S (about 60).

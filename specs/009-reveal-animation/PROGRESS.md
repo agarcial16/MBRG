@@ -195,3 +195,12 @@ Per-task log: what changed, tests run and results, what is untested, next step. 
   The review page `.claude/review/009-m4-before-after.html` was given to the user (not in git).
 - Size: about 270 changed lines (estimate 450).
 - Next step: T6.
+
+## 2026-10-26 — M4 T6 (close M4)
+- Ledger 46 / 1 (NFR-63 left for M5): closing-state test in `traceability.test.ts` (added in T5), `plan.md` M4 result line (sizes, browser facts, findings, open items, hand-offs to M5), `tasks.md` M4 row "done, PR pending", `MEMORY.md` (local, 50 lines).
+- Closing checks: `git diff --exit-code rewrite -- packages/shared packages/sim/src packages/protocol apps/server/src tools maps` clean; the only earlier files edited in `packages` and `apps` tests are `packages/sim/test/traceability.test.ts`, `labels-render.test.ts` (optional third parameter of `draw`, T3), `playback.test.ts` (new tests), `panel-text.test.ts` and `ui-driver.test.ts` (new tests only); no earlier golden changed (`tour-frame-pins-debug.json` is new); no new dependency; titles rule: 46 ids appear, none of them NFR-63; `npm run typecheck`, `npm test` and `CI=1 npm test`: 237 files, 3930 passed, 4 skipped; `npm run build` ok.
+- Figures (changed lines, src + tests): T1 about 15 (estimate 30), T2 about 408 (500), T3 about 1,070 (650), T4 about 640 to 690 (550), T5 about 270 (450), T6 about 60 (60); `git diff --shortstat rewrite -- apps packages`: 2,343 insertions, 52 deletions, 31 files (2,299 without the JSON). Suite: 3833 tests at T1, 3851 at T2, 3898 at T3, 3922 at T4, 3930 at T5.
+- Decisions of M4: the pure `core/tour-session.ts` (T3, accepted); the skip completes the whole debug chain (user-confirmed); the living-count line follows the drawn state; the digest line and its frame text only for a frozen tour; the frame-text line was added in T5 to diagnose digest differences.
+- Open items: absorber digest parity (see T5); reduced motion, the edge indicator, the marker and GPU float32 ties are Node-tested only; a dev-map round with d >= 3 and a tiny faction do not exist (screenshot cases need another map).
+- Hand-offs to M5: see the plan's M4 result line.
+- Next step: review and PR of M4 (not opened by the implementer), then M5 T1.
