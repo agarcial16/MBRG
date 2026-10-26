@@ -1,0 +1,87 @@
+[
+  {
+    "name": "Mar del Norte",
+    "lon": 3.5,
+    "lat": 55
+  },
+  {
+    "name": "Mar Báltico",
+    "lon": 16.5,
+    "lat": 55.5
+  },
+  {
+    "name": "Canal de la Mancha",
+    "lon": -1.5,
+    "lat": 50
+  },
+  {
+    "name": "Mar Céltico",
+    "lon": -8,
+    "lat": 50.5
+  },
+  {
+    "name": "Golfo de Vizcaya",
+    "lon": -5,
+    "lat": 45
+  },
+  {
+    "name": "Atlántico Ibérico",
+    "lon": -10.3,
+    "lat": 40.5
+  },
+  {
+    "name": "Golfo de Cádiz",
+    "lon": -7.5,
+    "lat": 36.2
+  },
+  {
+    "name": "Mar de Alborán",
+    "lon": -3,
+    "lat": 36
+  },
+  {
+    "name": "Mar Balear",
+    "lon": 2.5,
+    "lat": 39.3
+  },
+  {
+    "name": "Golfo de León",
+    "lon": 4,
+    "lat": 42.5
+  },
+  {
+    "name": "Mar de Liguria",
+    "lon": 8.5,
+    "lat": 43.7
+  },
+  {
+    "name": "Mar de Cerdeña",
+    "lon": 6.5,
+    "lat": 39.5
+  },
+  {
+    "name": "Mar Tirreno",
+    "lon": 12,
+    "lat": 40
+  },
+  {
+    "name": "Canal de Sicilia",
+    "lon": 12.5,
+    "lat": 36.5
+  },
+  {
+    "name": "Mar Jónico",
+    "lon": 18,
+    "lat": 38.5
+  },
+  {
+    "name": "Mar Adriático",
+    "lon": 14.5,
+    "lat": 43.2
+  },
+  {
+    "name": "Mediterráneo Sur",
+    "lon": 5,
+    "lat": 37
+  }
+]

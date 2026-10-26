@@ -1,0 +1,45 @@
+{
+  "note": "REGRESSION PINS of spec 009 (NFR-59), not independent values: the frame digests (fnv1a32 of frameText, apps/web/src/core/tour-digest.ts) are written by the code under test, tour-frame-pins.json by generate-tour-frame-pins.ts. Dev map, debug seed 1, debug keys, drawing area 1920 x 1080, start camera at 2.5 fit scale around (0.3 w, 0.4 h), camera not taken by the user, every living faction with label aspect 4 (no text is measured in Node). A change of any digest is a change of the drawn tours: review it, then regenerate.",
+  "area": {
+    "width": 1920,
+    "height": 1080
+  },
+  "aspect": 4,
+  "rounds": [
+    {
+      "round": 1,
+      "victim": {
+        "instants": [0, 400, 1000, 3548, 3549, 4349, 5348, 5349],
+        "digests": ["5091f695", "c56d467e", "d077fb21", "a6b4ce77", "9dc9d7c5", "9efb414e", "bb2a0075", "dac15cc0"]
+      },
+      "absorber": null
+    },
+    {
+      "round": 2,
+      "victim": {
+        "instants": [0, 400, 1000, 3548, 3549, 4349, 5348, 5349],
+        "digests": ["4e2ffb91", "c56d467e", "d077fb21", "a6b4ce77", "66547cf9", "e3e1fb79", "1ef5bfc4", "e7372345"]
+      },
+      "absorber": null
+    },
+    {
+      "round": 3,
+      "victim": {
+        "instants": [0, 400, 1000, 3548, 3549, 4349, 5348, 5349],
+        "digests": ["0045dc27", "7a2ad239", "d077fb21", "a6b4ce77", "cd8954ca", "8fdcf4bb", "67c09d37", "31897e0b"]
+      },
+      "absorber": {
+        "instants": [0, 400, 1000, 1310, 1311, 2111, 2410, 2411],
+        "digests": ["788b5762", "da1a7983", "bf49c525", "bf49c525", "abb215b3", "3e083d2d", "a71b1b9a", "1c739f58"]
+      }
+    },
+    {
+      "round": 4,
+      "victim": {
+        "instants": [0, 400, 1000, 1686, 1687, 2487, 3486, 3487],
+        "digests": ["663e38f4", "7a2ad239", "804d1764", "804d1764", "39b2b4b8", "a081319d", "1ba8e4d5", "31897e0b"]
+      },
+      "absorber": null
+    }
+  ]
+}

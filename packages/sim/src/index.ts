@@ -1,2 +1,4 @@
-export { Rng } from './rng.js';
-export { createInitialMatch, forkMatch, simulate, step } from './engine.js';
+export { totalRounds, getState, getRounds, ownerOf } from './match';
+export { playRoundWithSeed, absorptionCandidatesOf, livingFactions } from './exports';
+export { MODE } from './types';
+export type { MatchState, RoundRecord, SimError, MatchError } from './types';

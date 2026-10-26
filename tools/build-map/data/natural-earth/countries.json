@@ -1,0 +1,27 @@
+[
+  {
+    "adm0_a3": "DEU",
+    "name": "Germany",
+    "name_es": "Alemania"
+  },
+  {
+    "adm0_a3": "ESP",
+    "name": "Spain",
+    "name_es": "España"
+  },
+  {
+    "adm0_a3": "FRA",
+    "name": "France",
+    "name_es": "Francia"
+  },
+  {
+    "adm0_a3": "ITA",
+    "name": "Italy",
+    "name_es": "Italia"
+  },
+  {
+    "adm0_a3": "PRT",
+    "name": "Portugal",
+    "name_es": "Portugal"
+  }
+]

@@ -3,3 +3,10 @@ dist/
 *.tsbuildinfo
 coverage/
 AGENTS.md
+MEMORY.md
+.claude/
+tools/build-map/out/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+.env.local

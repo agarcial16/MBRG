@@ -1,73 +1,64 @@
 import { describe, expect, it } from 'vitest';
+import { pickIndex, roundRng } from '../src/rng';
 
-import { Rng } from '../src/rng.js';
+const take = (seed: number, round: number, n: number): number[] => {
+  const rng = roundRng(seed, round);
+  return Array.from({ length: n }, () => rng());
+};
 
-describe('Rng', () => {
-  it('produces the same sequence for the same seed and a different one otherwise', () => {
-    const a = new Rng(42);
-    const b = new Rng(42);
-    const c = new Rng(43);
-    const seqA = Array.from({ length: 100 }, () => a.nextUint32());
-    const seqB = Array.from({ length: 100 }, () => b.nextUint32());
-    const seqC = Array.from({ length: 100 }, () => c.nextUint32());
-    expect(seqB).toEqual(seqA);
-    expect(seqC).not.toEqual(seqA);
+describe('rng', () => {
+  it('FR-52 same (seed, round) gives the same sequence', () => {
+    expect(take(42, 3, 50)).toStrictEqual(take(42, 3, 50));
   });
 
-  it('returns uint32 values and floats in [0, 1)', () => {
-    const rng = new Rng(7);
-    for (let i = 0; i < 500; i++) {
-      const raw = rng.nextUint32();
-      expect(Number.isInteger(raw)).toBe(true);
-      expect(raw).toBeGreaterThanOrEqual(0);
-      expect(raw).toBeLessThan(2 ** 32);
-      const f = rng.float();
-      expect(f).toBeGreaterThanOrEqual(0);
-      expect(f).toBeLessThan(1);
+  it('FR-52 different rounds and different seeds differ', () => {
+    expect(take(42, 1, 8)).not.toStrictEqual(take(42, 2, 8));
+    expect(take(1, 1, 8)).not.toStrictEqual(take(2, 1, 8));
+  });
+
+  it('FR-52 outputs are uint32', () => {
+    for (const x of take(4294967295, 7, 1000)) {
+      expect(Number.isInteger(x)).toBe(true);
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(x).toBeLessThanOrEqual(0xffffffff);
     }
   });
 
-  it('int() stays in range and rejects invalid ranges', () => {
-    const rng = new Rng(9);
-    for (let i = 0; i < 500; i++) {
-      const v = rng.int(3, 8);
-      expect(v).toBeGreaterThanOrEqual(3);
-      expect(v).toBeLessThan(8);
+  it('FR-36 pickIndex(rng, 1) is 0 without needing luck', () => {
+    const rng = roundRng(0, 1);
+    for (let i = 0; i < 20; i++) expect(pickIndex(rng, 1)).toBe(0);
+  });
+
+  it('FR-35 pickIndex is always in range', () => {
+    const rng = roundRng(7, 2);
+    for (const n of [2, 3, 5, 7, 10, 500, 0x80000001]) {
+      for (let i = 0; i < 200; i++) {
+        const k = pickIndex(rng, n);
+        expect(Number.isInteger(k)).toBe(true);
+        expect(k).toBeGreaterThanOrEqual(0);
+        expect(k).toBeLessThan(n);
+      }
     }
-    expect(() => rng.int(5, 5)).toThrow();
-    expect(() => rng.int(5, 4)).toThrow();
   });
 
-  it('pick() throws on empty input', () => {
-    expect(() => new Rng(1).pick([])).toThrow(/empty/);
+  it('FR-35 pickIndex rejects draws above the unbiased limit', () => {
+    // n = 3: limit = 2^32 - 1; only the draw 0xffffffff is rejected.
+    const draws = [0xffffffff, 4];
+    const rng = () => draws.shift() as number;
+    expect(pickIndex(rng, 3)).toBe(1);
+    expect(draws).toHaveLength(0);
   });
 
-  it('weightedIndex() respects the weights', () => {
-    const rng = new Rng(7);
-    const counts = [0, 0];
-    for (let i = 0; i < 2000; i++) {
-      counts[rng.weightedIndex([1, 3])]++;
-    }
-    const ratio = counts[1] / counts[0];
-    expect(counts[1]).toBeGreaterThan(counts[0]);
-    expect(ratio).toBeGreaterThan(2);
-    expect(ratio).toBeLessThan(4.5);
-    expect(() => rng.weightedIndex([0, 0])).toThrow();
-    expect(() => rng.weightedIndex([-1, 2])).toThrow();
+  it('FR-35 pickIndex is roughly uniform', () => {
+    const rng = roundRng(5, 5);
+    const counts = [0, 0, 0];
+    for (let i = 0; i < 30000; i++) counts[pickIndex(rng, 3)]! += 1;
+    for (const c of counts) expect(Math.abs(c - 10000)).toBeLessThan(600);
   });
 
-  it('snapshot() restores the exact continuation', () => {
-    const rng = new Rng(5);
-    rng.nextUint32();
-    rng.nextUint32();
-    const saved = rng.snapshot();
-    const expected = [rng.nextUint32(), rng.nextUint32()];
-
-    const restored = new Rng(saved);
-    expect([restored.nextUint32(), restored.nextUint32()]).toEqual(expected);
-  });
-
-  it('rejects non-integer seeds', () => {
-    expect(() => new Rng(1.5)).toThrow(/integer/);
+  it('NFR-2 first 8 outputs of roundRng(0, 1) match the golden file', async () => {
+    await expect(JSON.stringify(take(0, 1, 8), null, 2) + '\n').toMatchFileSnapshot(
+      './golden/sfc32-seed0.json',
+    );
   });
 });

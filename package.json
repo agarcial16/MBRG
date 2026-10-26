@@ -1,22 +1,24 @@
 {
   "name": "mbrg",
-  "version": "0.1.0-alpha",
   "private": true,
   "type": "module",
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "tools/build-map",
+    "apps/server",
+    "apps/web"
   ],
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
-    "build": "tsc -b && npm run build -w @mbrg/web",
-    "clean": "tsc -b --clean",
-    "typecheck": "tsc -b && tsc --noEmit -p apps/web",
     "dev": "npm run dev -w @mbrg/web",
+    "build": "npm run build -w @mbrg/web",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "typecheck": "tsc -p packages/shared/tsconfig.json && tsc -p packages/sim/tsconfig.json && tsc -p packages/protocol/tsconfig.json && tsc -p tsconfig.test.json && tsc -p tools/build-map/tsconfig.json && tsc -p tools/build-map/tsconfig.test.json && tsc -p apps/web/tsconfig.json && tsc -p apps/web/tsconfig.test.json && tsc -p apps/server/tsconfig.json && tsc -p apps/server/tsconfig.test.json"
   },
   "devDependencies": {
-    "typescript": "^5.5.0",
-    "vitest": "^5.0.3"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
   }
 }
