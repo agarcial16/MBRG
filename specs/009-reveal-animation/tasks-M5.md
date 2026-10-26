@@ -19,7 +19,7 @@ Titles: NFR-63 first named in T4. Parts: `FR-316 (shell)`, `FR-330 (shell)`, `FR
   - Mutation proofs: one decision of T2 of M2 changed in `src` (a real-server test fails).
   - Done when: tests green (explicit timeouts; kill by PID in `finally` if a child is used). Size: M (about 500).
 
-- [ ] **T4. Local live run, screenshots, figures, close.** NFR-63
+- [x] **T4. Local live run, screenshots, figures, close.** NFR-63
   - Files: traceability (pending set of 009 empty; title test and planted-id test over a synthetic list), PROGRESS, plan figures, `MEMORY.md` (local), `.claude/review/009-m5-live.html` (not in git).
   - Steps: local run with `apps/server/test/fixtures/dev-live-server.ts` and the Vite dev server: a fresh reveal tour, a reload in phase 2, a compressed and a skipped tour with short L1, the absorber tour with L2 = 0 and L2 > 0; one DevTools trace of a live victim tour (first-frame latency); screenshots of plan section 12 item 3; no console errors.
   - Tests first: closing state 47 / 0; `NFR-63` titled checks: goldens and `maps/dev` byte-identical against `rewrite`, the FR-355 equality test present.
