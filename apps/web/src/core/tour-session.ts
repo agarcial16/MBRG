@@ -24,6 +24,8 @@ export interface TourRequest {
   readonly sigma: number;
   /** The raw time available (FR-336): the view decides scaling and skipping with it. */
   readonly budget?: number;
+  /** A victim tour of the last round with no absorber tour after it: the camera returns to the overview at its end (D20). */
+  readonly overviewAfter?: true;
 }
 
 /** Framing box of every faction asked for that has land, from the label sets of the drawn round (PD6). */
@@ -54,6 +56,7 @@ export function planTours(requests: readonly TourRequest[], reduced: boolean, bo
       ...(r.victim === undefined ? {} : { victim: r.victim }),
       ...(choice.budget === undefined ? {} : { budget: choice.budget }),
       ...(choice.still === true ? { still: true as const } : {}),
+      ...(r.overviewAfter === true && r.kind === 'victim' ? { overviewAfter: true as const } : {}),
       boxes: boxesOf(framed),
     };
     tours.push(buildTour(spec));

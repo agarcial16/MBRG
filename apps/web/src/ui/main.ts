@@ -111,7 +111,7 @@ async function start(): Promise<void> {
       revealMessages.push(problemMessage(refused));
       reveal = undefined;
     } else {
-      const requests = revealRequests(inputs.value, factionIndexOf(map));
+      const requests = revealRequests(inputs.value, factionIndexOf(map), scene.round === scene.total);
       frozenRequest = reveal.mode === 'victim' ? requests.victim : requests.absorber;
       previousScene = before.value;
     }
@@ -263,7 +263,7 @@ async function start(): Promise<void> {
       // Tours first (FR-351): the map keeps drawing round N - 1 while the panel, controls and address show round N.
       const inputs = revealInputs(map, scene.seed, n, revealSim);
       if (inputs.ok) {
-        const requests = revealRequests(inputs.value, view.owners);
+        const requests = revealRequests(inputs.value, view.owners, n === scene.total);
         const before = scene;
         scene = next;
         previousScene = before;

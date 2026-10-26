@@ -14,18 +14,21 @@ export function referenceStream(sigma: number): () => number {
   };
 }
 
-/** The stops of a tour, read backwards: each new stop avoids every stop already placed, else the last one and the result, else only the last. */
+/**
+ * The stops of a tour, read backwards from the result: each new stop differs from the stop after it and avoids
+ * every stop already drawn except the result (which is the last stop, not drawn); when that leaves nothing, only
+ * the stop after it is avoided.
+ */
 export function referenceStops(kind: 'victim' | 'absorber', result: number, set: readonly number[], sigma: number): number[] {
   const sorted = Array.from(new Set(set)).sort((x, y) => x - y);
   const count = kind === 'absorber' ? 6 : sorted.length >= 3 ? 12 : 6;
   const next = referenceStream(sigma);
   const placed = [result];
   while (placed.length < count) {
-    let pool = sorted.filter((f) => !placed.includes(f));
-    if (pool.length === 0) {
-      pool = sorted.filter((f) => f !== placed[placed.length - 1] && f !== result);
-      if (pool.length === 0) pool = sorted.filter((f) => f !== placed[placed.length - 1]);
-    }
+    const after = placed[placed.length - 1]!;
+    const drawn = placed.slice(1);
+    let pool = sorted.filter((f) => f !== after && !drawn.includes(f));
+    if (pool.length === 0) pool = sorted.filter((f) => f !== after);
     placed.push(pool[Number((BigInt(next()) * BigInt(pool.length)) >> 32n)]!);
   }
   return placed.reverse();

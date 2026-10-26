@@ -54,7 +54,8 @@ describe('planTours: the view applies reduced motion and the budget to each requ
     // The absorber tour frames the victim and the candidates only.
     expect([...plan.tours[1]!.boxes.keys()].sort((a, b) => a - b)).toStrictEqual([7, 8, 9]);
     expect(plan.tours[0]!.legs).toHaveLength(2);
-    expect(plan.tours[1]!.legs).toHaveLength(1);
+    // The absorber tour eases back to the overview at its end (FR-334).
+    expect(plan.tours[1]!.legs).toHaveLength(2);
   });
 
   it('reduced motion: the victim tour becomes the still tour of 1,800 ms without camera legs, the absorber tour is dropped', () => {

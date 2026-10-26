@@ -14,11 +14,13 @@ const ABSORBER_TOUR: TourKind = 'absorber';
 
 /**
  * The victim tour of round N and, when the victim has two or more absorption candidates, its absorber tour (FR-351, FR-350: none at
- * d = 1). Sigma comes from the debug keys `debug:<N>` and `debug:<N>:absorber`, never from the seed.
+ * d = 1). Sigma comes from the debug keys `debug:<N>` and `debug:<N>:absorber`, never from the seed. `last` says that N is the last
+ * round: then a victim tour with no absorber tour after it returns the camera to the overview (D20).
  */
 export function revealRequests(
   inputs: RevealInputs,
   factionIndex: ReadonlyMap<FactionId, number>,
+  last = false,
 ): { readonly victim: TourRequest; readonly absorber: TourRequest | undefined } {
   const idx = (f: FactionId): number => {
     const i = factionIndex.get(f);
@@ -30,6 +32,7 @@ export function revealRequests(
     result: idx(inputs.victim),
     set: inputs.living.map(idx),
     sigma: fnv1a32(keyText('debug', inputs.round, VICTIM_TOUR)),
+    ...(last && inputs.candidates.length < 2 ? { overviewAfter: true as const } : {}),
   };
   const absorber: TourRequest | undefined =
     inputs.candidates.length >= 2
