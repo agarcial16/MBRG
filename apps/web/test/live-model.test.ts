@@ -550,7 +550,7 @@ describe('FR-304 browsing reads only the rounds up to N', () => {
       matchId: true, mapDigest: true, totalRounds: true, timing: true, stage: true, applied: true, held: true, records: true,
       displayed: true, wanted: true, lastSeq: true, reported: true, schedule: true, victim: true, winner: true, haltReason: true,
       applying: true, queue: true, phase: true, connection: true, wait: true, retry: true, failures: true, fault: true, fatal: true,
-      lastByteAt: true, streamed: true, following: true,
+      lastByteAt: true, streamed: true, following: true, touring: true,
     };
     const s = await scripted();
     const d = new Driver(s);
@@ -561,7 +561,7 @@ describe('FR-304 browsing reads only the rounds up to N', () => {
     checking.defer = true;
     await checking.load(1);
     await checking.events(eventsOfRound(s, 2));
-    expect(Object.keys(checking.model.applying!).sort()).toStrictEqual(['digest', 'record', 'round', 'step']);
+    expect(Object.keys(checking.model.applying!).sort()).toStrictEqual(['digest', 'record', 'round', 'step', 'tour']);
     // While round N + 1 is being checked the model holds the announced record and digest, never owners for it.
     expect(checking.model.held.has(2)).toBe(false);
   });

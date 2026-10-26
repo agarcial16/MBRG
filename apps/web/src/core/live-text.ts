@@ -72,12 +72,27 @@ export function countdownText(stage: Stage, timing: Timing, schedule: PublicSche
 
 /**
  * The victim line: shown at once when the victim is known (D19), in `phase-2` and `locked` and in a halted match whose
- * victim was revealed; never in `phase-1` or `finished`.
+ * victim was revealed; never in `phase-1` or `finished`. With `revealing` (a victim tour that has not stopped yet) it says
+ * "revelando..." instead of the name.
  */
-export function victimLine(stage: Stage, victim: number | undefined, nameOf: (faction: number) => string): string | undefined {
+export function victimLine(
+  stage: Stage,
+  victim: number | undefined,
+  nameOf: (faction: number) => string,
+  revealing = false,
+): string | undefined {
   const shown = stage === 'phase-2' || stage === 'locked' || stage === 'halted';
-  return shown && victim !== undefined ? fillTemplate(STRINGS.liveVictim, { name: nameOf(victim) }) : undefined;
+  if (!shown || victim === undefined) return undefined;
+  // FR-330 (D19): while the victim tour has not stopped on the victim the name is not even looked up.
+  if (revealing) return fillTemplate(STRINGS.liveVictimRevealing, { text: STRINGS.liveRevealing });
+  return fillTemplate(STRINGS.liveVictim, { name: nameOf(victim) });
 }
+
+/** The label of the skip control of a tour (FR-341). */
+export const skipLabel = (): string => STRINGS.tourSkip;
+
+/** The development-only line that reports a skipped victim tour in the live panel (FR-320, D13). */
+export const revealMismatchLine = (): string => STRINGS.liveRevealMismatch;
 
 /** The winner line, only for a finished match. */
 export function winnerLine(stage: Stage, winner: number | undefined, nameOf: (faction: number) => string): string | undefined {

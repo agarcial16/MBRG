@@ -22,6 +22,28 @@ export interface SimPort {
   ownerOf(state: MatchState, territory: TerritoryId): FactionId | undefined;
 }
 
+/**
+ * The part of the sim the debug `reveal` tours use (FR-351). A separate type from `SimPort`, so the existing literals of
+ * `SimPort` stay as they are (PD10). The real exports of `@mbrg/sim` fit it.
+ */
+export interface RevealSimPort {
+  getState(map: unknown, seed: unknown, round: unknown): Result<MatchState, MatchError>;
+  getRounds(map: unknown, seed: unknown, round: unknown): Result<RoundRecord[], MatchError>;
+  livingFactions(map: unknown, state: unknown): Result<FactionId[], MatchError>;
+  absorptionCandidatesOf(map: unknown, state: unknown, faction: unknown): Result<FactionId[], MatchError>;
+}
+
+/** What the tours of round `round` are built from in the debug scene (the key is `debug:<round>`, never the seed). */
+export interface RevealInputs {
+  readonly round: number;
+  /** The factions living at round - 1 (the participants of the victim tour). */
+  readonly living: readonly FactionId[];
+  readonly victim: FactionId;
+  readonly absorber: FactionId;
+  /** The absorption candidates of the victim in the state at round - 1, computed as the sim does. */
+  readonly candidates: readonly FactionId[];
+}
+
 /** One faction line of the legend. The swatch colour comes from `assignFactionColors`, by `faction`. */
 export interface LegendRow {
   faction: FactionId;
@@ -94,6 +116,29 @@ export function sceneAt(
   };
   if (record !== undefined) scene.record = record;
   return { ok: true, value: scene };
+}
+
+/**
+ * FR-351: the inputs of the reveal tours of the step n - 1 -> n. Asks the sim for the state at n - 1 and the records up to n
+ * (keeping the last), then for the factions living at n - 1 and the candidates of the victim in that state; never for any
+ * round above n (FR-160). Round 0 has no step: the sim's error for the round before it is returned.
+ */
+export function revealInputs(map: MapData, seed: number, n: number, sim: RevealSimPort): Result<RevealInputs, MatchError> {
+  const before = sim.getState(map, seed, n - 1);
+  if (!before.ok) return before;
+  const rounds = sim.getRounds(map, seed, n);
+  if (!rounds.ok) return rounds;
+  const record = rounds.value[rounds.value.length - 1];
+  // Cannot happen for n >= 1 (round 0 failed above); an empty error list keeps the type without inventing an error kind.
+  if (record === undefined) return { ok: false, errors: [] };
+  const living = sim.livingFactions(map, before.value);
+  if (!living.ok) return living;
+  const candidates = sim.absorptionCandidatesOf(map, before.value, record.eliminated);
+  if (!candidates.ok) return candidates;
+  return {
+    ok: true,
+    value: { round: n, living: living.value, victim: record.eliminated, absorber: record.absorber, candidates: candidates.value },
+  };
 }
 
 /** The Spanish error message of FR-152, showing the kind of the first sim error. */

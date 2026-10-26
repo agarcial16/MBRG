@@ -52,7 +52,7 @@ describe('FR-305 (shell) the panel view', () => {
     expect(view.legend.filter((row) => row.alive).map((row) => row.faction)).toStrictEqual(factions.map((f) => f.id).filter((id) => living.includes(id)));
     expect(view.legend).toHaveLength(factions.length);
     const keys = Object.keys(view).sort();
-    expect(keys).toStrictEqual(['controls', 'countdown', 'halt', 'legend', 'notice', 'round', 'stage', 'victim', 'winner']);
+    expect(keys).toStrictEqual(['controls', 'countdown', 'halt', 'legend', 'mismatch', 'notice', 'round', 'stage', 'victim', 'winner']);
   });
 
   it('FR-305 (shell) the victim line shows once revealed, the winner at the end and the halt reason when halted', async () => {

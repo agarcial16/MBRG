@@ -28,6 +28,9 @@ export function applyRecord(owners: Owners, record: RecordReply): Owners | 'mism
   return next;
 }
 
+/** The factions that own at least one territory, in ascending order. */
+export const livingOf = (owners: Owners): number[] => [...new Set(owners.values())].sort((a, b) => a - b);
+
 /** The text hashed to check a state (the canonical form of the protocol). */
 export const digestTextOf = (owners: Owners, round: number): string =>
   stateText({ mode: 'classic', round, owners: [...owners] as [number, number][] });

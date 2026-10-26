@@ -1,7 +1,7 @@
 ### M4 — Drawing, debug shell, figures, debug screenshots (`feat/009-m4-tour-drawing`; 41 / 6 -> 46 / 1)
 **Status: DRAFT (planner, 2026-10-25). Not approved.** Plan sections 4.6, 8, 10, 12. Rules of `tasks.md` apply. Estimate about 2,240 changed lines; checkpoint: stop and report above 1,300 at the end of T3. Branch from `rewrite` after M3 is merged. Visual tasks need the user's review of the screenshot page before closing.
 
-Titles: FR-326, FR-355 first named in T2; FR-341 in T4; NFR-58, NFR-62 in T5. Parts of closed ids are named, for example `FR-333 (shell)`, `FR-351 (shell)`.
+Titles: FR-326, FR-355 first named in T2; FR-341 in T4; NFR-58, NFR-62 in T5. Parts of closed ids are named, for example `FR-333 (shell)`: FR-339 (round request, skip), FR-340 (completeRunning), FR-351 and FR-352 (frozen drawing, address camera counted as taken, removal at the next address update) are titled with their part (`FR-339 (shell)`, `FR-340 (completeRunning)`, `FR-351 (frozen drawing)`, `FR-352 (address)`).
 
 - [ ] **T1. Branch and bookkeeping.** Done when: suite green; 41 / 6. Size: S (about 30).
 
@@ -14,21 +14,21 @@ Titles: FR-326, FR-355 first named in T2; FR-341 in T4; NFR-58, NFR-62 in T5. Pa
 
 - [ ] **T3. Overlay and the map view driver.** (parts: FR-329, FR-333, FR-335, FR-340, FR-342, FR-344 (shell))
   - Files: `apps/web/src/render/labels-layer.ts`, `apps/web/src/ui/map-view.ts`, `apps/web/src/core/playback.ts` (`completeRunning`), `apps/web/test/{map-view-tour-scan,playback}.test.ts`.
-  - Tests first: `completeRunning` (pure); overlay draw log with a fake 2D context (ring black 4 under white 2, triangle with halo, drawn after the texts, never with a label alpha); map-view scan: the tour paint path calls no layout function (NFR-58 pure part is named in M4 T5), `userCamera` marks taken and the tour's camera does not, the reduced-motion watcher completes a tour, `beginTour` completes a running step first.
+  - Tests first: `completeRunning` (pure); overlay draw log with a fake 2D context (ring black 4 under white 2, triangle with halo, drawn after the texts, never with a label alpha); map-view scan: the tour paint path calls no layout function (NFR-58 pure part is named in M4 T5), `userCamera` marks taken and the tour's camera does not, the reduced-motion watcher completes a tour, `beginTour` completes a running step first; **strict test: `completeTour` with no tour running is a no-op** (it must not complete a plain 005 step, e.g. after a stale or mismatched reveal under fast manual timing); **guard (plan section 9): until the end frame of an absorber tour the painted owners, labels and legend are those of k - 1 (round-k `StepData` and prepared layout are never shown early).**
   - Commit: `feat(web): draw reveal tours in the map view`.
   - Mutation proofs: overlay drawn before the labels; tour camera marking taken; layout called on the first tour frame.
   - Done when: tests green; no id moved (43 / 4); every 004 to 007 test unchanged and green. Size: L (about 650).
 
 - [ ] **T4. Debug shell: `reveal=on`, frozen tours, panel and pointer during tours, skip.** FR-341
   - Files: `apps/web/src/ui/{main,panel,input,url}.ts`, `apps/web/test/{ui-driver,address-reveal}.test.ts`.
-  - Tests first: Escape calls `onSkip` (ui-driver fake); skip completes a victim tour, and an absorber tour then starts the 005 step; `on` chains victim -> absorber (d >= 2) -> step and skips the absorber at d = 1; frozen values draw N - 1 at t with no clock and the panel at N; panel record line and pointer per A2; the address keeps `reveal` per A6 and writes the tour camera at the end (A7).
+  - Tests first: Escape calls `onSkip` (ui-driver fake); skip completes a victim tour, and an absorber tour then starts the 005 step; `on` chains victim -> absorber (d >= 2) -> step and skips the absorber at d = 1; frozen values draw N - 1 at t with no clock and the panel at N; panel record line and pointer per A2; the address keeps `reveal` per A6 and writes the tour camera at the end (A7); **debug legend guard (plan section 9): with `reveal=on` or a frozen value the legend follows the drawn state N - 1 until the tours stop (victim not yet eliminated, absorber count old), then shows N; test over a whole chain and a frozen value.**
   - Commit: `feat(web): play reveal tours in the debug scene`.
   - Mutation proofs: Escape ignored; absorber tour played at d = 1; frozen value kept after a round change.
   - Done when: tests green; 44 / 3. Size: M (about 550).
 
 - [ ] **T5. Figures, review rounds, screenshots.** NFR-58, NFR-62
   - Files: `apps/web/src/ui/{main,panel}.ts` (tour figures), `apps/web/src/core/{perf,panel-text}.ts`, `apps/web/test/{tour-review,perf}.test.ts` (new / edit), `.claude/review/009-m4-tours.html` (not in git).
-  - Tests first: tour figures text (median, 95th percentile over the tour's frames only, first-frame latency, layouts during the tour); a test finds the NFR-62 rounds for seed 1 (first with d >= 3, one with d = 2, the smallest victim by area and whether it is tiny at the overview) and pins them; the tour paint path computes no layout (`NFR-58` pure part).
+  - Tests first: the new STRINGS keys of the tour figures (NFR-64: Spanish, used by code, language scan green); tour figures text (median, 95th percentile over the tour's frames only, first-frame latency, layouts during the tour); a test finds the NFR-62 rounds for seed 1 (first with d >= 3, one with d = 2, the smallest victim by area and whether it is tiny at the overview) and pins them; the tour paint path computes no layout (`NFR-58` pure part).
   - Browser (pane visible; kill only our PIDs; check :5173 first): the figures of plan section 10, three runs, rounds 1 to T; the frame digests shown while frozen equal `tour-frame-pins.json` for the NFR-62 frames, using pins computed under the frozen debug-scene rules (PROPOSED in the plan M2 result note, approved by the user with the M4 tasks); the screenshot page of plan section 12 items 1 and 2.
   - Commit: `feat(web): measure reveal tours in the debug panel`.
   - Done when: tests green; figures within budget or reported; the user reviewed the page; 46 / 1. Size: M (about 450).

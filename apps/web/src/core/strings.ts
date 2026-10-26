@@ -10,6 +10,8 @@ export const STRINGS = {
     'El parámetro de cámara «{param}» no es válido: «{text}». Debe ser un número decimal sin signo. Se muestra el mapa entero.',
   transitionInvalid:
     'El parámetro «{param}» no es válido: «{text}». Debe ser un número decimal de 0 a 1 y la ronda mostrada debe ser al menos la 1. Se ignora.',
+  revealInvalid:
+    'El parámetro «{param}» no es válido: «{text}». Debe ser «on», «victim:t» o «absorber:t» (t entero dentro de la duración del recorrido; «absorber» necesita al menos dos candidatas), con la ronda mostrada al menos la 1 en los dos últimos y sin «transition». Se ignora.',
   typedRoundInvalid: 'La ronda «{text}» no es válida. Escribe un número entero de 0 a {total}.',
   packageErrors: 'El paquete del mapa no es válido: {count} errores. Primer error: {kind}.',
   noWebgl2: 'Este navegador no ofrece WebGL 2, que hace falta para dibujar el mapa.',
@@ -64,6 +66,12 @@ export const STRINGS = {
   liveStageHalted: 'Partida detenida.',
   liveCountdown: 'Próximo paso en {time}',
   liveVictim: 'Víctima de la ronda: {name}.',
+  // Reveal tours (spec 009): the victim line while the tour has not stopped on it, the dev-only report of a skipped tour, the skip control.
+  liveRevealing: 'revelando…',
+  liveVictimRevealing: 'Víctima de la ronda: {text}',
+  liveRevealMismatch: 'Se omite el recorrido de revelación: los participantes no coinciden con el estado mostrado.',
+  tourSkip: 'Saltar',
+  recordPartial: 'Eliminada: {eliminated} · Absorbida por: {absorber}',
   liveWinner: 'Ganadora de la partida: {name}.',
   liveHaltMapChanged: 'La partida se ha detenido porque el mapa ha cambiado.',
   liveHaltIsolatedFaction: 'La partida se ha detenido porque una facción ha quedado aislada.',

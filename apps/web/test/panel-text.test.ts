@@ -74,6 +74,45 @@ describe('FR-156 panel texts', () => {
   });
 });
 
+describe('FR-330 the debug record line during the tours', () => {
+  const names = (): string[] => DEV_PRESENTATION.factions.map((f) => f.name);
+  const nameOf = (id: number): string => DEV_PRESENTATION.factions.find((f) => f.id === id)?.name ?? '';
+
+  it('FR-330 before the victim stop the record line says "revelando…" and names neither the victim nor the absorber nor the count', () => {
+    for (const n of [1, 2, 3, 4]) {
+      const scene = sceneOf(n);
+      const line = recordLine(scene, DEV_PRESENTATION, { revealing: true, absorbing: true });
+      expect(line, `round ${String(n)}`).toContain('revelando…');
+      for (const name of names()) expect(line, name).not.toContain(name);
+      expect(line).not.toMatch(/\d/);
+      expect(filled(line)).toBe(true);
+      // `revealing` alone hides the same things (the victim tour is the first of the chain).
+      expect(recordLine(scene, DEV_PRESENTATION, { revealing: true })).toBe(line);
+    }
+  });
+
+  it('FR-330 after the victim stop the victim shows and the absorber stays hidden until the absorber tour ends', () => {
+    for (const n of [1, 2, 3, 4]) {
+      const scene = sceneOf(n);
+      const record = scene.record!;
+      const line = recordLine(scene, DEV_PRESENTATION, { absorbing: true });
+      expect(line).toContain(nameOf(record.eliminated));
+      expect(line).toContain('revelando…');
+      expect(line).not.toContain(nameOf(record.absorber));
+      expect(line).not.toMatch(/\d/);
+      expect(filled(line)).toBe(true);
+    }
+  });
+
+  it('FR-330 with no tour state, or with both flags off, the record line is the one of FR-156; round 0 stays "no record"', () => {
+    const scene = sceneOf(2);
+    expect(recordLine(scene, DEV_PRESENTATION, undefined)).toBe(recordLine(scene, DEV_PRESENTATION));
+    expect(recordLine(scene, DEV_PRESENTATION, {})).toBe(recordLine(scene, DEV_PRESENTATION));
+    expect(recordLine(scene, DEV_PRESENTATION, { revealing: false, absorbing: false })).toBe(recordLine(scene, DEV_PRESENTATION));
+    expect(recordLine(sceneOf(0), DEV_PRESENTATION, { revealing: true, absorbing: true })).toBe(STRINGS.noRecord);
+  });
+});
+
 describe('FR-157 pointer texts', () => {
   async function index() {
     const decoded = await decodeIdPng(devPngBytes(), inflateStream);
