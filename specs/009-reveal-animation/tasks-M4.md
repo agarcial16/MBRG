@@ -5,7 +5,7 @@ Titles: FR-326, FR-355 first named in T2; FR-341 in T4; NFR-58, NFR-62 in T5. Pa
 
 - [x] **T1. Branch and bookkeeping.** Done when: suite green; 41 / 6. Size: S (about 30).
 
-- [ ] **T2. Dim shading: reference, shader port, map scene.** FR-326, FR-355
+- [x] **T2. Dim shading: reference, shader port, map scene.** FR-326, FR-355
   - Files: `apps/web/src/core/tour-shade.ts` (new), `apps/web/src/render/{shader,map-scene}.ts`, `apps/web/test/tour-shade.test.ts` (new), `apps/web/test/labels-render.test.ts` (only if it pins the uniform set).
   - Tests first: `dimByte` at δ 0, 0.65 and a non-round 0.37 over all 256 values; `shadeTour` over the dev map at 1920 x 1080: lit land unchanged, other land, sea, outside and border pixels of unlit units dimmed, border pixels of lit units unchanged; at δ = 0 and no lit set equal to `renderReference` pixel for pixel (`FR-355`); the shader text has exactly `uDim`, `uLit`, the gate `uDim > 0.0` and the same operations in the same order as the reference (line-by-line port check as for `borders.ts`); `setTour` changes uniforms only (nothing uploaded); the FR-155 and FR-159 scans pass.
   - Commit: `feat(web): dim the map outside the tour's factions`.
