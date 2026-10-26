@@ -272,6 +272,8 @@ export function createMapView(input: MapViewInput): MapView {
     if (out.session === undefined) counting = false;
     if (out.prepare && held !== undefined && heldViews === undefined) heldViews = self.prepare(held.owners, held.data, true);
     if (out.ended) reported = undefined;
+    // The camera of this frame first: the end frame leaves it at the framing, and the step then starts from there (FR-348).
+    if (out.frame.camera !== undefined) camera = out.frame.camera;
     if (out.ended && out.step !== undefined && held !== undefined) {
       // The end frame: the 005 step of round k starts at this frame's reading and the round-k views become the drawn ones.
       const pending = held;
@@ -284,7 +286,6 @@ export function createMapView(input: MapViewInput): MapView {
       return playback.running !== undefined;
     }
     if (out.ended) held = undefined;
-    if (out.frame.camera !== undefined) camera = out.frame.camera;
     if (shownTable !== current.table) mapScene.setOwners(current.table);
     shownTable = current.table;
     mapScene.setFront(undefined);
@@ -363,7 +364,10 @@ export function createMapView(input: MapViewInput): MapView {
       current = prepared.round;
       stepView = prepared.step;
       // A round change leaves a frozen tour (A6); a running one was completed by the caller.
-      if (session !== undefined && session.run === undefined) session = undefined;
+      if (session !== undefined && session.run === undefined) {
+        session = undefined;
+        counting = false;
+      }
       paint(startedMs);
       if (playback.running !== undefined) loop.request();
     },

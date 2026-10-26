@@ -89,6 +89,8 @@ export interface TourSession {
   /** A round step follows the last tour: the round-k views are asked for once, on the second frame (NFR-58). */
   readonly step: boolean;
   readonly painted: number;
+  /** Frames painted of the LAST tour of the run (the round-k views are asked for on its second frame). */
+  readonly lastTourPainted: number;
   readonly prepared: boolean;
 }
 
@@ -130,12 +132,12 @@ export interface SessionPaint {
 /** Starts a run at the handling reading (FR-342, D11). The plan must hold a tour. */
 export function beginSession(plan: TourPlan, handlingMs: number, start: StartCamera, step: boolean): TourSession {
   const run = startTourRun(handlingMs, plan.tours, step);
-  return { tours: plan.tours, stills: plan.stills, run, frozenAt: undefined, start, taken: false, step, painted: 0, prepared: false };
+  return { tours: plan.tours, stills: plan.stills, run, frozenAt: undefined, start, taken: false, step, painted: 0, lastTourPainted: 0, prepared: false };
 }
 
 /** A frozen tour of the debug scene (FR-351): `t` is fixed, no clock runs, `taken` is true when the address has a camera (D15). */
 export function freezeSession(tour: Tour, still: boolean, t: number, start: StartCamera, taken: boolean): TourSession {
-  return { tours: [tour], stills: [still], run: undefined, frozenAt: t, start, taken, step: false, painted: 0, prepared: true };
+  return { tours: [tour], stills: [still], run: undefined, frozenAt: t, start, taken, step: false, painted: 0, lastTourPainted: 0, prepared: true };
 }
 
 /** The user took the camera (pan, zoom, reset): every easing of the tour stops (FR-333). Nothing running: nothing changes. */
@@ -172,7 +174,9 @@ const statusOf = (s: TourSession, index: number, frame: TourFrame, runEnded: boo
 function answer(s: TourSession, tick: TourTick, view: SessionView, prepare: boolean): SessionPaint {
   const frame = frameOf(s, tick.index, tick.t, view);
   return {
-    session: tick.ended ? undefined : { ...s, run: tick.run, painted: s.painted + 1, prepared: s.prepared || prepare },
+    session: tick.ended
+      ? undefined
+      : { ...s, run: tick.run, painted: s.painted + 1, lastTourPainted: s.lastTourPainted + (tick.index === s.tours.length - 1 ? 1 : 0), prepared: s.prepared || prepare },
     frame,
     status: statusOf(s, tick.index, frame, tick.ended),
     prepare,
@@ -189,7 +193,9 @@ export function paintSession(s: TourSession, nowMs: number, view: SessionView): 
     return { session: s, frame, status: statusOf(s, 0, frame, false), prepare: false, results: [], ended: false };
   }
   const tick = tourRunAt(s.run, nowMs);
-  const prepare = s.step && !s.prepared && (s.painted >= 1 || tick.ended);
+  // Never during the victim tour (NFR-58, PD11): on the second frame of an ABSORBER tour that ends the run, else on the ending frame.
+  const onAbsorber = s.tours[s.tours.length - 1]!.kind === 'absorber' && tick.index === s.tours.length - 1 && s.lastTourPainted >= 1;
+  const prepare = s.step && !s.prepared && (onAbsorber || tick.ended);
   return answer(s, tick, view, prepare);
 }
 

@@ -237,8 +237,10 @@ describe('FR-339 FR-344 (shell) completing a tour: strict no-op when no tour run
     expect(out.status).toMatchObject({ tour: 'absorber', runEnded: true });
     expect(out.prepare).toBe(true);
     // The views were already asked for on the second frame: not again.
-    const second = paintSession(first.session!, T0 + 26, view());
-    expect(completeSession(second.session, T0 + 700.5, view())!.prepare).toBe(false);
+    const inAbsorber = paintSession(first.session!, T0 + 5349 + 10, view());
+    const second = paintSession(inAbsorber.session!, T0 + 5349 + 26, view());
+    expect(second.prepare).toBe(true);
+    expect(completeSession(second.session, T0 + 5349 + 700.5, view())!.prepare).toBe(false);
   });
 
   it('a reduced-motion change completes the run the same way (FR-344 (shell))', () => {
@@ -296,5 +298,65 @@ describe('the session over a still tour (reduced motion)', () => {
     const end = paintSession(a.session!, T0 + 1800, view());
     expect(end).toMatchObject({ ended: true });
     expect(end.step).toStrictEqual({ startMs: T0 + 1800 });
+  });
+});
+
+describe('NFR-58 (pure part) the round-k views are asked for during the LAST tour only', () => {
+  /** The times (ms from the handling reading) at which `prepare` was true, painting every 16.5 ms to the end. */
+  const prepareTimes = (requests: TourRequest[]): number[] => {
+    let s: TourSession | undefined = begun(requests, true);
+    const at: number[] = [];
+    for (let dt = 0; s !== undefined && dt < 20000; dt += 16.5) {
+      const out = paintSession(s, T0 + dt, view());
+      if (out.prepare) at.push(dt);
+      s = out.session;
+    }
+    return at;
+  };
+
+  it('victim then absorber: never during the victim tour (D 5,349), once on the second frame of the absorber tour', () => {
+    const at = prepareTimes([victimRequest, absorberRequest]);
+    expect(at).toHaveLength(1);
+    // The absorber tour starts at 5,349: its first frame is the one at or after that instant, the second is the next one.
+    expect(at[0]!).toBeGreaterThan(5349);
+    expect(at[0]!).toBeLessThanOrEqual(5349 + 2 * 16.5);
+  });
+
+  it('victim then the step (no absorber tour): not during the victim tour, once on the ending frame', () => {
+    const at = prepareTimes([victimRequest]);
+    expect(at).toHaveLength(1);
+    expect(at[0]!).toBeGreaterThanOrEqual(5349);
+    expect(at[0]!).toBeLessThan(5349 + 16.5);
+  });
+
+  it('absorber alone: once, on its second frame', () => {
+    const at = prepareTimes([absorberRequest]);
+    expect(at).toStrictEqual([16.5]);
+  });
+
+  it('completing a chain during the victim tour still asks once (the step needs the views)', () => {
+    const first = paintSession(begun([victimRequest, absorberRequest], true), T0 + 10, view());
+    const second = paintSession(first.session!, T0 + 26, view());
+    expect(second.prepare).toBe(false);
+    expect(completeSession(second.session, T0 + 700, view())!.prepare).toBe(true);
+  });
+});
+
+describe('FR-348 the ending frame carries the camera the tours left (the step then starts with the camera at the framing)', () => {
+  it('FR-348 the ending frame of a run with a step has the framing of the last tour, also when it is painted long after the end', () => {
+    for (const late of [0, 1, 5000]) {
+      const out = paintSession(begun([victimRequest, absorberRequest], true), T0 + 5349 + 2411 + late, view());
+      expect(out.ended).toBe(true);
+      expect(out.step).toBeDefined();
+      const left = cameraAt(victim(), 5349, AREA, IMAGE, CAMERA);
+      expect(out.frame.camera).toStrictEqual(cameraAt(absorber(), 2411, AREA, IMAGE, left));
+    }
+  });
+
+  it('FR-348 a completion (skip, request, dropped frames) also carries that camera', () => {
+    const first = paintSession(begun([victimRequest, absorberRequest], true), T0 + 10, view());
+    const out = completeSession(first.session, T0 + 700, view())!;
+    const left = cameraAt(victim(), 5349, AREA, IMAGE, CAMERA);
+    expect(out.frame.camera).toStrictEqual(cameraAt(absorber(), 2411, AREA, IMAGE, left));
   });
 });

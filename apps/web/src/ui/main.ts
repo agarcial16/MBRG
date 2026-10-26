@@ -163,8 +163,9 @@ async function start(): Promise<void> {
       if (skippable) {
         if (lastTourReading !== undefined) tourFrames.push(t - lastTourReading);
         lastTourReading = t;
-        panel.showTour(skippable, tourLines());
       }
+      // The digest and frame text of a frozen tour follow every frame (a resize draws a new one); the figures follow a running tour.
+      if (skippable || frozenRequest !== undefined) panel.showTour(skippable, tourLines());
       showTimings();
     },
     onResize: () => sync(),

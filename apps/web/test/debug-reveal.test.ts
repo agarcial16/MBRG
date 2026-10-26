@@ -32,7 +32,7 @@ describe('revealRequests: the tours of a debug round over faction indices', () =
   const r = golden.find((g) => g.candidates.length >= 2)!;
   const one = golden.find((g) => g.candidates.length < 2);
 
-  it('FR-351 (frozen drawing) the victim request holds the participants and the victim; sigma comes from the debug keys', () => {
+  it('FR-351 (debug shell) the victim request holds the participants and the victim; sigma comes from the debug keys', () => {
     const { victim } = revealRequests(inputsOf(r), factionIndex);
     expect(victim.kind).toBe('victim');
     expect(victim.result).toBe(factionIndex.get(r.victim));
@@ -41,7 +41,7 @@ describe('revealRequests: the tours of a debug round over faction indices', () =
     expect(victim.victim).toBeUndefined();
   });
 
-  it('FR-351 (frozen drawing) the absorber request holds the candidates, the victim and the absorber, with the key debug:<N>:absorber', () => {
+  it('FR-351 (debug shell) the absorber request holds the candidates, the victim and the absorber, with the key debug:<N>:absorber', () => {
     const { absorber } = revealRequests(inputsOf(r), factionIndex);
     expect(absorber).toMatchObject({ kind: 'absorber', result: factionIndex.get(r.absorber), victim: factionIndex.get(r.victim) });
     expect(absorber!.set).toStrictEqual(r.candidates.map((f) => factionIndex.get(f)));
@@ -56,7 +56,7 @@ describe('revealRequests: the tours of a debug round over faction indices', () =
 
 describe('debugTourState: what the panel hides', () => {
   const st = (over: Partial<TourStatus>): TourStatus => ({ index: 0, tour: 'victim', still: false, resultShown: false, ended: false, runEnded: false, ...over });
-  it('FR-351 (frozen drawing) the table of the chain: revealing, then absorbing, then nothing', () => {
+  it('FR-351 (debug shell) the table of the chain: revealing, then absorbing, then nothing', () => {
     expect(debugTourState(undefined)).toStrictEqual({ revealing: false, absorbing: false });
     expect(debugTourState(st({}))).toStrictEqual({ revealing: true, absorbing: false });
     expect(debugTourState(st({ resultShown: true }))).toStrictEqual({ revealing: false, absorbing: true });
@@ -89,7 +89,7 @@ describe('the debug legend follows the drawn state N - 1 until the tours stop (p
     return seen;
   }
 
-  it('FR-351 (frozen drawing) over a whole chain (d >= 2) the legend and the living count are those of N - 1 until the run ends, then those of N', () => {
+  it('FR-351 (debug shell) over a whole chain (d >= 2) the legend and the living count are those of N - 1 until the run ends, then those of N', () => {
     const r = golden.find((g) => g.candidates.length >= 2)!;
     const before = scene(r.round - 1);
     const after = scene(r.round);
@@ -107,7 +107,7 @@ describe('the debug legend follows the drawn state N - 1 until the tours stop (p
     expect(seen.at(-1)!.living).toBe(after.living);
   });
 
-  it('FR-351 (frozen drawing) a chain without an absorber tour (d = 1) gives the same guard over the victim tour alone', () => {
+  it('FR-351 (debug shell) a chain without an absorber tour (d = 1) gives the same guard over the victim tour alone', () => {
     const r = golden.find((g) => g.candidates.length < 2)!;
     const before = scene(r.round - 1);
     const after = scene(r.round);
@@ -133,7 +133,7 @@ describe('the debug legend follows the drawn state N - 1 until the tours stop (p
     }
   });
 
-  it('FR-351 (frozen drawing) the record line hides the victim before its stop and the absorber until the run ends (A2)', () => {
+  it('FR-351 (debug shell) the record line hides the victim before its stop and the absorber until the run ends (A2)', () => {
     const r = golden.find((g) => g.candidates.length >= 2)!;
     const after = scene(r.round);
     const full = recordLine(after, DEV_PRESENTATION);
@@ -145,7 +145,7 @@ describe('the debug legend follows the drawn state N - 1 until the tours stop (p
     expect(full).not.toContain('revelando');
   });
 
-  it('FR-351 (frozen drawing) drawnScene keeps the displayed scene when nothing is hidden, or when no earlier scene is held', () => {
+  it('FR-351 (debug shell) drawnScene keeps the displayed scene when nothing is hidden, or when no earlier scene is held', () => {
     const a = scene(1);
     const b = scene(2);
     expect(drawnScene(b, a, { revealing: false, absorbing: false })).toBe(b);
@@ -156,7 +156,7 @@ describe('the debug legend follows the drawn state N - 1 until the tours stop (p
 });
 
 describe('the panel digest is the digest of the frame the map view drew', () => {
-  it('FR-351 (frozen drawing) digestLine of a frame is its digest in the Spanish line; no frame gives no line', () => {
+  it('FR-351 (debug shell) digestLine of a frame is its digest in the Spanish line; no frame gives no line', () => {
     const r = golden[0]!;
     const tour = planTours([revealRequests(inputsOf(r), factionIndex).victim], false, none).tours[0]!;
     const frame = paintSession(freezeSession(tour, false, 1000, { overview: true }, false), 0, VIEW).frame;
@@ -166,7 +166,7 @@ describe('the panel digest is the digest of the frame the map view drew', () => 
 
   const src = (path: string): string => codeOnly(Object.values(import.meta.glob('../src/ui/map-view.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>)[0]! + path);
 
-  it('FR-351 (frozen drawing) the map view keeps the frame it drew, right after drawing it, and forgets it on a plain drawing', () => {
+  it('FR-351 (debug shell) the map view keeps the frame it drew, right after drawing it, and forgets it on a plain drawing', () => {
     const code = src('');
     expect(code).toMatch(/present\(tourLabelDraws\([^;]*\);\s*lastFrame = out\.frame;/);
     expect(code).toMatch(/mapScene\.setTour\(undefined\);\s*lastFrame = undefined;/);
@@ -185,7 +185,7 @@ describe('FR-341 the skip control and the shell wiring', () => {
     expect(panel).toContain('skip.hidden = !skippable;');
   });
 
-  it('FR-341 a round request completes a running tour first (strict no-op without one), before anything else of the change', () => {
+  it('FR-339 (shell) a round request completes a running tour first (strict no-op without one), before anything else of the change', () => {
     const body = main.slice(main.indexOf('const showRound = (n: number): void =>'));
     expect(body.indexOf('view.completeTour(started)')).toBeGreaterThan(-1);
     expect(body.indexOf('view.completeTour(started)')).toBeLessThan(body.indexOf('view.request(n, started)'));
@@ -197,7 +197,7 @@ describe('FR-341 the skip control and the shell wiring', () => {
     expect(main).toContain('syncAddress(scene.seed, scene.round, view.camera(), frozenText, revealText(reveal))');
   });
 
-  it('FR-351 (frozen drawing) the chain plays victim, then absorber when asked for, then the step, only for a forward one-round step', () => {
+  it('FR-351 (debug shell) the chain plays victim, then absorber when asked for, then the step, only for a forward one-round step', () => {
     expect(main).toMatch(/reveal\?\.mode === \S*\s*&& outcome\.change === \S*\s*&& data !== undefined && n > scene\.round/);
     expect(main).toContain('requests.absorber === undefined ? [requests.victim] : [requests.victim, requests.absorber]');
     expect(main).toContain('view.beginTour(list, started, { target: n, owners: next.owners, data })');
@@ -209,13 +209,13 @@ describe('FR-341 the skip control and the shell wiring', () => {
     expect(main).toMatch(/round: previousScene === undefined \? scene\.round : previousScene\.round,/);
   });
 
-  it('FR-341 the user camera goes through userCamera (it takes the camera from a tour)', () => {
+  it('FR-333 (shell) the user camera goes through userCamera (it takes the camera from a tour)', () => {
     expect(main).toMatch(/const setCamera = \(next: Camera\): void => \{\s*view\.userCamera\(next\);/);
   });
 });
 
 describe('the frame text behind the digest (a browser digest that differs from a pin can be diagnosed)', () => {
-  it('FR-351 (frozen drawing) frameTextLine is the canonical text of the frame drawn, and nothing without a frame', async () => {
+  it('FR-351 (debug shell) frameTextLine is the canonical text of the frame drawn, and nothing without a frame', async () => {
     const { frameTextLine } = await import('../src/core/debug-reveal');
     const { frameText } = await import('../src/core/tour-digest');
     const r = golden[0]!;
@@ -225,3 +225,34 @@ describe('the frame text behind the digest (a browser digest that differs from a
     expect(frameTextLine(undefined)).toBeUndefined();
   });
 });
+
+describe('the tour lines and the address while a tour is on screen', () => {
+  const mainSrc = codeOnly(Object.values(import.meta.glob('../src/ui/main.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>)[0]!);
+  const body = (marker: string): string => {
+    const at = mainSrc.indexOf(marker);
+    const open = mainSrc.indexOf('{', at);
+    let depth = 0;
+    for (let i = open; i < mainSrc.length; i++) {
+      if (mainSrc[i] === '{') depth++;
+      else if (mainSrc[i] === '}' && --depth === 0) return mainSrc.slice(open, i + 1);
+    }
+    throw new Error(marker);
+  };
+
+  it('FR-351 (frozen drawing) the digest and frame-text lines are refreshed on EVERY tour frame, frozen included (a resize draws a new frame)', () => {
+    const onFrame = body('onFrame: (t) =>');
+    expect(onFrame).toMatch(/if \(skippable \|\| frozenRequest !== undefined\) panel\.showTour\(skippable, tourLines\(\)\);/);
+    // The frame times of the running tour are still collected only for a running tour.
+    expect(onFrame).toMatch(/if \(skippable\) \{\s*if \(lastTourReading !== undefined\) tourFrames\.push\(t - lastTourReading\);\s*lastTourReading = t;\s*\}/);
+  });
+
+  it('FR-345 (shell) the address camera is written once, at the end of the run, not on every tour frame (A7)', () => {
+    const onTour = body('onTour: (status) =>');
+    expect(onTour).toMatch(/if \(status\.runEnded\) sync\(\);/);
+    expect(onTour.match(/\bsync\(\)/g)).toHaveLength(1);
+    // No frame hook writes the address; only the resize hook, the user camera, a round change and the run's end do.
+    expect(body('onFrame: (t) =>')).not.toMatch(/\bsync\(\)|syncAddress/);
+    expect(mainSrc.match(/\bsync\(\)/g)).toHaveLength(5);
+  });
+});
+

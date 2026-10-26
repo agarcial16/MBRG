@@ -164,3 +164,20 @@ describe('NFR-58 (pure part) the layouts of a tour are counted for the panel', (
     expect(c).toContain('tourLayouts: () => tourLayouts,');
   });
 });
+
+describe('FR-348 the camera of the ending frame is applied before the round step starts', () => {
+  it('FR-348 applyTour sets the camera from the frame before the hand-over commit, so the step starts with the camera at the framing', () => {
+    const apply = bodyOf(code(), 'const applyTour = (out: SessionPaint): boolean =>');
+    const camera = apply.indexOf('if (out.frame.camera !== undefined) camera = out.frame.camera;');
+    expect(camera).toBeGreaterThan(-1);
+    expect(camera).toBeLessThan(apply.indexOf('self.commit('));
+    expect([...apply.matchAll(/camera = out\.frame\.camera;/g)]).toHaveLength(1);
+  });
+});
+
+describe('the layout counter stops when a frozen session is dropped', () => {
+  it('NFR-58 (pure part) commit clears the count flag together with the frozen session', () => {
+    const commit = bodyOf(code(), 'commit: (outcome, prepared, startedMs) =>');
+    expect(commit).toMatch(/if \(session !== undefined && session\.run === undefined\) \{\s*session = undefined;\s*counting = false;\s*\}/);
+  });
+});
