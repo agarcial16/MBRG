@@ -1,9 +1,9 @@
 ### M5 — Live shell, real-server proofs, close (`feat/009-m5-live-tours`; 46 / 1 -> 47 / 0)
-**Status: DRAFT (planner, 2026-10-25). Not approved.** Plan sections 6, 9, 10, 12. Rules of `tasks.md` apply. Estimate about 1,250 changed lines. Branch from `rewrite` after M4 is merged. Needs A7 decided.
+**Status: approved with `tasks.md` (2026-10-25); the DRAFT marker was removed by T1 (2026-10-26). A7 is decided (D16). Amendments D18 to D20 (M4 review) apply.** Plan sections 6, 9, 10, 12. Rules of `tasks.md` apply. Estimate about 1,250 changed lines. Branch from `rewrite` (M4 merged as #47).
 
 Titles: NFR-63 first named in T4. Parts: `FR-316 (shell)`, `FR-330 (shell)`, `FR-341 (live)`, `FR-345 (shell)`, `FR-336 (real server)`.
 
-- [ ] **T1. Branch and bookkeeping.** Done when: suite green; 46 / 1. Size: S (about 30).
+- [x] **T1. Branch and bookkeeping.** Done when: suite green; 46 / 1. Size: S (about 30).
 
 - [ ] **T2. Live shell: runner effects, port, panel, skip.** (parts: FR-316, FR-330, FR-341, FR-345 (shell))
   - Files: `apps/web/src/core/live-model.ts` (a field or effect that carries the FR-320 skip, reason `mismatch`, to the port), `apps/web/src/ui/{live-runner,live-main,live-panel}.ts`, `apps/web/test/{live-runner,live-model-tour}.test.ts`.

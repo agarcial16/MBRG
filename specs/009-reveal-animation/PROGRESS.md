@@ -221,3 +221,8 @@ Per-task log: what changed, tests run and results, what is untested, next step. 
 - Tests: `npm test` 237 files, 3942 passed, 4 skipped; typecheck clean. Not run in the browser yet.
 - Not decided: when the absorber tour is skipped (d = 1 or too short), the camera stays on the victim as before.
 - D20 (user-approved 2026-10-26): the last-round victim tour with fewer than two candidates returns to the overview over its last 800 ms (`overviewAfter` on `TourRequest`/`TourSpec`, set by `revealRequests(..., last)` from `main.ts`). Tests: `tour-camera` (D20). `npm test` 237 files, 3943 passed, 4 skipped; typecheck clean. Not committed: waiting for the user's approval.
+
+## 2026-10-26 — M5 T1 (branch and bookkeeping)
+- Branch `feat/009-m5-live-tours` cut from `origin/rewrite` (06f3804, M4 merged as #47 after #45 went to `main` by mistake and was reverted there as #46). DRAFT marker removed from `tasks-M5.md`; `tasks.md` rows M4 "merged (#47)" and M5 "in progress".
+- `npm test` 237 files, 3943 passed, 4 skipped; typecheck clean. Ledger 46 / 1 (unchanged).
+- Next step: T2 (live shell: runner effects, port, panel, skip).
