@@ -107,3 +107,33 @@ describe('NFR-70 every visible text of the HUD is in the strings module', () => 
     expect(languageViolations('const x = 1; // é'.replace('\u00e9', 'é'))).not.toStrictEqual([]);
   });
 });
+
+describe('FR-367 the fonts are self-hosted and licensed', () => {
+  const files = Object.keys(import.meta.glob('../public/fonts/*', { query: '?url', import: 'default', eager: true })).map((p) => p.replace('../public/fonts/', ''));
+  const faces = [...css.matchAll(/@font-face\s*\{([^}]*)\}/g)].map((m) => m[1]!);
+
+  it('FR-367 the stylesheet declares the faces the type scale uses: Cormorant SC (500, 600, 700) and Spectral (400, 500, 600, 400 italic)', () => {
+    const families = faces.map((f) => `${/font-family:\s*'([^']+)'/.exec(f)?.[1]} ${/font-weight:\s*(\d+)/.exec(f)?.[1]}${/font-style:\s*italic/.test(f) ? ' italic' : ''}`).sort();
+    expect(families).toStrictEqual(['Cormorant SC 500', 'Cormorant SC 600', 'Cormorant SC 700', 'Spectral 400', 'Spectral 400 italic', 'Spectral 500', 'Spectral 600']);
+    for (const face of faces) expect(face).toMatch(/font-display:\s*swap/);
+  });
+
+  it('FR-367 every face points to a woff2 file that is in public/fonts, and no face points anywhere else', () => {
+    for (const face of faces) {
+      const src = /url\('(\/fonts\/[^']+\.woff2)'\)\s*format\('woff2'\)/.exec(face)?.[1];
+      expect(src, face).toBeDefined();
+      expect(files, src).toContain(src!.replace('/fonts/', ''));
+    }
+    expect(css).not.toMatch(/https?:\/\//);
+  });
+
+  it('FR-367 each family ships its licence text, the SIL Open Font License, next to the files', () => {
+    expect(files).toContain('OFL-Cormorant.txt');
+    expect(files).toContain('OFL-Spectral.txt');
+  });
+
+  it('FR-367 the page loads no font from a network host (no CDN link in the entry page or the sources)', () => {
+    expect(shell).not.toMatch(/fonts\.googleapis|fonts\.gstatic/);
+    expect(css).not.toMatch(/fonts\.googleapis|fonts\.gstatic/);
+  });
+});
