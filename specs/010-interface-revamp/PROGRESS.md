@@ -54,3 +54,4 @@
 - Predictions-closed moment: "PREDICCIONES FINALIZADAS" then "REVELANDO..." over the dimmed map, for tension. Needs spec 011 (predictions). It must not show the victim before the reveal (anti-spoiler).
 - Forced absorber (only one neighbour): the victim-to-absorber phase lasts less, with no prediction. Changes the timing of rounds: Full SDD, together with the single-candidate rule of 011.
 - Open since before: 008 items (connecting timeout, live-net read timeouts, SSE line cap); NFR-68/69/71 of 010; pinch zoom on the phone minimap.
+- Predictions on the map (spec 011): besides the choice row of the command panel, a prediction is made by tapping the faction or neighbour on the map (the mockup already says so). The tap must go through the same sealed-choice path as the row, highlight the candidates, and work on the phone. Taps on non-candidates do nothing.
