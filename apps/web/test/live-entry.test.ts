@@ -18,6 +18,7 @@ function actions(debug: boolean): EnterActions & { calls: string[] } {
     debug: debug ? async () => void calls.push('debug') : undefined,
     live: (id) => void calls.push(`live:${id}`),
     message: (text) => void calls.push(`message:${text}`),
+    start: () => void calls.push('start'),
   };
 }
 
@@ -37,11 +38,18 @@ describe('FR-306 (entry) the page entry chooses the scene of each address', () =
     const none = actions(true);
     await enter('', true, none);
     expect(none.calls).toStrictEqual(['debug']);
-    for (const search of ['?seed=7', '', '?round=2']) {
+    const seedOnly = actions(false);
+    await enter('?seed=7', false, seedOnly);
+    expect(seedOnly.calls).toStrictEqual([`message:${errorText('need-match')}`]);
+    // Spec 010 FR-366: with no match and no seed the production page is the start screen, not a message.
+    for (const search of ['', '?round=2', '?start']) {
       const prod = actions(false);
       await enter(search, false, prod);
-      expect(prod.calls, search).toStrictEqual([`message:${errorText('need-match')}`]);
+      expect(prod.calls, search).toStrictEqual(['start']);
     }
+    const dev2 = actions(true);
+    await enter('?start', true, dev2);
+    expect(dev2.calls).toStrictEqual(['start']);
   });
 
   it('FR-306 (entry) a development build without the debug action still shows the message (the action is the second guard)', async () => {

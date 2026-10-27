@@ -5,6 +5,10 @@ import { ZONES } from '../src/core/hud-layout';
 import { PANEL_CSS as css } from '../src/ui/live-panel-style';
 import shell from '../src/ui/live-panel.ts?raw';
 import main from '../src/ui/live-main.ts?raw';
+import startShell from '../src/ui/live-start.ts?raw';
+import terraShell from '../src/ui/live-terra.ts?raw';
+import entryShell from '../src/ui/entry.ts?raw';
+import { readFileSync } from 'node:fs';
 import { codeOnly, languageViolations } from './helpers/scan';
 import hudTokens from '../src/core/hud-tokens.ts?raw';
 import hudLayout from '../src/core/hud-layout.ts?raw';
@@ -187,5 +191,63 @@ describe('FR-359 to FR-364 the shell of the left column, the band, the track and
     expect(main.match(/drawMinimap\(/g)!.length).toBeGreaterThanOrEqual(4);
     expect(shell).toContain('STRINGS.hudMinimap');
     expect(shell).toContain('STRINGS.hudMinimapHint');
+  });
+});
+
+describe('FR-368 terra incognita: the asset and the layer', () => {
+  const file = readFileSync(new URL('../public/terra.webp', import.meta.url));
+
+  it('FR-368 the texture is one WebP tile of at most 150 KB, in public/', () => {
+    expect(file.length).toBeGreaterThan(10_000);
+    expect(file.length).toBeLessThanOrEqual(150_000);
+    expect(file.subarray(0, 4).toString('latin1')).toBe('RIFF');
+    expect(file.subarray(8, 12).toString('latin1')).toBe('WEBP');
+  });
+
+  it('FR-368 the layer is made of the bands of the pure module, above the map canvas and below the labels, and never takes the pointer', () => {
+    expect(terraShell).toMatch(/terraBands\(/);
+    expect(terraShell).toMatch(/terraOffset\(/);
+    expect(terraShell).toMatch(/pointerEvents\s*=\s*'none'/);
+    expect(terraShell).toContain('TERRA_TILE');
+    expect(main).toMatch(/createTerra\(/);
+    expect(main).toMatch(/terra\??\.place\(/);
+    expect(main.match(/terra\??\.place\(/g)!.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('FR-368 the layer places itself again only when the camera or the viewport changed, so a frame with the same view costs nothing', () => {
+    expect(terraShell).toMatch(/camera\.x\s*===\s*last\.x/);
+    expect(terraShell).toMatch(/return;/);
+  });
+});
+
+describe('FR-366 the single entry page', () => {
+  it('FR-366 the entry gives the page a start screen action, and the start screen is built from the pure address function', () => {
+    expect(entryShell).toMatch(/start:\s*/);
+    expect(startShell).toMatch(/matchAddress\(/);
+    expect(startShell).toMatch(/type\s*=\s*'text'/);
+    expect(startShell).toMatch(/addEventListener\(\s*'submit'/);
+    expect(startShell).toMatch(/form\.method\s*=\s*'get'/);
+    expect(startShell).toMatch(/input\.name\s*=\s*'match'/);
+    expect(startShell).toMatch(/input\.value\s*=\s*address\.id/);
+    expect(startShell).toContain('STRINGS.startTitle');
+    expect(startShell).toContain('STRINGS.startCode');
+    expect(startShell).toContain('STRINGS.startEnter');
+    expect(startShell).toContain('STRINGS.startInvalid');
+  });
+
+  it('FR-366 the debug scene and the test client are reachable from the start screen only in a development build', () => {
+    expect(startShell).toMatch(/import\.meta\.env\.DEV/);
+    expect(startShell).toContain('STRINGS.debugTitle');
+    expect(startShell).toContain('STRINGS.clientTitle');
+    const gate = startShell.indexOf('import.meta.env.DEV');
+    expect(startShell.indexOf('client.html')).toBeGreaterThan(gate);
+    expect(startShell.indexOf('seed=')).toBeGreaterThan(gate);
+  });
+});
+
+describe('FR-359 the minimap dims only itself', () => {
+  it('FR-359 the box that holds the view rectangle clips its shadow: the 999 px shadow of the rectangle must not dim the screen', () => {
+    expect(css).toMatch(/\.hud-minirect\s*\{[^}]*box-shadow:\s*0 0 0 999px/);
+    expect(rules('.hud-minibox').join(';')).toMatch(/overflow:\s*hidden/);
   });
 });

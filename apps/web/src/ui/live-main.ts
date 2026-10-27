@@ -33,6 +33,8 @@ import { startRunner } from './live-runner';
 import type { LivePort, LiveRunner } from './live-runner';
 import { after } from './live-timer';
 import { syncLiveAddress } from './live-url';
+import { createTerra } from './live-terra';
+import type { Terra } from './live-terra';
 import { createMapView } from './map-view';
 import type { MapView } from './map-view';
 import { showMessage } from './message';
@@ -74,6 +76,8 @@ export function startLiveScene(matchId: string): void {
 
   /** FR-359: the picture of the minimap (when `owners` is given) and the rectangle of the current view. */
   let miniOwners: Owners | undefined;
+  /** FR-368: the parchment outside the map, placed again with every frame the view draws. */
+  let terra: Terra | undefined;
   const drawMinimap = (owners?: Owners): void => {
     if (built === undefined || view === undefined) return;
     const image = { w: built.pkg.width, h: built.pkg.height };
@@ -145,9 +149,11 @@ export function startLiveScene(matchId: string): void {
           colors,
           viewport: { width: canvas.clientWidth, height: canvas.clientHeight },
           start: { round, owners, ...(address.camera === undefined ? {} : { camera: address.camera }) },
+          onFrame: () => terra?.place(created.camera(), created.viewport()),
           onResize: () => {
             syncAddress(lastRound, created.camera());
             drawMinimap();
+            terra?.place(created.camera(), created.viewport());
           },
           onTour: (status) => {
             tour = tourReportOf(status);
@@ -160,6 +166,8 @@ export function startLiveScene(matchId: string): void {
           },
         });
         view = created;
+        terra = createTerra(canvas, { w: pkg.width, h: pkg.height });
+        terra.place(created.camera(), created.viewport());
         attachInput(canvas, {
           image: { w: pkg.width, h: pkg.height },
           viewport: created.viewport,

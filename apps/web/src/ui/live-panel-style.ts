@@ -64,10 +64,16 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud-btn.primary { background: var(--hud-gilt); color: var(--hud-on-gilt); box-shadow: none; font-weight: 600; }
 .hud :focus-visible { outline: 2px solid var(--hud-gilt); outline-offset: 2px; }
 
+/* start screen */
+.hud-form { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.hud-input { flex: 1; min-width: 200px; min-height: 40px; padding: 0 10px; background: var(--hud-umber); color: var(--hud-text); border: 0; box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); font: 14px var(--hud-body, Spectral, Georgia, serif); }
+.hud-tools { margin-top: 14px; display: flex; gap: 14px; font-size: 12px; }
+.hud-tools a { color: var(--hud-muted); }
+
 /* minimap */
 .hud-mini { position: absolute; right: 12px; bottom: 12px; width: 214px; padding: 8px 12px 12px; }
 .hud-mini .hud-title { font-size: 14px; margin-bottom: 4px; }
-.hud-minibox { position: relative; touch-action: none; cursor: crosshair; line-height: 0; }
+.hud-minibox { position: relative; overflow: hidden; touch-action: none; cursor: crosshair; line-height: 0; }
 .hud-minicanvas { width: 100%; height: auto; display: block; box-shadow: 0 0 0 1px var(--hud-gilt-dim); }
 .hud-minirect { position: absolute; border: 1.5px solid var(--hud-text); box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.28); pointer-events: none; }
 
@@ -84,6 +90,7 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud-card .hud-title { font-size: 19px; }
 .hud-card p { margin: 4px 0 0; }
 .hud[data-state="loading"] .hud-card,
+.hud[data-state="start"] .hud-card,
 .hud[data-state="error"] .hud-card { top: 50%; transform: translate(-50%, -50%); }
 .hud-bar { height: 3px; margin-top: 12px; background: var(--hud-wood2); overflow: hidden; }
 .hud-bar i { display: block; width: 40%; height: 100%; background: var(--hud-gilt); animation: hud-slide 1.6s ease-in-out infinite alternate; }

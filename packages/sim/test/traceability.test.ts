@@ -80,10 +80,10 @@ const DONE_009: readonly string[] = ['FR-318', 'FR-321', 'FR-322', 'FR-323', 'FR
  * Ids of spec 010 (interface revamp; FR-356..FR-368, NFR-65..NFR-71) whose tests are not written or not complete yet (pinned literal
  * list). Each task of spec 010 removes the ids it closes in its own commit; the last task leaves this list empty.
  */
-const PENDING_010: readonly string[] = ['FR-366', 'FR-368', 'NFR-68', 'NFR-69', 'NFR-71'];
+const PENDING_010: readonly string[] = ['NFR-68', 'NFR-69', 'NFR-71'];
 
-/** Ids of spec 010 already closed (milestone a: layout, top bar, states, tokens and fonts, contrast, keyboard and motion, strings; milestone b: minimap, chronicle, factions, archive, replay band, track). */
-const DONE_010: readonly string[] = ['FR-356', 'FR-357', 'FR-358', 'FR-359', 'FR-360', 'FR-361', 'FR-362', 'FR-363', 'FR-364', 'FR-365', 'FR-367', 'NFR-65', 'NFR-66', 'NFR-67', 'NFR-70'];
+/** Ids of spec 010 already closed (milestone a: layout, top bar, states, tokens and fonts, contrast, keyboard and motion, strings; milestone b: minimap, chronicle, factions, archive, replay band, track; milestone c: terra incognita, start screen). */
+const DONE_010: readonly string[] = ['FR-356', 'FR-357', 'FR-358', 'FR-359', 'FR-360', 'FR-361', 'FR-362', 'FR-363', 'FR-364', 'FR-365', 'FR-366', 'FR-367', 'FR-368', 'NFR-65', 'NFR-66', 'NFR-67', 'NFR-70'];
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -597,7 +597,7 @@ describe('traceability', () => {
     ];
     expect(literal).toHaveLength(20);
     expect([...PENDING_010, ...DONE_010].sort()).toStrictEqual([...literal].sort());
-    expect(DONE_010).toHaveLength(15);
+    expect(DONE_010).toHaveLength(17);
     for (const id of literal) expect(specIds, id).toContain(id);
     const used = tracedIds(testSources);
     for (const id of DONE_010) expect(used.has(id), id).toBe(true);

@@ -29,11 +29,22 @@ describe('FR-306 the page address chooses the scene', () => {
     expect(chooseScene('?seed=42&round=1', false)).toStrictEqual({ kind: 'message', error: 'need-match' });
   });
 
-  it('FR-306 (d) neither is the debug scene in development and the message "need-match" in production', () => {
+  it('FR-306 (d) FR-366 neither is the debug scene in development and the start screen in production', () => {
     for (const search of ['', '?', '?round=2', '?x=1&y=2&zoom=3']) {
       expect(chooseScene(search, true), search).toStrictEqual({ kind: 'debug' });
-      expect(chooseScene(search, false), search).toStrictEqual({ kind: 'message', error: 'need-match' });
+      expect(chooseScene(search, false), search).toStrictEqual({ kind: 'start' });
     }
+  });
+
+  it('FR-366 the start parameter asks for the start screen in every build, unless a match or a seed is given', () => {
+    for (const dev of [true, false]) {
+      expect(chooseScene('?start', dev)).toStrictEqual({ kind: 'start' });
+      expect(chooseScene('?start=1&round=2', dev)).toStrictEqual({ kind: 'start' });
+      expect(chooseScene(`?start&match=${ID}`, dev)).toStrictEqual({ kind: 'live', matchId: ID });
+      expect(chooseScene('?start&seed=1&match=x', dev)).toStrictEqual({ kind: 'message', error: 'both' });
+    }
+    expect(chooseScene('?start&seed=1', true)).toStrictEqual({ kind: 'debug' });
+    expect(chooseScene('?start&seed=1', false)).toStrictEqual({ kind: 'message', error: 'need-match' });
   });
 
   it.each([true, false])('FR-306 a malformed or repeated match id is "bad-match" in every build (dev %s)', (dev) => {
