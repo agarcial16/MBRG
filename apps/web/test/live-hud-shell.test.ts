@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { ZONES } from '../src/core/hud-layout';
 import { PANEL_CSS as css } from '../src/ui/live-panel-style';
 import shell from '../src/ui/live-panel.ts?raw';
+import main from '../src/ui/live-main.ts?raw';
 import { codeOnly, languageViolations } from './helpers/scan';
 import hudTokens from '../src/core/hud-tokens.ts?raw';
 import hudLayout from '../src/core/hud-layout.ts?raw';
@@ -40,6 +41,8 @@ describe('FR-357 the dock folds', () => {
     expect(folded).toMatch(/display:\s*none/);
     expect(css).toMatch(/\[data-dock="folded"\][^{]*\.hud-left/);
     expect(css).toMatch(/\[data-dock="folded"\][^{]*\.hud-stage/);
+    expect(css).toMatch(/\[data-dock="folded"\][^{]*\.hud-track/);
+    expect(css).toMatch(/\[data-dock="folded"\][^{]*\.hud-secondary/);
     expect(css).not.toMatch(/\[data-dock="folded"\][^{]*\.hud-nav/);
     expect(css).not.toMatch(/\[data-dock="folded"\][^{]*\.hud-victim/);
   });
@@ -135,5 +138,54 @@ describe('FR-367 the fonts are self-hosted and licensed', () => {
   it('FR-367 the page loads no font from a network host (no CDN link in the entry page or the sources)', () => {
     expect(shell).not.toMatch(/fonts\.googleapis|fonts\.gstatic/);
     expect(css).not.toMatch(/fonts\.googleapis|fonts\.gstatic/);
+  });
+});
+
+describe('FR-359 to FR-364 the shell of the left column, the band, the track and the minimap', () => {
+  it('FR-360 the chronicle writes its entries from the strings templates: applied, pending and the wait text of a reveal that has not stopped', () => {
+    for (const key of ['hudChronicle', 'hudChronicleApplied', 'hudChroniclePending', 'hudChronicleRevealing']) expect(shell, key).toContain(`STRINGS.${key}`);
+    expect(shell).toMatch(/entry\.status\s*===\s*'pending'/);
+  });
+
+  it('FR-361 the factions list sorts, searches and caps with the pure functions, shows the three columns and the sort controls', () => {
+    for (const fn of ['sortRows', 'searchRows', 'visibleRows']) expect(shell, fn).toContain(`${fn}(`);
+    for (const key of ['hudColTerritories', 'hudColKills', 'hudColConquered', 'hudSortTerritories', 'hudSortKills', 'hudSortConquered', 'hudSearch', 'hudShowAll', 'hudShowLess', 'hudAliveOf']) {
+      expect(shell, key).toContain(`STRINGS.${key}`);
+    }
+    expect(shell).toMatch(/type\s*=\s*'search'/);
+    expect(shell).toMatch(/aria-pressed/);
+  });
+
+  it('FR-361 a fallen faction says when it fell, or only that it is eliminated when the record is not held', () => {
+    expect(shell).toContain('STRINGS.hudFell');
+    expect(shell).toContain('STRINGS.hudFellUnknown');
+    expect(shell).toContain('STRINGS.hudUnknown');
+  });
+
+  it('FR-362 asking for the bajas or conquered column, or focusing the search, asks for the archive; the live scene sends it to the runner', () => {
+    expect(shell).toMatch(/handlers\.onArchive\(\)/);
+    expect(main).toMatch(/onArchive:\s*\(\)\s*=>\s*runner\?\.requestArchive\(\)/);
+  });
+
+  it('FR-363 the band shows the replay text and sends the way back to the runner; the live mark sits in the top bar', () => {
+    expect(shell).toMatch(/hud\.band/);
+    expect(shell).toMatch(/handlers\.onNavigate\(bandTarget\)/);
+    expect(shell).toMatch(/bandTarget\s*=\s*band\.target/);
+    expect(shell).toMatch(/hud\.live/);
+  });
+
+  it('FR-364 the track is dots that jump to their round, or a slider that does, both through the navigation of the runner', () => {
+    expect(shell).toMatch(/trackTarget\(/);
+    expect(shell).toContain('STRINGS.hudTrackRound');
+    expect(shell).toMatch(/type\s*=\s*'range'/);
+    expect(shell).toMatch(/onNavigate\(\{\s*to:/);
+  });
+
+  it('FR-359 the scene draws the minimap from the owners and moves the camera by the pure functions, and redraws it on every round change and camera change', () => {
+    for (const fn of ['minimapPixels', 'cameraAtPoint', 'viewRect', 'minimapSize']) expect(main, fn).toContain(`${fn}(`);
+    expect(main).toMatch(/drawMinimap\(/);
+    expect(main.match(/drawMinimap\(/g)!.length).toBeGreaterThanOrEqual(4);
+    expect(shell).toContain('STRINGS.hudMinimap');
+    expect(shell).toContain('STRINGS.hudMinimapHint');
   });
 });

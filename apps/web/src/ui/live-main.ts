@@ -12,6 +12,10 @@ import type { LiveAddress } from '../core/live-address';
 import { liveTitle } from '../core/live-text';
 import { absorberRequestOf, liveTourPanel, panelView, tourReportOf, victimRequestOf } from '../core/live-view';
 import { hudState, stateCard, topBar } from '../core/live-hud';
+import { chronicle, factionRows } from '../core/live-stats';
+import { liveMark, replayBand, roundTrack } from '../core/live-track';
+import { cameraAtPoint, minimapPixels, minimapSize, viewRect } from '../core/minimap';
+import type { Owners } from '../core/live-rounds';
 import { STRINGS } from '../core/strings';
 import type { FactionName, TourReport } from '../core/live-view';
 import { checkPackage, packageErrorMessage, parsePackage } from '../core/package';
@@ -68,6 +72,19 @@ export function startLiveScene(matchId: string): void {
 
   const syncAddress = (round: number, camera: Camera): void => syncLiveAddress(matchId, round, camera);
 
+  /** FR-359: the picture of the minimap (when `owners` is given) and the rectangle of the current view. */
+  let miniOwners: Owners | undefined;
+  const drawMinimap = (owners?: Owners): void => {
+    if (built === undefined || view === undefined) return;
+    const image = { w: built.pkg.width, h: built.pkg.height };
+    const rect = viewRect(view.camera(), view.viewport(), image);
+    if (owners === undefined || owners === miniOwners) return built.panel.setMinimap(undefined, rect);
+    miniOwners = owners;
+    const size = minimapSize(image, 220);
+    const pixels = minimapPixels(view.index, size, owners, built.colors, { sea: THEME.sea, land: THEME.background });
+    built.panel.setMinimap({ pixels, width: size.w, height: size.h }, rect);
+  };
+
   const port: LivePort = {
     async open(match: PublicMatch, files: MapFiles) {
       const decoder = new TextDecoder('utf-8');
@@ -96,6 +113,15 @@ export function startLiveScene(matchId: string): void {
           const next = initialCamera(image, view.viewport());
           view.userCamera(next);
           syncAddress(lastRound, next);
+          drawMinimap();
+        },
+        onArchive: () => runner?.requestArchive(),
+        onMinimap: (point) => {
+          if (view === undefined) return;
+          const next = cameraAtPoint(point, view.camera(), view.viewport(), image);
+          view.userCamera(next);
+          syncAddress(lastRound, next);
+          drawMinimap();
         },
       });
       panel.showMessages(address.problems.map((problem) => liveProblemMessage(problem, address.round)));
@@ -119,7 +145,10 @@ export function startLiveScene(matchId: string): void {
           colors,
           viewport: { width: canvas.clientWidth, height: canvas.clientHeight },
           start: { round, owners, ...(address.camera === undefined ? {} : { camera: address.camera }) },
-          onResize: () => syncAddress(lastRound, created.camera()),
+          onResize: () => {
+            syncAddress(lastRound, created.camera());
+            drawMinimap();
+          },
           onTour: (status) => {
             tour = tourReportOf(status);
             built?.panel.showSkip(!status.runEnded);
@@ -127,6 +156,7 @@ export function startLiveScene(matchId: string): void {
             if (status.runEnded) syncAddress(lastRound, created.camera());
             // The result hook shows the panel on that very frame, not on the next refresh (PD9).
             runner?.refreshPanel();
+            drawMinimap();
           },
         });
         view = created;
@@ -137,6 +167,7 @@ export function startLiveScene(matchId: string): void {
           setCamera: (next) => {
             created.userCamera(next);
             syncAddress(lastRound, next);
+            drawMinimap();
           },
           pointerMoved: () => undefined,
           navigate: (action) => runner?.navigate(action),
@@ -188,9 +219,22 @@ export function startLiveScene(matchId: string): void {
 
     show(model, at) {
       if (built === undefined) return;
-      const view = panelView(model, at, built.factions, liveTourPanel(model, tour, import.meta.env.DEV));
+      const shown = liveTourPanel(model, tour, import.meta.env.DEV);
+      const panelData = panelView(model, at, built.factions, shown);
       const state = hudState(model);
-      built.panel.update(view, { bar: topBar(model, view, at), state, card: stateCard(state, model, at, built.factions) });
+      // The facts follow the drawn round: while the absorber tour runs, the round before it (the legend rule, D12).
+      const upTo = model.displayed === undefined ? 0 : shown.absorbing ? model.displayed - 1 : model.displayed;
+      built.panel.update(panelData, {
+        bar: topBar(model, panelData, at),
+        state,
+        card: stateCard(state, model, at, built.factions),
+        live: liveMark(model),
+        band: replayBand(model),
+        track: roundTrack(model.totalRounds, model.displayed ?? 0, model.applied),
+        rows: factionRows(model, built.factions, upTo),
+        chronicle: chronicle(model, built.factions, upTo, { revealing: shown.revealing, absorbing: shown.absorbing }),
+      });
+      drawMinimap(model.held.get(upTo));
     },
 
     fail(message) {

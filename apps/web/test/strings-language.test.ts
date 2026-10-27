@@ -33,7 +33,7 @@ describe('NFR-28 UI strings module', () => {
       expect(typeof text, key).toBe('string');
       expect(text.trim().length, key).toBeGreaterThan(0);
       for (const m of text.matchAll(/\{(\w+)\}/g)) {
-        expect(['param', 'text', 'total', 'count', 'kind', 'size', 'required', 'faction', 'seed', 'round', 'living', 'id', 'name', 'state', 'eliminated', 'absorber', 'x', 'y', 'value', 'fill', 'owner', 'ms', 'median', 'p95', 'time'], `${key} placeholder ${m[1]}`).toContain(m[1]);
+        expect(['param', 'text', 'total', 'count', 'kind', 'size', 'required', 'faction', 'seed', 'round', 'living', 'id', 'name', 'state', 'eliminated', 'absorber', 'x', 'y', 'value', 'fill', 'owner', 'ms', 'median', 'p95', 'time', 'live', 'victim', 'alive'], `${key} placeholder ${m[1]}`).toContain(m[1]);
       }
     }
   });

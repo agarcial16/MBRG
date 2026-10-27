@@ -147,6 +147,6 @@ describe('FR-316 (shell) the live scene routes the tours and the user through th
     expect(main).toMatch(/if \(status\.runEnded\) syncAddress\(lastRound, created\.camera\(\)\)/);
     expect(main.match(/syncAddress\(/g)?.length).toBeGreaterThan(0);
     expect(main).not.toMatch(/\.setCamera\(/);
-    expect(main.match(/userCamera\(/g)).toHaveLength(2);
+    expect(main.match(/userCamera\(/g)).toHaveLength(3);
   });
 });

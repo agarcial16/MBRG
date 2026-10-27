@@ -24,11 +24,33 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud-top .hud-count { margin-left: auto; font: 600 34px var(--hud-display, 'Cormorant SC', Georgia, serif); }
 .hud-top .hud-count:empty { display: none; }
 
+/* live mark and replay band */
+.hud-livemark { color: var(--hud-verdigris); font-style: italic; font-size: 13px; }
+.hud-band { position: absolute; left: 50%; top: 66px; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; padding: 8px 14px; max-width: calc(100vw - 24px); }
+.hud-band .hud-btn { min-height: 30px; }
+
 /* left column: factions */
 .hud-left { position: absolute; left: 12px; top: 70px; width: 262px; max-height: calc(100vh - 82px); overflow: auto; padding: 14px 16px; }
-.hud-legend { list-style: none; margin: 8px 0 0; padding: 0; }
-.hud-legend li { display: flex; align-items: center; gap: 9px; min-height: 27px; font-size: 13px; }
-.hud-legend li.out { color: var(--hud-muted); text-decoration: line-through; }
+
+.hud-chron { list-style: none; margin: 8px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 30vh; overflow: auto; }
+.hud-chron li { display: grid; grid-template-columns: 26px 1fr; gap: 8px; font-size: 13px; line-height: 1.3; }
+.hud-chron b { font: 700 15px var(--hud-display, 'Cormorant SC', Georgia, serif); color: var(--hud-gilt); }
+.hud-chron li.pending { color: var(--hud-gilt); }
+.hud-factions-title { margin-top: 4px; border-top: 1px solid var(--hud-gilt-dim); padding-top: 10px; font-size: 15px; }
+.hud-sort { display: flex; gap: 6px; margin: 8px 0 4px; flex-wrap: wrap; }
+.hud-chip { min-height: 28px; padding: 0 8px; border: 0; background: none; color: var(--hud-muted); font: 500 12px var(--hud-body, Spectral, Georgia, serif); cursor: pointer; border-bottom: 1px solid transparent; }
+.hud-chip[aria-pressed="true"] { color: var(--hud-gilt); border-bottom-color: var(--hud-gilt); }
+.hud-search { width: 100%; min-height: 30px; margin: 4px 0; padding: 0 9px; background: var(--hud-umber); color: var(--hud-text); border: 0; box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); font: italic 12px var(--hud-body, Spectral, Georgia, serif); }
+.hud-row { display: grid; grid-template-columns: 12px 1fr 34px 34px 34px; align-items: center; gap: 7px; min-height: 27px; font-size: 13px; }
+.hud-headrow { min-height: 18px; font-size: 10.5px; font-style: italic; color: var(--hud-muted); border-bottom: 1px solid var(--hud-gilt-dim); }
+.hud-headrow span { text-align: right; }
+.hud-name { min-width: 0; }
+.hud-name small { display: block; font-size: 11px; color: var(--hud-muted); font-style: italic; line-height: 1.1; margin-bottom: 2px; }
+.hud-row.out .hud-name, .hud-row.out .hud-fig { color: var(--hud-muted); }
+.hud-row.out .hud-n { text-decoration: line-through; }
+.hud-fig { text-align: right; color: var(--hud-muted); }
+.hud-legend { list-style: none; margin: 4px 0 0; padding: 0; }
+.hud-legend li { min-height: 27px; }
 .hud-swatch { width: 12px; height: 12px; border-radius: 2px; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4); }
 
 /* command panel */
@@ -41,6 +63,21 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud-btn:disabled { opacity: 0.45; cursor: default; }
 .hud-btn.primary { background: var(--hud-gilt); color: var(--hud-on-gilt); box-shadow: none; font-weight: 600; }
 .hud :focus-visible { outline: 2px solid var(--hud-gilt); outline-offset: 2px; }
+
+/* minimap */
+.hud-mini { position: absolute; right: 12px; bottom: 12px; width: 214px; padding: 8px 12px 12px; }
+.hud-mini .hud-title { font-size: 14px; margin-bottom: 4px; }
+.hud-minibox { position: relative; touch-action: none; cursor: crosshair; line-height: 0; }
+.hud-minicanvas { width: 100%; height: auto; display: block; box-shadow: 0 0 0 1px var(--hud-gilt-dim); }
+.hud-minirect { position: absolute; border: 1.5px solid var(--hud-text); box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.28); pointer-events: none; }
+
+/* track of rounds */
+.hud-track { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.hud-dot { min-width: 28px; min-height: 28px; border-radius: 50%; border: 0; background: var(--hud-umber); color: var(--hud-muted); font: 600 12px var(--hud-display, 'Cormorant SC', Georgia, serif); cursor: pointer; box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); }
+.hud-dot.current { background: var(--hud-gilt); color: var(--hud-on-gilt); box-shadow: none; }
+.hud-dot.live:not(.current) { box-shadow: inset 0 0 0 2px var(--hud-verdigris); color: var(--hud-verdigris); }
+.hud-dot:disabled { opacity: 0.45; cursor: default; }
+.hud-slider { width: 100%; accent-color: var(--hud-gilt); }
 
 /* state card */
 .hud-card { position: absolute; left: 50%; top: 70px; transform: translateX(-50%); width: min(460px, calc(100vw - 24px)); padding: 14px 18px; }
@@ -64,10 +101,19 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud[data-layout="phone"] .hud-top .hud-phase,
 .hud[data-layout="phone"] .hud-top .hud-alive { display: none; }
 .hud[data-layout="phone"] .hud-btn { min-height: 44px; min-width: 44px; }
+.hud[data-layout="phone"] .hud-chip,
+.hud[data-layout="phone"] .hud-dot,
+.hud[data-layout="phone"] .hud-search { min-height: 44px; min-width: 44px; }
+.hud[data-layout="phone"] .hud-mini { top: 58px; right: 8px; bottom: auto; width: 104px; padding: 4px 6px 6px; }
+.hud[data-layout="phone"] .hud-mini .hud-title { display: none; }
+.hud[data-layout="phone"] .hud-band { top: 58px; }
+.hud[data-layout="phone"] .hud-livemark { display: none; }
 .hud[data-layout="phone"] .hud-legend li { min-height: 44px; }
 .hud[data-layout="phone"] .hud-card { top: 58px; }
 .hud[data-layout="phone"][data-dock="folded"] .hud-left,
 .hud[data-layout="phone"][data-dock="folded"] .hud-stage,
+.hud[data-layout="phone"][data-dock="folded"] .hud-track,
+.hud[data-layout="phone"][data-dock="folded"] .hud-secondary,
 .hud[data-layout="phone"][data-dock="folded"] .hud-command > .hud-title { display: none; }
 .hud-tabs { display: flex; margin-top: 6px; }
 .hud-tab { flex: 1; min-height: 50px; border: 0; border-top: 3px solid transparent; background: none; color: var(--hud-muted); font: 600 16px var(--hud-display, 'Cormorant SC', Georgia, serif); cursor: pointer; }

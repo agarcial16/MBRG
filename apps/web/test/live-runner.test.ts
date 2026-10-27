@@ -363,6 +363,23 @@ describe('FR-308 (shell) the map files are verified once, before the first publi
   });
 });
 
+describe('FR-362 (shell) the archive is read when the user asks', () => {
+  it('FR-362 (shell) a late joiner reads no record on its own; asking for the archive reads the missing ones from the server, newest first, once each and never above N', async () => {
+    const h = await launch({ n: 3 });
+    const recordRequests = (): (number | undefined)[] => h.server.requests.filter((r) => r.path.split('/')[3] === 'records').map((r) => r.round);
+    expect(recordRequests()).toStrictEqual([]);
+    h.runner.requestArchive();
+    await settle();
+    await settle();
+    expect(recordRequests()).toStrictEqual([3, 2, 1]);
+    expect(h.runner.model().records.size).toBe(3);
+    h.runner.requestArchive();
+    await settle();
+    expect(recordRequests()).toStrictEqual([3, 2, 1]);
+    for (const r of h.server.requests) if (r.round !== undefined) expect(r.round).toBeLessThanOrEqual(3);
+  });
+});
+
 describe('FR-307 (shell) timers, reconnection and stream ownership', () => {
   it('FR-307 (shell) one retry timer with replace semantics: a new arm cancels the pending one', async () => {
     const h = await launch({ n: 1 });
