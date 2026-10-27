@@ -46,3 +46,11 @@
 - Full suite 4079 passed, typecheck clean.
 - Untested: countdown and reveal tour with the `clock` fixture (ports 5173/8787 were in use by the user's own run); pinch zoom on the phone minimap not added.
 - Rule for 011: no absorber prediction when only one neighbour is possible (forced, no points).
+
+## Backlog from the first hand test in `auto` mode (2026-10-27; not part of 010, to be specified)
+- Round banner: a centred "RONDA n/N" with the phase (as the small text of the top bar) over a dimmed map between rounds. Light SDD (UI).
+- Round end: the camera returns to the default view when a round ends. Light SDD (UI); check it against the user's own camera (a user who moved it keeps it).
+- Tour animation: longer, bell-shaped speed (slow, fast, slow). Part of the easing exists in the tour code; the tour budget is bounded by the gap before the next phase 1.
+- Predictions-closed moment: "PREDICCIONES FINALIZADAS" then "REVELANDO..." over the dimmed map, for tension. Needs spec 011 (predictions). It must not show the victim before the reveal (anti-spoiler).
+- Forced absorber (only one neighbour): the victim-to-absorber phase lasts less, with no prediction. Changes the timing of rounds: Full SDD, together with the single-candidate rule of 011.
+- Open since before: 008 items (connecting timeout, live-net read timeouts, SSE line cap); NFR-68/69/71 of 010; pinch zoom on the phone minimap.
