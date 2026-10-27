@@ -3,9 +3,9 @@
 // of the product (FR-260, NFR-47 (f) unchanged) and no test runs it.
 //
 //   cd apps/server
-//   node --import tsx test/fixtures/dev-live-server.ts [manual|clock] [port]
+//   node --import tsx test/fixtures/dev-live-server.ts [manual|clock|auto] [port]
 //
-// It creates one dev-map match (timing `manual`, or the clock timing I = 120 s, L1 = 30 s, L2 = 10 s), listens on the port
+// It creates one dev-map match (timing `manual`, or the clock timing (`clock`: you move it with `tick`; `auto`: it runs in real time) I = 120 s, L1 = 30 s, L2 = 10 s), listens on the port
 // (default 8787, the viewer's development default), prints the viewer and client addresses and the credential line for
 // `apps/web/.env.local`, then reads commands from standard input, one per line:
 //   tick <seconds>   moves the fake clock forward, firing the match's steps and the stream heartbeat on the way
@@ -22,7 +22,7 @@ import { DEV_DIR } from '../helpers/digests';
 import { advanceSteps, makeMatch } from '../helpers/http-reads-kit';
 import { CLIENT_CREDENTIAL, startServer } from '../helpers/server-harness';
 
-const mode = process.argv[2] === 'clock' ? 'clock' : 'manual';
+const mode = process.argv[2] === 'auto' ? 'auto' : process.argv[2] === 'clock' ? 'clock' : 'manual';
 const port = Number(process.argv[3] ?? 8787);
 const ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173'];
 
@@ -54,6 +54,15 @@ const stop = async (): Promise<void> => {
   rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   process.exit(0);
 };
+
+// `auto`: the fake clock follows real time, one second per second, so the match runs by itself like the real one (the commands still work).
+if (mode === 'auto') {
+  setInterval(() => {
+    const target = h.clock.now() + 1000;
+    h.base.scheduler?.runTo(target);
+    h.scheduler.runTo(target);
+  }, 1000);
+}
 
 const lines = createInterface({ input: process.stdin });
 lines.on('line', (line) => {
