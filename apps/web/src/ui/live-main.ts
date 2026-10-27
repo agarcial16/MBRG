@@ -14,7 +14,7 @@ import { absorberRequestOf, liveTourPanel, panelView, tourReportOf, victimReques
 import { hudState, stateCard, topBar } from '../core/live-hud';
 import { chronicle, factionRows } from '../core/live-stats';
 import { liveMark, replayBand, roundTrack } from '../core/live-track';
-import { cameraAtPoint, minimapPixels, minimapSize, viewRect } from '../core/minimap';
+import { cameraAtPoint, cameraZoomed, minimapPixels, minimapSize, viewRect } from '../core/minimap';
 import type { Owners } from '../core/live-rounds';
 import { STRINGS } from '../core/strings';
 import type { FactionName, TourReport } from '../core/live-view';
@@ -120,6 +120,13 @@ export function startLiveScene(matchId: string): void {
           drawMinimap();
         },
         onArchive: () => runner?.requestArchive(),
+        onMinimapZoom: (steps) => {
+          if (view === undefined) return;
+          const next = cameraZoomed(view.camera(), steps, view.viewport(), image);
+          view.userCamera(next);
+          syncAddress(lastRound, next);
+          drawMinimap();
+        },
         onMinimap: (point) => {
           if (view === undefined) return;
           const next = cameraAtPoint(point, view.camera(), view.viewport(), image);

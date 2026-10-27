@@ -1,7 +1,7 @@
 // The minimap of the match screen (spec 010 FR-359): the size and the picture of the thumbnail, the rectangle of the current view and
 // the camera a tap asks for. Pure: the shell puts the pixels on a canvas and reads the pointer.
 import type { Rgb } from '@mbrg/shared';
-import { clampCamera } from './camera';
+import { clampCamera, zoomAt } from './camera';
 import type { Camera, ImageSize, Viewport } from './camera';
 import type { EntryIndex } from './entries';
 import type { Owners } from './live-rounds';
@@ -35,6 +35,11 @@ export function cameraAtPoint(point: { x: number; y: number }, camera: Camera, v
   const x = Math.min(1, Math.max(0, point.x)) * image.w;
   const y = Math.min(1, Math.max(0, point.y)) * image.h;
   return clampCamera({ x, y, scale: camera.scale }, image, viewport);
+}
+
+/** The camera after the wheel turned over the minimap: zoomed about the centre of the view, inside the limits of every camera. */
+export function cameraZoomed(camera: Camera, steps: number, viewport: Viewport, image: ImageSize): Camera {
+  return zoomAt(camera, { sx: viewport.width / 2, sy: viewport.height / 2 }, steps, image, viewport);
 }
 
 /**

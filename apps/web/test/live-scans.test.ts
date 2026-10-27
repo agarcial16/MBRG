@@ -147,6 +147,7 @@ describe('FR-316 (shell) the live scene routes the tours and the user through th
     expect(main).toMatch(/if \(status\.runEnded\) syncAddress\(lastRound, created\.camera\(\)\)/);
     expect(main.match(/syncAddress\(/g)?.length).toBeGreaterThan(0);
     expect(main).not.toMatch(/\.setCamera\(/);
-    expect(main.match(/userCamera\(/g)).toHaveLength(3);
+    // Every user move of the camera goes through userCamera: the reset button, a tap on the minimap, its wheel zoom and the map itself.
+    expect(main.match(/userCamera\(/g)).toHaveLength(4);
   });
 });

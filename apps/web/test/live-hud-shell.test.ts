@@ -245,6 +245,43 @@ describe('FR-366 the single entry page', () => {
   });
 });
 
+describe('FR-356 the zones of the desk layout do not overlap', () => {
+  const px = (rule: string, property: string): number => {
+    const found = new RegExp(`(?:^|[;\\s])${property}:\\s*(\\d+)px`).exec(rule);
+    if (found === null) throw new Error(`${property} not found`);
+    return Number(found[1]);
+  };
+
+  it('FR-356 the command panel stops before the minimap: its right margin is at least the width and margin of the minimap, with a gap', () => {
+    const mini = rules('.hud-mini').find((r) => /width:\s*\d+px/.test(r) && /right:\s*\d+px/.test(r));
+    const command = rules('.hud-command').find((r) => /right:\s*\d+px/.test(r));
+    expect(mini).toBeDefined();
+    expect(command).toBeDefined();
+    // The width of the minimap includes its padding, so the sum below is what it takes on screen.
+    expect(rules('.hud-mini').join(';')).toMatch(/box-sizing:\s*border-box/);
+    expect(px(command!, 'right')).toBeGreaterThanOrEqual(px(mini!, 'right') + px(mini!, 'width') + 8);
+  });
+
+  it('FR-356 the top bar puts its texts on one baseline, the countdown is in the middle and the factions alive are not repeated there', () => {
+    expect(rules('.hud-top').join(';')).toMatch(/align-items:\s*baseline/);
+    const count = rules('.hud-top .hud-count').join(';');
+    expect(count).toMatch(/position:\s*absolute/);
+    expect(count).toMatch(/left:\s*50%/);
+    expect(shell).not.toContain('hud-alive');
+    expect(css).not.toContain('hud-alive');
+  });
+});
+
+describe('FR-359 the minimap zooms the map', () => {
+  it('FR-359 the wheel over the minimap asks the page for a zoom, and the page does not scroll', () => {
+    expect(shell).toMatch(/miniBox\.addEventListener\(\s*'wheel'/);
+    expect(shell).toMatch(/onMinimapZoom\(/);
+    expect(shell).toMatch(/wheelSteps\(/);
+    expect(shell).toMatch(/passive:\s*false/);
+    expect(main).toMatch(/onMinimapZoom:/);
+  });
+});
+
 describe('FR-359 the minimap dims only itself', () => {
   it('FR-359 the box that holds the view rectangle clips its shadow: the 999 px shadow of the rectangle must not dim the screen', () => {
     expect(css).toMatch(/\.hud-minirect\s*\{[^}]*box-shadow:\s*0 0 0 999px/);

@@ -4,6 +4,7 @@
 // winner, the halt reason, the state card, the controls, the chronicle, the factions, the replay band, the track of rounds and the
 // minimap. No seed, no pointer readout, no timings, no results.
 import type { Rgb } from '@mbrg/shared';
+import { wheelSteps } from '../core/camera';
 import { DOCK_TABS, layoutFor, type DockTab, type Layout } from '../core/hud-layout';
 import { cssVariables } from '../core/hud-tokens';
 import type { HudState, StateCard, TopBar } from '../core/live-hud';
@@ -28,6 +29,8 @@ export interface LivePanelHandlers {
   onArchive(): void;
   /** FR-359: a point of the minimap (the unit square) was tapped or dragged. */
   onMinimap(point: { x: number; y: number }): void;
+  /** The wheel turned over the minimap: zoom the whole map by this many steps. */
+  onMinimapZoom(steps: number): void;
 }
 
 /** What the HUD shows besides the panel view. */
@@ -116,7 +119,6 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const top = zone('top-bar', 'hud-top hud-frame', root);
   const round = el('span', 'hud-round hud-num', top);
   const phase = el('span', 'hud-phase', top);
-  const alive = el('span', 'hud-alive hud-muted', top);
   const liveMark = el('span', 'hud-livemark', top);
   const count = el('span', 'hud-count hud-num', top);
 
@@ -196,6 +198,15 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   miniBox.addEventListener('pointerup', () => {
     dragging = false;
   });
+  miniBox.addEventListener(
+    'wheel',
+    (event) => {
+      event.preventDefault();
+      const steps = wheelSteps(event.deltaY, event.deltaMode);
+      if (steps !== 0) handlers.onMinimapZoom(steps);
+    },
+    { passive: false },
+  );
 
   // Command panel: victim, winner, halt, notices, the track of rounds and the controls.
   const command = zone('command-panel', 'hud-command hud-frame', root);
@@ -352,7 +363,6 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       root.dataset.state = hud.state;
       write(round, hud.bar.round);
       write(phase, hud.bar.phase);
-      write(alive, hud.bar.alive === undefined ? undefined : fillTemplate(STRINGS.hudAlive, { count: hud.bar.alive }));
       write(liveMark, hud.live);
       write(count, hud.bar.countdown);
       write(stage, view.stage);

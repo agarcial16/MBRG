@@ -39,3 +39,10 @@
 - Browser: `/?start` shows the card, refuses a bad code with the message, and a pasted code with spaces goes to the match; the match screen shows the parchment left and right of the map. Screenshot in `.claude/review/010-c/`.
 - Not done: the phone measurement (NFR-69) and the figures (NFR-68); the final no-regression check (NFR-71); an invitation link or lobby (spec 011).
 - Next step: user review of the screenshots (`.claude/review/010-*`), the phone measurement, then PR into `rewrite`.
+
+## Milestone d - fixes from the first hand test (2026-10-27)
+- Changed: top bar texts on one baseline and the countdown centred (phone keeps it at the right); the factions-alive count only in the factions head (removed `hudAlive` and the `.hud-alive` element); command panel no longer overlaps the minimap (minimap `border-box`, 238 px; panel right margin 262 px); wheel over the minimap zooms the whole map about the view centre (`cameraZoomed`, `onMinimapZoom`).
+- Tests first (5 red, then green): minimap.test.ts (zoom), live-hud-shell.test.ts (no overlap, baseline/centre, wheel wiring). live-scans userCamera count 3 -> 4 (the new zoom path).
+- Full suite 4079 passed, typecheck clean.
+- Untested: countdown and reveal tour with the `clock` fixture (ports 5173/8787 were in use by the user's own run); pinch zoom on the phone minimap not added.
+- Rule for 011: no absorber prediction when only one neighbour is possible (forced, no points).

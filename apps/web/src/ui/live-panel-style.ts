@@ -19,9 +19,9 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud-num { font-variant-numeric: lining-nums tabular-nums; }
 
 /* top bar */
-.hud-top { position: absolute; left: 0; right: 0; top: 0; height: 58px; display: flex; align-items: center; gap: 24px; padding: 0 20px; }
+.hud-top { position: absolute; left: 0; right: 0; top: 0; height: 58px; display: flex; align-items: baseline; padding-top: 12px; box-sizing: border-box; gap: 24px; padding-left: 20px; padding-right: 20px; }
 .hud-top .hud-round { font: 600 26px var(--hud-display, 'Cormorant SC', Georgia, serif); }
-.hud-top .hud-count { margin-left: auto; font: 600 34px var(--hud-display, 'Cormorant SC', Georgia, serif); }
+.hud-top .hud-count { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); font: 600 34px var(--hud-display, 'Cormorant SC', Georgia, serif); }
 .hud-top .hud-count:empty { display: none; }
 
 /* live mark and replay band */
@@ -54,7 +54,7 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud-swatch { width: 12px; height: 12px; border-radius: 2px; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4); }
 
 /* command panel */
-.hud-command { position: absolute; left: 286px; right: 240px; bottom: 12px; min-height: 120px; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+.hud-command { position: absolute; left: 286px; right: 262px; bottom: 12px; min-height: 120px; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
 .hud-line { font-size: 14px; }
 .hud-line:empty { display: none; }
 .hud-alert { color: var(--hud-ember); }
@@ -71,7 +71,7 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud-tools a { color: var(--hud-muted); }
 
 /* minimap */
-.hud-mini { position: absolute; right: 12px; bottom: 12px; width: 214px; padding: 8px 12px 12px; }
+.hud-mini { position: absolute; right: 12px; bottom: 12px; width: 238px; box-sizing: border-box; padding: 8px 12px 12px; }
 .hud-mini .hud-title { font-size: 14px; margin-bottom: 4px; }
 .hud-minibox { position: relative; overflow: hidden; touch-action: none; cursor: crosshair; line-height: 0; }
 .hud-minicanvas { width: 100%; height: auto; display: block; box-shadow: 0 0 0 1px var(--hud-gilt-dim); }
@@ -102,11 +102,11 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud[data-layout="phone"] .hud-left,
 .hud[data-layout="phone"] .hud-right { position: static; width: auto; max-height: none; box-shadow: none; background: none; padding: 0; }
 .hud[data-layout="phone"] .hud-command { position: static; min-height: 0; padding: 10px 16px; box-shadow: none; background: none; }
-.hud[data-layout="phone"] .hud-top { height: 50px; gap: 10px; padding: 0 10px; }
+.hud[data-layout="phone"] .hud-top { height: 50px; gap: 10px; padding: 8px 10px 0; }
+.hud[data-layout="phone"] .hud-top .hud-count { position: static; transform: none; margin-left: auto; }
 .hud[data-layout="phone"] .hud-top .hud-round { font-size: 22px; }
 .hud[data-layout="phone"] .hud-top .hud-count { font-size: 30px; }
-.hud[data-layout="phone"] .hud-top .hud-phase,
-.hud[data-layout="phone"] .hud-top .hud-alive { display: none; }
+.hud[data-layout="phone"] .hud-top .hud-phase { display: none; }
 .hud[data-layout="phone"] .hud-btn { min-height: 44px; min-width: 44px; }
 .hud[data-layout="phone"] .hud-chip,
 .hud[data-layout="phone"] .hud-dot,

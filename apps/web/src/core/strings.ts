@@ -127,7 +127,6 @@ export const STRINGS = {
   startCode: 'Código o enlace de la partida',
   startEnter: 'Entrar',
   startInvalid: 'Ese código o enlace no es de una partida. Revisa que esté completo.',
-  hudAlive: '{count} vivas',
   hudLive: 'En directo',
   hudReplay: 'Repasando la ronda {round}. El directo va por la ronda {live}.',
   hudBackToLive: 'Volver al directo',

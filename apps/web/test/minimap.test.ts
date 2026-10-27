@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { clampCamera, type Camera } from '../src/core/camera';
 import type { EntryIndex } from '../src/core/entries';
-import { cameraAtPoint, minimapPixels, minimapSize, viewRect } from '../src/core/minimap';
+import { cameraAtPoint, cameraZoomed, minimapPixels, minimapSize, viewRect } from '../src/core/minimap';
 
 const image = { w: 2048, h: 1024 };
 const rgb = (r: number, g: number, b: number): [number, number, number] => [r, g, b];
@@ -32,6 +32,25 @@ describe('FR-359 the rectangle of the view', () => {
     expect(edge.x + edge.w).toBeLessThanOrEqual(1);
     expect(edge.y + edge.h).toBeLessThanOrEqual(1);
     expect(edge.w).toBeCloseTo((100 + 400) / 2048, 6);
+  });
+});
+
+describe('FR-359 the wheel over the minimap zooms the map', () => {
+  const viewport = { width: 512, height: 256 };
+
+  it('FR-359 it zooms about the centre of the view: the centre stays and the scale follows the wheel steps', () => {
+    const camera = { x: 900, y: 400, scale: 1 };
+    const zoomed = cameraZoomed(camera, 2, viewport, image);
+    expect(zoomed.x).toBeCloseTo(900, 6);
+    expect(zoomed.y).toBeCloseTo(400, 6);
+    expect(zoomed.scale).toBeCloseTo(1.2 ** 2, 6);
+    expect(cameraZoomed(zoomed, -2, viewport, image).scale).toBeCloseTo(1, 6);
+  });
+
+  it('FR-359 it never leaves the limits of the camera: not below the fit of the whole map, not above the maximum', () => {
+    const fit = clampCamera({ x: 1024, y: 512, scale: 0.0001 }, image, viewport).scale;
+    expect(cameraZoomed({ x: 1024, y: 512, scale: fit }, -50, viewport, image).scale).toBeCloseTo(fit, 10);
+    expect(cameraZoomed({ x: 1024, y: 512, scale: 30 }, 50, viewport, image).scale).toBe(32);
   });
 });
 
