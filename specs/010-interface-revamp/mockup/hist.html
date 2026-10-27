@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maqueta histórica de la pantalla de partida</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+SC:wght@500;600;700&family=Spectral:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#cfc7b3;font:14px/1.45 Spectral,Georgia,serif;padding:24px;color:#1b1511}
+h1{font:600 22px 'Cormorant SC',serif;margin:0 0 4px}h2{font:600 18px 'Cormorant SC',serif;margin:30px 0 4px}
+p.n{margin:0 0 12px;color:#4a4132;max-width:860px}.cap{font-size:12px;color:#5a503f;margin-top:6px}
+.row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.hud{--umber:#17110d;--wood:#241b14;--wood2:#31261b;--gilt:#c0994f;--gilt2:#7b6234;--vel:#eadfc3;--ink:#2a2118;--sep:#c9b98f;--wax:#9a2e24;--verd:#6aa88a;--mu:#a99d84;--tx:#efe6d0;
+ font-family:Spectral,Georgia,serif;color:var(--tx)}
+.frame{position:relative;overflow:hidden;background:#b9d3e6;flex:none}
+.pc{width:1280px;height:720px;zoom:.72;border-radius:6px}
+.ph{width:375px;height:780px;zoom:.78;border-radius:34px;border:8px solid #17110d}
+.map{position:absolute;inset:0;background:url(map.jpg) center/cover}
+.ph .map{background-position:42% 50%;background-size:auto 118%}
+.cs{font-family:'Cormorant SC',serif;font-weight:600;letter-spacing:.02em}
+.num{font-variant-numeric:lining-nums tabular-nums}
+.pn{position:absolute;background:var(--wood);box-shadow:inset 0 0 0 1px var(--gilt2),inset 0 0 0 4px var(--wood),inset 0 0 0 5px var(--gilt2)}
+.pn>.in{padding:14px 16px}
+.vel{background:var(--vel);color:var(--ink);box-shadow:inset 0 0 0 1px var(--sep)}
+.lab{font-size:12px;color:var(--mu);font-style:italic}
+.vel .lab{color:#6e6046}
+.h{font:600 17px 'Cormorant SC',serif;letter-spacing:.03em;color:var(--gilt)}
+.vel .h{color:#5b4520}
+.sw{width:12px;height:12px;border-radius:2px;display:inline-block;flex:none;box-shadow:0 0 0 1px #0006}
+/* barra */
+.bar{left:0;right:0;top:0;height:58px;display:flex;align-items:center;gap:26px;padding:0 20px;box-shadow:inset 0 -1px 0 var(--gilt2),inset 0 -4px 0 var(--wood),inset 0 -5px 0 var(--gilt2)}
+.bar .k{display:flex;flex-direction:column;line-height:1.05}
+.bar .big{font:600 26px 'Cormorant SC',serif}
+.hg{display:flex;align-items:center;gap:10px;margin:0 auto}
+.hg .t{font:600 36px 'Cormorant SC',serif;font-variant-numeric:lining-nums tabular-nums}
+.hg.hot .t{color:#f0a089}
+.me{display:flex;align-items:center;gap:12px;padding:5px 12px;background:var(--wood2);box-shadow:inset 0 0 0 1px var(--gilt2)}
+.me .pt{font:700 22px 'Cormorant SC',serif;color:var(--gilt)}
+.seal{width:26px;height:26px;border-radius:50%;background:var(--wax);display:inline-flex;align-items:center;justify-content:center;color:#f2d6a8;font:700 13px 'Cormorant SC',serif;box-shadow:inset 0 0 0 2px #b44a3d66,0 1px 0 #0008;flex:none}
+.seal.ok{background:#3f6b57}
+/* izquierda: crónica + facciones */
+.left{left:12px;top:70px;width:262px;bottom:12px;display:flex;flex-direction:column}
+.chron{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+.chron .e{display:grid;grid-template-columns:30px 1fr;gap:8px;font-size:13px;line-height:1.3}
+.chron .e b{font:700 15px 'Cormorant SC',serif;color:var(--gilt)}
+.chron .cur{color:#f4d8a0}
+.tick{color:var(--verd);font-weight:700}
+.chron .ok{display:block;margin-top:4px;font-size:12px;color:var(--mu);line-height:1.5}.chron .ok b{font:500 12px Spectral;color:var(--tx)}
+.fac{margin-top:12px;border-top:1px solid var(--gilt2);padding-top:8px;display:flex;flex-direction:column}
+.fr{display:grid;grid-template-columns:12px 1fr 34px 34px 34px;align-items:center;gap:7px;min-height:27px;font-size:13px}.fr .nm{min-width:0}.fr .nm small{display:block;font-size:11px;color:var(--mu);font-style:italic;line-height:1.1;margin-bottom:2px}.fr .ct{color:var(--mu);text-align:right}.fr.hd{min-height:18px;font-size:10.5px;font-style:italic;border-bottom:1px solid var(--gilt2)}.sort{display:flex;gap:12px;margin:6px 0 4px;font-size:12px;color:var(--mu)}.sort .on{color:var(--gilt);border-bottom:1px solid var(--gilt)}
+.fr.out .nm{color:var(--mu)}.fr.out .n{text-decoration:line-through}
+.srch{height:28px;margin-top:6px;background:var(--umber);box-shadow:inset 0 0 0 1px var(--gilt2);padding:0 9px;display:flex;align-items:center;color:var(--mu);font-style:italic;font-size:12px}
+/* derecha: clasificación */
+.score{right:12px;top:70px;width:280px}
+.score table{width:100%;border-collapse:collapse;margin-top:8px}
+.score th{font:500 11px Spectral;font-style:italic;color:#6e6046;text-align:right;height:20px;border-bottom:1px solid var(--sep);padding:0 3px}
+.score td{height:29px;text-align:right;font-size:13px;border-bottom:1px solid #d9cba5;padding:0 3px}
+.score th:nth-child(2),.score td:nth-child(2){text-align:left}
+.score th:first-child,.score td:first-child{text-align:left;width:22px}
+.score td.p{font:700 17px 'Cormorant SC',serif;color:#5b4520}
+.score tr.mine td{background:#e0cc93;font-weight:600}
+/* minimapa */
+.mini{right:12px;bottom:12px;width:214px;height:178px}
+.mini .mm{position:absolute;left:14px;right:14px;top:30px;bottom:12px;background:url(map.jpg) 30% 50%/auto 150%;box-shadow:0 0 0 1px var(--gilt2)}
+.mini .vp{position:absolute;left:44px;top:56px;width:84px;height:54px;border:1.5px solid #fff;box-shadow:0 0 0 999px #0004}
+.mini .ttl{position:absolute;left:14px;top:7px;font:600 14px 'Cormorant SC',serif;color:var(--gilt)}
+/* mando */
+.dock{left:286px;right:240px;bottom:12px;height:188px;display:grid;grid-template-columns:190px 1fr 156px;gap:14px;padding:0}
+.dock>div{padding:14px 0}
+.dock>div:first-child{padding-left:16px}
+.sel{display:flex;flex-direction:column;gap:5px;border-right:1px solid var(--gilt2);padding-right:12px}
+.sel .nm{font:700 30px/1 'Cormorant SC',serif}
+.ordn{display:flex;flex-direction:column;gap:7px}
+.cand{display:flex;gap:7px;flex-wrap:wrap}
+.chip{height:38px;padding:0 12px;display:inline-flex;align-items:center;gap:8px;background:var(--wood2);box-shadow:inset 0 0 0 1px var(--gilt2);font-size:14px}
+.chip.on{background:#3a2e1b;box-shadow:inset 0 0 0 2px var(--gilt)}
+.chip.more{color:var(--gilt);font-style:italic}
+.chip .bd{font-size:11px;color:var(--mu);font-style:italic}
+.ctl{display:flex;flex-direction:column;gap:6px;padding-right:16px;justify-content:center}
+.bt{height:34px;display:flex;align-items:center;justify-content:center;background:var(--wood2);box-shadow:inset 0 0 0 1px var(--gilt2);font-size:13px}
+.bt.dis{opacity:.4}
+.bt.gold{background:var(--gilt);color:#1d1508;font-weight:600;box-shadow:none}
+.track{display:flex;align-items:center;gap:0;height:22px}
+.track i{flex:1;height:2px;background:var(--gilt2)}
+.track b{width:20px;height:20px;border-radius:50%;box-shadow:inset 0 0 0 1px var(--gilt2);background:var(--umber);font:600 10px/20px 'Cormorant SC';text-align:center;color:var(--mu)}
+.track b.cur{background:var(--gilt);color:#1d1508;box-shadow:none}
+.track b.live{box-shadow:inset 0 0 0 2px var(--verd);color:var(--verd)}
+.live-l{color:var(--verd);font-style:italic;font-size:12px}
+.rep{left:50%;top:70px;transform:translateX(-50%);padding:0;white-space:nowrap}
+.rep .in{display:flex;gap:16px;align-items:center;padding:8px 14px}
+.rep .rd{color:#f0a089;font:700 15px 'Cormorant SC',serif}
+/* móvil */
+.ph .bar{height:50px;gap:8px;padding:0 10px}.ph .bar .big{font-size:22px}.ph .hg .t{font-size:30px}
+.ph .me .pt{font-size:19px}.ph .me{padding:3px 8px;gap:8px}
+.ph .mini{right:8px;left:auto;top:58px;bottom:auto;width:104px;height:96px}
+.ph .mini .mm{left:6px;right:6px;top:20px;bottom:6px}.ph .mini .vp{left:18px;top:30px;width:40px;height:28px}.ph .mini .ttl{font-size:11px;top:3px;left:8px}
+.tabs{position:absolute;left:0;right:0;bottom:0;background:var(--wood);box-shadow:inset 0 1px 0 var(--gilt2),inset 0 4px 0 var(--wood),inset 0 5px 0 var(--gilt2)}
+.tabs .t{display:flex;margin-top:6px}.tabs .t span{flex:1;height:50px;display:flex;align-items:center;justify-content:center;font:600 16px 'Cormorant SC',serif;color:var(--mu);border-top:3px solid transparent}
+.tabs .t span.on{color:var(--gilt);border-top-color:var(--gilt)}
+.tabs .body{padding:14px 14px 4px;display:flex;flex-direction:column;gap:9px}
+.ph .chip{height:46px}
+.ph .bt{height:46px}
+.rowc{display:flex;gap:8px}
+.ph .rep{top:52px;left:8px;right:8px;transform:none;white-space:normal}
+.ph .rep .in{padding:7px 10px;gap:10px;font-size:12px}
+.ph .score{position:static;width:auto}
+.ph .score table{margin-top:0}
+</style></head><body>
+<h1>Pantalla de partida: dirección histórica</h1>
+<p class="n">Idea: la partida es una campaña. La crónica va a la izquierda como un diario de campaña, las predicciones son órdenes selladas con lacre («ya has predicho» es un sello rojo) y el marcador es un pergamino. Marco de madera oscura con doble filete dorado; tipografía Cormorant SC para títulos y Spectral para el texto, con cifras alineadas. El color sigue reservado a los datos.</p>
+
+<h2>PC · en directo, con un país grande (11 vecinos)</h2>
+<div id="pc1"></div>
+<h2>PC · repasando una ronda anterior</h2>
+<div id="pc2"></div>
+<h2>Móvil</h2>
+<div class="row" id="ph"></div>
+<p class="cap" style="margin-top:18px">Mapa: captura real del visor. Jugadores, puntos y nombres son de ejemplo; los campos de clasificación salen del protocolo. «Frontera» como criterio de orden de candidatos es una propuesta, no un dato que hoy envíe el servidor.</p>
+
+<script>
+const fac=(c,n,k,out,bj,cq,sub)=>`<div class="fr ${out?'out':''}"><span class="sw" style="background:${c}"></span><span class="nm"><span class="n">${n}</span>${sub?`<small>${sub}</small>`:''}</span><span class="ct num">${k}</span><span class="ct num">${bj}</span><span class="ct num">${cq}</span></div>`;
+const FACS=[['#6aa84f','Francia',33,2,41],['#c05050','Alemania',16,1,9],['#e8ae4a','España',16,0,0],['#e0773a','Portugal',5,0,0],['#4a7fb5','Suiza',4,0,0],['#a46fa8','Austria',6,0,0],['#7aa3a0','Bélgica',3,0,0]];
+const score=(n)=>`<div class="h">Clasificación</div><table><tr><th>#</th><th>Jugador</th><th>Pts</th><th>Víct.</th><th>Absor.</th></tr>
+<tr><td>1</td><td>Marcos</td><td class="p">410</td><td>3</td><td>2</td></tr><tr><td>2</td><td>Lucía</td><td class="p">320</td><td>2</td><td>2</td></tr>
+<tr class="mine"><td>3</td><td>Ana (tú)</td><td class="p">240</td><td>2</td><td>1</td></tr><tr><td>4</td><td>Pablo</td><td class="p">230</td><td>2</td><td>1</td></tr>
+${n>5?'<tr><td>5</td><td>Irene</td><td class="p">150</td><td>1</td><td>1</td></tr><tr><td>6</td><td>Dani</td><td class="p">90</td><td>1</td><td>0</td></tr>':''}</table>
+<div class="lab" style="margin-top:8px">Víct.: víctimas acertadas · Absor.: absorbentes acertados. Las páginas siguientes se piden al servidor.</div>`;
+const left=(cur)=>`<div class="in"><div class="h">Crónica</div><div class="chron">
+<div class="e"><b>2</b><span class="${cur?'cur':''}">Cae <u>Francia</u>… <i>la víctima se ha revelado; falta saber quién la absorbe.</i></span></div>
+<div class="e"><b>1</b><span>Italia cae y <u>Francia</u> la absorbe (20 territorios).<br><span class="ok"><span class="tick">✓</span> Víctima: <b>Marcos, Lucía, Ana</b> y 4 más<br><span class="tick">✓</span> Absorbente: <b>Marcos, Ana</b></span></span></div></div>
+<div class="fac"><div class="h" style="font-size:15px">Facciones <span class="lab">187 vivas de 240</span></div>
+<div class="sort"><span class="on">Territorio</span><span>Bajas</span><span>Conquistado</span></div>
+<div class="fr hd"><span style="width:12px"></span><span class="nm"></span><span class="ct">Terr.</span><span class="ct">Bajas</span><span class="ct">Conq.</span></div>
+${FACS.map(f=>fac(f[0],f[1],f[2],0,f[3],f[4])).join('')}${fac('#888','Italia','—',1,0,0,'cayó en la ronda 1')}
+<div class="srch">Buscar facción o ronda…</div><div class="lab" style="margin-top:5px">Bajas: facciones eliminadas por ella. Conq.: territorios absorbidos en total. Las eliminadas se tachan y dicen cuándo cayeron.</div></div></div>`;
+const bar=(hot,round)=>`<div class="pn bar"><div class="k"><span class="lab">Ronda</span><span class="big num">${round} de 4</span></div>
+<div class="k"><span class="lab">Fase</span><span class="cs" style="font-size:17px">2 · quién absorbe</span></div>
+<div class="hg ${hot?'hot':''}"><span class="lab">Cierra en</span><span class="t">0:24</span></div>
+<div class="me"><span class="lab">Ana</span><span class="cs" style="font-size:16px">3.º de 12</span><span class="pt num">240 pts</span><span class="seal" title="Predicción sellada">✓</span></div></div>`;
+const barM=(round,hot)=>`<div class="pn bar"><div class="k"><span class="lab">Ronda</span><span class="big num">${round}/4</span></div><div class="hg ${hot?'hot':''}"><span class="t">0:24</span></div><div class="me"><span class="cs" style="font-size:15px">3.º</span><span class="pt num">240</span><span class="seal">✓</span></div></div>`;
+const mini=`<div class="pn mini"><span class="ttl">Carta general</span><div class="mm"></div><div class="vp"></div></div>`;
+const track=(cur,live)=>`<div class="track">${[1,2,3,4].map((r,i)=>`${i?'<i></i>':''}<b class="${r==cur?'cur':''} ${r==live&&r!=cur?'live':''}">${r}</b>`).join('')}</div>`;
+const cands=`<div class="cand"><span class="chip on"><span class="sw" style="background:#c05050"></span>Alemania<span class="seal" style="width:20px;height:20px;font-size:10px">✓</span></span>
+<span class="chip"><span class="sw" style="background:#e8ae4a"></span>España</span><span class="chip"><span class="sw" style="background:#4a7fb5"></span>Suiza</span><span class="chip"><span class="sw" style="background:#7aa3a0"></span>Bélgica</span>
+<span class="chip more">+7 vecinas…</span></div>`;
+const dockLive=`<div class="pn dock">
+<div class="sel"><span class="lab">Víctima</span><span class="nm" style="color:#6aa84f">Francia</span><span class="lab num">33 territorios · 41 % del mapa</span><span class="lab">11 vecinas pueden absorberla</span></div>
+<div class="ordn"><div style="display:flex;justify-content:space-between"><span class="h">Orden sellada: ¿quién absorbe a Francia?</span><span class="lab">100 pts</span></div>${cands}
+<span class="lab">También puedes tocar una vecina en el mapa. Puedes cambiarla hasta que cierre la fase.</span></div>
+<div class="ctl">${track(2,2)}<div class="live-l" style="text-align:center">● en directo</div><div class="bt dis">Siguiente ▶</div><div class="bt">◀ Anterior</div></div></div>`;
+const dockRep=`<div class="pn dock">
+<div class="sel"><span class="lab">Víctima de la ronda 1</span><span class="nm" style="color:#9066c0">Italia</span><span class="lab num">20 territorios · 25 % del mapa</span><span class="lab">Absorbida por Francia</span></div>
+<div class="ordn"><div style="display:flex;justify-content:space-between"><span class="h">Tu orden de la ronda 1</span><span class="lab">cerrada</span></div>
+<div class="cand"><span class="chip on"><span class="sw" style="background:#6aa84f"></span>Francia<span class="seal ok" style="width:22px;height:22px">✓</span><span class="bd">acertada · +100</span></span></div>
+<span class="lab">Estás repasando. No se puede predecir en una ronda pasada.</span></div>
+<div class="ctl">${track(1,3)}<div class="bt">◀ Anterior</div><div class="bt">Siguiente ▶</div><div class="bt gold">Volver al directo ▶▶</div></div></div>`;
+const repBanner=`<div class="pn rep"><div class="in"><span class="rd">Repasando la ronda 1</span><span class="lab">El directo va por la ronda 3</span><span class="bt gold" style="height:28px;padding:0 12px">Volver al directo</span></div></div>`;
+const pc=(inner,cap)=>`<div><div class="frame pc hud"><div class="map"></div>${inner}</div><div class="cap">${cap}</div></div>`;
+document.getElementById('pc1').innerHTML=pc(bar(1,2)+`<div class="pn left">${left(1)}</div><div class="pn vel score"><div class="in">${score(6)}</div></div>${mini}`+dockLive,
+ 'Minimapa abajo a la derecha como «carta general». A la izquierda, la crónica de la campaña y las facciones (con buscador y tope). Las vecinas candidatas se ordenan (por ejemplo por longitud de frontera, sin rotularlo) y se recortan en una fila con «+7 vecinas…», o se tocan en el mapa.');
+document.getElementById('pc2').innerHTML=pc(bar(0,1)+repBanner+`<div class="pn left">${left(0)}</div><div class="pn vel score"><div class="in">${score(6)}</div></div>${mini}`+dockRep,
+ 'Fuera de directo: franja «Repasando la ronda I» con el botón de volver, la línea de rondas marca dónde estás y dónde va el directo, y el panel de mando pasa a mostrar el resultado de tu orden.');
+document.getElementById('ph').innerHTML=`
+<div><div class="frame ph hud"><div class="map"></div>${barM(2,1)}${mini}
+<div class="tabs"><div class="body"><div style="display:flex;justify-content:space-between"><span class="h">¿Quién absorbe a Francia?</span><span class="lab">100 pts</span></div>
+<div class="rowc"><span class="chip on" style="flex:1"><span class="sw" style="background:#c05050"></span>Alemania<span class="seal" style="width:20px;height:20px;font-size:10px;margin-left:auto">✓</span></span><span class="chip" style="flex:1"><span class="sw" style="background:#e8ae4a"></span>España</span></div>
+<div class="rowc"><span class="chip more" style="flex:1;justify-content:center">+9 vecinas… o toca el mapa</span></div>
+${track(2,2)}</div><div class="t"><span>Partida</span><span class="on">Orden</span><span>Ranking</span></div></div></div><div class="cap">Orden sellada, en directo</div></div>
+<div><div class="frame ph hud"><div class="map"></div>${barM(1,0)}
+<div class="pn rep"><div class="in"><span class="rd">Ronda 1</span><span class="lab">Directo: ronda 3</span><span class="bt gold" style="height:30px;padding:0 10px;margin-left:auto">Directo ▶▶</span></div></div>
+<div class="tabs"><div class="body"><div class="h">Tu orden de la ronda 1</div><div class="rowc"><span class="chip on" style="flex:1"><span class="sw" style="background:#6aa84f"></span>Francia<span class="seal ok" style="width:22px;height:22px;margin-left:auto">✓</span></span></div><span class="lab">Acertada · +100 pts. Estás repasando, no se puede predecir.</span>
+<div class="rowc"><span class="bt" style="flex:1">◀ Anterior</span><span class="bt" style="flex:1">Siguiente ▶</span></div>${track(1,3)}</div><div class="t"><span>Partida</span><span class="on">Orden</span><span>Ranking</span></div></div></div><div class="cap">Repasando: franja arriba y botón «Directo»</div></div>
+<div><div class="frame ph hud"><div class="map"></div>${barM(2,1)}
+<div class="tabs" style="top:150px"><div class="t"><span>Partida</span><span>Orden</span><span class="on">Ranking</span></div><div class="body" style="padding-top:8px"><div class="pn vel score" style="position:static"><div class="in" style="padding:10px 12px">${score(6)}</div></div></div></div></div><div class="cap">Ranking: tu fila marcada, páginas del servidor</div></div>`;
+
+(function(){const S=2.2,E=130;const map=new Image(),tex=new Image();let n=0;const go=()=>{if(++n<2)return;
+ const W=map.width,H=map.height,c1=document.createElement('canvas');c1.width=W;c1.height=H;const g=c1.getContext('2d');g.drawImage(map,0,0);
+ const d=g.getImageData(0,0,W,H),a=d.data,b=[a[0],a[1],a[2]];
+ const at=(i,j)=>(j*W+i)*4,ok=(k)=>Math.abs(a[k]-b[0])+Math.abs(a[k+1]-b[1])+Math.abs(a[k+2]-b[2])<26;
+ const seen=new Uint8Array(W*H),st=[];for(let j=0;j<H;j++)st.push([0,j]);
+ while(st.length){const [i,j]=st.pop();if(i<0||j<0||i>=W||j>=H)continue;const s=j*W+i;if(seen[s])continue;if(!ok(at(i,j)))continue;seen[s]=1;st.push([i+1,j],[i-1,j],[i,j+1],[i,j-1]);}
+ for(let s=0;s<W*H;s++)if(seen[s])a[s*4+3]=0;
+ g.putImageData(d,0,0);
+ const CW=Math.round((W+E)*S),CH=Math.round(H*S),c=document.createElement('canvas');c.width=CW;c.height=CH;const x=c.getContext('2d');
+ const k=Math.max(CW/tex.width,CH/tex.height);x.drawImage(tex,0,0,tex.width*k,tex.height*k);
+ x.imageSmoothingQuality='high';x.drawImage(c1,E*S,0,W*S,H*S);
+ const url=c.toDataURL('image/jpeg',.9);
+ document.querySelectorAll('.pc .map').forEach(m=>{m.style.backgroundImage='url('+url+')';m.style.backgroundSize='auto 100%';m.style.backgroundPosition='left center'});
+ document.querySelectorAll('.ph .map').forEach(m=>{m.style.backgroundImage='url('+url+')';m.style.backgroundSize='auto 120%';m.style.backgroundPosition='-640px 50%'});};
+ map.onload=go;tex.onload=go;map.src='map.jpg';tex.src='terra.jpg';})();
+</script>
+</body></html>

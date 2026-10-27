@@ -10,6 +10,8 @@ export type SceneMessage = 'both' | 'need-match' | 'bad-match';
 export type SceneChoice =
   | { kind: 'debug' }
   | { kind: 'live'; matchId: string }
+  /** The start screen (spec 010 FR-366): no match and no seed in a production build, or the start parameter. */
+  | { kind: 'start' }
   | { kind: 'message'; error: SceneMessage };
 
 /** A match id is 16 base64url characters (FR-236): anything else is refused before any request. */
@@ -30,7 +32,9 @@ export function chooseScene(search: string, dev: boolean): SceneChoice {
       ? { kind: 'live', matchId: id }
       : { kind: 'message', error: 'bad-match' };
   }
-  return dev ? { kind: 'debug' } : { kind: 'message', error: 'need-match' };
+  if (params.has('start') && !params.has('seed')) return { kind: 'start' };
+  if (dev) return { kind: 'debug' };
+  return params.has('seed') ? { kind: 'message', error: 'need-match' } : { kind: 'start' };
 }
 
 export type LiveParam = 'round' | 'x' | 'y' | 'zoom';

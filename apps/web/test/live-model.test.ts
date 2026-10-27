@@ -550,7 +550,7 @@ describe('FR-304 browsing reads only the rounds up to N', () => {
       matchId: true, mapDigest: true, totalRounds: true, timing: true, stage: true, applied: true, held: true, records: true,
       displayed: true, wanted: true, lastSeq: true, reported: true, schedule: true, victim: true, winner: true, haltReason: true,
       applying: true, queue: true, phase: true, connection: true, wait: true, retry: true, failures: true, fault: true, fatal: true,
-      lastByteAt: true, streamed: true, following: true, touring: true, skipped: true,
+      lastByteAt: true, streamed: true, following: true, touring: true, skipped: true, archive: true, asking: true,
     };
     const s = await scripted();
     const d = new Driver(s);

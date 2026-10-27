@@ -11,6 +11,12 @@ import { liveProblemMessage, readLiveAddress } from '../core/live-address';
 import type { LiveAddress } from '../core/live-address';
 import { liveTitle } from '../core/live-text';
 import { absorberRequestOf, liveTourPanel, panelView, tourReportOf, victimRequestOf } from '../core/live-view';
+import { hudState, stateCard, topBar } from '../core/live-hud';
+import { chronicle, factionRows } from '../core/live-stats';
+import { liveMark, replayBand, roundTrack } from '../core/live-track';
+import { cameraAtPoint, cameraZoomed, minimapPixels, minimapSize, viewRect } from '../core/minimap';
+import type { Owners } from '../core/live-rounds';
+import { STRINGS } from '../core/strings';
 import type { FactionName, TourReport } from '../core/live-view';
 import { checkPackage, packageErrorMessage, parsePackage } from '../core/package';
 import type { PackageData } from '../core/package';
@@ -21,12 +27,14 @@ import { attachInput } from './input';
 import { pageServerOrigin } from './live-config';
 import { createLiveNet } from './live-net';
 import type { MapFiles } from './live-net';
-import { createLivePanel } from './live-panel';
+import { createLivePanel, showCard } from './live-panel';
 import type { LivePanel } from './live-panel';
 import { startRunner } from './live-runner';
 import type { LivePort, LiveRunner } from './live-runner';
 import { after } from './live-timer';
 import { syncLiveAddress } from './live-url';
+import { createTerra } from './live-terra';
+import type { Terra } from './live-terra';
 import { createMapView } from './map-view';
 import type { MapView } from './map-view';
 import { showMessage } from './message';
@@ -54,6 +62,8 @@ export function startLiveScene(matchId: string): void {
   const labelCanvas = document.getElementById('labels') as HTMLCanvasElement;
   const panelContainer = document.getElementById('panel') as HTMLElement;
   document.title = liveTitle();
+  // Until the map files are verified there is nothing to draw: the screen says what it is doing (FR-365).
+  showCard(panelContainer, { title: STRINGS.hudLoadingTitle, text: STRINGS.hudLoadingText }, true);
 
   let built: Built | undefined;
   let view: MapView | undefined;
@@ -63,6 +73,21 @@ export function startLiveScene(matchId: string): void {
   let tour: TourReport | undefined;
 
   const syncAddress = (round: number, camera: Camera): void => syncLiveAddress(matchId, round, camera);
+
+  /** FR-359: the picture of the minimap (when `owners` is given) and the rectangle of the current view. */
+  let miniOwners: Owners | undefined;
+  /** FR-368: the parchment outside the map, placed again with every frame the view draws. */
+  let terra: Terra | undefined;
+  const drawMinimap = (owners?: Owners): void => {
+    if (built === undefined || view === undefined) return;
+    const image = { w: built.pkg.width, h: built.pkg.height };
+    const rect = viewRect(view.camera(), view.viewport(), image);
+    if (owners === undefined || owners === miniOwners) return built.panel.setMinimap(undefined, rect);
+    miniOwners = owners;
+    const size = minimapSize(image, 220);
+    const pixels = minimapPixels(view.index, size, owners, built.colors, { sea: THEME.sea, land: THEME.background });
+    built.panel.setMinimap({ pixels, width: size.w, height: size.h }, rect);
+  };
 
   const port: LivePort = {
     async open(match: PublicMatch, files: MapFiles) {
@@ -92,6 +117,22 @@ export function startLiveScene(matchId: string): void {
           const next = initialCamera(image, view.viewport());
           view.userCamera(next);
           syncAddress(lastRound, next);
+          drawMinimap();
+        },
+        onArchive: () => runner?.requestArchive(),
+        onMinimapZoom: (steps) => {
+          if (view === undefined) return;
+          const next = cameraZoomed(view.camera(), steps, view.viewport(), image);
+          view.userCamera(next);
+          syncAddress(lastRound, next);
+          drawMinimap();
+        },
+        onMinimap: (point) => {
+          if (view === undefined) return;
+          const next = cameraAtPoint(point, view.camera(), view.viewport(), image);
+          view.userCamera(next);
+          syncAddress(lastRound, next);
+          drawMinimap();
         },
       });
       panel.showMessages(address.problems.map((problem) => liveProblemMessage(problem, address.round)));
@@ -115,7 +156,12 @@ export function startLiveScene(matchId: string): void {
           colors,
           viewport: { width: canvas.clientWidth, height: canvas.clientHeight },
           start: { round, owners, ...(address.camera === undefined ? {} : { camera: address.camera }) },
-          onResize: () => syncAddress(lastRound, created.camera()),
+          onFrame: () => terra?.place(created.camera(), created.viewport()),
+          onResize: () => {
+            syncAddress(lastRound, created.camera());
+            drawMinimap();
+            terra?.place(created.camera(), created.viewport());
+          },
           onTour: (status) => {
             tour = tourReportOf(status);
             built?.panel.showSkip(!status.runEnded);
@@ -123,9 +169,12 @@ export function startLiveScene(matchId: string): void {
             if (status.runEnded) syncAddress(lastRound, created.camera());
             // The result hook shows the panel on that very frame, not on the next refresh (PD9).
             runner?.refreshPanel();
+            drawMinimap();
           },
         });
         view = created;
+        terra = createTerra(canvas, { w: pkg.width, h: pkg.height });
+        terra.place(created.camera(), created.viewport());
         attachInput(canvas, {
           image: { w: pkg.width, h: pkg.height },
           viewport: created.viewport,
@@ -133,6 +182,7 @@ export function startLiveScene(matchId: string): void {
           setCamera: (next) => {
             created.userCamera(next);
             syncAddress(lastRound, next);
+            drawMinimap();
           },
           pointerMoved: () => undefined,
           navigate: (action) => runner?.navigate(action),
@@ -183,7 +233,23 @@ export function startLiveScene(matchId: string): void {
     },
 
     show(model, at) {
-      built?.panel.update(panelView(model, at, built.factions, liveTourPanel(model, tour, import.meta.env.DEV)));
+      if (built === undefined) return;
+      const shown = liveTourPanel(model, tour, import.meta.env.DEV);
+      const panelData = panelView(model, at, built.factions, shown);
+      const state = hudState(model);
+      // The facts follow the drawn round: while the absorber tour runs, the round before it (the legend rule, D12).
+      const upTo = model.displayed === undefined ? 0 : shown.absorbing ? model.displayed - 1 : model.displayed;
+      built.panel.update(panelData, {
+        bar: topBar(model, panelData, at),
+        state,
+        card: stateCard(state, model, at, built.factions),
+        live: liveMark(model),
+        band: replayBand(model),
+        track: roundTrack(model.totalRounds, model.displayed ?? 0, model.applied),
+        rows: factionRows(model, built.factions, upTo),
+        chronicle: chronicle(model, built.factions, upTo, { revealing: shown.revealing, absorbing: shown.absorbing }),
+      });
+      drawMinimap(model.held.get(upTo));
     },
 
     fail(message) {

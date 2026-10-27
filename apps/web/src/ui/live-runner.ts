@@ -53,6 +53,8 @@ export interface RunnerDeps {
 
 export interface LiveRunner {
   navigate(action: NavAction): void;
+  /** FR-362: the user asked for the facts that need the records of the earlier rounds; the missing ones are read. */
+  requestArchive(): void;
   /** The map view reported a change of the running tour: the panel is shown again at once, with the current model. */
   refreshPanel(): void;
   model(): LiveModel;
@@ -237,5 +239,11 @@ export function startRunner(deps: RunnerDeps): LiveRunner {
   const refreshPanel = (): void => {
     if (!stopped) deps.port.show(model, deps.now());
   };
-  return { navigate: (action) => feed({ type: 'navigate', at: deps.now(), action }), refreshPanel, model: () => model, stop };
+  return {
+    navigate: (action) => feed({ type: 'navigate', at: deps.now(), action }),
+    requestArchive: () => feed({ type: 'archive', at: deps.now() }),
+    refreshPanel,
+    model: () => model,
+    stop,
+  };
 }

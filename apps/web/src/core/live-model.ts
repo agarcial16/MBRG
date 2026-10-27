@@ -126,6 +126,10 @@ export interface LiveModel {
   readonly touring: boolean;
   /** The victim reveal of the round on show was skipped for a participant mismatch (FR-320): the development panel reports it until the round changes. */
   readonly skipped: boolean;
+  /** The user asked for the archive (the facts of the earlier rounds): the records that are missing are read, one at a time. */
+  readonly archive: boolean;
+  /** The round whose record the archive is waiting for. */
+  readonly asking: number | undefined;
 }
 
 export type LiveInput =
@@ -139,7 +143,9 @@ export type LiveInput =
   | { readonly type: 'digest'; readonly at: number; readonly digest: string }
   | { readonly type: 'state'; readonly at: number; readonly reply: StateReply }
   | { readonly type: 'record'; readonly at: number; readonly reply: RecordReply }
-  | { readonly type: 'navigate'; readonly at: number; readonly action: NavAction };
+  | { readonly type: 'navigate'; readonly at: number; readonly action: NavAction }
+  /** FR-362: the user asked for the facts that need the records of the earlier rounds. */
+  | { readonly type: 'archive'; readonly at: number };
 
 export type LiveEffect =
   | { readonly type: 'read-public' }
@@ -204,6 +210,8 @@ export function startLive(matchId: string): LiveResult {
     following: true,
     touring: false,
     skipped: false,
+    archive: false,
+    asking: undefined,
   };
   return { model, effects: [{ type: 'read-public' }] };
 }
@@ -317,6 +325,15 @@ function settle(model: LiveModel): LiveResult {
 }
 
 const join = (a: LiveResult, b: LiveResult): LiveResult => ({ model: b.model, effects: [...a.effects, ...b.effects] });
+
+/** FR-362: the next missing record of the archive, newest first, one read at a time (nothing while one is in flight). */
+function nextArchive(model: LiveModel): LiveResult {
+  if (!model.archive || model.asking !== undefined) return result(model);
+  for (let round = model.applied; round >= 1; round--) {
+    if (!model.records.has(round) && canRequest(model.applied, 'record', round)) return result({ ...model, asking: round }, [{ type: 'read-record', round }]);
+  }
+  return result(model);
+}
 
 function fromPublic(prev: LiveModel, input: Extract<LiveInput, { type: 'public' }>): LiveResult {
   const m = input.match;
@@ -601,8 +618,11 @@ function onTick(model: LiveModel, at: number): LiveResult {
 export function reduce(model: LiveModel, input: LiveInput): LiveResult {
   if (model.fatal !== undefined) return result(model);
   switch (input.type) {
-    case 'public':
-      return fromPublic(model, input);
+    case 'public': {
+      const out = fromPublic(model, input);
+      // A resync lost the read that was in flight: the archive asks again.
+      return model.archive && model.phase === 'resyncing' ? join(out, nextArchive({ ...out.model, asking: undefined })) : out;
+    }
     case 'failed':
       return onFailed(model, input);
     case 'opened': {
@@ -628,7 +648,12 @@ export function reduce(model: LiveModel, input: LiveInput): LiveResult {
     case 'record': {
       const round = input.reply.round;
       if (model.phase === 'loading' || !canRequest(model.applied, 'record', round)) return result(model);
-      return settle({ ...succeeded(model), records: new Map(model.records).set(round, input.reply) });
+      const stored = settle({ ...succeeded(model), records: new Map(model.records).set(round, input.reply) });
+      return model.archive && model.asking === round ? join(stored, nextArchive({ ...stored.model, asking: undefined })) : stored;
+    }
+    case 'archive': {
+      if (model.phase === 'loading') return result(model);
+      return nextArchive({ ...model, archive: true });
     }
     case 'navigate': {
       if (model.phase === 'loading' || model.displayed === undefined) return result(model);
