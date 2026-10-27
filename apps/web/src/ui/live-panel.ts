@@ -1,11 +1,16 @@
-// The live panel DOM (FR-305, NFR-56). Thin: every text comes from `core/live-view` (itself built from the strings module);
-// this file only builds elements and writes them. It shows the round, the stage, the countdown, the victim, the winner, the
-// halt reason, the connection notice, the controls and the legend. No seed, no pointer readout, no timings, no results.
+// The match screen HUD (spec 010; before it, the live panel of FR-305, NFR-56). Thin: every text comes from the pure modules and the
+// strings module, and the layout is chosen by `core/hud-layout`; this file only builds elements, moves two of them between the
+// desktop zones and the phone dock, and writes. It shows the round, the phase, the factions alive, the countdown, the victim, the
+// winner, the halt reason, the state card, the controls and the legend. No seed, no pointer readout, no timings, no results.
 import type { Rgb } from '@mbrg/shared';
+import { DOCK_TABS, layoutFor, type DockTab, type Layout } from '../core/hud-layout';
+import { cssVariables } from '../core/hud-tokens';
+import type { HudState, StateCard, TopBar } from '../core/live-hud';
+import { liveTitle, skipLabel } from '../core/live-text';
 import type { LivePanelView } from '../core/live-view';
 import type { NavAction } from '../core/navigation';
-import { STRINGS } from '../core/strings';
-import { liveTitle, skipLabel } from '../core/live-text';
+import { STRINGS, fillTemplate } from '../core/strings';
+import { PANEL_CSS } from './live-panel-style';
 
 export interface LivePanelHandlers {
   onNavigate(action: NavAction): void;
@@ -14,78 +19,184 @@ export interface LivePanelHandlers {
   onSkip(): void;
 }
 
+/** What the HUD shows besides the panel view: the top bar, the state of the screen and the card of that state. */
+export interface HudView {
+  readonly bar: TopBar;
+  readonly state: HudState;
+  readonly card: StateCard | undefined;
+}
+
 export interface LivePanel {
-  update(view: LivePanelView): void;
+  update(view: LivePanelView, hud: HudView): void;
   /** The skip button shows while a tour runs (FR-339). */
   showSkip(visible: boolean): void;
   /** Replaces the address notices (a round above N, an invalid parameter). */
   showMessages(messages: readonly string[]): void;
 }
 
-function block(parent: HTMLElement, tag: string, style = ''): HTMLElement {
-  const el = document.createElement(tag);
-  if (style !== '') el.style.cssText = style;
-  parent.append(el);
-  return el;
+function el(tag: string, className = '', parent?: HTMLElement): HTMLElement {
+  const node = document.createElement(tag);
+  if (className !== '') node.className = className;
+  parent?.append(node);
+  return node;
 }
 
-function button(parent: HTMLElement, label: string, onClick: () => void): HTMLButtonElement {
-  const el = document.createElement('button');
-  el.type = 'button';
-  el.textContent = label;
-  el.setAttribute('aria-label', label);
-  el.addEventListener('click', onClick);
-  parent.append(el);
-  return el;
+function zone(name: string, className: string, parent: HTMLElement): HTMLElement {
+  const node = el('div', className, parent);
+  node.setAttribute('data-zone', name);
+  return node;
 }
 
-const swatchCss = (rgb: Rgb): string =>
-  `display:inline-block;width:12px;height:12px;margin-right:6px;border:1px solid #2b2b2b;background:rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+function button(parent: HTMLElement, label: string, onClick: () => void, className = 'hud-btn'): HTMLButtonElement {
+  const node = el('button', className, parent) as HTMLButtonElement;
+  node.type = 'button';
+  node.textContent = label;
+  node.setAttribute('aria-label', label);
+  node.addEventListener('click', onClick);
+  return node;
+}
+
+/** Writes the token variables and the stylesheet once per page. */
+function installStyle(): void {
+  if (document.getElementById('hud-style') !== null) return;
+  const style = document.createElement('style');
+  style.id = 'hud-style';
+  style.textContent = cssVariables() + PANEL_CSS;
+  document.head.append(style);
+}
+
+/** The state card of a screen that has nothing else to show yet (the map is not up): loading, an error. */
+export function showCard(container: HTMLElement, card: StateCard, working: boolean): void {
+  installStyle();
+  container.replaceChildren();
+  const root = el('div', 'hud');
+  root.dataset.state = working ? 'loading' : 'error';
+  const box = el('div', 'hud-card hud-frame', root);
+  box.setAttribute('role', 'status');
+  el('div', 'hud-title', box).textContent = card.title;
+  el('p', '', box).textContent = card.text;
+  if (working) el('div', 'hud-bar', box).append(document.createElement('i'));
+  container.append(root);
+}
 
 export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<number, Rgb>, handlers: LivePanelHandlers): LivePanel {
-  container.style.cssText =
-    'position:fixed;top:0;right:0;width:320px;max-width:100vw;max-height:100vh;overflow:auto;box-sizing:border-box;padding:10px;' +
-    'font:13px/1.4 sans-serif;color:#1c1c1c;background:rgba(245,243,236,0.94);border-left:1px solid #8a8678';
+  installStyle();
   container.replaceChildren();
-  const title = block(container, 'h1', 'margin:0 0 6px;font-size:15px');
-  title.textContent = liveTitle();
-  const messages = block(container, 'div', 'color:#9b1c1c;margin-bottom:6px');
+  const root = el('div', 'hud', container);
+  let layout: Layout = layoutFor(window.innerWidth);
+  root.dataset.layout = layout;
+
+  // Top bar.
+  const top = zone('top-bar', 'hud-top hud-frame', root);
+  const round = el('span', 'hud-round hud-num', top);
+  const phase = el('span', 'hud-phase', top);
+  const alive = el('span', 'hud-alive hud-muted', top);
+  const count = el('span', 'hud-count hud-num', top);
+
+  // Left column: the factions. The right column is the leaderboard slot (spec 011) and the minimap zone is spec 010 milestone b.
+  const left = zone('left-column', 'hud-left hud-frame', root);
+  const legendTitle = el('div', 'hud-title', left);
+  legendTitle.textContent = STRINGS.legendTitle;
+  const legend = el('ul', 'hud-legend', left);
+  const rightColumn = zone('right-column', 'hud-right', root);
+  rightColumn.hidden = true;
+  const minimap = zone('minimap', 'hud-mini', root);
+  minimap.hidden = true;
+
+  // Command panel: victim, winner, halt, notices and the controls.
+  const command = zone('command-panel', 'hud-command hud-frame', root);
+  el('div', 'hud-title', command).textContent = liveTitle();
+  const messages = el('div', 'hud-messages', command);
   messages.setAttribute('role', 'alert');
-  const notice = block(container, 'div', 'color:#7a4b00;margin-bottom:6px');
-  notice.setAttribute('role', 'status');
-  const round = block(container, 'div', 'font-weight:bold');
-  const stage = block(container, 'div');
-  const countdown = block(container, 'div', 'font-variant-numeric:tabular-nums');
-  const victim = block(container, 'div');
-  const winner = block(container, 'div');
-  const halt = block(container, 'div', 'color:#9b1c1c');
-  const skip = button(block(container, 'div', 'margin-top:6px'), skipLabel(), handlers.onSkip);
-  skip.style.display = 'none';
-  const nav = block(container, 'div', 'display:flex;gap:4px;margin:8px 0 4px');
+  const stage = el('div', 'hud-line hud-stage', command);
+  const victim = el('div', 'hud-line hud-victim', command);
+  const winner = el('div', 'hud-line', command);
+  const halt = el('div', 'hud-line hud-alert', command);
+  const mismatch = el('div', 'hud-line hud-alert', command);
+  const nav = el('div', 'hud-nav', command);
   const first = button(nav, STRINGS.controlFirst, () => handlers.onNavigate('first'));
   const previous = button(nav, STRINGS.controlPrevious, () => handlers.onNavigate('previous'));
-  const next = button(nav, STRINGS.controlNext, () => handlers.onNavigate('next'));
+  const next = button(nav, STRINGS.controlNext, () => handlers.onNavigate('next'), 'hud-btn primary');
   const last = button(nav, STRINGS.controlLast, () => handlers.onNavigate('last'));
-  const reset = block(container, 'div', 'margin-bottom:8px');
-  button(reset, STRINGS.controlReset, handlers.onReset);
-  const legendTitle = block(container, 'h2', 'margin:0 0 4px;font-size:13px');
-  legendTitle.textContent = STRINGS.legendTitle;
-  const legend = block(container, 'ul', 'margin:0 0 8px;padding:0;list-style:none');
+  button(nav, STRINGS.controlReset, handlers.onReset);
+  const skip = button(nav, skipLabel(), handlers.onSkip);
+  skip.hidden = true;
 
-  const write = (el: HTMLElement, text: string | undefined): void => {
-    el.textContent = text ?? '';
-    el.style.display = text === undefined ? 'none' : '';
+  // State card: the one polite live region of the screen.
+  const card = zone('state-card', 'hud-card hud-frame', root);
+  card.setAttribute('role', 'status');
+  card.setAttribute('aria-live', 'polite');
+  const cardTitle = el('div', 'hud-title', card);
+  const cardText = el('p', '', card);
+  card.hidden = true;
+
+  // Phone dock: three tabs; the command panel and the legend live in the first one.
+  const dock = zone('dock', 'hud-dock hud-frame', root);
+  const tabs = el('div', 'hud-tabs', dock);
+  tabs.setAttribute('role', 'tablist');
+  const panes = new Map<DockTab, HTMLElement>();
+  const tabButtons = new Map<DockTab, HTMLElement>();
+  let current: DockTab = 'match';
+  let open = false;
+  root.dataset.dock = 'folded';
+  const select = (id: DockTab): void => {
+    open = !(id === current && open);
+    current = id;
+    root.dataset.dock = open ? 'open' : 'folded';
+    const shown = open ? current : 'match';
+    for (const [tab, node] of tabButtons) node.setAttribute('aria-selected', String(tab === shown));
+    for (const [tab, node] of panes) node.hidden = tab !== shown;
+  };
+  for (const tab of DOCK_TABS) {
+    const node = button(tabs, tab.label, () => select(tab.id), 'hud-tab');
+    node.setAttribute('role', 'tab');
+    tabButtons.set(tab.id, node);
+    const pane = el('div', 'hud-pane', dock);
+    pane.setAttribute('role', 'tabpanel');
+    panes.set(tab.id, pane);
+    if (tab.id !== 'match') pane.textContent = STRINGS.hudSoon;
+  }
+  panes.get('order')!.hidden = true;
+  panes.get('ranking')!.hidden = true;
+  tabButtons.get('match')!.setAttribute('aria-selected', 'true');
+
+  /** The command panel and the legend sit in their own zones on the desktop and in the first tab of the dock on a phone. */
+  const place = (): void => {
+    if (layout === 'phone') {
+      panes.get('match')?.append(command, left);
+    } else {
+      root.append(left, command);
+    }
+  };
+  place();
+  window.addEventListener('resize', () => {
+    const now = layoutFor(window.innerWidth);
+    if (now === layout) return;
+    layout = now;
+    root.dataset.layout = now;
+    place();
+  });
+
+  const write = (node: HTMLElement, text: string | undefined): void => {
+    node.textContent = text ?? '';
+    node.hidden = text === undefined;
   };
 
   return {
-    update(view: LivePanelView): void {
-      write(round, view.round);
+    update(view: LivePanelView, hud: HudView): void {
+      root.dataset.state = hud.state;
+      write(round, hud.bar.round);
+      write(phase, hud.bar.phase);
+      write(alive, hud.bar.alive === undefined ? undefined : fillTemplate(STRINGS.hudAlive, { count: hud.bar.alive }));
+      write(count, hud.bar.countdown);
       write(stage, view.stage);
-      write(countdown, view.countdown);
       write(victim, view.victim);
       write(winner, view.winner);
       write(halt, view.halt);
-      write(notice, view.notice);
+      write(mismatch, view.mismatch);
+      cardTitle.textContent = hud.card?.title ?? '';
+      cardText.textContent = hud.card?.text ?? '';
+      card.hidden = hud.card === undefined;
       const controls = view.controls;
       first.disabled = controls === undefined || controls.firstDisabled;
       previous.disabled = controls === undefined || controls.previousDisabled;
@@ -94,17 +205,17 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       legend.replaceChildren(
         ...view.legend.map((row) => {
           const item = document.createElement('li');
-          const swatch = document.createElement('span');
+          const swatch = el('span', 'hud-swatch');
           const rgb = colors.get(row.faction);
-          if (rgb !== undefined) swatch.style.cssText = swatchCss(rgb);
+          if (rgb !== undefined) swatch.style.background = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
           item.append(swatch, row.text);
-          if (!row.alive) item.style.opacity = '0.55';
+          if (!row.alive) item.className = 'out';
           return item;
         }),
       );
     },
     showSkip(visible: boolean): void {
-      skip.style.display = visible ? '' : 'none';
+      skip.hidden = !visible;
     },
     showMessages(list: readonly string[]): void {
       messages.replaceChildren(

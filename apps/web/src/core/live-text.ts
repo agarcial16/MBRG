@@ -65,9 +65,15 @@ export function formatCountdown(ms: number): string {
  * `manual`, none without a schedule or outside the running stages; never negative.
  */
 export function countdownText(stage: Stage, timing: Timing, schedule: PublicSchedule | undefined, estimate: number): string | undefined {
+  const time = countdownTime(stage, timing, schedule, estimate);
+  return time === undefined ? undefined : fillTemplate(STRINGS.liveCountdown, { time });
+}
+
+/** The same countdown as the time alone (`M:SS`), for the figure of the top bar. */
+export function countdownTime(stage: Stage, timing: Timing, schedule: PublicSchedule | undefined, estimate: number): string | undefined {
   if (timing === 'manual') return undefined;
   const anchor = nextAnchor(stage, schedule);
-  return anchor === undefined ? undefined : fillTemplate(STRINGS.liveCountdown, { time: formatCountdown(anchor - estimate) });
+  return anchor === undefined ? undefined : formatCountdown(anchor - estimate);
 }
 
 /**

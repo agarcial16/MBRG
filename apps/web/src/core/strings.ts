@@ -116,6 +116,25 @@ export const STRINGS = {
   clientKindVictim: 'Víctima',
   clientKindAbsorber: 'Absorbente',
   clientKindWinner: 'Ganadora',
+  // Match screen HUD (spec 010): phases of the top bar, dock tabs and the cards of each state.
+  hudPhase1: 'Fase 1 · víctima',
+  hudPhase2: 'Fase 2 · absorbente',
+  hudPhaseLocked: 'Predicciones cerradas',
+  hudPhaseFinished: 'Terminada',
+  hudPhaseHalted: 'Detenida',
+  hudAlive: '{count} vivas',
+  hudSoon: 'Disponible cuando puedas jugar desde el navegador.',
+  hudTabMatch: 'Partida',
+  hudTabOrder: 'Orden',
+  hudTabRanking: 'Ranking',
+  hudLoadingTitle: 'Preparando el mapa',
+  hudLoadingText: 'Descargando y comprobando los archivos de la partida.',
+  hudReconnectingTitle: 'Sin conexión con el servidor',
+  hudReconnectingText: 'Se conserva la última ronda recibida. Próximo intento en {time}.',
+  hudFinishedTitle: 'Ganadora: {name}',
+  hudFinishedText: 'La partida terminó en la ronda {total}. Puedes repasar cualquier ronda.',
+  hudHaltedTitle: 'Partida detenida',
+  hudErrorTitle: 'No se puede mostrar la partida',
 } as const;
 
 /** Fills {name} placeholders; a placeholder without a value is left as written. */

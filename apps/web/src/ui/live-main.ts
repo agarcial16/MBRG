@@ -11,6 +11,8 @@ import { liveProblemMessage, readLiveAddress } from '../core/live-address';
 import type { LiveAddress } from '../core/live-address';
 import { liveTitle } from '../core/live-text';
 import { absorberRequestOf, liveTourPanel, panelView, tourReportOf, victimRequestOf } from '../core/live-view';
+import { hudState, stateCard, topBar } from '../core/live-hud';
+import { STRINGS } from '../core/strings';
 import type { FactionName, TourReport } from '../core/live-view';
 import { checkPackage, packageErrorMessage, parsePackage } from '../core/package';
 import type { PackageData } from '../core/package';
@@ -21,7 +23,7 @@ import { attachInput } from './input';
 import { pageServerOrigin } from './live-config';
 import { createLiveNet } from './live-net';
 import type { MapFiles } from './live-net';
-import { createLivePanel } from './live-panel';
+import { createLivePanel, showCard } from './live-panel';
 import type { LivePanel } from './live-panel';
 import { startRunner } from './live-runner';
 import type { LivePort, LiveRunner } from './live-runner';
@@ -54,6 +56,8 @@ export function startLiveScene(matchId: string): void {
   const labelCanvas = document.getElementById('labels') as HTMLCanvasElement;
   const panelContainer = document.getElementById('panel') as HTMLElement;
   document.title = liveTitle();
+  // Until the map files are verified there is nothing to draw: the screen says what it is doing (FR-365).
+  showCard(panelContainer, { title: STRINGS.hudLoadingTitle, text: STRINGS.hudLoadingText }, true);
 
   let built: Built | undefined;
   let view: MapView | undefined;
@@ -183,7 +187,10 @@ export function startLiveScene(matchId: string): void {
     },
 
     show(model, at) {
-      built?.panel.update(panelView(model, at, built.factions, liveTourPanel(model, tour, import.meta.env.DEV)));
+      if (built === undefined) return;
+      const view = panelView(model, at, built.factions, liveTourPanel(model, tour, import.meta.env.DEV));
+      const state = hudState(model);
+      built.panel.update(view, { bar: topBar(model, view, at), state, card: stateCard(state, model, at, built.factions) });
     },
 
     fail(message) {
