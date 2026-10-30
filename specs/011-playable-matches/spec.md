@@ -19,9 +19,9 @@ Let people who are not the operator play: anyone can create a match from the bro
 
 ## Requirements
 **Public creation**
-- FR-369: A caller without the operator credential may create a match with a map id of the public map list (a new operator setting, a subset of the map list), a timing setting inside public bounds (new settings, narrower than FR-233's) and a client request id. The reply carries the match id and the host token, as FR-231 does, and nothing else secret. The operator-credential path of 008 is unchanged.
+- FR-369: A caller without the operator credential may create a match with a map id of the public map list (a new operator setting, a subset of the map list), a timing setting inside public bounds (new settings, narrower than FR-233's; `manual` timing is refused for a public match with `invalid-timing`) and a client request id. The reply carries the match id and the host token, as FR-231 does, and nothing else secret. The operator-credential path of 008 is unchanged.
 - FR-370: Public creation is limited: a maximum of open lobbies and of running public matches (settings), and a creation rate per source and overall (settings), each refused with a closed error code (`too-many-matches` or the new `rate-limited` path of 008) and tested at its limit. A refused request creates and stores nothing.
-- FR-371: A created match starts in stage `lobby`. Repeated creation with the same request id and content returns the first reply (FR-238 applies unchanged).
+- FR-371: A match created through public creation starts in stage `lobby`; a match created with the operator credential starts at once in `phase-1` of round 1, as in 008 (FR-231 unchanged), and has no lobby. Repeated creation with the same request id and content returns the first reply (FR-238 applies unchanged).
 - FR-372: A lobby that is not started within 24 hours (setting) becomes `expired`: it rejects joins and start, keeps its record for the retention of FR-282 and is then removed. A started match is never expired by this rule.
 
 **Lobby and start**
@@ -46,7 +46,7 @@ Let people who are not the operator play: anyone can create a match from the bro
 
 **Forced absorber**
 - FR-387: IF the victim has exactly one absorption candidate (d = 1), THEN an absorber prediction for that round is refused with `forced-absorber`, no absorber points exist for the round (this amends FR-272 for d = 1: d = 1 never scores) and the public data and the `victim-revealed` event mark the round as forced (a derived field, no new secret).
-- FR-388: IF the absorber is forced, phase 2 closes after `min(L2, F)` seconds, F a setting (default 5 s), instead of L2; the next round's anchors do not move. Under `manual` timing the host steps as before. Tested with the fake clock at L2 below, equal to and above F, and with L2 = 0.
+- FR-388: IF the absorber is forced, phase 2 (the absorber window, which lasts L1 in 008) lasts `min(L1, F)` seconds, F a setting (default 5 s), and the application moves earlier by the time saved: the round is shorter, `locked` keeps its L2, and the next round is anchored at the application instant as in 008. Under `manual` timing the host steps as before. Tested with the fake clock at L1 below, equal to and above F, and with L2 = 0.
 - FR-389: The winner prediction and the victim prediction rules do not change; a round with two factions living (a forced absorber at once) still predicts the victim.
 
 **Persistence and compatibility**
@@ -56,7 +56,7 @@ Let people who are not the operator play: anyone can create a match from the bro
 
 **Non-functional**
 - NFR-72: Anonymous creation and join cannot exhaust memory, storage or sockets: every new list and body is bounded (as FR-290's family of limits), and a test drives each limit to its edge.
-- NFR-73: Tokens never appear in a read, an event, a log or an error; only digests are stored. A scan and a test over the log prove it.
+- NFR-73: Tokens never appear in a read, an event, a log or an error; only one-way digests are stored, apart from the token inside the 24-hour memo of the join reply (as the host token in FR-238), deleted when the retention ends. A scan and a test over the log prove it.
 - NFR-74: Secrecy and determinism hold: nothing about a future round is readable in the lobby or by any new read, and the simulation package, the map format and the 008 secrecy tests are unchanged.
 - NFR-75: The existing 008 and 009 suites pass; every golden or test changed by this spec is listed in `PROGRESS.md` with its reason.
 - NFR-76: Time rules (expiry, forced phase 2, rate limits) use the fake clock in tests; only the scheduler holds timers (008).
@@ -77,6 +77,7 @@ The web interface (spec 013); the Discord bot (012); accounts, passwords, recove
 4. The user accepts the result; the spec becomes `implemented`.
 
 ## Decisions
+- D7 (user, 2026-10-30, answers to the plan's questions): operator matches have no lobby; the forced phase shortens phase 2 and moves the application earlier; public matches never use `manual`; web players use the reserved namespace `player`; the global running-match limit of 008 also counts public matches; lobby and expiry reuse the `schedule` event; closed codes `match-started`, `match-expired`; "who guessed right" lists only named players; the open-lobby cap is checked at creation and the running-public cap at start. Defaults of plan §14.1 accepted.
 - D1 (user): public creation with limits. D2 (user): player token. D3 (user): lobby with manual start. D4 (user): server spec 011, interface spec 013.
 - D5 (planner proposal): names are server-stored and public; tokens are digests only; the player id is generated by the server, not chosen.
 - D6 (planner proposal): the forced-absorber rule is derived from the candidates the server already computes (FR-313(b) of 008), so it adds no engine change.
