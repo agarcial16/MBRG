@@ -80,7 +80,7 @@ Plan sections 6, 11, 12 (M1 rows), 15 (Q2). The rules of `tasks.md` apply; sizes
   - Done when: tests green; mutations caught; no id moved.
   - Size: M (about 400).
 
-- [ ] **T9. Close M1: closing-state test, process checks, PR.** (no pending id named in titles)
+- [x] **T9. Close M1: closing-state test, process checks, PR.** (no pending id named in titles)
   - Depends on: T1 to T8.
   - Files: `packages/sim/test/traceability.test.ts` (a closing-state test titled for M1 pins FR-387, FR-388, FR-389 as done and the other 26 as pending, literal lists in its body; the ids themselves moved in T4, T5, T6), `specs/011-playable-matches/PROGRESS.md`, `MEMORY.md` (local).
   - Steps: the protected-path `git diff --exit-code` of `tasks.md` clean; `git diff --stat rewrite` lists only planned files (plan 12 M1 row); no `package.json`, lockfile or `.nvmrc` change; `SCHEMA_VERSION` still 1; scans (sqlite only in `store/sqlite.ts`, timers only in `scheduler.ts`, protocol/core purity); the PR body lists the changed tests/goldens with reasons, Q2's answer and the ledger. Push, PR, CI green, squash only with the user's OK.

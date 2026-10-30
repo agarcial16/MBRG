@@ -669,6 +669,17 @@ describe('traceability', () => {
     expect(tracedIds(testSources).has('FR-389')).toBe(true);
   });
 
+  it('NFR-13 NFR-19 spec 011 closing state of the forced-absorber milestone: 3 done and 26 pending, literal lists', () => {
+    expect([...DONE_011]).toStrictEqual(['FR-387', 'FR-388', 'FR-389']);
+    expect([...PENDING_011]).toStrictEqual([
+      'FR-369', 'FR-370', 'FR-371', 'FR-372', 'FR-373', 'FR-374', 'FR-375', 'FR-376', 'FR-377', 'FR-378',
+      'FR-379', 'FR-380', 'FR-381', 'FR-382', 'FR-383', 'FR-384', 'FR-385', 'FR-386',
+      'FR-390', 'FR-391', 'FR-392', 'NFR-72', 'NFR-73', 'NFR-74', 'NFR-75', 'NFR-76',
+    ]);
+    expect(DONE_011).toHaveLength(3);
+    expect(PENDING_011).toHaveLength(26);
+  });
+
   it('NFR-55 no pending id of spec 011 is already traced by a test title', () => {
     const used = tracedIds(testSources);
     const traced = PENDING_011.filter((id) => used.has(id));
