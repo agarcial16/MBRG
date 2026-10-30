@@ -1,5 +1,5 @@
 # Tasks 011 — Playable matches (server and protocol)
-Plan: `specs/011-playable-matches/plan.md`. Spec: `spec.md` (approved by the user, 2026-10-30). Status: DRAFT for the user's approval; the questions of plan section 15 (Q1 to Q12) must be answered before the tasks marked "blocked on Q#" start. Any later change goes to the spec first, then the plan, then these tasks.
+Plan: `specs/011-playable-matches/plan.md`. Spec: `spec.md` (approved by the user, 2026-10-30). Status: approved by the user on 2026-10-30; the questions of plan section 15 (Q1 to Q13) are answered as recorded in spec D7 (Q2: phase 2 = the absorber window of length L1 is shortened to min(L1, F); A moves earlier by the time saved; `locked` keeps L2; the next round is anchored at the application as in 008). Tasks marked "blocked on Q#" are unblocked. Any later change goes to the spec first, then the plan, then these tasks.
 
 Rules for every task:
 - Delivery: one branch per milestone, cut from an up-to-date `rewrite`; one PR into `rewrite` (never `main`, never push to `rewrite`); squash merge only with the user's OK and CI green. One commit per task unless stated (English, conventional prefix, one line <= 72 chars). GitHub issues only if the user asks.
