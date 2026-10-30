@@ -707,6 +707,22 @@ describe('traceability', () => {
     }
   });
 
+  it('NFR-13 NFR-19 M2 closing state of spec 011: 9 ids done and 20 pending, both as literal lists', () => {
+    // Literal lists, independent of DONE_011 and PENDING_011: the forced absorber (M1), the lobby, the start and the expiry (M2).
+    const doneByM2 = ['FR-371', 'FR-372', 'FR-374', 'FR-375', 'FR-387', 'FR-388', 'FR-389', 'FR-391', 'NFR-76'];
+    const pendingAfterM2 = [
+      'FR-369', 'FR-370', 'FR-373', 'FR-376', 'FR-377', 'FR-378', 'FR-379', 'FR-380', 'FR-381', 'FR-382',
+      'FR-383', 'FR-384', 'FR-385', 'FR-386', 'FR-390', 'FR-392', 'NFR-72', 'NFR-73', 'NFR-74', 'NFR-75',
+    ];
+    expect(doneByM2).toHaveLength(9);
+    expect(pendingAfterM2).toHaveLength(20);
+    expect(new Set([...doneByM2, ...pendingAfterM2]).size).toBe(29);
+    expect([...DONE_011].sort()).toStrictEqual(doneByM2);
+    expect([...PENDING_011].sort()).toStrictEqual(pendingAfterM2);
+    for (const id of doneByM2) expect(tracedIds(testSources).has(id), id).toBe(true);
+    for (const id of pendingAfterM2) expect(tracedIds(testSources).has(id), id).toBe(false);
+  });
+
   it('NFR-55 no pending id of spec 011 is already traced by a test title', () => {
     const used = tracedIds(testSources);
     const traced = PENDING_011.filter((id) => used.has(id));

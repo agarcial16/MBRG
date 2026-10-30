@@ -85,10 +85,10 @@ Plan sections 1 (P1 to P5, P14 to P16), 3, 4, 7, 8, 12 (M2 row), 15 (Q1, Q4, Q6 
   - Done when: tests green; mutations caught; no id moved.
   - Size: M (about 550).
 
-- [ ] **T10. Close M2: closing-state test, process checks, PR.** (no pending id named in titles)
+- [x] **T10. Close M2: closing-state test, process checks, PR.** (no pending id named in titles)
   - Depends on: T1 to T9.
   - Files: `packages/sim/test/traceability.test.ts` (closing-state test for M2: 9 done / 20 pending, literal lists in the body), `specs/011-playable-matches/PROGRESS.md`, `MEMORY.md` (local).
   - Steps: as M1 T9; `SCHEMA_VERSION` is 2 and `SCHEMA_V1` is byte-equal to the `rewrite` version (`git diff` on the constant block); `package.json`/lockfile unchanged; the PR lists Q1, Q4, Q6 to Q10 answers, the ledger and the changed tests.
   - Commit: `test: pin the spec 011 ledger after M2`.
-  - Done when: CI green; counts 9 / 20; `MEMORY.md` updated (next: M3).
+  - Done when: CI green; counts 9 / 20; `MEMORY.md` updated (next: M3). (Push and PR left to the coordinator.)
   - Size: S (about 80).
