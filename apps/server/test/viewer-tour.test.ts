@@ -6,6 +6,7 @@ import { panelView } from '../../web/src/core/live-view';
 import { scaleFor } from '../../web/src/core/tour-plan';
 import { nominalEnd } from '../../web/src/core/tour';
 import { DEV_PRESENTATION } from '../../web/test/helpers/dev-map';
+import { SECRETS } from './helpers/core-timelines';
 import { DEV_DIR } from './helpers/digests';
 import { advanceSteps, makeMatch, publicOf, startReads, withTempDirAsync } from './helpers/http-reads-kit';
 import { closeAllServers } from './helpers/server-harness';
@@ -63,7 +64,8 @@ function expectNoRequestAboveN(v: Viewer): void {
 
 describe('the reveal tours against the real server: the victim tour', () => {
   it('FR-316 (real server) FR-336 (real server) a viewer subscribed before C1 gets one victim tour of the reveal with the nominal budget, and none for the rest of the round', async () => {
-    const h = await startReads({ service: { scheduler: true } });
+    // The secret 00-1f has a round 1 with three candidates: a forced round would shorten phase 2 to F = 5 s (spec 011 FR-388) and the budget.
+    const h = await startReads({ service: { scheduler: true, secret: SECRETS['ascending-00-1f'] } });
     const { id } = makeMatch(h, 't-1');
     const v = startViewer({ port: h.port, matchId: id });
     await until(() => v.scene.draws.length === 1, 'the first drawing');

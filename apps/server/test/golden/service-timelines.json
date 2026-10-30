@@ -546,18 +546,18 @@
           "appliedRounds": 3,
           "anchors": [
             1700000440000,
-            1700000470000,
-            1700000480000
+            1700000445000,
+            1700000455000
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "3baad6d7b54fe72e4cfe383541d253f34fd4c44fe37b5b6af311a60ee120818c"
+          "publicDigest": "25d708c1f2d2794bb8a97e8638fdfd34422121d52216105b9b40f9e2a751d3c8"
         },
         {
-          "at": 469999,
+          "at": 444999,
           "act": "tick",
-          "effective": 1700000469999,
-          "reported": 1700000469999,
+          "effective": 1700000444999,
+          "reported": 1700000444999,
           "rows": [],
           "events": [],
           "seqs": [],
@@ -565,23 +565,23 @@
           "appliedRounds": 3,
           "anchors": [
             1700000440000,
-            1700000470000,
-            1700000480000
+            1700000445000,
+            1700000455000
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "6343aca1907502c761aa931613901c713bcc8b1c7d55fb2acd0f4a7ec0409c65"
+          "publicDigest": "e6a4f47c334efc2b7f8d0f240152711091bfda0f0a948498fd2a17cb02e484a5"
         },
         {
-          "at": 470000,
+          "at": 445000,
           "act": "tick",
-          "effective": 1700000470000,
-          "reported": 1700000470000,
+          "effective": 1700000445000,
+          "reported": 1700000445000,
           "rows": [
             [
               4,
               "phase-2-close",
-              1700000470000,
+              1700000445000,
               "clock"
             ]
           ],
@@ -597,18 +597,18 @@
           "appliedRounds": 3,
           "anchors": [
             1700000440000,
-            1700000470000,
-            1700000480000
+            1700000445000,
+            1700000455000
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "420feb1eea4375529db5edf127b750b63e206994139eb1da2109643e8abc3dfa"
+          "publicDigest": "139ad7e244beee0090ca264094c43d6c827f35efc73d2536c4f7a0075131abdd"
         },
         {
-          "at": 479999,
+          "at": 454999,
           "act": "tick",
-          "effective": 1700000479999,
-          "reported": 1700000479999,
+          "effective": 1700000454999,
+          "reported": 1700000454999,
           "rows": [],
           "events": [],
           "seqs": [],
@@ -616,23 +616,23 @@
           "appliedRounds": 3,
           "anchors": [
             1700000440000,
-            1700000470000,
-            1700000480000
+            1700000445000,
+            1700000455000
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "2bc8c92602b00a5fe5ac80f1b9036a6eb33bf8ce08a4ae36d8a3d484b8261137"
+          "publicDigest": "3e60f3d84d6bcc8985478ecfcdf470a8139be734ac66d2c47c814205e7e6531c"
         },
         {
-          "at": 480000,
+          "at": 455000,
           "act": "tick",
-          "effective": 1700000480000,
-          "reported": 1700000480000,
+          "effective": 1700000455000,
+          "reported": 1700000455000,
           "rows": [
             [
               4,
               "application",
-              1700000480000,
+              1700000455000,
               "clock"
             ]
           ],
@@ -651,10 +651,10 @@
           "anchors": null,
           "victim": null,
           "recordDigest": "ad1d876ce8dc9bfb4b7c5d2ac1556eba3ce6009fd321cd6a20445403f89d0e8b",
-          "publicDigest": "a6a8bade9b83d0f4f71de7cd24ab4365716d4a2fd0cd93c257e1c73dc4f3de99"
+          "publicDigest": "05c46732f6b6aad6da2db89b62d1b83bc1b65099034461b34103647d4dc1e494"
         }
       ],
-      "eventsDigest": "a0cfb78019b762ffcbbdb07a2c17ae4787b8138b259bbdb13974591971bfd87f"
+      "eventsDigest": "33566182e2a271c8e2c30981f7eb7a096d0c848889d5ba19f920bc319b48b7f8"
     },
     "l2-zero": {
       "timing": {
@@ -955,18 +955,18 @@
           "appliedRounds": 2,
           "anchors": [
             1700000160000,
-            1700000180000,
-            1700000180000
+            1700000165000,
+            1700000165000
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "9b92bf02bc0ff3c8b2c6a6d2e337106dfa5dbb21e031481e969c18ac903e3990"
+          "publicDigest": "31cc74db460fc445ccb767dbd5178da72a286e9bb1cdcf756ce164f2c3b916f4"
         },
         {
-          "at": 179999,
+          "at": 164999,
           "act": "tick",
-          "effective": 1700000179999,
-          "reported": 1700000179999,
+          "effective": 1700000164999,
+          "reported": 1700000164999,
           "rows": [],
           "events": [],
           "seqs": [],
@@ -974,29 +974,29 @@
           "appliedRounds": 2,
           "anchors": [
             1700000160000,
-            1700000180000,
-            1700000180000
+            1700000165000,
+            1700000165000
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "1326a4e806dac2e83d59e375eb3f3fd8d93811d7f4ddc144f86e1f54510bf20d"
+          "publicDigest": "a0e9e20acfc1e579bb2b57e081a2edaead4cf455883472181133732411922bb2"
         },
         {
-          "at": 180000,
+          "at": 165000,
           "act": "tick",
-          "effective": 1700000180000,
-          "reported": 1700000180000,
+          "effective": 1700000165000,
+          "reported": 1700000165000,
           "rows": [
             [
               3,
               "phase-2-close",
-              1700000180000,
+              1700000165000,
               "clock"
             ],
             [
               3,
               "application",
-              1700000180000,
+              1700000165000,
               "clock"
             ]
           ],
@@ -1015,43 +1015,43 @@
           "stage": "phase-1",
           "appliedRounds": 3,
           "anchors": [
-            1700000220000,
-            1700000240000,
-            1700000240000
+            1700000205000,
+            1700000225000,
+            1700000225000
           ],
           "victim": null,
           "recordDigest": "aecdef63465e00fff58e1228a25e15f93663d344fe8dd3aab5910808aac398a8",
-          "publicDigest": "8c8f5240c12d4d2f61e3aaa58ccd8c33f9bf176c290099fc3b9aa56342459107"
+          "publicDigest": "0a78d2f9d1c7245ceb76e6a5f0aec088e88433439528747402b616a4508a18d8"
         },
         {
-          "at": 219999,
+          "at": 204999,
           "act": "tick",
-          "effective": 1700000219999,
-          "reported": 1700000219999,
+          "effective": 1700000204999,
+          "reported": 1700000204999,
           "rows": [],
           "events": [],
           "seqs": [],
           "stage": "phase-1",
           "appliedRounds": 3,
           "anchors": [
-            1700000220000,
-            1700000240000,
-            1700000240000
+            1700000205000,
+            1700000225000,
+            1700000225000
           ],
           "victim": null,
           "recordDigest": null,
-          "publicDigest": "9a0bbc5cd102971e4f3c7742b160126e636a97a7a44fac789b63c2f1f6da7f05"
+          "publicDigest": "36d30a757b7a922c260f025a78a15655d843b24e48f3a6fc38a3ccf54cd96d6d"
         },
         {
-          "at": 220000,
+          "at": 205000,
           "act": "tick",
-          "effective": 1700000220000,
-          "reported": 1700000220000,
+          "effective": 1700000205000,
+          "reported": 1700000205000,
           "rows": [
             [
               4,
               "phase-1-close",
-              1700000220000,
+              1700000205000,
               "clock"
             ]
           ],
@@ -1070,49 +1070,49 @@
           "stage": "phase-2",
           "appliedRounds": 3,
           "anchors": [
-            1700000220000,
-            1700000240000,
-            1700000240000
+            1700000205000,
+            1700000210000,
+            1700000210000
           ],
           "victim": 3,
           "recordDigest": null,
-          "publicDigest": "68743828daa7d38e622b510191adedb3b34ca321f3f528157203eedc995f5e82"
+          "publicDigest": "e95f2c8a7870dcd96d36a82269f1f654c2cd3a481f6fdc3506da2266b6530c02"
         },
         {
-          "at": 239999,
+          "at": 209999,
           "act": "tick",
-          "effective": 1700000239999,
-          "reported": 1700000239999,
+          "effective": 1700000209999,
+          "reported": 1700000209999,
           "rows": [],
           "events": [],
           "seqs": [],
           "stage": "phase-2",
           "appliedRounds": 3,
           "anchors": [
-            1700000220000,
-            1700000240000,
-            1700000240000
+            1700000205000,
+            1700000210000,
+            1700000210000
           ],
           "victim": 3,
           "recordDigest": null,
-          "publicDigest": "a4f833606f2058cc03321715aee7eba1144a4f44204c1ef0492807acb10c79db"
+          "publicDigest": "3f45a277e563cf5115c16e5aa8721af51c85a259a9711372ab9fd82528c9d3a8"
         },
         {
-          "at": 240000,
+          "at": 210000,
           "act": "tick",
-          "effective": 1700000240000,
-          "reported": 1700000240000,
+          "effective": 1700000210000,
+          "reported": 1700000210000,
           "rows": [
             [
               4,
               "phase-2-close",
-              1700000240000,
+              1700000210000,
               "clock"
             ],
             [
               4,
               "application",
-              1700000240000,
+              1700000210000,
               "clock"
             ]
           ],
@@ -1133,10 +1133,10 @@
           "anchors": null,
           "victim": null,
           "recordDigest": "453486b7c1c3701e1ea31f093e8c25a6d6b0c167a36d0b7552aa0128ce31498d",
-          "publicDigest": "7b7edbe1c0f2219688cde9cfd9454028ed0d5328945e656d60ee6b3ecf8a8b98"
+          "publicDigest": "8b51de3834c2ca0ee1b3a994e914c8147fa25c5685c2c81ad96fc31422865c94"
         }
       ],
-      "eventsDigest": "b9a187c266d5444d6cc7cd607b1b1712cf8ade3ea5911c0e2a617cf1ba5382d9"
+      "eventsDigest": "8346c3df18a9ff2ec155317ee561f8e28a9682bd1d6cf98e9cbbfec3f2f723b9"
     },
     "manual": {
       "timing": "manual",
@@ -1787,23 +1787,23 @@
           "appliedRounds": 2,
           "anchors": [
             1700000205000,
-            1700000235000,
-            1700000245000
+            1700000210000,
+            1700000220000
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "f9220208586a96e419d6bdad4ad9b9a7610f7c9aba378548e39a245381e09095"
+          "publicDigest": "8fb2dbcfce34f1f705dca5b57c7c7716aecd752d19d96a67ee0172fcb1b98d25"
         },
         {
-          "at": 235000,
+          "at": 210000,
           "act": "tick",
-          "effective": 1700000235000,
-          "reported": 1700000235000,
+          "effective": 1700000210000,
+          "reported": 1700000210000,
           "rows": [
             [
               3,
               "phase-2-close",
-              1700000235000,
+              1700000210000,
               "clock"
             ]
           ],
@@ -1819,23 +1819,23 @@
           "appliedRounds": 2,
           "anchors": [
             1700000205000,
-            1700000235000,
-            1700000245000
+            1700000210000,
+            1700000220000
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "ecf7fe289bca73c29e362abc6c0b403cdee6519ffb1cd1a13c613d7e66e98e90"
+          "publicDigest": "d320679a3bebb3e9e93e7a692b647fbce58eb6a0a78cabd0460204fef7cd0d99"
         },
         {
-          "at": 245000,
+          "at": 220000,
           "act": "tick",
-          "effective": 1700000245000,
-          "reported": 1700000245000,
+          "effective": 1700000220000,
+          "reported": 1700000220000,
           "rows": [
             [
               3,
               "application",
-              1700000245000,
+              1700000220000,
               "clock"
             ]
           ],
@@ -1852,24 +1852,24 @@
           "stage": "phase-1",
           "appliedRounds": 3,
           "anchors": [
-            1700000325000,
-            1700000355000,
-            1700000365000
+            1700000300000,
+            1700000330000,
+            1700000340000
           ],
           "victim": null,
           "recordDigest": "aecdef63465e00fff58e1228a25e15f93663d344fe8dd3aab5910808aac398a8",
-          "publicDigest": "89558725fc03a1a5e8793956d4399176002280a512b921f083dfec5522fe9743"
+          "publicDigest": "bf6923d191840457564b19a357ce2785594210bf1ef609def085d4a4e57c8887"
         },
         {
-          "at": 325000,
+          "at": 300000,
           "act": "tick",
-          "effective": 1700000325000,
-          "reported": 1700000325000,
+          "effective": 1700000300000,
+          "reported": 1700000300000,
           "rows": [
             [
               4,
               "phase-1-close",
-              1700000325000,
+              1700000300000,
               "clock"
             ]
           ],
@@ -1888,24 +1888,24 @@
           "stage": "phase-2",
           "appliedRounds": 3,
           "anchors": [
-            1700000325000,
-            1700000355000,
-            1700000365000
+            1700000300000,
+            1700000305000,
+            1700000315000
           ],
           "victim": 3,
           "recordDigest": null,
-          "publicDigest": "a67c783e5f21a645fe4cfd15f94f51ee1f0fc204ee2cffaabd0c8debd870056f"
+          "publicDigest": "dffb8738388eab37ef8f745c2d9d6445c2ec2e58cb97a511377ee4c33780dccd"
         },
         {
-          "at": 355000,
+          "at": 305000,
           "act": "tick",
-          "effective": 1700000355000,
-          "reported": 1700000355000,
+          "effective": 1700000305000,
+          "reported": 1700000305000,
           "rows": [
             [
               4,
               "phase-2-close",
-              1700000355000,
+              1700000305000,
               "clock"
             ]
           ],
@@ -1920,24 +1920,24 @@
           "stage": "locked",
           "appliedRounds": 3,
           "anchors": [
-            1700000325000,
-            1700000355000,
-            1700000365000
+            1700000300000,
+            1700000305000,
+            1700000315000
           ],
           "victim": 3,
           "recordDigest": null,
-          "publicDigest": "968ef476aa6851ae89dab42075a5d4f274ff505a0d210081864f051b1725eeae"
+          "publicDigest": "22250ae733a503639752ca9abc6eca63a73e9a1846ef817e5210727bef885278"
         },
         {
-          "at": 365000,
+          "at": 315000,
           "act": "tick",
-          "effective": 1700000365000,
-          "reported": 1700000365000,
+          "effective": 1700000315000,
+          "reported": 1700000315000,
           "rows": [
             [
               4,
               "application",
-              1700000365000,
+              1700000315000,
               "clock"
             ]
           ],
@@ -1956,10 +1956,10 @@
           "anchors": null,
           "victim": null,
           "recordDigest": "453486b7c1c3701e1ea31f093e8c25a6d6b0c167a36d0b7552aa0128ce31498d",
-          "publicDigest": "a3011a3fc53fa490f0e37b928472026d16d9023ed2e83b1a517a3ed360c10e40"
+          "publicDigest": "e8d969e2a9b6002a9ff705838b28438d13725b0e5d7627681d18662e70d0449a"
         }
       ],
-      "eventsDigest": "1f21e4ab7e3cf858d80f56667d6862d404a6333909dec831e41dfe76ad9ccd18"
+      "eventsDigest": "6a185187a05eedde5707f5305865e7961a0311a1114083614b9edbcbb0273627"
     },
     "downtime-forward-jump": {
       "timing": {
@@ -2372,23 +2372,23 @@
           "appliedRounds": 3,
           "anchors": [
             1700001451001,
-            1700001481001,
-            1700001491001
+            1700001456001,
+            1700001466001
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "c5a4af946714f39290d24941220f08335f2689b15ddc7fb32b4044985b0ec20d"
+          "publicDigest": "51eb5031b6eeb4749a83a52b8700cab70a11551bcd534e52ecbfd86f4853f762"
         },
         {
-          "at": 1481001,
+          "at": 1456001,
           "act": "tick",
-          "effective": 1700001481001,
-          "reported": 1700001481001,
+          "effective": 1700001456001,
+          "reported": 1700001456001,
           "rows": [
             [
               4,
               "phase-2-close",
-              1700001481001,
+              1700001456001,
               "clock"
             ]
           ],
@@ -2404,23 +2404,23 @@
           "appliedRounds": 3,
           "anchors": [
             1700001451001,
-            1700001481001,
-            1700001491001
+            1700001456001,
+            1700001466001
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "10260d98738d3ff637921ec844a43bdd0c371c196227d45fb8e2d4266e4292c6"
+          "publicDigest": "f7e2b5ff17368dafd4143e8eb139a07165e33b60fad62318f0a3071f8331a0ca"
         },
         {
-          "at": 1491001,
+          "at": 1466001,
           "act": "tick",
-          "effective": 1700001491001,
-          "reported": 1700001491001,
+          "effective": 1700001466001,
+          "reported": 1700001466001,
           "rows": [
             [
               4,
               "application",
-              1700001491001,
+              1700001466001,
               "clock"
             ]
           ],
@@ -2439,10 +2439,10 @@
           "anchors": null,
           "victim": null,
           "recordDigest": "ad1d876ce8dc9bfb4b7c5d2ac1556eba3ce6009fd321cd6a20445403f89d0e8b",
-          "publicDigest": "39474ca088a81f0753e36f9241358d0496d02647872ba55c090f316f747ad5f1"
+          "publicDigest": "3e2120d3b9f16b2718bfe6f2be7208197575c9aaa6c063aa236f41dbf18e3330"
         }
       ],
-      "eventsDigest": "a4ae1a803d5bf59bd63503ff1e9171c89b7afb7a6b661663a6d71b757b234394"
+      "eventsDigest": "931f69b44f5d26560379146987d2d2b2fd1cc1cf7dab7eb091c128ba61a49047"
     },
     "backward-jump": {
       "timing": {
@@ -2753,12 +2753,12 @@
           "appliedRounds": 2,
           "anchors": [
             1700000290000,
-            1700000320000,
-            1700000330000
+            1700000295000,
+            1700000305000
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "32557607f22d604003d57189daa3459da5294324933b416d9962f2256194844f"
+          "publicDigest": "1931bd577f39bbffa6747189155425b49e680d48122650d6b5ff1bf9aa172405"
         },
         {
           "at": -3310000,
@@ -2772,23 +2772,23 @@
           "appliedRounds": 2,
           "anchors": [
             1700000290000,
-            1700000320000,
-            1700000330000
+            1700000295000,
+            1700000305000
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "32557607f22d604003d57189daa3459da5294324933b416d9962f2256194844f"
+          "publicDigest": "1931bd577f39bbffa6747189155425b49e680d48122650d6b5ff1bf9aa172405"
         },
         {
-          "at": 320000,
+          "at": 295000,
           "act": "tick",
-          "effective": 1700000320000,
-          "reported": 1700000320000,
+          "effective": 1700000295000,
+          "reported": 1700000295000,
           "rows": [
             [
               3,
               "phase-2-close",
-              1700000320000,
+              1700000295000,
               "clock"
             ]
           ],
@@ -2804,23 +2804,23 @@
           "appliedRounds": 2,
           "anchors": [
             1700000290000,
-            1700000320000,
-            1700000330000
+            1700000295000,
+            1700000305000
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "9395e2f321e924652df48b9f10f6301fef7aa1bd8ac0d78bc45ee78a0b20c6f6"
+          "publicDigest": "b025af95a3bdb3a3657dc7a5532391376a1eeda359c22d51f6a5947544a08412"
         },
         {
-          "at": 330000,
+          "at": 305000,
           "act": "tick",
-          "effective": 1700000330000,
-          "reported": 1700000330000,
+          "effective": 1700000305000,
+          "reported": 1700000305000,
           "rows": [
             [
               3,
               "application",
-              1700000330000,
+              1700000305000,
               "clock"
             ]
           ],
@@ -2837,24 +2837,24 @@
           "stage": "phase-1",
           "appliedRounds": 3,
           "anchors": [
-            1700000410000,
-            1700000440000,
-            1700000450000
+            1700000385000,
+            1700000415000,
+            1700000425000
           ],
           "victim": null,
           "recordDigest": "aecdef63465e00fff58e1228a25e15f93663d344fe8dd3aab5910808aac398a8",
-          "publicDigest": "c87664457f6a554f4b4db75aaff307afc9075bbae5e0166fe04318b0435b731c"
+          "publicDigest": "445d168bf8f3f3e9267b92b0fcddb259d8ebf55ccdad7ea2d147134a1fd154b4"
         },
         {
-          "at": 410000,
+          "at": 385000,
           "act": "tick",
-          "effective": 1700000410000,
-          "reported": 1700000410000,
+          "effective": 1700000385000,
+          "reported": 1700000385000,
           "rows": [
             [
               4,
               "phase-1-close",
-              1700000410000,
+              1700000385000,
               "clock"
             ]
           ],
@@ -2873,24 +2873,24 @@
           "stage": "phase-2",
           "appliedRounds": 3,
           "anchors": [
-            1700000410000,
-            1700000440000,
-            1700000450000
+            1700000385000,
+            1700000390000,
+            1700000400000
           ],
           "victim": 3,
           "recordDigest": null,
-          "publicDigest": "2bef169dfd4c37417de810d90a37a93fa5be91fb899342d4137a735bfcf34cdb"
+          "publicDigest": "f2a22d20c9dbc4228a01799a956262ff2fe9c604dc1c25559f48e50ba95617e6"
         },
         {
-          "at": 440000,
+          "at": 390000,
           "act": "tick",
-          "effective": 1700000440000,
-          "reported": 1700000440000,
+          "effective": 1700000390000,
+          "reported": 1700000390000,
           "rows": [
             [
               4,
               "phase-2-close",
-              1700000440000,
+              1700000390000,
               "clock"
             ]
           ],
@@ -2905,24 +2905,24 @@
           "stage": "locked",
           "appliedRounds": 3,
           "anchors": [
-            1700000410000,
-            1700000440000,
-            1700000450000
+            1700000385000,
+            1700000390000,
+            1700000400000
           ],
           "victim": 3,
           "recordDigest": null,
-          "publicDigest": "45f0f53f9adcfc9539a22ad9df9e7211f7f94a052583e00e473d8bbf99457889"
+          "publicDigest": "01dbd7e26d52d5875d16ce322bb6af135c980a1eac66aaca085402c601f734f5"
         },
         {
-          "at": 450000,
+          "at": 400000,
           "act": "tick",
-          "effective": 1700000450000,
-          "reported": 1700000450000,
+          "effective": 1700000400000,
+          "reported": 1700000400000,
           "rows": [
             [
               4,
               "application",
-              1700000450000,
+              1700000400000,
               "clock"
             ]
           ],
@@ -2941,10 +2941,10 @@
           "anchors": null,
           "victim": null,
           "recordDigest": "453486b7c1c3701e1ea31f093e8c25a6d6b0c167a36d0b7552aa0128ce31498d",
-          "publicDigest": "8f3ba1d6a0325a3b19e4b67e8c8ebf2de9229832c11d2d3b7622cc828f31f21a"
+          "publicDigest": "25eaea38f610824bee89aeb45b328e733d809df9502398855978a2a21725d980"
         }
       ],
-      "eventsDigest": "fb852940812643118100e715e553831e6bb546cdcbc74d6366d5b4434ae6d09d"
+      "eventsDigest": "fc4ce981e1cecceaf64e98b4f312b74f6b97d2d6e91475dea91b6609bc660fe7"
     }
   }
 }

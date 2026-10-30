@@ -9,13 +9,13 @@ const sources = import.meta.glob('./tour-shade.test.ts', { query: '?raw', import
 
 /**
  * Path from the repository root -> SHA-256 of the bytes, taken from `rewrite` before spec 009 changed anything. Three server goldens
- * (core-timelines, dev-results, service-timelines) were re-pinned by spec 011 M1 (forced absorber): their digests are the re-pinned ones.
+ * (core-timelines, dev-results, service-timelines) were re-pinned by spec 011 M1 (forced absorber; core-timelines and service-timelines twice: the forced field, then the shortened phase 2): their digests are the re-pinned ones.
  */
 const PINNED: Readonly<Record<string, string>> = {
-  'apps/server/test/golden/core-timelines.json': 'a2ae5b722b8960a1b0223953a4c052fc4b7126d1d246beb1e0be3e92f2f39777',
+  'apps/server/test/golden/core-timelines.json': '81b33074ec57d95eec18721375e2292ab2b24abd1b714c1eaa2559a40dce0ad9',
   'apps/server/test/golden/dev-results.json': '3071081f328cb133a1164b94627ad835f2fffe04bb5752834f265cccd8d7aac5',
   'apps/server/test/golden/dev-secrets.json': '77727ba2aa271e4e7c62dadec9f6f285629d112427f10494ef1a4995f64513b8',
-  'apps/server/test/golden/service-timelines.json': '31715ff9a5801401dc368ff6d941cfb3145d5d4ac0313017d0351904100af4db',
+  'apps/server/test/golden/service-timelines.json': 'ef46ccd44da9cedfe980087bb92138242c036c308a68a58ec60d4111c50456ad',
   'packages/sim/test/golden/grid5x5-seed4294967295.json': 'd8bcbee304dc5e39d9ebcae03481d9ee26cecba376d1f67edf4be7f69643caa2',
   'packages/sim/test/golden/hand8-seed42.json': '86d7d183bbd0cc070b08e519c05d2a597f5373b4b61368bc162031f877a85a3f',
   'packages/sim/test/golden/pair-seed0.json': 'da1029234f397b17ff54733249b3fd2480e94e74d86badf3f1b0241c9cef1ea2',

@@ -43,7 +43,7 @@ Plan sections 6, 11, 12 (M1 rows), 15 (Q2). The rules of `tasks.md` apply; sizes
   - Done when: tests green; mutations caught; FR-387 moved (1 / 28) in this commit.
   - Size: M (about 550; golden JSON apart).
 
-- [ ] **T5. Core: the shortened phase 2 after a forced reveal.** FR-388 (Q2 answered: shorten phase 2 = L1 to min(L1, F), A moves earlier, L2 and the next round's anchoring as in 008)
+- [x] **T5. Core: the shortened phase 2 after a forced reveal.** FR-388 (Q2 answered: shorten phase 2 = L1 to min(L1, F), A moves earlier, L2 and the next round's anchoring as in 008)
   - Depends on: T3, T4, and the answer to Q2 (which interval shortens: phase 2 = L1 or locked = L2; whether A moves).
   - Files: `apps/server/src/core/time.ts` (`forcedAnchors(anchors, timing, forcedSeconds, instant, cause)`, pure), `apps/server/src/core/steps.ts` (`closePhase1` uses it when forced), `apps/server/test/{core-time,core-steps,service-timer,service-steps}.test.ts`.
   - Tests first (fake clock, fake scheduler; non-round constants such as I = 47, L1 = 13, L2 = 7, F = 5 and F = 9): span below, equal to and above F; span 0 where the timing allows it (L2 = 0); an on-time clock step, a late step (instant = effective) and a manual advance each give the anchors of the plan's reading; the shortened phase closes exactly at the new instant (the scheduler wake-up is re-armed from the stored view); the next round's anchors are the 008 anchors derived from the application instant (the plan's reading of "do not move"); timing `manual`: no anchors, nothing changes; the victim event carries the shortened `c2`/`a`; a restart (new store and service on the file) recovers the shortened anchors; a non-forced round is byte-identical to 008.

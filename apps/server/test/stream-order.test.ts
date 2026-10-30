@@ -75,7 +75,10 @@ describe('the event stream over full matches: order and content', () => {
     const times = reportedOf(played.events);
     expect(times).toHaveLength(17);
     expect(nondecreasing(times)).toBe(true);
-    expect(times[times.length - 1]).toBe(START_MS + 480 * S);
+    // Four rounds of I = 120 s end at +480 s, less 25 s (L1 = 30 s down to F = 5 s) for every forced round (spec 011 FR-388).
+    const forced = played.events.filter((x) => x.type === 'victim-revealed' && x.forced === true).length;
+    expect(forced).toBeGreaterThanOrEqual(1);
+    expect(times[times.length - 1]).toBe(START_MS + (480 - 25 * forced) * S);
   }, 60_000);
 
   it('FR-287 (order) clock timing with L2 equal to 0: the phase-2 close and the application are one decision, no schedule between', async () => {

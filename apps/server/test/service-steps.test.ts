@@ -128,7 +128,9 @@ function clockRun(): Started {
   m.h.scheduler!.runTo(START_MS + 4 * 120 * S + 5);
   return m;
 }
-const instantOf = (round: number, kind: StepKind): number => START_MS + ((round - 1) * 120 + (kind === 'phase-1-close' ? 80 : kind === 'phase-2-close' ? 110 : 120)) * S;
+// Round 4 of the secret 00-1f is forced (spec 011 FR-388): phase 2 lasts F = 5 s, so its C2 is C1 + 5 s and A is C2 + L2 = C1 + 15 s.
+const instantOf = (round: number, kind: StepKind): number =>
+  START_MS + ((round - 1) * 120 + (kind === 'phase-1-close' ? 80 : kind === 'phase-2-close' ? (round === 4 ? 85 : 110) : round === 4 ? 95 : 120)) * S;
 const stepsOf = (m: Started, kind: StepKind): Seen[] => m.seen.filter((s) => stepKindOf(s) === kind);
 const stepKindOf = (s: Seen): StepKind | null => {
   const types = s.events.map((e) => e.type);

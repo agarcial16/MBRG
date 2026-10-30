@@ -314,7 +314,9 @@ describe('step order', () => {
     const rows: [number, string, number][] = [];
     for (let r = 1; r <= 4; r++) {
       const base = T0 + 100_000 * (r - 1);
-      for (const [offset, kind] of [[50_000, 'phase-1-close'], [80_000, 'phase-2-close'], [100_000, 'application']] as const) {
+      // Round 4 of this secret is forced: phase 2 lasts F = 5 s and A moves earlier by 25 s (spec 011 FR-388); L2 = 20 s is kept.
+      const offsets = r === 4 ? ([[50_000, 'phase-1-close'], [55_000, 'phase-2-close'], [75_000, 'application']] as const) : ([[50_000, 'phase-1-close'], [80_000, 'phase-2-close'], [100_000, 'application']] as const);
+      for (const [offset, kind] of offsets) {
         d.clock.set(base + offset - 1);
         expect(d.tick()).toBeNull();
         d.clock.set(base + offset);
@@ -733,6 +735,129 @@ describe('a forced absorber (one candidate)', () => {
     const d = coreDriver({ seedOf: A5 });
     const out = toReveal(d, 2);
     expect(out.scored).toStrictEqual([{ kind: 'victim', round: 3, answer: out.view.victim!.victim, worth: 3 }]);
+  });
+
+  describe('the shortened phase 2 (clock timing)', () => {
+    // Non-round constants: I = 47, L1 = 13, L2 = 7; all-a5 forces round 3 (and 4), rounds 1 and 2 have d = 2.
+    const T47: Timing = { i: 47, l1: 13, l2: 7 };
+    type D = ReturnType<typeof coreDriver>;
+    const tickAt = (d: D, instant: number) => {
+      d.clock.set(instant);
+      return d.tick();
+    };
+    /** Plays whole rounds on the clock, every step on time. */
+    const playOnTime = (d: D, rounds: number): void => {
+      const anchorOf = { 'phase-1': 'c1', 'phase-2': 'c2', locked: 'a' } as const;
+      for (let r = 0; r < rounds; r++) {
+        const before = d.view.appliedRounds;
+        while (d.view.appliedRounds === before) tickAt(d, d.view.anchors![anchorOf[d.view.stage as keyof typeof anchorOf]]);
+      }
+    };
+    const withF = (d: D, forcedPhaseSeconds: number): D => {
+      d.deps = { ...d.deps, forcedPhaseSeconds };
+      return d;
+    };
+    const scheduleOf = (events: readonly MatchEvent[]) => events.find((e) => e.type === 'schedule') as Extract<MatchEvent, { type: 'schedule' }>;
+
+    it('FR-388 an on-time clock reveal of a forced round gives phase 2 min(L1, F) = 5 s and A earlier by 8 s; the event, the view and the schedule agree', () => {
+      const d = coreDriver({ seedOf: A5, timing: T47 });
+      playOnTime(d, 2);
+      const c1 = d.view.anchors!.c1;
+      const out = tickAt(d, c1)!;
+      expect(out.view.stage).toBe('phase-2');
+      expect(out.view.victim!.forced).toBe(true);
+      expect(out.view.anchors).toMatchObject({ c1, c2: c1 + 5000, a: c1 + 12_000 });
+      expect(out.view.victim).toMatchObject({ revealedAt: c1, c2: c1 + 5000, a: c1 + 12_000 });
+      expect(revealedOf(out.events)).toMatchObject({ c2: c1 + 5000, a: c1 + 12_000 });
+      expect(scheduleOf(out.events).schedule).toStrictEqual({ c1, c2: c1 + 5000, a: c1 + 12_000 });
+      expect(publicOf(out.view, c1).schedule).toStrictEqual({ c1, c2: c1 + 5000, a: c1 + 12_000 });
+    });
+
+    it('FR-388 the shortened phase 2 closes exactly at the new C2, the application at the new A, and the next round is anchored at that application as in 008', () => {
+      const d = coreDriver({ seedOf: A5, timing: T47 });
+      playOnTime(d, 2);
+      const c1 = d.view.anchors!.c1;
+      tickAt(d, c1);
+      expect(tickAt(d, c1 + 5000 - 1)).toBeNull();
+      const closed = tickAt(d, c1 + 5000)!;
+      expect(d.steps.at(-1)).toMatchObject({ round: 3, kind: 'phase-2-close', instant: c1 + 5000, cause: 'clock' });
+      expect(closed.view.stage).toBe('locked');
+      expect(closed.view.anchors).toMatchObject({ c2: c1 + 5000, a: c1 + 12_000 });
+      expect(tickAt(d, c1 + 12_000 - 1)).toBeNull();
+      const applied = tickAt(d, c1 + 12_000)!;
+      expect(d.steps.at(-1)).toMatchObject({ round: 3, kind: 'application', instant: c1 + 12_000, cause: 'clock' });
+      const next = c1 + 12_000;
+      expect(applied.view.anchors).toStrictEqual({ t0: next, c1: next + 27_000, c2: next + 40_000, a: next + 47_000 });
+      // Round 4 (also forced) starts from the 008 anchors of that application, then shortens again.
+      const out4 = tickAt(d, next + 27_000)!;
+      expect(out4.view.anchors).toMatchObject({ c1: next + 27_000, c2: next + 32_000, a: next + 39_000 });
+    });
+
+    it('FR-388 F = 9 gives 9 s of phase 2 and A earlier by 4 s; F = L1 = 13 and F = 20 leave the 008 anchors', () => {
+      for (const [f, c2, a] of [[9, 9000, 16_000], [13, 13_000, 20_000], [20, 13_000, 20_000]] as const) {
+        const d = withF(coreDriver({ seedOf: A5, timing: T47 }), f);
+        playOnTime(d, 2);
+        const c1 = d.view.anchors!.c1;
+        const out = tickAt(d, c1)!;
+        expect(out.view.victim!.forced, `F = ${f}`).toBe(true);
+        expect(out.view.anchors, `F = ${f}`).toMatchObject({ c1, c2: c1 + c2, a: c1 + a });
+        expect(out.view.victim, `F = ${f}`).toMatchObject({ c2: c1 + c2, a: c1 + a });
+      }
+    });
+
+    it('FR-388 a late phase-1 close of a forced round shifts the anchors from the effective instant and shortens phase 2 from there', () => {
+      const d = coreDriver({ seedOf: A5, timing: T47 });
+      playOnTime(d, 2);
+      const late = d.view.anchors!.c1 + 4321;
+      const out = tickAt(d, late)!;
+      expect(d.steps.at(-1)).toMatchObject({ kind: 'phase-1-close', instant: late, cause: 'late' });
+      expect(out.view.anchors).toMatchObject({ c2: late + 5000, a: late + 12_000 });
+      expect(out.view.victim).toMatchObject({ revealedAt: late, c2: late + 5000, a: late + 12_000 });
+    });
+
+    it('FR-388 a manual phase-1 close of a forced round shortens phase 2 from the instant of the advance', () => {
+      const d = coreDriver({ seedOf: A5, timing: T47 });
+      playOnTime(d, 2);
+      const at = d.view.anchors!.c1 - 9000;
+      d.clock.set(at);
+      const out = d.run('phase-1-close');
+      expect(out.view.anchors).toMatchObject({ c1: d.view.anchors!.c1, c2: at + 5000, a: at + 12_000 });
+      expect(out.view.victim).toMatchObject({ revealedAt: at, c2: at + 5000, a: at + 12_000 });
+    });
+
+    it('FR-388 a non-forced round (d = 2) is byte-identical to the 008 close whatever F is', () => {
+      const outs = [1, 5, 9, 3600].map((f) => {
+        const d = withF(coreDriver({ seedOf: A5, timing: T47 }), f);
+        return d.clock.set(d.view.anchors!.c1), d.tick()!;
+      });
+      expect(outs[0]!.view.victim!.candidates).toHaveLength(2);
+      for (const out of outs) expect(JSON.stringify(out)).toBe(JSON.stringify(outs[0]));
+      const c1 = outs[0]!.view.anchors!.c1;
+      expect(outs[0]!.view.anchors).toMatchObject({ c2: c1 + 13_000, a: c1 + 20_000 });
+      expect('forced' in outs[0]!.view.victim!).toBe(false);
+    });
+
+    it('FR-388 timing manual: a forced reveal has no anchors and nothing changes', () => {
+      const d = coreDriver({ seedOf: A5 });
+      const out = toReveal(d, 2);
+      expect(out.view.victim!.forced).toBe(true);
+      expect(out.view.anchors).toBeNull();
+      expect(out.view.victim).toMatchObject({ c2: null, a: null });
+      expect('schedule' in scheduleOf(out.events)).toBe(false);
+    });
+
+    it('FR-388 with L2 = 0 the forced phase-2 close and the application are one decision at the shortened C2', () => {
+      const t: Timing = { i: 20, l1: 13, l2: 0 };
+      const d = coreDriver({ seedOf: A5, timing: t });
+      playOnTime(d, 2);
+      const c1 = d.view.anchors!.c1;
+      const out = tickAt(d, c1)!;
+      expect(out.view.anchors).toMatchObject({ c2: c1 + 5000, a: c1 + 5000 });
+      expect(tickAt(d, c1 + 5000 - 1)).toBeNull();
+      const chain = tickAt(d, c1 + 5000)!;
+      expect(chain.steps.map((s) => [s.kind, s.instant])).toStrictEqual([['phase-2-close', c1 + 5000], ['application', c1 + 5000]]);
+      expect(chain.view.anchors).toStrictEqual({ t0: c1 + 5000, c1: c1 + 5000 + 7000, c2: c1 + 5000 + 20_000, a: c1 + 5000 + 20_000 });
+    });
   });
 
   it('FR-387 the forced mark is derived from the public candidates only: the same seed and state give the same bytes, the secret seed is not in the output', () => {

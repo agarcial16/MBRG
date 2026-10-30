@@ -13,7 +13,7 @@ import type { FactionId, MapData, Result } from '@mbrg/shared';
 import { absorptionCandidatesOf, livingFactions, playRoundWithSeed } from '@mbrg/sim';
 import type { MatchError, MatchState, RoundRecord } from '@mbrg/sim';
 import type { ScoredPhase } from './scoring';
-import { anchorsAfterStep, dueStep, lastStepAfter } from './time';
+import { anchorsAfterStep, dueStep, forcedAnchors, lastStepAfter } from './time';
 import type { CoreMatch, StepCause, StepRow } from './view';
 
 export interface StepDeps {
@@ -111,10 +111,13 @@ function closePhase1(view: CoreMatch, input: StepInput, instant: number, map: Ma
     if (reason === undefined) throw new RangeError('inconsistent stored data: the round cannot be played');
     return haltMatch(view, reason, input.reportedTime);
   }
-  const anchors = anchorsAfterStep(view.anchors, 'phase-1-close', instant, input.cause, view.timing);
+  const candidates = must(absorptionCandidatesOf(map, state, elected.victim), 'candidates');
+  // A forced absorber leaves nothing to predict, so its phase 2 is shortened to min(L1, F) and A moves earlier (spec 011 FR-388).
+  const anchors = isForced(candidates)
+    ? forcedAnchors(view.anchors, view.timing, deps.forcedPhaseSeconds, instant, input.cause)
+    : anchorsAfterStep(view.anchors, 'phase-1-close', instant, input.cause, view.timing);
   let seq = view.lastSeq;
   const closed: MatchEvent = { type: 'phase-closed', seq: ++seq, round: k, phase: 1, at: instant };
-  const candidates = must(absorptionCandidatesOf(map, state, elected.victim), 'candidates');
   const victim: PublicVictim = {
     round: k,
     victim: elected.victim,
