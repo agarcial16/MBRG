@@ -35,13 +35,33 @@
 // Reads (FR-281 (a) to (d), (h), (j), FR-258, FR-302; M3a T5): outcomes with an `ErrorReply`, no transaction and no write
 // (only the in-memory reported time); a storage failure is `unavailable`; keyset pages with the cursors of the protocol.
 
-import { PAGE_LIMIT_MAX, canonicalBody, encodeCursor, encodePublicMatch, errorReply, isLocalId, isNamespace, isPlayerId, pageOf, playerIdOf, readAdvance, readCreation, readStart, readSubmission } from '@mbrg/protocol';
+import {
+  PAGE_LIMIT_MAX,
+  PLAYER_NAMESPACE,
+  canonicalBody,
+  encodeCursor,
+  encodeJoinReply,
+  encodePublicMatch,
+  errorReply,
+  isLocalId,
+  isNamespace,
+  isPlayerId,
+  nameKey,
+  pageOf,
+  playerIdOf,
+  readAdvance,
+  readCreation,
+  readJoin,
+  readStart,
+  readSubmission,
+} from '@mbrg/protocol';
 import type {
   AdvanceReply,
   CreationReply,
   CursorKey,
   CursorList,
   ErrorReply,
+  JoinReply,
   LeaderboardRow,
   MatchEvent,
   MatchSummary,
@@ -59,7 +79,7 @@ import type {
 import type { Clock } from '../clock';
 import { decideAdvance } from '../core/advance';
 import { createLobby, createMatch, creationEvents, lobbyEvents } from '../core/create';
-import { expireDecision, startDecision } from '../core/lobby';
+import { expireDecision, joinDecision, startDecision } from '../core/lobby';
 import { MEMO_RETENTION_MS, decideMemo, isMemoisable } from '../core/memo';
 import type { MemoScope } from '../core/memo';
 import { decideSubmission } from '../core/predictions';
@@ -74,9 +94,9 @@ import type { CoreMatch, StepRow } from '../core/view';
 import { DERIVATION_RULE, commitment as commitmentOf, newSecret, secretHex } from '../secret';
 import type { RandomBytes } from '../secret';
 import { seedOfSecret } from '../seeds';
-import { LOBBY_RETENTION_MS, StoreError } from '../store/store';
+import { LOBBY_RETENTION_MS, NameTakenError, StoreError } from '../store/store';
 import type { Store, StoredMatch, StoredRecord, StoredStep } from '../store/store';
-import { credentialDigest, newHostToken, newMatchId, sameDigest, sha256Ascii } from './ids';
+import { credentialDigest, newHostToken, newMatchId, newPlayerLocalId, newPlayerToken, sameDigest, sha256Ascii } from './ids';
 import { isMapFileName, mapForStep } from './maps';
 import type { MapCatalog, MapFile } from './maps';
 import { checkPublicCreation } from './publiccreate';
@@ -123,6 +143,22 @@ export interface StartReply {
 }
 
 export type StartOutcome = { readonly ok: true; readonly reply: StartReply } | { readonly ok: false; readonly error: ErrorReply };
+
+/** The path text of a join in the canonical content of FR-282 (the HTTP layer of M4 uses the same text). */
+export const joinPath = (matchId: string): string => `${CREATION_PATH}/${matchId}/join`;
+
+/**
+ * A join (spec 011 FR-377): no credential. `source` is the text the HTTP layer resolved for the caller (the service keys the
+ * memo by its digest and trusts it); the parsed JSON body is `{ name, requestId }`.
+ */
+export interface JoinRequest {
+  readonly source: string;
+  readonly matchId: string;
+  readonly body: unknown;
+}
+
+/** The reply of a join: `{ playerId, name, playerToken, match }` (the only time the token leaves the server), or the error. */
+export type JoinOutcome = { readonly ok: true; readonly reply: JoinReply } | { readonly ok: false; readonly error: ErrorReply };
 
 /** The reply of an advance: the reply of FR-295 (b), or the error (`step-mismatch` carries the stage and N, C6). */
 export type AdvanceOutcome = { readonly ok: true; readonly reply: AdvanceReply } | { readonly ok: false; readonly error: ErrorReply };
@@ -273,6 +309,12 @@ export interface MatchService {
    * `schedule` event, all in one storage transaction. The same request id and content replays the first reply.
    */
   startMatch(request: StartRequest): StartOutcome;
+  /**
+   * FR-377, FR-376, FR-380: a caller with no credential joins a lobby or a running match with a name; one storage transaction
+   * writes the player (as a token digest), the `player-joined` event and the match's last number, and the memo (the plain token
+   * lives only there, 24 h). A refusal stores, draws and memoises nothing.
+   */
+  join(request: JoinRequest): JoinOutcome;
   /** FR-244, FR-245, FR-295: an advance naming the step the caller expects; one storage transaction when it performs a step. */
   advance(request: AdvanceRequest): AdvanceOutcome;
   /** FR-261 to FR-267, FR-282 (b) (c): stores or replaces a prediction, or replays or refuses; one storage transaction. */
@@ -354,13 +396,12 @@ export const roundSeeds =
 const failure = (error: ErrorReply): CreateOutcome => ({ ok: false, error });
 
 /**
- * The public data of a view: `publicOf`, plus the player count of a lobby or an expired lobby (spec 011 plan P5: present in
- * those stages, absent otherwise until the match has players). No player can join before the join task of M3, so it is 0.
+ * The public data of a view: `publicOf` with the player count of the match when the caller knows it (spec 011 plan P5:
+ * always present for a lobby or an expired lobby, otherwise only once the match has players). A view built before any join
+ * has no count of its own: a lobby then shows 0.
  */
-const publicView = (view: CoreMatch, reportedTime: number, matchSecret?: string): PublicMatch => {
-  const match = publicOf(view, reportedTime, matchSecret);
-  return view.stage === 'lobby' || view.stage === 'expired' ? { ...match, playerCount: 0 } : match;
-};
+const publicView = (view: CoreMatch, reportedTime: number, matchSecret?: string, playerCount?: number): PublicMatch =>
+  publicOf(playerCount === undefined ? view : { ...view, playerCount }, reportedTime, matchSecret);
 
 const HOUR_MS = 3_600_000;
 
@@ -831,7 +872,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
   const publicNow = (stored: StoredMatch): PublicMatch => {
     const { reported } = timesOf(stored.match);
     remember(stored.match.matchId, reported);
-    return publicView(stored.match, reported, stored.match.stage === 'finished' ? secretHex(stored.secret) : undefined);
+    return publicView(stored.match, reported, stored.match.stage === 'finished' ? secretHex(stored.secret) : undefined, store.playerCount(stored.match.matchId));
   };
   /** A page size outside 1 to 500 never comes from `readPageQuery`: a programming error of the caller. */
   const checkPageSize = (limit: number): void => {
@@ -991,7 +1032,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
         store.markStarted(matchId, decision.view.lastStepMs);
         store.appendEvents(matchId, decision.events);
         done.committed = { view: decision.view, events: decision.events };
-        const result: StartOutcome = { ok: true, reply: { match: publicView(decision.view, times.reported) } };
+        const result: StartOutcome = { ok: true, reply: { match: publicView(decision.view, times.reported, undefined, store.playerCount(matchId)) } };
         // Only a start is memoised: a refusal (started, expired, a cap) stores nothing.
         if (requestId !== undefined) {
           store.memoPut(memoScope, requestId, { contentDigest: content, reply: result, createdMs: now });
@@ -999,6 +1040,73 @@ export function createMatchService(options: ServiceOptions): MatchService {
         }
         return result;
       }), (): StartOutcome => unavailable);
+      if (outcome === unavailable) return outcome;
+      memoStored(done.memoAt);
+      if (done.committed !== undefined) settle(matchId, done.reported, done.committed);
+      return outcome;
+    },
+
+    join(request: JoinRequest): JoinOutcome {
+      if (typeof request.source !== 'string' || request.source.length === 0) throw new TypeError('the source of a join is a non-empty text');
+      const read = readJoin(request.body);
+      if (!read.ok) return { ok: false, error: read.error };
+      const { matchId } = request;
+      if (typeof matchId !== 'string') return { ok: false, error: errorReply('unknown-match') };
+      const { name, requestId } = read.value;
+      // The scope is the digest of the source and the match: the same id from another source, or for another match, is another join.
+      const scope: MemoScope = { credentialDigest: credentialDigest(`join:${request.source}`), match: matchId };
+      const content = sha256Ascii(canonicalBody('POST', joinPath(matchId), request.body));
+      const done: { committed?: Committed; reported: number; memoAt?: number } = { reported: 0 };
+      const unavailable = { ok: false as const, error: errorReply('unavailable') };
+      let outcome: JoinOutcome;
+      try {
+        outcome = orUnavailable(
+          (): JoinOutcome =>
+            store.transaction((): JoinOutcome => {
+              const now = wholeMs(clock.now());
+              const first = store.memoGet(scope, requestId);
+              const memo = decideMemo<JoinOutcome>(
+                first === undefined ? undefined : { content: first.contentDigest, reply: first.reply as JoinOutcome, createdMs: first.createdMs },
+                { content, now },
+              );
+              if (memo.decision === 'replay') return memo.reply;
+              if (memo.decision === 'request-id-reused') return { ok: false, error: memo.error };
+              const stored = store.getMatch(matchId);
+              if (stored === undefined) return { ok: false, error: errorReply('unknown-match') };
+              const times = timesOf(stored.match);
+              done.reported = times.reported;
+              // A lobby at or after its expiry instant is expired by its own rule, whether or not the wake-up has run yet (FR-372).
+              const expiresMs = stored.match.stage === 'lobby' ? store.getLobby(matchId)?.expiresMs : undefined;
+              if (expiresMs !== undefined && times.effective >= expiresMs) return { ok: false, error: errorReply('match-expired') };
+              const count = store.playerCount(matchId);
+              const decision = joinDecision(stored.match, count, settings.maxPlayers);
+              if (!decision.ok) return { ok: false, error: decision.error };
+              // The name rule comes after the shape, stage and cap checks, and before any draw: a taken name draws nothing.
+              const key = nameKey(name);
+              if (store.nameKeyTaken(matchId, key)) return { ok: false, error: errorReply('name-taken') };
+
+              const playerId = playerIdOf(PLAYER_NAMESPACE, newPlayerLocalId(random));
+              const playerToken = newPlayerToken(random);
+              const reply: JoinReply = { playerId, name, playerToken, match: publicView(decision.view, times.reported, undefined, count + 1) };
+              encodeJoinReply(reply); // the reply must be encodable before anything is stored
+              const events: MatchEvent[] = [{ type: 'player-joined', seq: decision.seq, playerId, name }];
+              store.insertPlayer({ matchId, playerId, name, nameKey: key, tokenDigest: credentialDigest(playerToken), joinedSeq: decision.seq, joinedMs: now });
+              store.appendEvents(matchId, events);
+              store.updateMatch(decision.view);
+              const result: JoinOutcome = { ok: true, reply };
+              // Only a join is memoised (the token is in the reply, kept 24 h): a refusal stores nothing and may be retried.
+              store.memoPut(scope, requestId, { contentDigest: content, reply: result, createdMs: now });
+              done.memoAt = now;
+              done.committed = { view: decision.view, events };
+              return result;
+            }),
+          (): JoinOutcome => unavailable,
+        );
+      } catch (error) {
+        // The unique index decided a race the check could not see: the transaction rolled back, nothing was stored.
+        if (error instanceof NameTakenError) return { ok: false, error: errorReply('name-taken') };
+        throw error;
+      }
       if (outcome === unavailable) return outcome;
       memoStored(done.memoAt);
       if (done.committed !== undefined) settle(matchId, done.reported, done.committed);

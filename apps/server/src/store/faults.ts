@@ -86,6 +86,7 @@ export const withFaults = (store: Store, plan: FaultPlan): Store => {
     oldestExpiredMs: () => store.oldestExpiredMs(),
     insertPlayer: (player) => (write(), store.insertPlayer(player)),
     playerCount: (matchId) => store.playerCount(matchId),
+    nameKeyTaken: (matchId, key) => store.nameKeyTaken(matchId, key),
     playerByTokenDigest: (matchId, tokenDigest) => store.playerByTokenDigest(matchId, tokenDigest),
     playersAfter: (matchId, after, limit) => store.playersAfter(matchId, after, limit),
     playerNames: (matchId, ids) => store.playerNames(matchId, ids),

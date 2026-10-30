@@ -233,6 +233,8 @@ export interface Store {
   insertPlayer(player: NewPlayer): void;
   /** The number of players of a match (0 with none or for an unknown match). */
   playerCount(matchId: string): number;
+  /** Whether a player of the match already holds this name key (the service checks it before it draws; the unique index still decides a race). */
+  nameKeyTaken(matchId: string, nameKey: string): boolean;
   /**
    * The player of a match whose token has this digest, or undefined: looked up by the index on the digest and always scoped
    * to the match. A value that is not a digest is a RangeError.

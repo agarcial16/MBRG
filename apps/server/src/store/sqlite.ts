@@ -528,6 +528,9 @@ export const openStore = (path: string): Store => {
       const row = one('SELECT COUNT(*) AS n FROM players WHERE match_id = ?', matchId);
       return row === undefined ? 0 : num(row, 'n');
     },
+    nameKeyTaken(matchId: string, nameKey: string): boolean {
+      return one('SELECT 1 AS found FROM players WHERE match_id = ? AND name_key = ?', matchId, nameKey) !== undefined;
+    },
     playerByTokenDigest(matchId: string, tokenDigest: string): StoredPlayer | undefined {
       if (typeof tokenDigest !== 'string' || !DIGEST.test(tokenDigest)) throw new RangeError('a token digest is 64 lowercase hexadecimal characters');
       const row = one(READ_SQL.playerByTokenDigest, matchId, tokenDigest);

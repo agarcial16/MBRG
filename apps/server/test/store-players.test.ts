@@ -214,6 +214,20 @@ describe('players: the name key is unique in a match', () => {
     });
   });
 
+  it('nameKeyTaken tells whether a match holds a key, never across matches, and reads nothing else', () => {
+    withStore((store) => {
+      putMatch(store, mid('A'));
+      putMatch(store, mid('B'));
+      expect(store.nameKeyTaken(mid('A'), 'ana')).toBe(false);
+      addPlayer(store, draft(mid('A'), 'Ana', 2));
+      expect(store.nameKeyTaken(mid('A'), 'ana')).toBe(true);
+      expect(store.nameKeyTaken(mid('A'), 'Ana')).toBe(false);
+      expect(store.nameKeyTaken(mid('A'), 'bea')).toBe(false);
+      expect(store.nameKeyTaken(mid('B'), 'ana')).toBe(false);
+      expect(store.nameKeyTaken(mid('Z'), 'ana')).toBe(false);
+    });
+  });
+
   it('the message and the error carry no name and no key', () => {
     withStore((store) => {
       putMatch(store, mid('A'));
