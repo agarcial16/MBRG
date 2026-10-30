@@ -35,7 +35,7 @@
 // Reads (FR-281 (a) to (d), (h), (j), FR-258, FR-302; M3a T5): outcomes with an `ErrorReply`, no transaction and no write
 // (only the in-memory reported time); a storage failure is `unavailable`; keyset pages with the cursors of the protocol.
 
-import { PAGE_LIMIT_MAX, canonicalBody, encodeCursor, encodePublicMatch, errorReply, isLocalId, isNamespace, isPlayerId, pageOf, playerIdOf, readAdvance, readCreation, readSubmission } from '@mbrg/protocol';
+import { PAGE_LIMIT_MAX, canonicalBody, encodeCursor, encodePublicMatch, errorReply, isLocalId, isNamespace, isPlayerId, pageOf, playerIdOf, readAdvance, readCreation, readStart, readSubmission } from '@mbrg/protocol';
 import type {
   AdvanceReply,
   CreationReply,
@@ -58,7 +58,8 @@ import type {
 } from '@mbrg/protocol';
 import type { Clock } from '../clock';
 import { decideAdvance } from '../core/advance';
-import { createMatch, creationEvents } from '../core/create';
+import { createLobby, createMatch, creationEvents, lobbyEvents } from '../core/create';
+import { startDecision } from '../core/lobby';
 import { MEMO_RETENTION_MS, decideMemo, isMemoisable } from '../core/memo';
 import type { MemoScope } from '../core/memo';
 import { decideSubmission } from '../core/predictions';
@@ -78,6 +79,7 @@ import type { Store, StoredMatch, StoredRecord, StoredStep } from '../store/stor
 import { credentialDigest, newHostToken, newMatchId, sameDigest, sha256Ascii } from './ids';
 import { isMapFileName, mapForStep } from './maps';
 import type { MapCatalog, MapFile } from './maps';
+import { checkPublicCreation } from './publiccreate';
 import type { Scheduler, SchedulerHandle } from './scheduler';
 import type { Settings } from './settings';
 
@@ -93,6 +95,34 @@ export interface CreateRequest {
   /** The parsed JSON body of the creation command. */
   readonly body: unknown;
 }
+
+/**
+ * A public creation (spec 011 FR-369, FR-371): no operator credential, only the source the request came from (the HTTP layer
+ * resolves it; the service keys the memo by its digest and trusts the text it is given) and the parsed JSON body.
+ */
+export interface PublicCreateRequest {
+  readonly source: string;
+  readonly body: unknown;
+}
+
+/** The path text of a start in the canonical content of FR-282 (the HTTP layer of M4 uses the same text). */
+export const startPath = (matchId: string): string => `${CREATION_PATH}/${matchId}/start`;
+
+/** The start of a lobby (FR-374): only the host token of the match is accepted. */
+export interface StartRequest {
+  /** The credential the caller presented; only the host token of the match starts it (the operator credential does not). */
+  readonly credential: string | undefined;
+  readonly matchId: string;
+  /** The parsed JSON body `{ requestId? }`. */
+  readonly body: unknown;
+}
+
+/** The reply of a start: the public data after it (stage `phase-1`, round 1, the clock anchors when the timing has a clock). */
+export interface StartReply {
+  readonly match: PublicMatch;
+}
+
+export type StartOutcome = { readonly ok: true; readonly reply: StartReply } | { readonly ok: false; readonly error: ErrorReply };
 
 /** The reply of an advance: the reply of FR-295 (b), or the error (`step-mismatch` carries the stage and N, C6). */
 export type AdvanceOutcome = { readonly ok: true; readonly reply: AdvanceReply } | { readonly ok: false; readonly error: ErrorReply };
@@ -233,6 +263,16 @@ export interface ServiceOptions {
 export interface MatchService {
   /** FR-231, FR-232, FR-238: creates a match, or replays or refuses; one storage transaction. */
   create(request: CreateRequest): CreateOutcome;
+  /**
+   * FR-371 (public path): creates a match in stage `lobby` for a caller with no operator credential, or replays or refuses;
+   * one storage transaction. A refusal stores and draws nothing; only a creation is memoised, under the source's scope.
+   */
+  createPublic(request: PublicCreateRequest): CreateOutcome;
+  /**
+   * FR-374, FR-375: starts a lobby with the host token: stage `phase-1` of round 1, clock anchored at the start instant, one
+   * `schedule` event, all in one storage transaction. The same request id and content replays the first reply.
+   */
+  startMatch(request: StartRequest): StartOutcome;
   /** FR-244, FR-245, FR-295: an advance naming the step the caller expects; one storage transaction when it performs a step. */
   advance(request: AdvanceRequest): AdvanceOutcome;
   /** FR-261 to FR-267, FR-282 (b) (c): stores or replaces a prediction, or replays or refuses; one storage transaction. */
@@ -312,6 +352,17 @@ export const roundSeeds =
     testSeedSource === undefined ? seedOfSecret(secret) : testSeedSource(matchId);
 
 const failure = (error: ErrorReply): CreateOutcome => ({ ok: false, error });
+
+/**
+ * The public data of a view: `publicOf`, plus the player count of a lobby or an expired lobby (spec 011 plan P5: present in
+ * those stages, absent otherwise until the match has players). No player can join before the join task of M3, so it is 0.
+ */
+const publicView = (view: CoreMatch, reportedTime: number, matchSecret?: string): PublicMatch => {
+  const match = publicOf(view, reportedTime, matchSecret);
+  return view.stage === 'lobby' || view.stage === 'expired' ? { ...match, playerCount: 0 } : match;
+};
+
+const HOUR_MS = 3_600_000;
 
 const RUNNING = ['phase-1', 'phase-2', 'locked'];
 const isRunning = (view: CoreMatch): boolean => RUNNING.includes(view.stage);
@@ -688,7 +739,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
   const publicNow = (stored: StoredMatch): PublicMatch => {
     const { reported } = timesOf(stored.match);
     remember(stored.match.matchId, reported);
-    return publicOf(stored.match, reported, stored.match.stage === 'finished' ? secretHex(stored.secret) : undefined);
+    return publicView(stored.match, reported, stored.match.stage === 'finished' ? secretHex(stored.secret) : undefined);
   };
   /** A page size outside 1 to 500 never comes from `readPageQuery`: a programming error of the caller. */
   const checkPageSize = (limit: number): void => {
@@ -737,7 +788,131 @@ export function createMatchService(options: ServiceOptions): MatchService {
     return { ok: true, reply };
   };
 
+  /**
+   * The public creation after the shape and memo checks; runs inside the transaction and writes only on success. The order
+   * is the plan's (section 8): map in the public list, bounds, map package, cap, then the draws and the writes.
+   */
+  const decidePublic = (mapId: string, timing: Timing, now: number, made: (m: Committed & { reported: number }) => void): CreateOutcome => {
+    const rules = settings.publicCreation;
+    const refused = checkPublicCreation(rules, mapId, timing);
+    if (refused !== undefined) return failure(refused);
+    const loaded = maps.load(mapId);
+    if (loaded === undefined) return failure(errorReply('unknown-map'));
+    const created = createLobby({ matchId: '', mapId, mapDigest: loaded.digest, timing, commitment: '', now }, { map: loaded.map, sha256: sha256Ascii });
+    if (!created.ok) {
+      const others = created.errors.filter((e) => e.kind !== 'too-few-factions');
+      return failure(others.length === 0 ? errorReply('too-few-factions') : errorReply('map-validation', others.map((e) => e.kind)));
+    }
+    if (store.openLobbyCount() >= rules.maxOpenLobbies) return failure(errorReply('too-many-matches'));
+
+    const secret = newSecret(random);
+    const matchId = newMatchId(random);
+    const hostToken = newHostToken(random);
+    const view = { ...created.view, matchId, commitment: commitmentOf(secret) };
+    const reported = reportedTime(effectiveInstant(now, view.lastStepMs), 0);
+    const first = lobbyEvents(view, reported);
+    const reply: CreationReply = { matchId, match: publicView(first.view, reported), hostToken };
+    encodePublicMatch(reply.match); // the public data must be encodable before anything is stored
+    store.insertMatch({ match: first.view, secret, hostTokenDigest: credentialDigest(hostToken) });
+    store.insertLobby({ matchId, public: true, expiresMs: now + rules.lobbyExpiryHours * HOUR_MS });
+    store.appendEvents(matchId, first.events);
+    made({ view: first.view, events: first.events, reported });
+    return { ok: true, reply };
+  };
+
   return {
+    createPublic(request: PublicCreateRequest): CreateOutcome {
+      if (typeof request.source !== 'string' || request.source.length === 0) throw new TypeError('the source of a public creation is a non-empty text');
+      const read = readCreation(request.body);
+      if (!read.ok && read.error.kind !== 'invalid-timing') return failure(read.error);
+      const body = request.body as Record<string, unknown>;
+      const mapId = (read.ok ? read.value.mapId : body.mapId) as string;
+      const timing = (read.ok ? read.value.timing : body.timing) as Timing;
+      const requestId = (read.ok ? read.value.requestId : body.requestId) as string;
+
+      // The scope is the digest of the source: the same id from another source is another creation, and no operator scope is reused.
+      const scope: MemoScope = { credentialDigest: credentialDigest(`public:${request.source}`), match: null };
+      const contentDigest = sha256Ascii(canonicalBody('POST', CREATION_PATH, request.body));
+      const now = wholeMs(clock.now());
+      const fresh: { value?: Committed & { reported: number }; memoAt?: number } = {};
+      const unavailable = { ok: false as const, error: errorReply('unavailable') };
+      const outcome = orUnavailable(
+        () =>
+          store.transaction((): CreateOutcome => {
+            const stored = store.memoGet(scope, requestId);
+            const memo = decideMemo<CreateOutcome>(
+              stored === undefined ? undefined : { content: stored.contentDigest, reply: stored.reply as CreateOutcome, createdMs: stored.createdMs },
+              { content: contentDigest, now },
+            );
+            if (memo.decision === 'replay') return memo.reply;
+            if (memo.decision === 'request-id-reused') return failure(memo.error);
+            const result = decidePublic(mapId, timing, now, (made) => (fresh.value = made));
+            // Only a creation is memoised: a refusal stores nothing (FR-370), so the same id may retry once a cap has room.
+            if (result.ok) {
+              store.memoPut(scope, requestId, { contentDigest, reply: result, createdMs: now });
+              fresh.memoAt = now;
+            }
+            return result;
+          }),
+        (): CreateOutcome => unavailable,
+      );
+      if (outcome === unavailable) return outcome;
+      memoStored(fresh.memoAt);
+      if (fresh.value !== undefined && outcome.ok) settle(outcome.reply.matchId, fresh.value.reported, fresh.value);
+      return outcome;
+    },
+
+    startMatch(request: StartRequest): StartOutcome {
+      const read = readStart(request.body);
+      if (!read.ok) return { ok: false, error: read.error };
+      const presented = typeof request.credential === 'string' ? credentialDigest(request.credential) : undefined;
+      const { matchId } = request;
+      const done: { committed?: Committed; reported: number; memoAt?: number } = { reported: 0 };
+      const unavailable = { ok: false as const, error: errorReply('unavailable') };
+      const outcome = orUnavailable((): StartOutcome => store.transaction((): StartOutcome => {
+        const stored = typeof matchId === 'string' ? store.getMatch(matchId) : undefined;
+        // Only the host token starts a lobby (P14): the operator credential is not accepted, and a match that does not exist has
+        // no host, so it answers `forbidden` too.
+        const isHost = presented !== undefined && stored !== undefined && sameDigest(presented, stored.hostTokenDigest);
+        if (!isHost || stored === undefined || presented === undefined) return { ok: false, error: errorReply('forbidden') };
+        const requestId = read.value.requestId;
+        const memoScope: MemoScope = { credentialDigest: presented, match: matchId };
+        const content = sha256Ascii(canonicalBody('POST', startPath(matchId), request.body));
+        const now = wholeMs(clock.now());
+        if (requestId !== undefined) {
+          const memoStored = store.memoGet(memoScope, requestId);
+          const memo = decideMemo<StartOutcome>(
+            memoStored === undefined ? undefined : { content: memoStored.contentDigest, reply: memoStored.reply as StartOutcome, createdMs: memoStored.createdMs },
+            { content, now },
+          );
+          if (memo.decision === 'replay') return memo.reply;
+          if (memo.decision === 'request-id-reused') return { ok: false, error: memo.error };
+        }
+        const times = timesOf(stored.match);
+        done.reported = times.reported;
+        const decision = startDecision(stored.match, now, times.reported);
+        if (!decision.ok) return { ok: false, error: decision.error };
+        // The 008 limit counts public matches too (D7); the cap of running public matches is checked here, at the start.
+        if (store.runningCount() >= limit) return { ok: false, error: errorReply('too-many-matches') };
+        if (store.getLobby(matchId)?.public === true && store.publicRunningCount() >= settings.publicCreation.maxPublicRunning) return { ok: false, error: errorReply('too-many-matches') };
+        store.updateMatch(decision.view);
+        store.markStarted(matchId, decision.view.lastStepMs);
+        store.appendEvents(matchId, decision.events);
+        done.committed = { view: decision.view, events: decision.events };
+        const result: StartOutcome = { ok: true, reply: { match: publicView(decision.view, times.reported) } };
+        // Only a start is memoised: a refusal (started, expired, a cap) stores nothing.
+        if (requestId !== undefined) {
+          store.memoPut(memoScope, requestId, { contentDigest: content, reply: result, createdMs: now });
+          done.memoAt = now;
+        }
+        return result;
+      }), (): StartOutcome => unavailable);
+      if (outcome === unavailable) return outcome;
+      memoStored(done.memoAt);
+      if (done.committed !== undefined) settle(matchId, done.reported, done.committed);
+      return outcome;
+    },
+
     create(request: CreateRequest): CreateOutcome {
       const read = readCreation(request.body);
       // Shape problems come first (FR-301); the timing rules come later in the order, so their error waits.

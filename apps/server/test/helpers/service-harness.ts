@@ -46,6 +46,8 @@ export interface HarnessOptions {
   readonly secret?: Uint8Array;
   /** Build a fake scheduler on the fake clock and give it to the service. */
   readonly scheduler?: boolean;
+  /** Overrides of the public creation settings (default: public creation off). */
+  readonly publicCreation?: Partial<Settings['publicCreation']>;
   /** The service's `onFailure` option (clock steps that failed, with their original cause). */
   readonly onFailure?: ServiceOptions['onFailure'];
 }
@@ -69,7 +71,7 @@ export interface Harness {
 /** The service over an in-memory store, the fake clock and a recording fake random source. */
 export function serviceHarness(options: HarnessOptions = {}): Harness {
   const folders = options.folders ?? { dev: DEV_DIR.replace(/[\\/]$/, '') };
-  const settings: Settings = { operatorCredential: options.operator ?? OPERATOR, maps: folders, runningMatchLimit: options.limit ?? 20, databasePath: ':memory:', forcedPhaseSeconds: options.forcedPhaseSeconds ?? 5, publicCreation: OFF_PUBLIC };
+  const settings: Settings = { operatorCredential: options.operator ?? OPERATOR, maps: folders, runningMatchLimit: options.limit ?? 20, databasePath: ':memory:', forcedPhaseSeconds: options.forcedPhaseSeconds ?? 5, publicCreation: { ...OFF_PUBLIC, ...options.publicCreation } };
   const clock = fakeClock(options.start ?? START_MS);
   const source = fakeRandom(options.seed ?? 1);
   const draws: Draw[] = [];
