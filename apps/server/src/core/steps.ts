@@ -23,6 +23,8 @@ export interface StepDeps {
   readonly seedOf: (k: number) => number;
   /** SHA-256 of an ASCII text, as 64 lowercase hexadecimal characters (the state digest). */
   readonly sha256: (text: string) => string;
+  /** The forced-absorber phase span F in seconds (a setting, whole number 1 to 3,600); read by the forced phase 2 (spec 011). */
+  readonly forcedPhaseSeconds: number;
 }
 
 export interface StepInput {

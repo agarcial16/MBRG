@@ -24,7 +24,7 @@ Plan sections 6, 11, 12 (M1 rows), 15 (Q2). The rules of `tasks.md` apply; sizes
   - Done when: tests green; mutations caught; protocol purity scan green; no id moved.
   - Size: M (about 300).
 
-- [ ] **T3. Setting F and its path to the core.** (no pending id named)
+- [x] **T3. Setting F and its path to the core.** (no pending id named)
   - Depends on: T2.
   - Files: `apps/server/src/service/settings.ts` (`MBRG_FORCED_PHASE_SECONDS`, default 5, whole number >= 1 and <= 3,600; `Settings.forcedPhaseSeconds`), `apps/server/src/core/steps.ts` (`StepDeps.forcedPhaseSeconds`), `apps/server/src/service/matches.ts` (`depsOf` passes it), `apps/server/test/{server-settings,service-settings,service-seam}.test.ts`, `apps/server/test/helpers/{main-child,service-harness,server-harness}.ts`.
   - Tests first: the variable list is 16 variables in order (appended at the end); default 5; `0`, `-1`, `3601`, `1.5`, `x`, empty are problems naming the variable only; the FR-260 environment scans (no seed-source variable) run over 16; `StepDeps` keys are pinned.

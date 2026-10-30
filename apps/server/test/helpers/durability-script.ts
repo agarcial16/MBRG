@@ -28,6 +28,7 @@ export const settingsFor = (file: string): Settings => ({
   maps: { dev: DEV_DIR.replace(/[\\/]$/, '') },
   runningMatchLimit: 20,
   databasePath: file,
+  forcedPhaseSeconds: 5,
 });
 
 /** A service on `store` as a (re)started server builds it: the fake clock, the dev map and a fresh fake random source. */

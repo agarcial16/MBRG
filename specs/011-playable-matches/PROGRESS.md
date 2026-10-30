@@ -19,3 +19,12 @@ State: spec approved (2026-10-30); plan and tasks drafted, waiting for the user'
 - Results: `npm test` 249 files, 4097 passed, 4 skipped; `npm run typecheck` clean; `CI=1 npm test` same; title-rule scan and protected-path diff clean.
 - Mutation proofs (full suite, restored by byte compare): `forced` written first (4 fail), `false` accepted in encoders/readers (6 fail), `forced-absorber` after `invalid-choice` (3 fail), status 422 (2 fail).
 - Untested: the core does not set `forced` yet (T4); no server path returns the new kind yet. Next: T3 (setting F).
+
+## M1 T3 - Setting F and its path to the core
+- Changed: `service/settings.ts` (`MBRG_FORCED_PHASE_SECONDS` appended as the 16th variable; default 5; whole number 1 to 3,600, same digit rule as the limits so `05`, ` 5`, `1.5`, `x`, empty are refused; `Settings.forcedPhaseSeconds` required), `core/steps.ts` (`StepDeps.forcedPhaseSeconds`, unused until T5), `service/matches.ts` (`depsOf` passes `settings.forcedPhaseSeconds`).
+- Tests written first, seen red (7 failures) before any source: `server-settings` (16-variable list, default 5 in the strict-equal, new value/refusal test), `service-settings` (list, default object), `service-seam` (env-read scan over 16, new test pinning the `StepDeps` interface keys and the `depsOf` pass-through by source scan).
+- Existing files edited only because `forcedPhaseSeconds` is a required field (typecheck): helpers `service-harness`, `durability-script`, `core-driver` (deps F = 5), `http-identity.test` and `service-seam` literal, `scripts/clock-accuracy.ts`. `main-child` and `server-harness` needed no change (the default applies; `server-harness` spreads the service-harness settings).
+- Results: `npm test` 249 files, 4099 passed, 4 skipped; `npm run typecheck` clean; `CI=1 npm test` same; title-rule scan empty.
+- Mutation proofs (full suite, restored by byte compare): default 6 (2 fail), `0` accepted (1 fail), variable inserted mid-list (2 fail).
+- Untested: F is not read by any step yet (T5); no behavioral test of the pass-through beyond the source scan.
+- Next: T4 (a forced absorber is not predicted and does not score).

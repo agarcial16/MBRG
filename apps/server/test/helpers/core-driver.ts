@@ -51,6 +51,7 @@ export function coreDriver(options: DriverOptions = {}): Driver {
   const deps: StepDeps = {
     map,
     sha256,
+    forcedPhaseSeconds: 5,
     seedOf: (k) => {
       seedCalls.push(k);
       return base(k);

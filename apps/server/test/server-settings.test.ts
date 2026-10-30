@@ -43,11 +43,12 @@ const settingsOf = (patch: Record<string, string>): ServerSettings => {
 };
 
 describe('server settings: variables and defaults', () => {
-  it('FR-299 (stream limits) FR-260 the 15 variables read are exactly the plan list, in order, and none can set a round-seed source', () => {
+  it('FR-299 (stream limits) FR-260 the 16 variables read are exactly the plan list, in order, and none can set a round-seed source', () => {
     expect(SETTING_VARIABLES).toStrictEqual([
       'MBRG_OPERATOR_CREDENTIAL', 'MBRG_MAPS', 'MBRG_MAX_RUNNING_MATCHES', 'MBRG_DATABASE', 'MBRG_CLIENTS',
       'MBRG_ALLOWED_ORIGINS', 'MBRG_HOST', 'MBRG_PORT', 'MBRG_LIMIT_COMMANDS', 'MBRG_LIMIT_READS',
       'MBRG_LIMIT_SUBMISSIONS', 'MBRG_LIMIT_ADVANCES', 'MBRG_LIMIT_ANONYMOUS', 'MBRG_LIMIT_STREAMS', 'MBRG_LIMIT_ANONYMOUS_STREAMS',
+      'MBRG_FORCED_PHASE_SECONDS',
     ]);
     expect(SETTING_VARIABLES.filter((name) => /seed|random|source/i.test(name))).toStrictEqual([]);
   });
@@ -58,6 +59,7 @@ describe('server settings: variables and defaults', () => {
       maps: { dev: 'maps/dev' },
       runningMatchLimit: 20,
       databasePath: 'mbrg.sqlite',
+      forcedPhaseSeconds: 5,
       clients: [],
       allowedOrigins: [],
       host: '127.0.0.1',
@@ -87,6 +89,15 @@ describe('server settings: variables and defaults', () => {
       for (const value of ['0', '1000001', '-5', '2.5', '1e3', 'many', '', ' 30', '030', '0x10']) {
         expect(problemsOf({ [name]: value }), `${name}=${value}`).toStrictEqual([name]);
       }
+    }
+  });
+
+  it('forced phase setting: whole seconds 1 to 3,600 are read; anything else is refused naming only the variable', () => {
+    for (const [value, seconds] of [['1', 1], ['9', 9], ['47', 47], ['3600', 3600]] as const) {
+      expect(settingsOf({ MBRG_FORCED_PHASE_SECONDS: value }).forcedPhaseSeconds, value).toBe(seconds);
+    }
+    for (const value of ['0', '-1', '3601', '1.5', 'x', '', ' 5', '05', '1e3', '0x10']) {
+      expect(problemsOf({ MBRG_FORCED_PHASE_SECONDS: value }), JSON.stringify(value)).toStrictEqual(['MBRG_FORCED_PHASE_SECONDS']);
     }
   });
 

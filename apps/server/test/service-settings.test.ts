@@ -119,6 +119,7 @@ describe('settings', () => {
         maps: { dev: 'maps/dev', big: 'maps/big' },
         runningMatchLimit: 20,
         databasePath: 'mbrg.sqlite',
+        forcedPhaseSeconds: 5,
         clients: [],
         allowedOrigins: [],
         host: '127.0.0.1',
@@ -157,6 +158,7 @@ describe('settings', () => {
       'MBRG_OPERATOR_CREDENTIAL', 'MBRG_MAPS', 'MBRG_MAX_RUNNING_MATCHES', 'MBRG_DATABASE', 'MBRG_CLIENTS',
       'MBRG_ALLOWED_ORIGINS', 'MBRG_HOST', 'MBRG_PORT', 'MBRG_LIMIT_COMMANDS', 'MBRG_LIMIT_READS',
       'MBRG_LIMIT_SUBMISSIONS', 'MBRG_LIMIT_ADVANCES', 'MBRG_LIMIT_ANONYMOUS', 'MBRG_LIMIT_STREAMS', 'MBRG_LIMIT_ANONYMOUS_STREAMS',
+      'MBRG_FORCED_PHASE_SECONDS',
     ]);
     const plain = readSettings(env);
     const noisy = readSettings({

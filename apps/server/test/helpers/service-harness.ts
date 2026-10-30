@@ -65,7 +65,7 @@ export interface Harness {
 /** The service over an in-memory store, the fake clock and a recording fake random source. */
 export function serviceHarness(options: HarnessOptions = {}): Harness {
   const folders = options.folders ?? { dev: DEV_DIR.replace(/[\\/]$/, '') };
-  const settings: Settings = { operatorCredential: options.operator ?? OPERATOR, maps: folders, runningMatchLimit: options.limit ?? 20, databasePath: ':memory:' };
+  const settings: Settings = { operatorCredential: options.operator ?? OPERATOR, maps: folders, runningMatchLimit: options.limit ?? 20, databasePath: ':memory:', forcedPhaseSeconds: 5 };
   const clock = fakeClock(options.start ?? START_MS);
   const source = fakeRandom(options.seed ?? 1);
   const draws: Draw[] = [];
