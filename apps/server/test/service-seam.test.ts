@@ -8,7 +8,7 @@ import { createMapCatalog } from '../src/service/maps';
 import { openStore } from '../src/store/sqlite';
 import { fakeClock } from './helpers/fake-clock';
 import { DEV_DIR } from './helpers/digests';
-import { OPERATOR, START_MS, creationBody, serviceHarness } from './helpers/service-harness';
+import { OFF_PUBLIC, OPERATOR, START_MS, creationBody, serviceHarness } from './helpers/service-harness';
 import { baseEnv, eventsOf, withMain } from './helpers/main-child';
 import { StoreError } from '../src/store/store';
 import type { Store } from '../src/store/store';
@@ -76,7 +76,7 @@ describe('the test-only round-seed source', () => {
   it('FR-260 a source that is not a function is refused at construction, never ignored', () => {
     const store = openStore(':memory:');
     try {
-      const options = { store, clock: fakeClock(0), maps: createMapCatalog({}), settings: { operatorCredential: OPERATOR, maps: {}, runningMatchLimit: 20, databasePath: ':memory:', forcedPhaseSeconds: 5 } };
+      const options = { store, clock: fakeClock(0), maps: createMapCatalog({}), settings: { operatorCredential: OPERATOR, maps: {}, runningMatchLimit: 20, databasePath: ':memory:', forcedPhaseSeconds: 5, publicCreation: OFF_PUBLIC } };
       expect(() => createMatchService({ ...options, testSeedSource: 'fixed' as unknown as TestSeedSource })).toThrow(TypeError);
       expect(() => createMatchService({ ...options, testSeedSource: (() => (k: number) => k) as TestSeedSource })).not.toThrow();
     } finally {
@@ -113,13 +113,15 @@ describe('the production entry point', () => {
     expect(call).not.toBeNull();
     // The service gets its store, clock, maps, settings, the scheduler and the failure report (T4'): nothing seed-like.
     expect(call![1]!.split(',').map((part) => part.trim().split(':')[0]!.trim())).toStrictEqual(['store', 'clock', 'maps', 'settings', 'scheduler', 'onFailure']);
-    // The settings module reads the sixteen listed variables and never anything seed-like.
+    // The settings module reads the 24 listed variables and never anything seed-like.
     expect(SEED_WORDS.test(settings)).toBe(false);
-    expect([...new Set([...settings.matchAll(/env\.([A-Z_]+)/g)].map((m) => m[1]))].sort()).toStrictEqual(
+    expect([...new Set([...settings.matchAll(/env\.([A-Z0-9_]+)/g)].map((m) => m[1]))].sort()).toStrictEqual(
       [
         'MBRG_DATABASE', 'MBRG_MAPS', 'MBRG_MAX_RUNNING_MATCHES', 'MBRG_OPERATOR_CREDENTIAL', 'MBRG_CLIENTS', 'MBRG_ALLOWED_ORIGINS',
         'MBRG_HOST', 'MBRG_PORT', 'MBRG_LIMIT_COMMANDS', 'MBRG_LIMIT_READS', 'MBRG_LIMIT_SUBMISSIONS', 'MBRG_LIMIT_ADVANCES', 'MBRG_LIMIT_ANONYMOUS',
         'MBRG_LIMIT_STREAMS', 'MBRG_LIMIT_ANONYMOUS_STREAMS', 'MBRG_FORCED_PHASE_SECONDS',
+        'MBRG_PUBLIC_MAPS', 'MBRG_PUBLIC_MIN_INTERVAL', 'MBRG_PUBLIC_MIN_PHASE1', 'MBRG_PUBLIC_MIN_PHASE2', 'MBRG_PUBLIC_MAX_INTERVAL',
+        'MBRG_MAX_OPEN_LOBBIES', 'MBRG_MAX_PUBLIC_RUNNING', 'MBRG_LOBBY_EXPIRY_HOURS',
       ].sort(),
     );
   });

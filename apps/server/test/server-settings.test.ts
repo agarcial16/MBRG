@@ -43,12 +43,14 @@ const settingsOf = (patch: Record<string, string>): ServerSettings => {
 };
 
 describe('server settings: variables and defaults', () => {
-  it('FR-299 (stream limits) FR-260 the 16 variables read are exactly the plan list, in order, and none can set a round-seed source', () => {
+  it('FR-299 (stream limits) FR-260 the 24 variables read are exactly the plan list, in order, and none can set a round-seed source', () => {
     expect(SETTING_VARIABLES).toStrictEqual([
       'MBRG_OPERATOR_CREDENTIAL', 'MBRG_MAPS', 'MBRG_MAX_RUNNING_MATCHES', 'MBRG_DATABASE', 'MBRG_CLIENTS',
       'MBRG_ALLOWED_ORIGINS', 'MBRG_HOST', 'MBRG_PORT', 'MBRG_LIMIT_COMMANDS', 'MBRG_LIMIT_READS',
       'MBRG_LIMIT_SUBMISSIONS', 'MBRG_LIMIT_ADVANCES', 'MBRG_LIMIT_ANONYMOUS', 'MBRG_LIMIT_STREAMS', 'MBRG_LIMIT_ANONYMOUS_STREAMS',
       'MBRG_FORCED_PHASE_SECONDS',
+      'MBRG_PUBLIC_MAPS', 'MBRG_PUBLIC_MIN_INTERVAL', 'MBRG_PUBLIC_MIN_PHASE1', 'MBRG_PUBLIC_MIN_PHASE2', 'MBRG_PUBLIC_MAX_INTERVAL',
+      'MBRG_MAX_OPEN_LOBBIES', 'MBRG_MAX_PUBLIC_RUNNING', 'MBRG_LOBBY_EXPIRY_HOURS',
     ]);
     expect(SETTING_VARIABLES.filter((name) => /seed|random|source/i.test(name))).toStrictEqual([]);
   });
@@ -60,6 +62,7 @@ describe('server settings: variables and defaults', () => {
       runningMatchLimit: 20,
       databasePath: 'mbrg.sqlite',
       forcedPhaseSeconds: 5,
+      publicCreation: { maps: [], minInterval: 30, minPhase1: 10, minPhase2: 5, maxInterval: 3600, maxOpenLobbies: 50, maxPublicRunning: 20, lobbyExpiryHours: 24 },
       clients: [],
       allowedOrigins: [],
       host: '127.0.0.1',
@@ -276,6 +279,94 @@ describe('server settings: purity', () => {
     expect(code.length).toBeGreaterThan(0);
     for (const re of [/\bDate\b/, /\bsetTimeout\b|\bsetInterval\b|\bsetImmediate\b/, /\bMath\.random\b|\brandom[A-Z]\w*\b|\bcrypto\b/, /\bperformance\b/, /\bimport\b(?!\s+type\b)/, /\bprocess\b/]) {
       expect(re.test(code), String(re)).toBe(false);
+    }
+  });
+});
+
+describe('server settings: public creation', () => {
+  const two = { MBRG_MAPS: '{"dev":"maps/dev","big":"maps/big"}' };
+
+  it('the public creation settings read their defaults: no public map (public creation off), 30 / 10 / 5 / 3,600 seconds, 50 and 20 matches, 24 hours', () => {
+    expect(settingsOf({}).publicCreation).toStrictEqual({
+      maps: [], minInterval: 30, minPhase1: 10, minPhase2: 5, maxInterval: 3600, maxOpenLobbies: 50, maxPublicRunning: 20, lobbyExpiryHours: 24,
+    });
+    expect(settingsOf({ MBRG_PUBLIC_MAPS: '' }).publicCreation.maps).toStrictEqual([]);
+  });
+
+  it('the public creation settings read operator values (non-round numbers), and the public maps keep the order given', () => {
+    const read = settingsOf({
+      ...two,
+      MBRG_PUBLIC_MAPS: 'big,dev',
+      MBRG_PUBLIC_MIN_INTERVAL: '47',
+      MBRG_PUBLIC_MIN_PHASE1: '13',
+      MBRG_PUBLIC_MIN_PHASE2: '7',
+      MBRG_PUBLIC_MAX_INTERVAL: '901',
+      MBRG_MAX_OPEN_LOBBIES: '3',
+      MBRG_MAX_PUBLIC_RUNNING: '9',
+      MBRG_LOBBY_EXPIRY_HOURS: '5',
+    });
+    expect(read.publicCreation).toStrictEqual({
+      maps: ['big', 'dev'], minInterval: 47, minPhase1: 13, minPhase2: 7, maxInterval: 901, maxOpenLobbies: 3, maxPublicRunning: 9, lobbyExpiryHours: 5,
+    });
+  });
+
+  it('every public map must be one of the configured maps: otherwise the problem names MBRG_PUBLIC_MAPS and no map id', () => {
+    for (const value of ['nowhere', 'dev,nowhere', 'Bad Id', 'dev,,big', ',dev', 'dev,', 'dev,dev', ' dev']) {
+      const problems = problemsOf({ ...two, MBRG_PUBLIC_MAPS: value });
+      expect(problems, JSON.stringify(value)).toStrictEqual(['MBRG_PUBLIC_MAPS']);
+    }
+    expect(settingsOf({ ...two, MBRG_PUBLIC_MAPS: 'dev' }).publicCreation.maps).toStrictEqual(['dev']);
+  });
+
+  it('the whole-number settings refuse anything but a whole number in range, naming only their variable', () => {
+    const ranges: Array<[string, string]> = [
+      ['MBRG_PUBLIC_MIN_INTERVAL', '86400'], ['MBRG_PUBLIC_MIN_PHASE1', '86400'], ['MBRG_PUBLIC_MIN_PHASE2', '86400'],
+      ['MBRG_MAX_OPEN_LOBBIES', '1000000'], ['MBRG_MAX_PUBLIC_RUNNING', '1000000'], ['MBRG_LOBBY_EXPIRY_HOURS', '720'],
+    ];
+    for (const [name, top] of ranges) {
+      for (const value of ['0', '-1', '1.5', 'x', '', ' 5', '05', '1e3', '0x10', String(Number(top) + 1)]) {
+        expect(problemsOf({ [name]: value }), `${name}=${JSON.stringify(value)}`).toStrictEqual([name]);
+      }
+    }
+    for (const value of ['0', '-1', '1.5', 'x', '', '05', '86401']) {
+      expect(problemsOf({ MBRG_PUBLIC_MAX_INTERVAL: value }), JSON.stringify(value)).toStrictEqual(['MBRG_PUBLIC_MAX_INTERVAL']);
+    }
+    // The top of each range is accepted (lobby expiry and caps alone; the intervals need a consistent set).
+    expect(settingsOf({ MBRG_LOBBY_EXPIRY_HOURS: '720', MBRG_MAX_OPEN_LOBBIES: '1000000', MBRG_MAX_PUBLIC_RUNNING: '1000000' }).publicCreation).toMatchObject({ lobbyExpiryHours: 720, maxOpenLobbies: 1000000, maxPublicRunning: 1000000 });
+    expect(settingsOf({ MBRG_PUBLIC_MIN_INTERVAL: '86400', MBRG_PUBLIC_MAX_INTERVAL: '86400' }).publicCreation).toMatchObject({ minInterval: 86400, maxInterval: 86400 });
+    expect(settingsOf({ MBRG_LOBBY_EXPIRY_HOURS: '1' }).publicCreation.lobbyExpiryHours).toBe(1);
+  });
+
+  it('a bound set must be consistent: the minimum interval exceeds both minimum phases together, and does not exceed the maximum interval', () => {
+    // L1 + L2 = 15: an interval of 15 leaves no time for the locked part of the round.
+    expect(problemsOf({ MBRG_PUBLIC_MIN_INTERVAL: '15' })).toStrictEqual(['MBRG_PUBLIC_MIN_INTERVAL']);
+    expect(problemsOf({ MBRG_PUBLIC_MIN_INTERVAL: '10' })).toStrictEqual(['MBRG_PUBLIC_MIN_INTERVAL']);
+    expect(settingsOf({ MBRG_PUBLIC_MIN_INTERVAL: '16' }).publicCreation.minInterval).toBe(16);
+    expect(problemsOf({ MBRG_PUBLIC_MIN_PHASE1: '25' })).toStrictEqual(['MBRG_PUBLIC_MIN_INTERVAL']);
+    expect(problemsOf({ MBRG_PUBLIC_MIN_PHASE2: '20' })).toStrictEqual(['MBRG_PUBLIC_MIN_INTERVAL']);
+    expect(settingsOf({ MBRG_PUBLIC_MIN_PHASE1: '24' }).publicCreation.minPhase1).toBe(24);
+    // The maximum interval is not below the minimum one.
+    expect(problemsOf({ MBRG_PUBLIC_MAX_INTERVAL: '29' })).toStrictEqual(['MBRG_PUBLIC_MAX_INTERVAL']);
+    expect(settingsOf({ MBRG_PUBLIC_MAX_INTERVAL: '30' }).publicCreation.maxInterval).toBe(30);
+    expect(problemsOf({ MBRG_PUBLIC_MIN_INTERVAL: '100', MBRG_PUBLIC_MAX_INTERVAL: '99' })).toStrictEqual(['MBRG_PUBLIC_MAX_INTERVAL']);
+    // A bad value is reported alone: no consistency problem is derived from a value that did not parse.
+    expect(problemsOf({ MBRG_PUBLIC_MIN_INTERVAL: 'x', MBRG_PUBLIC_MAX_INTERVAL: '5' })).toStrictEqual(['MBRG_PUBLIC_MIN_INTERVAL']);
+  });
+
+  it('the problems of the new settings come in the order of the variable list, after the older ones', () => {
+    expect(problemsOf({ MBRG_LOBBY_EXPIRY_HOURS: '0', MBRG_PUBLIC_MIN_PHASE1: 'x', MBRG_PUBLIC_MAPS: 'zzz', MBRG_FORCED_PHASE_SECONDS: '0', MBRG_PORT: 'x' })).toStrictEqual([
+      'MBRG_PORT', 'MBRG_FORCED_PHASE_SECONDS', 'MBRG_PUBLIC_MAPS', 'MBRG_PUBLIC_MIN_PHASE1', 'MBRG_LOBBY_EXPIRY_HOURS',
+    ]);
+  });
+
+  it('the older settings alone give a service with public creation off, and the service accepts them', () => {
+    const settings = settingsOf({ MBRG_DATABASE: ':memory:' });
+    expect(settings.publicCreation.maps).toStrictEqual([]);
+    const store = openStore(':memory:');
+    try {
+      expect(() => createMatchService({ store, clock: fakeClock(0), maps: createMapCatalog({}), settings })).not.toThrow();
+    } finally {
+      store.close();
     }
   });
 });

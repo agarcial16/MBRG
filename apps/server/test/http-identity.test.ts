@@ -4,6 +4,7 @@ import { DEFAULT_LIMITS } from '../src/service/settings';
 import type { ServerSettings } from '../src/service/settings';
 import { MAX_TOKEN_LENGTH, credentialTable, hostIdentity, identify, playerIdFor, readBearer, requireClient } from '../src/http/identity';
 import type { Identity } from '../src/http/identity';
+import { OFF_PUBLIC } from './helpers/service-harness';
 
 // Credential reading and classification for the HTTP layer (M3a T6). FR-283 (Bearer reading): only the `Authorization`
 // header with the `Bearer` scheme carries a credential; FR-284: submissions and own-prediction reads need a client
@@ -21,6 +22,7 @@ const settings: ServerSettings = {
   runningMatchLimit: 20,
   databasePath: ':memory:',
   forcedPhaseSeconds: 5,
+  publicCreation: OFF_PUBLIC,
   clients: [
     { namespace: 'web', credential: WEB },
     { namespace: 'discord', credential: BOT },

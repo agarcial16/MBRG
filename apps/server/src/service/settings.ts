@@ -2,6 +2,26 @@
 // Only the values listed here exist: there is no setting, and no variable, that can set a round-seed source (FR-260).
 // A problem names the variable, never its value (no credential is ever echoed). Pure: no clock, timer, random or I/O.
 
+/** The public creation bounds and caps (spec 011 FR-370 to FR-375, plan 14.1). Public creation is off while `maps` is empty. */
+export interface PublicCreation {
+  /** Map ids a public creation may use, each one of `Settings.maps`; empty means public creation is off. */
+  readonly maps: readonly string[];
+  /** The shortest round interval, in seconds. It exceeds minPhase1 + minPhase2. */
+  readonly minInterval: number;
+  /** The shortest absorber window L1, in seconds. */
+  readonly minPhase1: number;
+  /** The shortest locked part L2, in seconds. */
+  readonly minPhase2: number;
+  /** The longest round interval, in seconds; not below minInterval. */
+  readonly maxInterval: number;
+  /** The cap of open lobbies (checked at creation). */
+  readonly maxOpenLobbies: number;
+  /** The cap of running public matches (checked at start). */
+  readonly maxPublicRunning: number;
+  /** Hours a lobby waits for its start before it expires. */
+  readonly lobbyExpiryHours: number;
+}
+
 /** The values the lifecycle service needs. */
 export interface Settings {
   /** The operator credential in plain text, as the operator set it; the service keeps only its digest. */
@@ -14,6 +34,8 @@ export interface Settings {
   readonly databasePath: string;
   /** The forced-absorber phase span F in seconds (spec 011 FR-388), whole number 1 to 3,600. */
   readonly forcedPhaseSeconds: number;
+  /** Public creation bounds, caps and lobby expiry. */
+  readonly publicCreation: PublicCreation;
 }
 
 /** A client credential and the namespace of its player ids (FR-283). */
@@ -58,6 +80,18 @@ export const DEFAULT_HOST = '127.0.0.1';
 export const DEFAULT_PORT = 8787;
 export const DEFAULT_FORCED_PHASE_SECONDS = 5;
 const MAX_FORCED_PHASE_SECONDS = 3_600;
+export const DEFAULT_PUBLIC_CREATION: PublicCreation = Object.freeze({
+  maps: Object.freeze([] as string[]),
+  minInterval: 30,
+  minPhase1: 10,
+  minPhase2: 5,
+  maxInterval: 3_600,
+  maxOpenLobbies: 50,
+  maxPublicRunning: 20,
+  lobbyExpiryHours: 24,
+});
+const MAX_PUBLIC_SECONDS = 86_400;
+const MAX_LOBBY_EXPIRY_HOURS = 720;
 export const DEFAULT_LIMITS: Limits = Object.freeze({ commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120, streams: 50, anonymousStreams: 5 });
 
 /** Connection hardening of the listener (plan PD21, C4): fixed values, not settings. */
@@ -83,6 +117,14 @@ export const SETTING_VARIABLES = [
   'MBRG_LIMIT_STREAMS',
   'MBRG_LIMIT_ANONYMOUS_STREAMS',
   'MBRG_FORCED_PHASE_SECONDS',
+  'MBRG_PUBLIC_MAPS',
+  'MBRG_PUBLIC_MIN_INTERVAL',
+  'MBRG_PUBLIC_MIN_PHASE1',
+  'MBRG_PUBLIC_MIN_PHASE2',
+  'MBRG_PUBLIC_MAX_INTERVAL',
+  'MBRG_MAX_OPEN_LOBBIES',
+  'MBRG_MAX_PUBLIC_RUNNING',
+  'MBRG_LOBBY_EXPIRY_HOURS',
 ] as const;
 
 export type SettingsResult = { readonly ok: true; readonly settings: ServerSettings } | { readonly ok: false; readonly problems: readonly string[] };
@@ -188,6 +230,23 @@ const forcedSecondsOf = (text: string | undefined): number | undefined => {
   return LIMIT.test(text) && Number(text) <= MAX_FORCED_PHASE_SECONDS ? Number(text) : undefined;
 };
 
+/** A whole number 1 to `max` (no sign, no leading zero), or the fallback when the variable is absent; undefined when refused. */
+const boundedOf = (text: string | undefined, fallback: number, max: number): number | undefined => {
+  if (text === undefined) return fallback;
+  return LIMIT.test(text) && Number(text) <= max ? Number(text) : undefined;
+};
+
+/** The public map list: map ids separated by commas, each configured, none repeated; absent or empty means none. */
+const publicMapsOf = (text: string | undefined, maps: Readonly<Record<string, string>> | undefined): string[] | undefined => {
+  if (text === undefined || text.length === 0) return [];
+  const out: string[] = [];
+  for (const id of text.split(',')) {
+    if (!MAP_ID.test(id) || out.includes(id) || maps === undefined || !Object.prototype.hasOwnProperty.call(maps, id)) return undefined;
+    out.push(id);
+  }
+  return out;
+};
+
 /** Reads the settings from an environment object. Variables that are not in `SETTING_VARIABLES` are ignored. */
 export function readSettings(env: Readonly<Record<string, string | undefined>>): SettingsResult {
   const problems: string[] = [];
@@ -226,6 +285,25 @@ export function readSettings(env: Readonly<Record<string, string | undefined>>):
   if (anonymousStreams === undefined) problems.push('MBRG_LIMIT_ANONYMOUS_STREAMS');
   const forcedPhaseSeconds = forcedSecondsOf(env.MBRG_FORCED_PHASE_SECONDS);
   if (forcedPhaseSeconds === undefined) problems.push('MBRG_FORCED_PHASE_SECONDS');
+  const publicMaps = publicMapsOf(env.MBRG_PUBLIC_MAPS, maps);
+  if (publicMaps === undefined) problems.push('MBRG_PUBLIC_MAPS');
+  const d = DEFAULT_PUBLIC_CREATION;
+  const minInterval = boundedOf(env.MBRG_PUBLIC_MIN_INTERVAL, d.minInterval, MAX_PUBLIC_SECONDS);
+  const minPhase1 = boundedOf(env.MBRG_PUBLIC_MIN_PHASE1, d.minPhase1, MAX_PUBLIC_SECONDS);
+  const minPhase2 = boundedOf(env.MBRG_PUBLIC_MIN_PHASE2, d.minPhase2, MAX_PUBLIC_SECONDS);
+  const maxInterval = boundedOf(env.MBRG_PUBLIC_MAX_INTERVAL, d.maxInterval, MAX_PUBLIC_SECONDS);
+  // A bound set is consistent: minInterval > minPhase1 + minPhase2 and minInterval <= maxInterval (only for values that parsed).
+  const intervalBad = minInterval === undefined || (minPhase1 !== undefined && minPhase2 !== undefined && minInterval <= minPhase1 + minPhase2);
+  if (intervalBad) problems.push('MBRG_PUBLIC_MIN_INTERVAL');
+  if (minPhase1 === undefined) problems.push('MBRG_PUBLIC_MIN_PHASE1');
+  if (minPhase2 === undefined) problems.push('MBRG_PUBLIC_MIN_PHASE2');
+  if (maxInterval === undefined || (minInterval !== undefined && maxInterval < minInterval)) problems.push('MBRG_PUBLIC_MAX_INTERVAL');
+  const maxOpenLobbies = boundedOf(env.MBRG_MAX_OPEN_LOBBIES, d.maxOpenLobbies, MAX_LIMIT);
+  if (maxOpenLobbies === undefined) problems.push('MBRG_MAX_OPEN_LOBBIES');
+  const maxPublicRunning = boundedOf(env.MBRG_MAX_PUBLIC_RUNNING, d.maxPublicRunning, MAX_LIMIT);
+  if (maxPublicRunning === undefined) problems.push('MBRG_MAX_PUBLIC_RUNNING');
+  const lobbyExpiryHours = boundedOf(env.MBRG_LOBBY_EXPIRY_HOURS, d.lobbyExpiryHours, MAX_LOBBY_EXPIRY_HOURS);
+  if (lobbyExpiryHours === undefined) problems.push('MBRG_LOBBY_EXPIRY_HOURS');
   if (
     problems.length > 0 ||
     !isCredential(credential) ||
@@ -241,7 +319,15 @@ export function readSettings(env: Readonly<Record<string, string | undefined>>):
     anonymous === undefined ||
     streams === undefined ||
     anonymousStreams === undefined ||
-    forcedPhaseSeconds === undefined
+    forcedPhaseSeconds === undefined ||
+    publicMaps === undefined ||
+    minInterval === undefined ||
+    minPhase1 === undefined ||
+    minPhase2 === undefined ||
+    maxInterval === undefined ||
+    maxOpenLobbies === undefined ||
+    maxPublicRunning === undefined ||
+    lobbyExpiryHours === undefined
   ) {
     return { ok: false, problems };
   }
@@ -253,6 +339,7 @@ export function readSettings(env: Readonly<Record<string, string | undefined>>):
       runningMatchLimit,
       databasePath,
       forcedPhaseSeconds,
+      publicCreation: { maps: publicMaps, minInterval, minPhase1, minPhase2, maxInterval, maxOpenLobbies, maxPublicRunning, lobbyExpiryHours },
       clients,
       allowedOrigins,
       host,

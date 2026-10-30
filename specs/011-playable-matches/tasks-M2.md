@@ -22,7 +22,7 @@ Plan sections 1 (P1 to P5, P14 to P16), 3, 4, 7, 8, 12 (M2 row), 15 (Q1, Q4, Q6 
   - Done when: tests green; mutations caught; protocol purity green; no id moved.
   - Size: M (about 350).
 
-- [ ] **T3. Settings: public maps, bounds, caps and lobby expiry.** (words only)
+- [x] **T3. Settings: public maps, bounds, caps and lobby expiry.** (words only)
   - Depends on: T2; Q8.
   - Files: `apps/server/src/service/settings.ts` (`MBRG_PUBLIC_MAPS`, `MBRG_PUBLIC_MIN_INTERVAL`, `MBRG_PUBLIC_MIN_PHASE1`, `MBRG_PUBLIC_MIN_PHASE2`, `MBRG_PUBLIC_MAX_INTERVAL`, `MBRG_MAX_OPEN_LOBBIES`, `MBRG_MAX_PUBLIC_RUNNING`, `MBRG_LOBBY_EXPIRY_HOURS`; appended after the 16; `Settings.publicCreation`), `apps/server/test/{server-settings,service-settings,service-seam}.test.ts`, `apps/server/test/helpers/{main-child,service-harness,server-harness}.ts`.
   - Tests first: 24 variables in order; defaults (public maps empty = public creation off; 30, 10, 5, 3,600*, 50*, 20*, 24); every public map id must be in `MBRG_MAPS` (else a problem naming `MBRG_PUBLIC_MAPS`); whole-number rules, bounds `min <= max`, `L1 + L2 < min interval`? (a bound set is internally consistent: the minimum interval must exceed minL1 + minL2, else a problem); problems name variables only; the FR-260 scans run over 24; defaults do not alter any 008 behaviour (a service built from 008-only variables works and has public creation off).
