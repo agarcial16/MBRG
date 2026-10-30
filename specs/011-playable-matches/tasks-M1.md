@@ -71,7 +71,7 @@ Plan sections 6, 11, 12 (M1 rows), 15 (Q2). The rules of `tasks.md` apply; sizes
   - Done when: full suite green; the diff script shows only the allowed paths; `dev-secrets.json` and the 009 tour goldens byte-equal (`git diff --exit-code`).
   - Size: S (about 200). Checkpoint: stop if the branch passes ~2,500 changed lines (golden JSON apart).
 
-- [ ] **T8. Real-server proofs of the forced absorber.** (parts of FR-387 and FR-388 named as `(HTTP)`)
+- [x] **T8. Real-server proofs of the forced absorber.** (parts of FR-387 and FR-388 named as `(HTTP)`)
   - Depends on: T7.
   - Files: `apps/server/test/{http-forced-absorber,stream-forced-absorber}.test.ts` (new), `apps/server/test/helpers/{server-harness,http-client,stream-run}.ts` (additions only).
   - Tests first (real listener, port 0, fake clock): a client submits an absorber prediction during phase 2 of a forced round -> 409 `forced-absorber` with the exact reply bytes, nothing stored (own-predictions read empty); during a non-forced round it is accepted; `GET /matches/:id` shows `victim.forced: true` exactly in the forced round; the event stream delivers `victim-revealed` with `forced` and the shortened `schedule`; the shortened phase 2 closes at the fake-clock instant (HTTP read of `schedule` and `stage`); the phase results and the leaderboard of the finished match have no absorber row for the forced round; twins (equal public data, different futures) give identical bytes on all of these reads.
