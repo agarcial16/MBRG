@@ -64,6 +64,8 @@ export const STRINGS = {
   liveStageLocked: 'Predicciones cerradas: la ronda se aplicará en breve.',
   liveStageFinished: 'Partida terminada.',
   liveStageHalted: 'Partida detenida.',
+  liveStageLobby: 'La partida aún no ha empezado.',
+  liveStageExpired: 'La partida caducó sin empezar.',
   liveCountdown: 'Próximo paso en {time}',
   liveVictim: 'Víctima de la ronda: {name}.',
   // Reveal tours (spec 009): the victim line while the tour has not stopped on it, the dev-only report of a skipped tour, the skip control.
@@ -122,6 +124,8 @@ export const STRINGS = {
   hudPhaseLocked: 'Predicciones cerradas',
   hudPhaseFinished: 'Terminada',
   hudPhaseHalted: 'Detenida',
+  hudPhaseLobby: 'En espera',
+  hudPhaseExpired: 'Caducada',
   startTitle: 'Ver una partida',
   startText: 'Escribe el código de la partida o pega su enlace.',
   startCode: 'Código o enlace de la partida',

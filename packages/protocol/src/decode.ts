@@ -189,6 +189,7 @@ const victimOf =
     });
 
 const RUNNING = ['phase-1', 'phase-2', 'locked'] as const;
+const SCHEDULE_STAGES = [...RUNNING, 'lobby', 'expired'] as const;
 const isRunning = (stage: string): boolean => (RUNNING as readonly string[]).includes(stage);
 
 /** The public view of a match (the `GET /matches/{id}` reply and the `match` of a creation or advance reply). */
@@ -213,6 +214,9 @@ export function readPublicMatch(input: unknown): Decoded<PublicMatch> {
       const view: { -readonly [K in keyof PublicMatch]: PublicMatch[K] } = {
         matchId, mapId, mapDigest, totalRounds, timing: clock, commitment, stage, appliedRounds, state, stateDigest, lastSeq, reportedTime,
       };
+      const count = m.has('playerCount') ? m.get('playerCount', int(0)) : undefined;
+      if (count === undefined && (stage === 'lobby' || stage === 'expired')) refuse(m.path('playerCount'));
+      if (count !== undefined) view.playerCount = count;
       const sched = optional(m, 'schedule', isRunning(stage) && clock !== 'manual', schedule);
       if (sched !== undefined) view.schedule = sched;
       // The victim fields: required in phase-2 and locked, optional after a reveal in halted, never elsewhere.
@@ -373,7 +377,8 @@ const knownEvent = (type: MatchEvent['type'], input: unknown): MatchEvent =>
       case 'results':
         return { type, seq, round: m.get('round', int(1)), phase: m.get('phase', phase) };
       case 'schedule': {
-        const stage = m.get('stage', oneOf(RUNNING));
+        const stage = m.get('stage', oneOf(SCHEDULE_STAGES));
+        if (m.has('schedule') && (stage === 'lobby' || stage === 'expired')) refuse(m.path('schedule'));
         const sched = m.has('schedule') ? m.get('schedule', schedule) : undefined;
         const reportedTime = m.get('reportedTime', int(0));
         return sched === undefined ? { type, seq, stage, reportedTime } : { type, seq, stage, schedule: sched, reportedTime };

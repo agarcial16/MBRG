@@ -124,6 +124,7 @@ interface Checked {
   stateDigest: string;
   lastSeq: number;
   reportedTime: number;
+  playerCount?: number;
   schedule?: PublicSchedule;
   victim?: PublicVictim;
   winner?: number;
@@ -158,7 +159,12 @@ function check(input: unknown): Checked {
     reportedTime: intField(o, 'reportedTime', 0, 'view'),
   };
   const running = out.stage === 'phase-1' || out.stage === 'phase-2' || out.stage === 'locked';
+  const lobbyStage = out.stage === 'lobby' || out.stage === 'expired';
   if (out.stage === 'finished' ? appliedRounds !== totalRounds : appliedRounds >= totalRounds) bad('appliedRounds does not fit the stage');
+  if (lobbyStage && appliedRounds !== 0) bad('appliedRounds is not 0 in a lobby stage');
+
+  // The player count: required before a start (a lobby that never started is counted), optional once the match runs.
+  if (has(o, 'playerCount') || lobbyStage) out.playerCount = intField(o, 'playerCount', 0, 'view');
 
   // FR-288 and FR-254: the victim fields only after the phase-1 close of the pending round (never in finished).
   const revealStage = out.stage === 'phase-2' || out.stage === 'locked';
@@ -208,6 +214,7 @@ export function encodePublicMatch(view: PublicMatch): string {
     `"lastSeq":${m.lastSeq}`,
     `"reportedTime":${m.reportedTime}`,
   ];
+  if (m.playerCount !== undefined) parts.push(`"playerCount":${m.playerCount}`);
   if (m.schedule !== undefined) parts.push(`"schedule":{"c1":${m.schedule.c1},"c2":${m.schedule.c2},"a":${m.schedule.a}}`);
   if (m.victim !== undefined) {
     const v = m.victim;

@@ -75,7 +75,13 @@ const haltedAfterReveal: PublicMatch = { ...manual, stage: 'halted', victim: man
 const clockHalted: PublicMatch = { ...base, stage: 'halted', victim, haltReason: 'isolated-faction' };
 delete (clockHalted as { schedule?: unknown }).schedule;
 
-const views: Record<string, PublicMatch> = { base, manual, phase2, forcedPhase2, locked, manualPhase2, finished, halted, haltedAfterReveal, clockHalted };
+const lobby: PublicMatch = { ...base, stage: 'lobby', playerCount: 0 };
+delete (lobby as { schedule?: unknown }).schedule;
+const expired: PublicMatch = { ...lobby, stage: 'expired', lastSeq: 2, playerCount: 5 };
+const manualLobby: PublicMatch = { ...manual, stage: 'lobby', playerCount: 3 };
+const countedPhase1: PublicMatch = { ...base, playerCount: 4 };
+
+const views: Record<string, PublicMatch> = { base, manual, phase2, forcedPhase2, locked, manualPhase2, finished, halted, haltedAfterReveal, clockHalted, lobby, expired, manualLobby, countedPhase1 };
 
 const record: RecordReply = { round: 1, eliminated: 2, absorber: 3, transferred: [11, 13] };
 const events: Record<string, MatchEvent> = {
@@ -87,6 +93,8 @@ const events: Record<string, MatchEvent> = {
   results: { type: 'results', seq: 8, round: 1, phase: 2 },
   schedule: { type: 'schedule', seq: 7, stage: 'phase-1', schedule: { c1: 1_032_000, c2: 1_038_000, a: 1_040_000 }, reportedTime: 1_020_002 },
   'schedule manual': { type: 'schedule', seq: 7, stage: 'phase-2', reportedTime: 1_020_002 },
+  'schedule lobby': { type: 'schedule', seq: 1, stage: 'lobby', reportedTime: 1_000_000 },
+  'schedule expired': { type: 'schedule', seq: 2, stage: 'expired', reportedTime: 1_900_000 },
   'match-finished': { type: 'match-finished', seq: 30, winner: 2, matchSecret: hex('b'), rule: 'hmac-sha256 rule text', reportedTime: 1_100_000 },
   'match-halted': { type: 'match-halted', seq: 9, round: 2, reason: 'map-changed', reportedTime: 1_050_000 },
 };
@@ -165,6 +173,8 @@ describe('FR-287 (readers) the events read back what the encoder wrote', () => {
     ['a short digest', 'round-applied', (o) => (o.stateDigest = 'ab'), 'stateDigest'],
     ['an uppercase digest', 'round-applied', (o) => (o.stateDigest = 'D'.repeat(64)), 'stateDigest'],
     ['a stage outside the running ones', 'schedule', (o) => (o.stage = 'finished'), 'stage'],
+    ['a lobby schedule event with anchors', 'schedule', (o) => (o.stage = 'lobby'), 'schedule'],
+    ['an expired schedule event with anchors', 'schedule', (o) => (o.stage = 'expired'), 'schedule'],
     ['a schedule with an extra member', 'schedule', (o) => (o.schedule.z = 1), 'schedule.z'],
     ['an empty rule', 'match-finished', (o) => (o.rule = ''), 'rule'],
     ['a halt reason outside the list', 'match-halted', (o) => (o.reason = 'meteor'), 'reason'],
@@ -210,6 +220,17 @@ describe('FR-288 (readers) the public data reads back what the encoder wrote', (
     ['a timing with an extra member', base, (o) => (o.timing.x = 1), 'timing.x'],
     ['a timing that is text other than manual', base, (o) => (o.timing = 'auto'), 'timing'],
     ['a stage outside STAGES', base, (o) => (o.stage = 'paused'), 'stage'],
+    ['a lobby without playerCount', lobby, (o) => delete o.playerCount, 'playerCount'],
+    ['an expired without playerCount', expired, (o) => delete o.playerCount, 'playerCount'],
+    ['a lobby with a negative playerCount', lobby, (o) => (o.playerCount = -1), 'playerCount'],
+    ['a lobby with a fractional playerCount', lobby, (o) => (o.playerCount = 1.5), 'playerCount'],
+    ['a running view with a text playerCount', countedPhase1, (o) => (o.playerCount = '4'), 'playerCount'],
+    ['a lobby with a schedule', lobby, (o) => (o.schedule = { c1: 1, c2: 2, a: 3 }), 'schedule'],
+    ['an expired with a schedule', expired, (o) => (o.schedule = { c1: 1, c2: 2, a: 3 }), 'schedule'],
+    ['a lobby with a victim', lobby, (o) => (o.victim = clone(manualVictim)), 'victim'],
+    ['a lobby with a winner', lobby, (o) => (o.winner = 1), 'winner'],
+    ['an expired with a match secret', expired, (o) => (o.matchSecret = hex('5')), 'matchSecret'],
+    ['an expired with a halt reason', expired, (o) => (o.haltReason = 'map-changed'), 'haltReason'],
     ['a negative applied count', base, (o) => (o.appliedRounds = -1), 'appliedRounds'],
     ['a state of another round', base, (o) => (o.state.round = 1), 'state.round'],
     ['a state with a mode other than classic', base, (o) => (o.state.mode = 'risk'), 'state.mode'],

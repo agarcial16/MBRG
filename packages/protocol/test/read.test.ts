@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readAdvance, readCreation, readSubmission, type ReadResult } from '../src/index';
+import { START_FIELDS, readAdvance, readCreation, readStart, readSubmission, type ReadResult } from '../src/index';
 
 const err = (r: ReadResult<unknown>): string => (r.ok ? 'ok' : `${r.error.kind}:${(r.error.items ?? []).join(',')}`);
 const creation = { mapId: 'dev', timing: { i: 120, l1: 30, l2: 10 }, requestId: 'req-1' };
@@ -68,6 +68,34 @@ describe('advance body reader', () => {
 
   it('FR-296 inherited fields are missing', () => {
     expect(err(readAdvance(Object.create({ round: 1, step: 'application' }) as object))).toBe('invalid-request:round');
+  });
+});
+
+describe('start body reader', () => {
+  it('FR-296 accepts {} and { requestId } and returns the fields', () => {
+    expect(readStart({})).toStrictEqual({ ok: true, value: {} });
+    expect(readStart({ requestId: 'req-1' })).toStrictEqual({ ok: true, value: { requestId: 'req-1' } });
+    expect([...START_FIELDS]).toStrictEqual(['requestId']);
+  });
+
+  it('FR-296 the request id uses the credential character set of the advance body', () => {
+    for (const id of ['a', 'A_b-9', 'x'.repeat(64), 'x'.repeat(65), '', 'a b', 'é', 'a/b', 1, null, undefined, [], {}, true]) {
+      expect(readStart({ requestId: id }).ok, String(id)).toBe(readAdvance({ round: 1, step: 'application', requestId: id }).ok);
+    }
+    for (const id of ['', 'a b', 'é', 'a/b', 1, null, undefined, [], {}, true]) {
+      expect(err(readStart({ requestId: id })), String(id)).toBe('invalid-request:requestId');
+    }
+  });
+
+  it('FR-296 rejects a body that is not an object and names the first failing field', () => {
+    for (const v of [null, undefined, 'x', 1, true, [], [{}]]) expect(err(readStart(v)), String(v)).toBe('invalid-request:body');
+    expect(err(readStart({ extra: 1 }))).toBe('invalid-request:extra');
+    expect(err(readStart({ requestId: 'ok', zeta: 1, alpha: 2 }))).toBe('invalid-request:alpha');
+    expect(err(readStart({ requestId: '', extra: 1 }))).toBe('invalid-request:requestId');
+  });
+
+  it('FR-296 inherited fields are missing', () => {
+    expect(readStart(Object.create({ requestId: 'inherited' }) as object)).toStrictEqual({ ok: true, value: {} });
   });
 });
 

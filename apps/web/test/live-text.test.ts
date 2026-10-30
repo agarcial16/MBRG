@@ -22,16 +22,22 @@ const CLOCK = { i: 120, l1: 30, l2: 10 } as const;
 const nameOf = (id: number): string => `Faccion ${id}`;
 
 describe('FR-305 the stage and the round', () => {
-  it('FR-305 the five stages have five different Spanish texts, all from the strings module', () => {
+  it('FR-305 every stage, the lobby ones included, has its own Spanish text, all from the strings module', () => {
     const texts = STAGES.map((stage) => stageText(stage));
-    expect(new Set(texts).size).toBe(5);
+    expect(new Set(texts).size).toBe(7);
     expect(texts).toStrictEqual([
       STRINGS.liveStagePhase1,
       STRINGS.liveStagePhase2,
       STRINGS.liveStageLocked,
       STRINGS.liveStageFinished,
       STRINGS.liveStageHalted,
+      STRINGS.liveStageLobby,
+      STRINGS.liveStageExpired,
     ]);
+    expect(nextAnchor('lobby', SCHEDULE)).toBeUndefined();
+    expect(nextAnchor('expired', SCHEDULE)).toBeUndefined();
+    expect(countdownText('lobby', CLOCK, undefined, 0)).toBeUndefined();
+    expect(countdownText('expired', CLOCK, undefined, 0)).toBeUndefined();
     for (const text of texts) expect(text.trim().length).toBeGreaterThan(0);
   });
 

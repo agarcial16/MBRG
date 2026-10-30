@@ -17,15 +17,15 @@ import {
 const FR_301 = [
   'rate-limited', 'unknown-path', 'method-not-allowed', 'too-large', 'invalid-request', 'invalid-player-id',
   'forbidden', 'request-id-reused', 'unknown-match', 'unknown-map', 'map-validation', 'too-few-factions',
-  'invalid-timing', 'too-many-matches', 'match-halted', 'match-finished', 'step-mismatch', 'round-not-applied',
+  'invalid-timing', 'too-many-matches', 'match-halted', 'match-finished', 'match-started', 'match-expired', 'step-mismatch', 'round-not-applied',
   'stale-cursor', 'prediction-closed', 'forced-absorber', 'invalid-choice', 'unavailable',
 ];
 
 describe('error kinds', () => {
-  it('FR-301 ERROR_ORDER equals the fixed list: 22 kinds plus the map-validation group, 23 entries', () => {
+  it('FR-301 ERROR_ORDER equals the fixed list: 24 kinds plus the map-validation group, 25 entries', () => {
     expect([...ERROR_ORDER]).toStrictEqual(FR_301);
-    expect(ERROR_ORDER).toHaveLength(23);
-    expect(new Set(ERROR_ORDER).size).toBe(23);
+    expect(ERROR_ORDER).toHaveLength(25);
+    expect(new Set(ERROR_ORDER).size).toBe(25);
   });
 
   it('FR-301 the forced-absorber kind sits right after prediction-closed and right before invalid-choice', () => {
@@ -37,6 +37,18 @@ describe('error kinds', () => {
     expect(firstError(['unavailable', 'forced-absorber', 'invalid-choice'])).toBe('forced-absorber');
     expect(errorReply('forced-absorber')).toStrictEqual({ kind: 'forced-absorber' });
     expect(() => errorReply('forced-absorber', ['a', 'b'])).toThrow(RangeError);
+  });
+
+  it('FR-301 the lobby refusals match-started and match-expired follow match-finished and precede step-mismatch', () => {
+    const at = ERROR_ORDER.indexOf('match-finished');
+    expect(ERROR_ORDER.slice(at, at + 4)).toStrictEqual(['match-finished', 'match-started', 'match-expired', 'step-mismatch']);
+    expect(firstError(['match-expired', 'match-started'])).toBe('match-started');
+    expect(firstError(['step-mismatch', 'match-expired'])).toBe('match-expired');
+    expect(firstError(['match-started', 'match-finished'])).toBe('match-finished');
+    expect(errorReply('match-started')).toStrictEqual({ kind: 'match-started' });
+    expect(errorReply('match-expired')).toStrictEqual({ kind: 'match-expired' });
+    expect(() => errorReply('match-started', ['a', 'b'])).toThrow(RangeError);
+    expect(listsSeveral('match-expired')).toBe(false);
   });
 
   it('FR-301 firstError returns the earlier kind of every pair, in any argument order', () => {

@@ -13,7 +13,7 @@ Plan sections 1 (P1 to P5, P14 to P16), 3, 4, 7, 8, 12 (M2 row), 15 (Q1, Q4, Q6 
   - Done when: suite, typecheck, `CI=1` green; counts 3 / 26.
   - Size: S (about 30).
 
-- [ ] **T2. Protocol: lobby stages, player count, start body, lobby errors.** (words only)
+- [x] **T2. Protocol: lobby stages, player count, start body, lobby errors.** (words only)
   - Depends on: T1; Q6, Q10.
   - Files: `packages/protocol/src/{wire,errors,read,encode,decode,canonical,index}.ts`, `apps/server/src/http/status.ts`, tests `packages/protocol/test/{errors,public,encode,decode,read,canonical}.test.ts`, `apps/server/test/http-status.test.ts`.
   - Tests first: `STAGES` gains `lobby`, `expired`; an `expired`/`lobby` public view encodes with `playerCount` (non-negative whole number, written where `PUBLIC_MATCH_KEYS` places it: after `reportedTime`, before `schedule`) and with no `schedule`, `victim`, `winner`, `matchSecret`, `haltReason`; a running or finished view with `playerCount` absent encodes to the exact 008 bytes (SHA-256 pins of one 008 public view per stage); `playerCount` present on a running view when given; `match-started` and `match-expired` follow `match-finished` in `ERROR_ORDER` (409); `readStart` accepts `{}` and `{requestId}` (credential character set, as `readAdvance`'s id) and names the first bad field; `canonicalBody('POST', '/matches/<id>/start', body)` is the sorted form; a `schedule` event with stage `lobby` or `expired` encodes without anchors and the stage member list of the event encoder accepts them (only these two new values and the running stages).
@@ -67,7 +67,7 @@ Plan sections 1 (P1 to P5, P14 to P16), 3, 4, 7, 8, 12 (M2 row), 15 (Q1, Q4, Q6 
   - Done when: tests green; mutations caught; FR-372, NFR-76 moved (9 / 20).
   - Size: M (about 500).
 
-- [ ] **T8. Keep `apps/web` compiling with the new stages.** (words only; blocked on Q7)
+- [x] **T8. Keep `apps/web` compiling with the new stages.** (done in T2: texts, tables and `live-text.test.ts` changed there; no separate commit) (words only; blocked on Q7)
   - Depends on: T2; the user's answer to Q7. If the answer is "no": this task is dropped and the plan returns to the user (the wire stage values would then change).
   - Files: `apps/web/src/core/{live-hud,live-text}.ts` (one entry each for `lobby` and `expired` in the `Record<Stage, string>` tables, texts only), the strings module (`STRINGS` keys used by those entries; a key must be used by code), `apps/web/test/live-text.test.ts` (the iteration over `STAGES` stays and passes).
   - Tests first: `stageText('lobby')` and `stageText('expired')` return the new strings; `countdown`/`nextAnchor` for the new stages return undefined; no other web test changes (list in `PROGRESS.md`); the viewer does not read `playerCount`.

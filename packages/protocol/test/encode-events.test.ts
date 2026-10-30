@@ -121,6 +121,21 @@ describe('the event encoder', () => {
     expect(encodeEvent(none)).not.toMatch(/null|undefined/);
   });
 
+  it('FR-257 (event encoders) a schedule event of the lobby stages encodes without anchors and the member list is the running stages plus those two', () => {
+    for (const stage of ['lobby', 'expired'] as const) {
+      const e: MatchEvent = { type: 'schedule', seq: 1, stage, reportedTime: 1_000_000 };
+      expect(encodeEvent(e)).toBe(`{"type":"schedule","seq":1,"stage":"${stage}","reportedTime":1000000}`);
+      const withAnchors = { ...e, schedule: { c1: 1, c2: 2, a: 3 } };
+      expect(() => encodeEvent(withAnchors as never), stage).toThrow(RangeError);
+    }
+    for (const stage of ['phase-1', 'phase-2', 'locked']) {
+      expect(() => encodeEvent({ type: 'schedule', seq: 1, stage, reportedTime: 1 } as never), stage).not.toThrow();
+    }
+    for (const stage of ['finished', 'halted', 'paused', '', 1, null]) {
+      expect(() => encodeEvent({ type: 'schedule', seq: 1, stage, reportedTime: 1 } as never), String(stage)).toThrow(RangeError);
+    }
+  });
+
   it('FR-257 (event encoders) a manual victim-revealed writes c2 and a as null, both or neither', () => {
     const manual: MatchEvent = { ...(events['victim-revealed'] as MatchEvent), c2: null, a: null } as MatchEvent;
     expect(encodeEvent(manual)).toContain('"revealedAt":1012000,"c2":null,"a":null,"reportedTime":1012003');

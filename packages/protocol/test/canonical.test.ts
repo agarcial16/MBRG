@@ -82,6 +82,15 @@ describe('canonical request body', () => {
     expect(canonicalBody(POST, path, { ...without, requestId2: 'r' })).not.toBe(canonicalBody(POST, path, without));
   });
 
+  it('FR-282 (canonical content) a start body gives the sorted form of its path and drops the request id', () => {
+    const start = '/matches/m1/start';
+    expect(canonicalBody(POST, start, {})).toBe('"POST" "/matches/m1/start" {}');
+    expect(canonicalBody(POST, start, { requestId: 'r-1' })).toBe('"POST" "/matches/m1/start" {}');
+    expect(canonicalBody(POST, start, { requestId: 'r-1' })).toBe(canonicalBody(POST, start, {}));
+    expect(canonicalBody(POST, '/matches/m2/start', {})).not.toBe(canonicalBody(POST, start, {}));
+    expect(canonicalBody(POST, start, { z: 1, a: { y: 2, x: 1 }, requestId: 'r' })).toBe('"POST" "/matches/m1/start" {"a":{"x":1,"y":2},"z":1}');
+  });
+
   it('FR-282 (canonical content) another method, path or value is another content', () => {
     const body = { kind: 'winner', faction: 2, playerId: 'p', requestId: 'r' };
     const same = canonicalBody(POST, path, body);

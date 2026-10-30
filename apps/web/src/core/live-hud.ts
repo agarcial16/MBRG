@@ -36,6 +36,8 @@ const PHASES: Readonly<Record<Stage, string>> = {
   locked: STRINGS.hudPhaseLocked,
   finished: STRINGS.hudPhaseFinished,
   halted: STRINGS.hudPhaseHalted,
+  lobby: STRINGS.hudPhaseLobby,
+  expired: STRINGS.hudPhaseExpired,
 };
 
 /** The factions with territories in the displayed state; undefined before the first drawing. */
