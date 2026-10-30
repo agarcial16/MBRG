@@ -11,6 +11,7 @@ import { CORE_MATCH_KEYS, publicOf } from '../src/core/view';
 import { seedOfSecret } from '../src/seeds';
 import { roundSeed } from '../src/secret';
 import { SECRET_00_1F, coreDriver, sha256 } from './helpers/core-driver';
+import { SECRETS } from './helpers/core-timelines';
 import { devMap } from './helpers/digests';
 
 const MAP = devMap();
@@ -528,7 +529,7 @@ describe('the phases a decision scores', () => {
       const out = d.run('application');
       const absorber = { kind: 'absorber', round: k, answer: out.applied!.record.absorber, worth: candidates };
       if (k < 4) expect(out.scored, `round ${k}`).toStrictEqual([absorber]);
-      else expect(out.scored).toStrictEqual([absorber, { kind: 'winner', answer: d.view.winner }]);
+      else expect(out.scored).toStrictEqual([{ kind: 'winner', answer: d.view.winner }]); // round 4 has one candidate: no absorber phase (forced)
     }
     expect(d.view.stage).toBe('finished');
   });
@@ -649,5 +650,95 @@ describe('the results event of a decision', () => {
     const changed = coreDriver();
     changed.deps = { ...changed.deps, map: null };
     expect(typesOf(changed.run('phase-1-close').events)).toStrictEqual(['match-halted']);
+  });
+});
+
+describe('a forced absorber (one candidate)', () => {
+  const A5 = (k: number): number => roundSeed(SECRETS['all-a5'], k);
+  /** Plays `rounds` whole rounds by manual steps, then the phase-1 close of the next one; returns that close. */
+  const toReveal = (d: ReturnType<typeof coreDriver>, rounds: number) => {
+    for (let r = 0; r < rounds; r++) for (const kind of ['phase-1-close', 'phase-2-close', 'application'] as const) d.run(kind);
+    return d.run('phase-1-close');
+  };
+  const revealedOf = (events: readonly MatchEvent[]) => events.find((e) => e.type === 'victim-revealed') as Extract<MatchEvent, { type: 'victim-revealed' }>;
+
+  it('FR-387 the phase-1 close of a victim with one candidate marks the public victim and the victim-revealed event as forced', () => {
+    const d = coreDriver({ seedOf: A5 });
+    const out = toReveal(d, 2); // round 3 of the secret all-a5: d = 1, three factions living
+    expect(out.view.victim!.candidates).toHaveLength(1);
+    expect(out.view.victim!.living).toHaveLength(3);
+    expect(out.view.victim!.forced).toBe(true);
+    expect(revealedOf(out.events).forced).toBe(true);
+    expect(revealedOf(out.events).candidates).toStrictEqual(out.view.victim!.candidates);
+    expect(publicOf(out.view, T0).victim!.forced).toBe(true);
+    // The two-faction last round is forced too.
+    const last = toReveal(coreDriver({ seedOf: A5 }), 3);
+    expect(last.view.victim!.forced).toBe(true);
+  });
+
+  it('FR-387 a victim with two or more candidates has no forced field at all, in the view, the event and the public view', () => {
+    // all-a5 round 1 and 2 have d = 2 (the boundary), the default secret round 1 has d = 3.
+    for (const [seedOf, rounds, d] of [[A5, 0, 2], [A5, 1, 2], [undefined, 0, 3]] as const) {
+      const driver = coreDriver(seedOf === undefined ? {} : { seedOf });
+      const out = toReveal(driver, rounds);
+      expect(out.view.victim!.candidates).toHaveLength(d);
+      expect('forced' in out.view.victim!).toBe(false);
+      expect('forced' in revealedOf(out.events)).toBe(false);
+      expect('forced' in publicOf(out.view, T0).victim!).toBe(false);
+    }
+  });
+
+  it('FR-387 forced follows the candidates, not the living factions: three living with two candidates is not forced, three living with one is', () => {
+    const notForced = toReveal(coreDriver({ seedOf: (k) => roundSeed(SECRETS['ascending-00-1f'], k) }), 2); // n = 3, d = 2
+    expect(notForced.view.victim!.living).toHaveLength(3);
+    expect(notForced.view.victim!.candidates).toHaveLength(2);
+    expect(notForced.view.victim!.forced).toBeUndefined();
+    const forced = toReveal(coreDriver({ seedOf: A5 }), 2); // n = 3, d = 1
+    expect(forced.view.victim!.living).toHaveLength(3);
+    expect(forced.view.victim!.forced).toBe(true);
+  });
+
+  it('FR-387 the application of a forced round returns no absorber phase; the winner phase is still returned at the finish', () => {
+    const d = coreDriver({ seedOf: A5 });
+    for (let r = 0; r < 2; r++) for (const kind of ['phase-1-close', 'phase-2-close', 'application'] as const) d.run(kind);
+    for (const kind of ['phase-1-close', 'phase-2-close'] as const) d.run(kind);
+    expect(d.view.victim!.forced).toBe(true);
+    const third = d.run('application'); // round 3: forced, not the last
+    expect(third.scored).toStrictEqual([]);
+    expect(third.view.stage).toBe('phase-1');
+    expect(third.events.map((e) => e.type)).toStrictEqual(['round-applied', 'results', 'schedule']);
+    expect(third.events[1]).toMatchObject({ type: 'results', round: 3, phase: 2 });
+    // The last round (also forced): only the winner phase.
+    d.run('phase-1-close');
+    d.run('phase-2-close');
+    const last = d.run('application');
+    expect(last.view.stage).toBe('finished');
+    expect(last.scored).toStrictEqual([{ kind: 'winner', answer: last.view.winner }]);
+  });
+
+  it('FR-387 the application of a round with two or more candidates still returns the absorber phase worth d', () => {
+    const d = coreDriver({ seedOf: A5 });
+    d.run('phase-1-close');
+    d.run('phase-2-close');
+    const first = d.run('application'); // d = 2
+    expect(first.scored).toStrictEqual([{ kind: 'absorber', round: 1, answer: first.applied!.record.absorber, worth: 2 }]);
+    const e = coreDriver();
+    e.run('phase-1-close');
+    e.run('phase-2-close');
+    const second = e.run('application'); // d = 3
+    expect(second.scored).toStrictEqual([{ kind: 'absorber', round: 1, answer: second.applied!.record.absorber, worth: 3 }]);
+  });
+
+  it('FR-387 the phase-1 close of a forced round still scores the victim phase worth n', () => {
+    const d = coreDriver({ seedOf: A5 });
+    const out = toReveal(d, 2);
+    expect(out.scored).toStrictEqual([{ kind: 'victim', round: 3, answer: out.view.victim!.victim, worth: 3 }]);
+  });
+
+  it('FR-387 the forced mark is derived from the public candidates only: the same seed and state give the same bytes, the secret seed is not in the output', () => {
+    const a = toReveal(coreDriver({ seedOf: A5 }), 2);
+    const b = toReveal(coreDriver({ seedOf: A5 }), 2);
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    expect(JSON.stringify(a)).not.toContain(String(A5(3)));
   });
 });

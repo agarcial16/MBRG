@@ -551,7 +551,7 @@
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "0efffd071f5f83f6e977040d314d24107d70d3ee1744e7012d987a29722533a4"
+          "publicDigest": "3baad6d7b54fe72e4cfe383541d253f34fd4c44fe37b5b6af311a60ee120818c"
         },
         {
           "at": 469999,
@@ -570,7 +570,7 @@
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "4b3706c36ce8429227c39f707ab18f18c26e9d707abda00ae4d4ed9347051953"
+          "publicDigest": "6343aca1907502c761aa931613901c713bcc8b1c7d55fb2acd0f4a7ec0409c65"
         },
         {
           "at": 470000,
@@ -602,7 +602,7 @@
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "194635422fe1cd947ebf4f3e10816de358e77d99c78f7b61d546d0e307546d35"
+          "publicDigest": "420feb1eea4375529db5edf127b750b63e206994139eb1da2109643e8abc3dfa"
         },
         {
           "at": 479999,
@@ -621,7 +621,7 @@
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "0d5ac7af71b566c814dcf187d56263eda1ddc32547137b78a90c4ec9af9da87f"
+          "publicDigest": "2bc8c92602b00a5fe5ac80f1b9036a6eb33bf8ce08a4ae36d8a3d484b8261137"
         },
         {
           "at": 480000,
@@ -654,7 +654,7 @@
           "publicDigest": "a6a8bade9b83d0f4f71de7cd24ab4365716d4a2fd0cd93c257e1c73dc4f3de99"
         }
       ],
-      "eventsDigest": "79705673e18b3f59a7a7f5a5bcbc3c956143f193e30563389f8d8e06ee3ca3e9"
+      "eventsDigest": "a0cfb78019b762ffcbbdb07a2c17ae4787b8138b259bbdb13974591971bfd87f"
     },
     "l2-zero": {
       "timing": {
@@ -960,7 +960,7 @@
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "a4e053e669c13a4e4ad2232f2329b52170baab7f569ebf42c13939b5eb9a7cc3"
+          "publicDigest": "9b92bf02bc0ff3c8b2c6a6d2e337106dfa5dbb21e031481e969c18ac903e3990"
         },
         {
           "at": 179999,
@@ -979,7 +979,7 @@
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "364b4581131481ebdbe74dde96a95de70e3ca01da3371f77a99149a1e73cd995"
+          "publicDigest": "1326a4e806dac2e83d59e375eb3f3fd8d93811d7f4ddc144f86e1f54510bf20d"
         },
         {
           "at": 180000,
@@ -1076,7 +1076,7 @@
           ],
           "victim": 3,
           "recordDigest": null,
-          "publicDigest": "cb508a9bedffc2e75b5ee2689aa3965e7dafa76eac6952ef791ae3e469ab5a94"
+          "publicDigest": "68743828daa7d38e622b510191adedb3b34ca321f3f528157203eedc995f5e82"
         },
         {
           "at": 239999,
@@ -1095,7 +1095,7 @@
           ],
           "victim": 3,
           "recordDigest": null,
-          "publicDigest": "bd27e859a75894f76a9a41e2473e1bc8f3192e49c315aeed8fb046164f6b274b"
+          "publicDigest": "a4f833606f2058cc03321715aee7eba1144a4f44204c1ef0492807acb10c79db"
         },
         {
           "at": 240000,
@@ -1136,7 +1136,7 @@
           "publicDigest": "7b7edbe1c0f2219688cde9cfd9454028ed0d5328945e656d60ee6b3ecf8a8b98"
         }
       ],
-      "eventsDigest": "634fa195a5076ba3d1c924048ee8e446bcf85d293e79270f3f2e26260c0896bc"
+      "eventsDigest": "b9a187c266d5444d6cc7cd607b1b1712cf8ade3ea5911c0e2a617cf1ba5382d9"
     },
     "manual": {
       "timing": "manual",
@@ -1453,7 +1453,7 @@
           "anchors": null,
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "7cba5edb1df20f6e5406e3a68055dbfc97ee24103e83a5c60474678a018dc4e2"
+          "publicDigest": "c5857350aaa475720c558a0830ee46160a2cefb2d2394261c437ec6377d40fe8"
         },
         {
           "at": 77000,
@@ -1481,7 +1481,7 @@
           "anchors": null,
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "f1b8dc8d01faf118395a798ccfc426284d98bcd026fb683ec43106d62f423274"
+          "publicDigest": "837f39dacfb70f33a48511ea8b95218c84512d019fc9a48b68b0564092ac0c51"
         },
         {
           "at": 84000,
@@ -1514,7 +1514,7 @@
           "publicDigest": "74728d301a52d5eabaed00d46e58b5b439e005c8b84fa6ed3142bea57794fc21"
         }
       ],
-      "eventsDigest": "2a5c7f5ede73fe5d687fa935e70fd24933da1fe7d7fa768a614f37f7f251a185"
+      "eventsDigest": "cc4de249dcb98f43e9271c899d92237c5f9f65302c0aeefb869acf3bb5a22efb"
     },
     "mid-round-advances": {
       "timing": {
@@ -1792,7 +1792,7 @@
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "58b305d470285a532db4bef5ce7a74570885088ea18a94ffbe256b429965af1a"
+          "publicDigest": "f9220208586a96e419d6bdad4ad9b9a7610f7c9aba378548e39a245381e09095"
         },
         {
           "at": 235000,
@@ -1824,7 +1824,7 @@
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "c0ebfd6a47ba54983b43f6dd892e683d41241d0f47082255c85f6810b82b7396"
+          "publicDigest": "ecf7fe289bca73c29e362abc6c0b403cdee6519ffb1cd1a13c613d7e66e98e90"
         },
         {
           "at": 245000,
@@ -1894,7 +1894,7 @@
           ],
           "victim": 3,
           "recordDigest": null,
-          "publicDigest": "f76df9e584b065eb5c82e32ba849ca94a0fdbb6976a80d904ea582f6a7eaf499"
+          "publicDigest": "a67c783e5f21a645fe4cfd15f94f51ee1f0fc204ee2cffaabd0c8debd870056f"
         },
         {
           "at": 355000,
@@ -1926,7 +1926,7 @@
           ],
           "victim": 3,
           "recordDigest": null,
-          "publicDigest": "c04488a544cef6b5337b1fa78e7f76c67057c1b2b6a7ef00ce4e5b6d8d3925d6"
+          "publicDigest": "968ef476aa6851ae89dab42075a5d4f274ff505a0d210081864f051b1725eeae"
         },
         {
           "at": 365000,
@@ -1959,7 +1959,7 @@
           "publicDigest": "a3011a3fc53fa490f0e37b928472026d16d9023ed2e83b1a517a3ed360c10e40"
         }
       ],
-      "eventsDigest": "19ba1cb370f3b3b55c6e7c1a9eab487ccd44904f2302345ccb705cb9c737c294"
+      "eventsDigest": "1f21e4ab7e3cf858d80f56667d6862d404a6333909dec831e41dfe76ad9ccd18"
     },
     "downtime-forward-jump": {
       "timing": {
@@ -2377,7 +2377,7 @@
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "ac42486a04e729af3f390770340db1ba4b1e934736218706a43b87dbfa09882f"
+          "publicDigest": "c5a4af946714f39290d24941220f08335f2689b15ddc7fb32b4044985b0ec20d"
         },
         {
           "at": 1481001,
@@ -2409,7 +2409,7 @@
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "eda61c9e043d901eecb1615b97ecdaf9538e7460af6dc127f80cd30135c713d2"
+          "publicDigest": "10260d98738d3ff637921ec844a43bdd0c371c196227d45fb8e2d4266e4292c6"
         },
         {
           "at": 1491001,
@@ -2442,7 +2442,7 @@
           "publicDigest": "39474ca088a81f0753e36f9241358d0496d02647872ba55c090f316f747ad5f1"
         }
       ],
-      "eventsDigest": "315f62607aa23d90f6aa537fab13ee41cab021deadab42e02cbfde4231c87151"
+      "eventsDigest": "a4ae1a803d5bf59bd63503ff1e9171c89b7afb7a6b661663a6d71b757b234394"
     },
     "backward-jump": {
       "timing": {
@@ -2758,7 +2758,7 @@
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "c1e9956cfde5e370fea2af892f92c5e81e9b850b9d5a305495b9d5a02045705d"
+          "publicDigest": "32557607f22d604003d57189daa3459da5294324933b416d9962f2256194844f"
         },
         {
           "at": -3310000,
@@ -2777,7 +2777,7 @@
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "c1e9956cfde5e370fea2af892f92c5e81e9b850b9d5a305495b9d5a02045705d"
+          "publicDigest": "32557607f22d604003d57189daa3459da5294324933b416d9962f2256194844f"
         },
         {
           "at": 320000,
@@ -2809,7 +2809,7 @@
           ],
           "victim": 5,
           "recordDigest": null,
-          "publicDigest": "ac07649c5ef6e94d99dd9defc7068a3f328d813b6bd257eb0d4da21f435c0e6c"
+          "publicDigest": "9395e2f321e924652df48b9f10f6301fef7aa1bd8ac0d78bc45ee78a0b20c6f6"
         },
         {
           "at": 330000,
@@ -2879,7 +2879,7 @@
           ],
           "victim": 3,
           "recordDigest": null,
-          "publicDigest": "a5d15506348eca3c014a30cefc73b2442fb7396a6ec7bb09fed8e679849bc5c4"
+          "publicDigest": "2bef169dfd4c37417de810d90a37a93fa5be91fb899342d4137a735bfcf34cdb"
         },
         {
           "at": 440000,
@@ -2911,7 +2911,7 @@
           ],
           "victim": 3,
           "recordDigest": null,
-          "publicDigest": "8956acce825c3be8f6641a6d673658f8b47df3f24b5fbe9aa8f137e5e3a0a0fc"
+          "publicDigest": "45f0f53f9adcfc9539a22ad9df9e7211f7f94a052583e00e473d8bbf99457889"
         },
         {
           "at": 450000,
@@ -2944,7 +2944,7 @@
           "publicDigest": "8f3ba1d6a0325a3b19e4b67e8c8ebf2de9229832c11d2d3b7622cc828f31f21a"
         }
       ],
-      "eventsDigest": "b7384486a9309bb8d8e40c949982d1551e402f7540fc65f9e469c800196dbcf9"
+      "eventsDigest": "fb852940812643118100e715e553831e6bb546cdcbc74d6366d5b4434ae6d09d"
     }
   }
 }

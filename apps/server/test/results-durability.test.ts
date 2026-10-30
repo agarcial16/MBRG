@@ -73,7 +73,7 @@ describe('the results survive a kill after the commit', () => {
       const referenceRows = resultRows(referenceFile);
       const referenceEvents = eventPayloads(referenceFile);
       expect(referenceRows).toStrictEqual(modelRows(reference, TOTAL_STEPS));
-      expect(referenceRows).toHaveLength(24);
+      expect(referenceRows).toHaveLength(23); // the forced absorber of round 4 has no row
       expect(referenceEvents.filter((e) => e.startsWith('{"type":"results"'))).toHaveLength(8);
 
       for (let at = 1; at <= TOTAL_STEPS; at += 1) {

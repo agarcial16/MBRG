@@ -23,6 +23,8 @@ afterEach(async () => {
 
 const S = 1000;
 const REVEAL_KEYS = ['type', 'seq', 'round', 'victim', 'candidates', 'living', 'revealedAt', 'c2', 'a', 'reportedTime'];
+/** The keys of a reveal: `forced` follows `a` only when the victim has one candidate (the last round of the dev map always does). */
+const revealKeys = (e: { candidates?: readonly unknown[] }): string[] => (e.candidates?.length === 1 ? [...REVEAL_KEYS.slice(0, 9), 'forced', 'reportedTime'] : REVEAL_KEYS);
 const TIMED = ['schedule', 'victim-revealed', 'match-finished', 'match-halted'];
 
 /** The reported times of the events that carry one, in stream order. */
@@ -52,7 +54,7 @@ describe('the event stream over full matches: order and content', () => {
       ...[1, 2, 3, 4].flatMap((k) => ['phase-closed', 'victim-revealed', 'results', 'schedule', 'phase-closed', 'schedule', 'round-applied', 'results', k < 4 ? 'schedule' : 'match-finished']),
     ]);
     expect(played.events[played.events.length - 1]?.type).toBe('match-finished');
-    for (const e of played.events.filter((x) => x.type === 'victim-revealed')) expect(Object.keys(e)).toStrictEqual(REVEAL_KEYS);
+    for (const e of played.events.filter((x) => x.type === 'victim-revealed')) expect(Object.keys(e)).toStrictEqual(revealKeys(e as { candidates?: readonly unknown[] }));
     // Timing manual: no schedule member in any schedule event, and c2 and a are null.
     for (const e of played.events.filter((x) => x.type === 'schedule')) expect('schedule' in e).toBe(false);
     for (const e of played.events.filter((x) => x.type === 'victim-revealed')) expect([e.c2, e.a]).toStrictEqual([null, null]);
@@ -64,7 +66,7 @@ describe('the event stream over full matches: order and content', () => {
     const played = await playAndCheck(h, id, reader, 10, () => nextClockStep(h));
     expect(played.decisions).toHaveLength(12);
     for (const e of played.events.filter((x) => x.type === 'victim-revealed')) {
-      expect(Object.keys(e)).toStrictEqual(REVEAL_KEYS);
+      expect(Object.keys(e)).toStrictEqual(revealKeys(e as { candidates?: readonly unknown[] }));
       expect(typeof e.c2).toBe('number');
       expect(typeof e.a).toBe('number');
     }

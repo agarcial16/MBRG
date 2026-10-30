@@ -3,6 +3,8 @@ import { errorReply, roundNotApplied } from '@mbrg/protocol';
 import { isScored, rankLeaderboard, readResultsRound, scorePhase, scoredPhaseCount } from '../src/core/scoring';
 import type { PlayerTotals, ResultRow, ScoredPhase } from '../src/core/scoring';
 import { coreDriver } from './helpers/core-driver';
+import { SECRETS } from './helpers/core-timelines';
+import { roundSeed } from '../src/secret';
 import type { Driver } from './helpers/core-driver';
 
 const victimPhase = (round: number, answer: number, worth: number): ScoredPhase => ({ kind: 'victim', round, answer, worth });
@@ -299,5 +301,27 @@ describe('the results read of the core', () => {
       }
     }
     expect(scoredPhaseCount(bare)).toBe(scoredPhaseCount(d.view));
+  });
+});
+
+describe('a forced absorber phase is scored and empty', () => {
+  it('FR-387 d = 1 never scores: over the whole match of the secret all-a5 no application of a one-candidate round returns an absorber phase, and the generation arithmetic is unchanged', () => {
+    const d = coreDriver({ seedOf: (k) => roundSeed(SECRETS['all-a5'], k) });
+    const worths: Record<number, number | null> = {};
+    const generations: number[] = [];
+    for (let k = 1; k <= 4; k++) {
+      d.run('phase-1-close');
+      const d1 = d.view.victim!.candidates.length;
+      d.run('phase-2-close');
+      const out = d.run('application');
+      const absorbers = (out.scored ?? []).filter((x) => x.kind === 'absorber');
+      worths[k] = absorbers.length === 0 ? null : (absorbers[0] as { worth: number }).worth;
+      expect(d1 === 1, `round ${k}`).toBe(absorbers.length === 0);
+      generations.push(scoredPhaseCount(d.view));
+      // The phase 2 of the round has results (empty) for every round, forced or not.
+      expect(isScored(d.view, k, 2), `round ${k}`).toBe(true);
+    }
+    expect(worths).toStrictEqual({ 1: 2, 2: 2, 3: null, 4: null });
+    expect(generations).toStrictEqual([2, 4, 6, 8]);
   });
 });

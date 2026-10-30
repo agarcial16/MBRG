@@ -93,12 +93,12 @@ const DONE_010: readonly string[] = ['FR-356', 'FR-357', 'FR-358', 'FR-359', 'FR
  */
 const PENDING_011: readonly string[] = [
   'FR-369', 'FR-370', 'FR-371', 'FR-372', 'FR-373', 'FR-374', 'FR-375', 'FR-376', 'FR-377', 'FR-378',
-  'FR-379', 'FR-380', 'FR-381', 'FR-382', 'FR-383', 'FR-384', 'FR-385', 'FR-386', 'FR-387', 'FR-388',
+  'FR-379', 'FR-380', 'FR-381', 'FR-382', 'FR-383', 'FR-384', 'FR-385', 'FR-386', 'FR-388',
   'FR-389', 'FR-390', 'FR-391', 'FR-392', 'NFR-72', 'NFR-73', 'NFR-74', 'NFR-75', 'NFR-76',
 ];
 
-/** Ids of spec 011 already closed (none yet: M1 T1 only extends the ledger). */
-const DONE_011: readonly string[] = [];
+/** Ids of spec 011 already closed (M1 T4: FR-387, a forced absorber is not predicted and does not score). */
+const DONE_011: readonly string[] = ['FR-387'];
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -646,6 +646,13 @@ describe('traceability', () => {
       expect(expected, id).toContain(id);
     }
     for (const id of DONE_011) expect(PENDING_011, id).not.toContain(id);
+  });
+
+  it('NFR-13 NFR-19 spec 011 after the forced-absorber core task: the first id is done and traced (1 done, 28 pending at this step; later tasks add to it)', () => {
+    expect(DONE_011).toContain('FR-387');
+    expect(PENDING_011).not.toContain('FR-387');
+    expect(DONE_011.length).toBeGreaterThanOrEqual(1);
+    expect(tracedIds(testSources).has('FR-387')).toBe(true);
   });
 
   it('NFR-55 no pending id of spec 011 is already traced by a test title', () => {

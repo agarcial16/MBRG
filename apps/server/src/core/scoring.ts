@@ -8,7 +8,8 @@ import type { CoreMatch } from './view';
 
 /**
  * One phase to score, built from public data only. Victim: `worth` is n, the factions living at N (victim included).
- * Absorber: `worth` is d, the absorption candidates. Winner: no `worth` (each prediction carries its own count, FR-267)
+ * Absorber: `worth` is d, the absorption candidates (d >= 2: a forced absorber, d = 1, is never predicted and never built,
+ * so its phase has no rows; `isScored` and `scoredPhaseCount` still count it as scored and empty). Winner: no `worth` (each prediction carries its own count, FR-267)
  * and no round (stored with round 0).
  */
 export type ScoredPhase =

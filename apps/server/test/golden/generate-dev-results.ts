@@ -11,6 +11,8 @@
 // concrete faction numbers per secret. `before` is the index (0 to 11) of the step the predictions are sent before, the same
 // logical point in every timeline: 3(k-1) is the phase-1 close of round k (victim predictions, early winner predictions),
 // 3(k-1)+1 the phase-2 close (absorber predictions, winner changes after the reveal), 3(k-1)+2 the application (none).
+// An absorber template of a round whose own d (the candidates of its victim, from the sim) is 1 is dropped: that absorber is forced,
+// the server refuses the prediction and the phase has no row (spec 011 FR-387; the arithmetic here is the generator's own).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { absorptionCandidatesOf, getState, livingFactions, playRoundWithSeed } from '@mbrg/sim';
@@ -100,6 +102,8 @@ for (const [name, match] of Object.entries(secrets.matches)) {
     } else if (tp.kind === 'absorber') {
       answer = round.absorber;
       const cands = candidatesOf(k);
+      // A forced absorber (the golden's own d is 1) is refused by the server (spec 011): no prediction, no row, no points.
+      if (cands.length === 1) continue;
       const other = cands.find((c) => c !== round.absorber);
       // A wrong absorber needs a second candidate; with one candidate the prediction is the right one.
       faction = tp.pick === 'right' || other === undefined ? round.absorber : other;

@@ -96,8 +96,11 @@ export function scriptCursor(): { next(service: MatchService): ActionSpec | unde
       submit(`victim p2 r${round}`, { kind: 'victim', round, faction: living[0], playerId: 'p2' });
     } else if (shown.stage === 'phase-2') {
       const candidates = shown.victim!.candidates;
-      submit(`absorber r${round}`, { kind: 'absorber', round, faction: candidates[n % candidates.length], playerId: 'p1', requestId: `a-${round}` });
-      submit(`absorber replay r${round}`, { kind: 'absorber', round, faction: candidates[n % candidates.length], playerId: 'p1', requestId: `a-${round}` });
+      // A victim with one candidate is a forced absorber: the server refuses the prediction, so the script sends none.
+      if (candidates.length > 1) {
+        submit(`absorber r${round}`, { kind: 'absorber', round, faction: candidates[n % candidates.length], playerId: 'p1', requestId: `a-${round}` });
+        submit(`absorber replay r${round}`, { kind: 'absorber', round, faction: candidates[n % candidates.length], playerId: 'p1', requestId: `a-${round}` });
+      }
     }
     const stage = shown.stage as keyof typeof NEXT;
     const schedule = shown.schedule!;

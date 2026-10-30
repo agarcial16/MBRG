@@ -2,7 +2,7 @@ import { readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { errorReply } from '@mbrg/protocol';
 import type { StepKind } from '@mbrg/protocol';
-import { absorptionCandidatesOf, livingFactions } from '@mbrg/sim';
+import { absorptionCandidatesOf, getState, livingFactions, playRoundWithSeed } from '@mbrg/sim';
 import type { MatchState } from '@mbrg/sim';
 import { describe, expect, it } from 'vitest';
 import type { ResultRow } from '../src/core/scoring';
@@ -29,6 +29,7 @@ interface Gold {
   readonly round: number;
   readonly victim: number;
   readonly absorber: number;
+  readonly seed: number;
 }
 const GOLD = (JSON.parse(readFileSync(new URL('./golden/dev-secrets.json', import.meta.url), 'utf8')) as { matches: Record<string, { rounds: Gold[] }> }).matches['ascending-00-1f']!.rounds;
 const WINNER = GOLD[3]!.absorber;
@@ -77,9 +78,9 @@ interface Rig {
   readonly fail: { putStep: boolean };
 }
 
-function rig(options: { file?: string; manual?: boolean; folders?: HarnessOptions['folders'] } = {}): Rig {
+function rig(options: { file?: string; manual?: boolean; folders?: HarnessOptions['folders']; secret?: Uint8Array } = {}): Rig {
   const rec = recording(openStore(options.file ?? ':memory:'));
-  const h = serviceHarness({ store: rec.store, secret: SECRET, ...(options.folders === undefined ? {} : { folders: options.folders }) });
+  const h = serviceHarness({ store: rec.store, secret: options.secret ?? SECRET, ...(options.folders === undefined ? {} : { folders: options.folders }) });
   const out = h.service.create({ credential: OPERATOR, body: creationBody('c-1', options.manual === false ? {} : { timing: 'manual' }) });
   if (!out.ok) throw new Error(`creation failed: ${JSON.stringify(out.error)}`);
   return { h, id: out.reply.matchId, log: rec.log, fail: rec.fail };
@@ -320,5 +321,129 @@ describe('scoring and failures', () => {
       // A rolled-back first attempt: the retry's rows were not refused as a second scoring and the table holds each row once.
       expect(dump(file)).toHaveLength(5);
     });
+  });
+});
+
+describe('a forced absorber is not predicted and does not score', () => {
+  const A5 = SECRETS['all-a5'];
+  /** Plays whole rounds `from` to `to` by manual steps. */
+  const playRounds = (r: Rig, from: number, to: number): void => {
+    for (let k = from; k <= to; k++) play(r, k);
+  };
+
+  it('FR-387 a forced round writes no absorber row: the winner is the only row of the last application, the leaderboard has no absorber points', () => {
+    const r = rig();
+    const winner = GOLD[3]!.absorber;
+    predict(r, 'p1', { kind: 'winner', faction: winner });
+    playRounds(r, 1, 3);
+    step(r, 4, 'phase-1-close');
+    expect(view(r).victim!.candidates).toHaveLength(1);
+    // The one candidate is refused in phase 2 of the forced round; nothing is stored.
+    expect(submit(r, 'p1', { kind: 'absorber', round: 4, faction: view(r).victim!.candidates[0] })).toStrictEqual({ ok: false, error: errorReply('forced-absorber') });
+    expect(r.h.store.predictionsOf(r.id, 'web:p1').map((x) => x.kind)).toStrictEqual(['winner']);
+    step(r, 4, 'phase-2-close');
+    const before = resultCalls(r).length;
+    step(r, 4, 'application');
+    const calls = resultCalls(r);
+    expect(calls).toHaveLength(before + 1);
+    expect(calls[calls.length - 1]).toStrictEqual([{ playerId: 'web:p1', kind: 'winner', round: 0, choice: winner, correct: true, points: 5 }]);
+    expect(calls.flat().filter((x) => x.kind === 'absorber')).toStrictEqual([]);
+    r.h.close();
+  });
+
+  it('FR-387 the results event of phase 2 of a forced round is still emitted, with an empty phase-results page', () => {
+    const r = rig({ secret: A5 });
+    playRounds(r, 1, 2);
+    const mark = view(r).lastSeq;
+    step(r, 3, 'phase-1-close');
+    expect(view(r).victim!.forced).toBe(true);
+    predict(r, 'p1', { kind: 'winner', faction: livingAtN(r).find((f) => f !== view(r).victim!.victim) });
+    step(r, 3, 'phase-2-close');
+    step(r, 3, 'application');
+    const tail = r.h.store.eventsAfter(r.id, mark).map((e) => `${e.type}${e.type === 'results' ? `/${(e as { phase: number }).phase}` : ''}`);
+    expect(tail).toStrictEqual(['phase-closed', 'victim-revealed', 'results/1', 'schedule', 'phase-closed', 'schedule', 'round-applied', 'results/2', 'schedule']);
+    const page = r.h.service.phaseResults(r.id, 3, 2, { limit: 10 });
+    expect(page.ok && page.reply.items).toStrictEqual([]);
+    r.h.close();
+  });
+
+  it('FR-387 a victim prediction in a forced round scores n as before, and a forced round (d = 1) with three factions living is worth 3 to the victim', () => {
+    const r = rig({ secret: A5 });
+    playRounds(r, 1, 2);
+    const alive = livingAtN(r);
+    expect(alive).toHaveLength(3);
+    alive.forEach((f, i) => predict(r, `p${i + 1}`, { kind: 'victim', round: 3, faction: f }));
+    step(r, 3, 'phase-1-close');
+    const victim = view(r).victim!.victim;
+    const last = resultCalls(r).filter((c) => c.some((x) => x.round === 3));
+    expect(last).toHaveLength(1);
+    expect(last[0]).toStrictEqual(alive.map((f, i) => row(`web:p${i + 1}`, 'victim', 3, f, victim, 3)));
+    r.h.close();
+  });
+
+  it('FR-387 rounds with two and three candidates score d as before (all-a5 round 1: d = 2; the first secret round 2: d = 3)', () => {
+    for (const [secret, round, d] of [[A5, 1, 2], [SECRET, 2, 3]] as const) {
+      const r = rig({ secret });
+      if (round === 2) play(r, 1);
+      step(r, round, 'phase-1-close');
+      const candidates = view(r).victim!.candidates;
+      expect(candidates).toHaveLength(d);
+      expect('forced' in view(r).victim!).toBe(false);
+      candidates.forEach((c, i) => predict(r, `a${i + 1}`, { kind: 'absorber', round, faction: c }));
+      step(r, round, 'phase-2-close');
+      step(r, round, 'application');
+      const rows = resultCalls(r)[resultCalls(r).length - 1]!;
+      expect(rows).toHaveLength(d);
+      expect(rows.filter((x) => x.correct).map((x) => x.points)).toStrictEqual([d]);
+      r.h.close();
+    }
+  });
+
+  it('FR-387 the dev secrets give a forced last round and a non-forced first round; all-a5 also forces round 3', () => {
+    const forcedRounds: Record<string, number[]> = {};
+    for (const [name, secret] of Object.entries(SECRETS)) {
+      const r = rig({ secret });
+      const forced: number[] = [];
+      for (let k = 1; k <= 4; k++) {
+        step(r, k, 'phase-1-close');
+        if (view(r).victim!.forced === true) forced.push(k);
+        step(r, k, 'phase-2-close');
+        step(r, k, 'application');
+      }
+      forcedRounds[name] = forced;
+      r.h.close();
+    }
+    expect(forcedRounds).toStrictEqual({ 'ascending-00-1f': [4], 'ascending-20-3f': [4], 'all-a5': [3, 4] });
+  });
+
+  it('FR-387 the public data after the reveal show forced, and its bytes are identical for twin matches whose forced-round seeds differ', () => {
+    // Twins: the same seeds for rounds 1 to 3, two different seeds for round 4 that pick the same victim.
+    const map = devMap();
+    let state = must(getState(map, 0, 0));
+    for (const g of GOLD.slice(0, 3)) state = must(playRoundWithSeed(map, state, g.seed)).state;
+    const wanted = must(playRoundWithSeed(map, state, GOLD[3]!.seed)).record.eliminated;
+    let other = GOLD[3]!.seed;
+    for (let s = 1; s < 5000; s++) {
+      if (s !== GOLD[3]!.seed && must(playRoundWithSeed(map, state, s)).record.eliminated === wanted) {
+        other = s;
+        break;
+      }
+    }
+    expect(other).not.toBe(GOLD[3]!.seed);
+    const outputs = [GOLD[3]!.seed, other].map((last) => {
+      const seeds = [...GOLD.slice(0, 3).map((g) => g.seed), last];
+      const h = serviceHarness({ seed: 7, testSeedSource: () => (k) => seeds[k - 1]! });
+      const created = h.service.create({ credential: OPERATOR, body: creationBody('c-1', { timing: 'manual' }) });
+      if (!created.ok) throw new Error('creation failed');
+      const id = created.reply.matchId;
+      for (let k = 1; k <= 3; k++) for (const kind of ['phase-1-close', 'phase-2-close', 'application'] as const) h.service.advance({ credential: OPERATOR, matchId: id, body: { round: k, step: kind } });
+      h.service.advance({ credential: OPERATOR, matchId: id, body: { round: 4, step: 'phase-1-close' } });
+      const text = JSON.stringify([h.service.publicMatch(id), h.store.eventsAfter(id, 0)]);
+      expect(h.service.publicMatch(id)!.victim!.forced).toBe(true);
+      h.close();
+      return text;
+    });
+    expect(outputs[0]).toBe(outputs[1]);
+    expect(outputs[0]).toContain('"forced":true');
   });
 });

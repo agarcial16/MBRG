@@ -218,7 +218,8 @@ describe('the storage scan sees the results rules (NFR-47 (d), results)', () => 
       step(r, k, kind);
       if (kind === 'phase-1-close') {
         const candidates = r.h.store.getMatch(r.id)!.match.victim!.candidates;
-        predict(r, 'p1', { kind: 'absorber', round: k, faction: candidates[0] });
+        // A victim with one candidate is a forced absorber: the server refuses the prediction, so none is sent.
+        if (candidates.length > 1) predict(r, 'p1', { kind: 'absorber', round: k, faction: candidates[0] });
       }
     };
     const kinds = ['phase-1-close', 'phase-2-close', 'application'] as const;

@@ -2,7 +2,7 @@ import { appendFileSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { encodePublicMatch, errorReply } from '@mbrg/protocol';
 import type { MatchEvent, StepKind } from '@mbrg/protocol';
-import { playRoundWithSeed } from '@mbrg/sim';
+import { absorptionCandidatesOf, playRoundWithSeed } from '@mbrg/sim';
 import type { MatchState } from '@mbrg/sim';
 import { describe, expect, it } from 'vitest';
 import { haltReasonOf } from '../src/core/steps';
@@ -203,15 +203,21 @@ function flippingSource(): { source: TestSeedSource; set(first: number, later: n
   return { source, set: (first, later) => Object.assign(seeds, { first, later }) };
 }
 
-/** Two seeds whose round-1 victims differ on the dev map from `state`. */
+/** Two seeds whose round-1 victims differ on the dev map from `state`; the first has at least two absorption candidates (one candidate is a forced absorber, which cannot be predicted). */
 function differingSeeds(state: MatchState): [number, number] {
   const victimOf = (seed: number): number => {
     const r = playRoundWithSeed(devMap(), state, seed);
     if (!r.ok) throw new Error('the round cannot be played');
     return r.value.record.eliminated;
   };
-  const first = 7;
-  for (let s = 8; s < 1000; s++) if (victimOf(s) !== victimOf(first)) return [first, s];
+  const candidatesOf = (seed: number): number => {
+    const c = absorptionCandidatesOf(devMap(), state, victimOf(seed));
+    if (!c.ok) throw new Error('no candidates');
+    return c.value.length;
+  };
+  let first = 7;
+  while (candidatesOf(first) < 2) first += 1;
+  for (let s = first + 1; s < 1000; s++) if (victimOf(s) !== victimOf(first)) return [first, s];
   throw new Error('no differing seed');
 }
 

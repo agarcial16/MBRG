@@ -33,7 +33,7 @@ Plan sections 6, 11, 12 (M1 rows), 15 (Q2). The rules of `tasks.md` apply; sizes
   - Done when: tests green; mutations caught; no id moved. Note: the list grows again in M2, M3, M4 (30 at the end).
   - Size: S (about 150).
 
-- [ ] **T4. Core: a forced absorber is not predicted and does not score.** FR-387
+- [x] **T4. Core: a forced absorber is not predicted and does not score.** FR-387
   - Depends on: T2, T3.
   - Files: `apps/server/src/core/{steps,predictions,scoring}.ts`, `apps/server/test/{core-steps,core-predictions,core-scoring,service-scoring,service-predictions}.test.ts` (earlier tests edited only where a fixture used d = 1, listed in `PROGRESS.md`).
   - Tests first: `closePhase1` with one candidate sets `forced: true` on the `PublicVictim` and the `victim-revealed` event (d >= 2: field absent, bytes as 008); `decideSubmission` for kind `absorber` in `phase-2` with one candidate is `forced-absorber`, in `phase-1` still `prediction-closed`, at `locked`/`finished`/`halted` as before (order halted, finished, closed, forced, invalid); an absorber prediction already stored cannot exist (it was refused); `apply()` returns no `absorber` `ScoredPhase` when `victim.candidates.length === 1` (the winner phase is still returned at the finish); through the service: a forced round writes no absorber row, the `results` event of phase 2 is still emitted (empty), the winner scores as before, d = 2 and d = 3 rounds score d as in 008; the dev-map secrets give at least one forced round (the last) and one non-forced round; a victim prediction in a forced round scores n as before; the public data after the reveal shows `forced` and its bytes are identical for twin matches with equal public data.

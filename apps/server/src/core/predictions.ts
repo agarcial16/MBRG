@@ -6,6 +6,7 @@
 
 import { errorReply } from '@mbrg/protocol';
 import type { ErrorReply, PredictionKind, PredictionReply } from '@mbrg/protocol';
+import { isForced } from './steps';
 import type { CoreMatch } from './view';
 
 /** A submission as the shell decoded it: the kind, the round of a per-round kind (none for the winner) and the faction. */
@@ -77,7 +78,7 @@ function allowedChoices(view: CoreMatch, kind: PredictionKind): readonly number[
 
 /**
  * Decides a submission (FR-261 to FR-268). Errors in the FR-301 order: `match-halted`, `match-finished`,
- * `prediction-closed`, `invalid-choice`. A closed or invalid submission stores nothing and costs the player nothing
+ * `prediction-closed`, `forced-absorber`, `invalid-choice`. A closed or invalid submission stores nothing and costs the player nothing
  * (FR-268). An accepted one replaces the stored prediction with version + 1; an equal one changes nothing and keeps the
  * version; there is no version precondition, so a delayed older resubmission overwrites a newer one (P37).
  */
@@ -87,6 +88,8 @@ export function decideSubmission(view: CoreMatch, input: SubmissionInput): Submi
   if (view.stage === 'finished') return { ok: false, error: errorReply('match-finished') };
   if (!isOpen(view, submission, effective)) return closed();
   const kind = submission.kind;
+  // An open absorber submission is in phase 2 of the pending round; with one candidate there is nothing to predict (spec 011 FR-387).
+  if (kind === 'absorber' && view.victim !== undefined && isForced(view.victim.candidates)) return { ok: false, error: errorReply('forced-absorber') };
   if (!Number.isSafeInteger(submission.choice) || !allowedChoices(view, kind).includes(submission.choice)) return invalid();
   const round = kind === 'winner' ? 0 : submission.round;
   if (stored !== undefined && (stored.kind !== kind || stored.round !== round)) {
