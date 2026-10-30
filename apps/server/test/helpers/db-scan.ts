@@ -23,9 +23,12 @@ export const absorberColumnsOutsideRecords = (columns: Columns): string[] => col
 /** A column that could hold a pending or future state or a round seed. */
 export const pendingStateColumns = (columns: Columns): string[] => columnsMatching(columns, /pending|next|future|seed|rng|round_seed/i);
 
-/** A credential-like column that is not a digest (the match secret is the one allowed plain column, D14). */
+/**
+ * A credential-like column that is not a digest (the match secret is the one allowed plain column, D14; `players.name_key` is
+ * the case-folded name used for the uniqueness of names, not a key of any kind).
+ */
 export const credentialTextColumns = (columns: Columns): string[] =>
-  columnsMatching(columns, /token|credential|password|secret|key/i).filter((c) => !c.endsWith('_digest') && c !== 'matches.secret');
+  columnsMatching(columns, /token|credential|password|secret|key/i).filter((c) => !c.endsWith('_digest') && c !== 'matches.secret' && c !== 'players.name_key');
 
 /** Rows whose round is above N: an absorber record or a state of a round that is not applied (FR-255, FR-256). */
 export const rowsBeyondApplied = (db: DatabaseSync): { table: string; matchId: string; round: number }[] => {

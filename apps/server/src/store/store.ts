@@ -114,6 +114,20 @@ export interface StoredMemo {
   readonly createdMs: number;
 }
 
+/** The lobby row of a match created through the public path (spec 011 plan section 3). */
+export interface StoredLobby {
+  readonly matchId: string;
+  /** 1 in the table: a public lobby counts in the caps. */
+  readonly public: boolean;
+  /** The instant the lobby expires if it is not started (`created + the expiry setting`). */
+  readonly expiresMs: number;
+  readonly startedMs: number | null;
+  readonly expiredMs: number | null;
+}
+
+/** An expired lobby is kept this long after its expiry, then purged with its match (FR-282 retention, 24 h). */
+export const LOBBY_RETENTION_MS = 24 * 60 * 60 * 1000;
+
 export interface Store {
   /** The settings in force on this connection. */
   settings(): StoreSettings;
@@ -141,6 +155,35 @@ export interface Store {
   runningCount(): number;
   /** The ids of the running matches (the stages counted by `runningCount`), oldest first: what a tick walks. */
   runningMatchIds(): string[];
+  /**
+   * Stores the lobby row of a match that exists (insert the match first, in the same transaction). A second row for a
+   * match, a missing match or an expiry that is not a non-negative whole number is refused (`invalid-write`).
+   */
+  insertLobby(lobby: { readonly matchId: string; readonly public: boolean; readonly expiresMs: number }): void;
+  /** The lobby row of a match, or undefined (an operator match has none). */
+  getLobby(matchId: string): StoredLobby | undefined;
+  /**
+   * Marks a lobby started at `nowMs`. A match with no lobby row, a lobby already started or already expired, or an instant
+   * that is not a non-negative whole number is refused (`invalid-write`): a lobby is marked once. The caller changes the
+   * match row and appends the event in the same transaction.
+   */
+  markStarted(matchId: string, nowMs: number): void;
+  /** Marks a lobby expired at `nowMs`; refused exactly as `markStarted` is. */
+  markExpired(matchId: string, nowMs: number): void;
+  /** Public lobbies neither started nor expired: what the open-lobby cap counts. */
+  openLobbyCount(): number;
+  /** Public matches with a lobby row whose match is in `phase-1`, `phase-2` or `locked`. Operator matches are not counted. */
+  publicRunningCount(): number;
+  /** The ids of the lobbies (public or not) with `expires_ms <= now` that are neither started nor expired, in id order. */
+  lobbiesExpiringBefore(now: number): string[];
+  /** The ids of the lobbies neither started nor expired, in id order: what `start()` re-arms. */
+  lobbyIds(): string[];
+  /**
+   * Deletes the lobbies expired for more than the retention at `now` (`now - expired_ms > LOBBY_RETENTION_MS`) with their
+   * match, events, states, records, steps, predictions, results and players, and returns how many lobbies. Started and open
+   * lobbies, operator matches and the memo are never touched.
+   */
+  purgeExpired(now: number): number;
   /** The state at an applied round, or undefined. */
   getState(matchId: string, round: number): StoredState | undefined;
   /** Stores the record of an applied round (1 <= round <= N): any other round is refused (FR-255, FR-256). */

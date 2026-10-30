@@ -28,7 +28,7 @@ const check = async (): Promise<void> => {
   if (Object.keys(shared).length === 0) throw new Error('@mbrg/shared exports are missing');
   const store = openStore(':memory:');
   try {
-    if (store.settings().userVersion !== 1) throw new Error('the store did not create schema version 1');
+    if (store.settings().userVersion !== 2) throw new Error('the store did not create schema version 2');
   } finally {
     store.close();
   }

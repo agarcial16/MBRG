@@ -74,6 +74,15 @@ export const withFaults = (store: Store, plan: FaultPlan): Store => {
       if ((plan.failRunningIds ?? []).includes(reads)) throw new InjectedFault('read', reads);
       return store.runningMatchIds();
     },
+    insertLobby: (lobby) => (write(), store.insertLobby(lobby)),
+    getLobby: (matchId) => store.getLobby(matchId),
+    markStarted: (matchId, nowMs) => (write(), store.markStarted(matchId, nowMs)),
+    markExpired: (matchId, nowMs) => (write(), store.markExpired(matchId, nowMs)),
+    openLobbyCount: () => store.openLobbyCount(),
+    publicRunningCount: () => store.publicRunningCount(),
+    lobbiesExpiringBefore: (now) => store.lobbiesExpiringBefore(now),
+    lobbyIds: () => store.lobbyIds(),
+    purgeExpired: (now) => (write(), store.purgeExpired(now)),
     getState: (matchId, round) => store.getState(matchId, round),
     putRecord: (matchId, record) => (write(), store.putRecord(matchId, record)),
     records: (matchId) => store.records(matchId),

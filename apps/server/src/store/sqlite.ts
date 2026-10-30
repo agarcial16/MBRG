@@ -8,14 +8,16 @@ import type { StoredPrediction } from '../core/predictions';
 import type { PlayerTotals, ResultRow, ScorablePrediction } from '../core/scoring';
 import type { Anchors } from '../core/time';
 import type { CoreMatch } from '../core/view';
-import { SCHEMA_V1, SCHEMA_VERSION, TABLES } from './schema';
+import { SCHEMA_V1, SCHEMA_V2_ADDITIONS, SCHEMA_VERSION, TABLES } from './schema';
 import {
+  LOBBY_RETENTION_MS,
   StoreError,
   type MatchListKey,
   type NamespacePrediction,
   type PlayerResultKey,
   type PredictionKey,
   type Store,
+  type StoredLobby,
   type StoredMatch,
   type StoredMemo,
   type StoredPhaseResult,
@@ -192,7 +194,7 @@ const recordOf = (r: Row): StoredRecord => ({
   transferred: JSON.parse(str(r, 'transferred_json')) as number[],
 });
 
-const STAGES: readonly string[] = ['phase-1', 'phase-2', 'locked', 'halted', 'finished'];
+const STAGES: readonly string[] = ['lobby', 'expired', 'phase-1', 'phase-2', 'locked', 'halted', 'finished'];
 
 const predictionOf = (r: Row): StoredPrediction => {
   const kind = str(r, 'kind') as StoredPrediction['kind'];
@@ -208,7 +210,9 @@ const sameFixedFields = (a: CoreMatch, b: CoreMatch): boolean =>
  * Opens (and, for a new file, creates) the store. `path` is a file path or `:memory:`.
  * PRAGMAs (PD9): exclusive locking, write-ahead log on a file, synchronous FULL, foreign keys ON. An immediate
  * write transaction at open takes the lock, so a second connection or process fails here with `database-locked`.
- * `user_version` 0 is a new file (schema 1 created in that same transaction); any other value than 1 is refused.
+ * `user_version` 0 is a new file (schemas 1 and 2 created in that same transaction); 1 is a file written by the 008 code (the
+ * tables of version 2 are added and the version set in that same transaction, no existing table or row is touched,
+ * FR-391); 2 opens as it is; any other value is refused.
  */
 export const openStore = (path: string): Store => {
   let db: DatabaseSync;
@@ -232,7 +236,12 @@ export const openStore = (path: string): Store => {
       const version = userVersionOf(db);
       if (version === 0) {
         for (const statement of SCHEMA_V1) db.exec(statement);
+        for (const statement of SCHEMA_V2_ADDITIONS) db.exec(statement);
         db.prepare('INSERT INTO meta (schema_version) VALUES (?)').run(SCHEMA_VERSION);
+        db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+      } else if (version === 1) {
+        for (const statement of SCHEMA_V2_ADDITIONS) db.exec(statement);
+        db.prepare('UPDATE meta SET schema_version = ?').run(SCHEMA_VERSION);
         db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
       } else if (version !== SCHEMA_VERSION) {
         throw new StoreError('unknown-schema-version', `the database has schema version ${version}; this server supports version ${SCHEMA_VERSION}`);
@@ -329,6 +338,33 @@ export const openStore = (path: string): Store => {
     return { match, secret: Uint8Array.from(secret), hostTokenDigest: str(row, 'host_token_digest') };
   };
 
+  const lobbyOf = (r: Row): StoredLobby => ({
+    matchId: str(r, 'match_id'),
+    public: num(r, 'public') === 1,
+    expiresMs: num(r, 'expires_ms'),
+    startedMs: optNum(r, 'started_ms'),
+    expiredMs: optNum(r, 'expired_ms'),
+  });
+
+  const checkInstant = (value: number, what: string): void => {
+    if (!Number.isSafeInteger(value) || value < 0) throw invalid(`${what} is a non-negative whole number of milliseconds`);
+  };
+
+  /** A lobby is marked once: started and expired exclude each other and themselves. */
+  const markLobby = (sql: string, matchId: string, nowMs: number): void => {
+    requireTransaction();
+    checkInstant(nowMs, 'a lobby mark instant');
+    const row = one('SELECT started_ms, expired_ms FROM lobbies WHERE match_id = ?', matchId);
+    if (row === undefined) throw invalid(`the match ${matchId} has no lobby row`);
+    if (row.started_ms !== null || row.expired_ms !== null) throw invalid(`the lobby of ${matchId} is already started or expired`);
+    run(sql, nowMs, matchId);
+  };
+
+  const countOf = (sql: string): number => {
+    const row = one(sql);
+    return row === undefined ? 0 : num(row, 'n');
+  };
+
   const pragma = (name: string): unknown => Object.values(db.prepare(`PRAGMA ${name}`).get() ?? {})[0];
 
   return {
@@ -408,6 +444,47 @@ export const openStore = (path: string): Store => {
     },
     runningMatchIds(): string[] {
       return all("SELECT id FROM matches WHERE stage IN ('phase-1', 'phase-2', 'locked') ORDER BY rowid").map((row) => str(row, 'id'));
+    },
+    insertLobby(lobby: { readonly matchId: string; readonly public: boolean; readonly expiresMs: number }): void {
+      requireTransaction();
+      checkInstant(lobby.expiresMs, 'a lobby expiry');
+      if (one('SELECT 1 AS found FROM matches WHERE id = ?', lobby.matchId) === undefined) throw invalid(`the match ${lobby.matchId} does not exist`);
+      if (one('SELECT 1 AS found FROM lobbies WHERE match_id = ?', lobby.matchId) !== undefined) throw invalid(`the match ${lobby.matchId} already has a lobby row`);
+      run('INSERT INTO lobbies (match_id, public, expires_ms, started_ms, expired_ms) VALUES (?, ?, ?, NULL, NULL)', lobby.matchId, lobby.public ? 1 : 0, lobby.expiresMs);
+    },
+    getLobby(matchId: string): StoredLobby | undefined {
+      const row = one('SELECT match_id, public, expires_ms, started_ms, expired_ms FROM lobbies WHERE match_id = ?', matchId);
+      return row === undefined ? undefined : lobbyOf(row);
+    },
+    markStarted(matchId: string, nowMs: number): void {
+      markLobby('UPDATE lobbies SET started_ms = ? WHERE match_id = ?', matchId, nowMs);
+    },
+    markExpired(matchId: string, nowMs: number): void {
+      markLobby('UPDATE lobbies SET expired_ms = ? WHERE match_id = ?', matchId, nowMs);
+    },
+    openLobbyCount(): number {
+      return countOf('SELECT COUNT(*) AS n FROM lobbies WHERE public = 1 AND started_ms IS NULL AND expired_ms IS NULL');
+    },
+    publicRunningCount(): number {
+      return countOf("SELECT COUNT(*) AS n FROM lobbies l JOIN matches m ON m.id = l.match_id WHERE l.public = 1 AND m.stage IN ('phase-1', 'phase-2', 'locked')");
+    },
+    lobbiesExpiringBefore(now: number): string[] {
+      return all('SELECT match_id FROM lobbies WHERE expires_ms <= ? AND started_ms IS NULL AND expired_ms IS NULL ORDER BY match_id', now).map((r) => str(r, 'match_id'));
+    },
+    lobbyIds(): string[] {
+      return all('SELECT match_id FROM lobbies WHERE started_ms IS NULL AND expired_ms IS NULL ORDER BY match_id').map((r) => str(r, 'match_id'));
+    },
+    purgeExpired(now: number): number {
+      requireTransaction();
+      const ids = all('SELECT match_id FROM lobbies WHERE expired_ms IS NOT NULL AND started_ms IS NULL AND ? - expired_ms > ? ORDER BY match_id', now, LOBBY_RETENTION_MS).map((r) => str(r, 'match_id'));
+      for (const matchId of ids) {
+        // Children first: every table that refers to the match, then the lobby row, then the match.
+        for (const table of ['results', 'predictions', 'steps', 'records', 'events', 'states', 'players', 'lobbies']) {
+          run(`DELETE FROM ${table} WHERE match_id = ?`, matchId);
+        }
+        run('DELETE FROM matches WHERE id = ?', matchId);
+      }
+      return ids.length;
     },
     getState(matchId: string, round: number): StoredState | undefined {
       const row = one('SELECT owners_json, state_digest FROM states WHERE match_id = ? AND round = ?', matchId, round);
