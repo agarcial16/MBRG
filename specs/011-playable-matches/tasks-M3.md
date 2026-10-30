@@ -31,7 +31,7 @@ Plan sections 1 (P7 to P11), 3, 4, 5, 12 (M3 row), 15 (Q3, Q5). Branch cut from 
   - Done when: tests green; mutations caught; no id moved.
   - Size: S (about 150).
 
-- [ ] **T4. Store and ids: players, token digests, name keys.** (words only)
+- [x] **T4. Store and ids: players, token digests, name keys.** (words only)
   - Depends on: T2, T3.
   - Files: `apps/server/src/service/ids.ts` (`PLAYER_TOKEN_BYTES = 32`, `PLAYER_ID_BYTES = 9`, `newPlayerToken`, `newPlayerLocalId`), `apps/server/src/store/{store,sqlite,faults}.ts` (`insertPlayer`, `playerCount`, `playerByTokenDigest(matchId, digest)`, `playersAfter(matchId, after, limit)`, `playerNames(matchId, ids)`), `apps/server/test/{service-ids,store-players}.test.ts`.
   - Tests first: token is 43 base64url characters from 32 drawn bytes, one draw per value, independent of the secret, match id and host token (the fake random source shows three distinct draws); the local id is 12 characters of the FR-297 set; `insertPlayer` stores only the digest (a dump of the table has no token text; the plain token is not an argument of the store); the unique `(match_id, name_key)` refuses a second key as `invalid-write` mapped to a dedicated code the service reads (not a generic failure); `playerByTokenDigest` finds the row by index and never across matches; `playersAfter` keyset in join order, `limit + 1` rows, no repeat or skip at page boundaries (limits 1, 2, 500); `playerCount`; rollback with the transaction; the fault seam wraps the new ops.
