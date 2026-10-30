@@ -6,7 +6,7 @@ Plan sections 1 (P1 to P5, P14 to P16), 3, 4, 7, 8, 12 (M2 row), 15 (Q1, Q4, Q6 
 
 **Hand-offs from M1 and 008**: `Settings` has `forcedPhaseSeconds`; the variable list has 16 entries; `createMatch`/`creationEvents` make the phase-1 view and the seq-1 `schedule` event; `store.insertMatch/updateMatch/getMatch/runningCount/runningMatchIds`; `memoGet/memoPut/memoPurge/memoOldest`; scheduler `at/cancel`; `service.start()` re-arms running matches; `StoredMatch` carries `hostTokenDigest`.
 
-- [ ] **T1. Branch and bookkeeping targets.** (no pending id named)
+- [x] **T1. Branch and bookkeeping targets.** (no pending id named)
   - Depends on: M1 merged; Q1, Q4, Q6, Q8, Q9, Q10 answered; plan and tasks approved.
   - Files: `packages/sim/test/traceability.test.ts` (comments: targets per task), `specs/011-playable-matches/PROGRESS.md`.
   - Commit: `test: prepare the spec 011 bookkeeping for M2`.

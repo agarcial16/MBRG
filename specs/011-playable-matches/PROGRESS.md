@@ -106,3 +106,8 @@ T2 and T3: see their entries. T4 (forced absorber), each with its reason:
 - Earlier tests changed, with reasons: protocol `decode`, `encode`, `encode-events`, `errors`, `public` (forced mark, new error kind); `http-status`, `server-settings`, `service-settings`, `service-seam` (status 409, 16th variable); `core-steps`, `core-predictions`, `core-scoring`, `core-time`, `service-scoring`, `service-results`, `store-results`, `results-golden`, `results-durability`, `http-identity` and helpers (a fixture with d = 1 no longer predicts or scores an absorber; F in deps); `service-timer`, `service-faults`, `service-restart`, `service-steps`, `service-halting`, `stream-order`, `client-live`, `viewer-tour` (the shortened phase 2 moves C2/A of forced rounds; fake-random secrets force round 1, so these use secret 00-1f); `apps/web/test/tour-regression.test.ts` (SHA-256 of the re-pinned goldens).
 - Outside the plan list, one line each: `store/sqlite.ts` keeps `forced` when rebuilding the public victim; `scripts/clock-accuracy.ts` gets the new required setting.
 - Untested: the real scheduler with a forced round (fake one only).
+
+## M2 T1 - Branch and bookkeeping targets
+- Changed: comment above `PENDING_011` in `packages/sim/test/traceability.test.ts` (M2 targets per task: T4 FR-391, T6 FR-371/374/375, T7 FR-372/NFR-76, end 9 / 20), `tasks-M2.md` (T1 ticked), this file. No source or test logic change; no earlier test edited.
+- Results: `npm test`, `npm run typecheck`, `CI=1 npm test` green (252 files); counts 3 done / 26 pending.
+- Next: T2 (protocol lobby stages and start body).
