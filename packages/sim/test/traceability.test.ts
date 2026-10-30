@@ -92,6 +92,7 @@ const DONE_010: readonly string[] = ['FR-356', 'FR-357', 'FR-358', 'FR-359', 'FR
  * DONE_011 in its own commit; the last task leaves this list empty.
  * M1 target: 3 done / 26 pending (reached). M2 target (T10): 9 done / 20 pending. M2 T1 starts at 3 / 26 and moves none;
  * T4 adds FR-391 (4 / 25); T6 adds FR-371, FR-374, FR-375 (7 / 22); T7 adds FR-372, NFR-76 (9 / 20); T2, T3, T5, T8, T9 move none.
+ * M3 target (T10): 15 done / 14 pending. M3 T1 starts at 9 / 20 and moves none; later M3 tasks move their ids in their own commits.
  */
 const PENDING_011: readonly string[] = [
   'FR-369', 'FR-370', 'FR-373', 'FR-376', 'FR-377', 'FR-378',

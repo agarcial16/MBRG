@@ -189,3 +189,11 @@ T2 and T3: see their entries. T4 (forced absorber), each with its reason:
 - Outside the plan list: `scripts/clock-accuracy.ts` (new required setting), `main.ts` (`--check` expects version 2), `http-identity.test.ts`, fixture `fixtures/v1-database.db` (named `.db` because `.gitignore` ignores `*.sqlite`).
 - Untested: joins at expiry and `players` rows (M3); a real timer and a real process kill of a lobby decision (seams only).
 - Reviewer finding fixed: a start at or after the lobby expiry instant (effective instant, before the wake-up ran) is refused `match-expired`, not memoised; `startDecision` takes the expiry instant. Tests added: `service-lobby-start-expiry` (5; boundary -1/0/+1/+1 h, started match unaffected); mutants `>=`->`>` and check removed both killed. Counts now 263 files, 4340 passed, 4 skipped.
+
+## M3 T1 - Branch and bookkeeping targets
+- Changed: `packages/sim/test/traceability.test.ts` (comment only: M3 target 15 done / 14 pending, T1 starts at 9 / 20 and moves none), this file, `tasks-M3.md`. No source change.
+- Answers in use: Q3 (reserved client namespace `player`) and Q5 (plain token only in the 24 h memo row), spec D7.
+- Ledger: 9 done / 20 pending, unchanged.
+- Results: `npm test` 263 files, 4340 passed, 4 skipped; `npm run typecheck` clean; `CI=1 npm test` same. Ledger 9 / 20.
+- Untested: nothing new (no logic).
+- Next: T2 (protocol: names, join, the joined event and the players list shapes).

@@ -6,7 +6,7 @@ Plan sections 1 (P7 to P11), 3, 4, 5, 12 (M3 row), 15 (Q3, Q5). Branch cut from 
 
 **Hand-offs from M2**: stages `lobby`/`expired` exist; `players` table exists empty in schema v2; `createPublic`, `start`, expiry; `PublicMatch.playerCount` optional; 24 settings variables; `CoreMatch` has no player field yet (T5 adds `playerCount` to the core view and to the pinned `CORE_MATCH_KEYS` test).
 
-- [ ] **T1. Branch and bookkeeping targets.** (no pending id named)
+- [x] **T1. Branch and bookkeeping targets.** (no pending id named)
   - Depends on: M2 merged; Q3, Q5 answered.
   - Files: `packages/sim/test/traceability.test.ts` (comments), `specs/011-playable-matches/PROGRESS.md`.
   - Commit: `test: prepare the spec 011 bookkeeping for M3`.
