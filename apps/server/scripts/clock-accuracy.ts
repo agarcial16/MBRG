@@ -14,6 +14,7 @@ import { TOLERANCE_MS } from '../src/core/time';
 import { createMapCatalog } from '../src/service/maps';
 import { createMatchService } from '../src/service/matches';
 import { createScheduler } from '../src/service/scheduler';
+import { DEFAULT_PUBLIC_CREATION } from '../src/service/settings';
 import type { Settings } from '../src/service/settings';
 import { installWarningFilter } from '../src/warnings';
 
@@ -25,7 +26,7 @@ const TIMING = { i: 6, l1: 2, l2: 1 } as const;
 const OPERATOR = 'clock-accuracy-operator-credential';
 const DEV = fileURLToPath(new URL('../../../maps/dev', import.meta.url));
 
-const settings: Settings = { operatorCredential: OPERATOR, maps: { dev: DEV }, runningMatchLimit: 20, databasePath: ':memory:', forcedPhaseSeconds: 5 };
+const settings: Settings = { operatorCredential: OPERATOR, maps: { dev: DEV }, runningMatchLimit: 20, databasePath: ':memory:', forcedPhaseSeconds: 5, publicCreation: DEFAULT_PUBLIC_CREATION };
 const store = openStore(':memory:');
 const scheduler = createScheduler(systemClock);
 const service = createMatchService({ store, clock: systemClock, maps: createMapCatalog(settings.maps), settings, scheduler });

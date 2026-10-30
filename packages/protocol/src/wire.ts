@@ -23,6 +23,11 @@ export interface AdvanceBody {
   readonly requestId?: string;
 }
 
+/** The start body of a lobby: empty, or just a client request id (FR-296). */
+export interface StartBody {
+  readonly requestId?: string;
+}
+
 export interface SubmissionBody {
   readonly kind: PredictionKind;
   /** Present exactly for `victim` and `absorber`. */
@@ -36,10 +41,14 @@ export interface SubmissionBody {
 /** Documented field order of each body (FR-296): the first failing field in this order is named. */
 export const CREATION_FIELDS = ['mapId', 'timing', 'requestId'] as const;
 export const ADVANCE_FIELDS = ['round', 'step', 'requestId'] as const;
+export const START_FIELDS = ['requestId'] as const;
 export const SUBMISSION_FIELDS = ['kind', 'round', 'faction', 'playerId', 'requestId'] as const;
 
-/** Stages of a match (spec Definitions "Stage"). */
-export const STAGES = ['phase-1', 'phase-2', 'locked', 'finished', 'halted'] as const;
+/**
+ * Stages of a match (spec Definitions "Stage"). `lobby` (created, not started) and `expired` (never started, closed) have
+ * no round: no anchors, victim, winner or secret.
+ */
+export const STAGES = ['phase-1', 'phase-2', 'locked', 'finished', 'halted', 'lobby', 'expired'] as const;
 export type Stage = (typeof STAGES)[number];
 
 /** Halt reasons: data of a `halted` match, not error kinds (FR-250, FR-251). */
@@ -98,6 +107,8 @@ export interface PublicMatch {
   readonly stateDigest: string;
   readonly lastSeq: number;
   readonly reportedTime: number;
+  /** Required in `lobby` and `expired`; optional elsewhere, and absent means the 008 bytes (a whole number >= 0). */
+  readonly playerCount?: number;
   /** Present exactly while the match is running and its timing is not `manual`. */
   readonly schedule?: PublicSchedule;
   /** Present in `phase-2` and `locked`, and in `halted` when the halting round's victim was revealed (FR-288). */
@@ -123,6 +134,7 @@ export const PUBLIC_MATCH_KEYS = [
   'stateDigest',
   'lastSeq',
   'reportedTime',
+  'playerCount',
   'schedule',
   'victim',
   'winner',

@@ -45,6 +45,9 @@ const finished: PublicMatch = {
 const halted: PublicMatch = { ...base, stage: 'halted', schedule: undefined, haltReason: 'map-changed' };
 const haltedAfterReveal: PublicMatch = { ...halted, victim, haltReason: 'victim-mismatch' };
 
+const lobby: PublicMatch = { ...base, stage: 'lobby', playerCount: 0, schedule: undefined };
+const expired: PublicMatch = { ...lobby, stage: 'expired', lastSeq: 2, playerCount: 7, reportedTime: 1_900_000 };
+
 const withoutSchedule = (m: PublicMatch): PublicMatch => {
   const { schedule: _omit, ...rest } = m;
   return rest;
@@ -60,7 +63,7 @@ describe('the public view type', () => {
   it('NFR-47 (b) the key list of the public view is pinned exactly', () => {
     expect([...PUBLIC_MATCH_KEYS]).toStrictEqual([
       'matchId', 'mapId', 'mapDigest', 'totalRounds', 'timing', 'commitment', 'stage', 'appliedRounds', 'state',
-      'stateDigest', 'lastSeq', 'reportedTime', 'schedule', 'victim', 'winner', 'matchSecret', 'haltReason',
+      'stateDigest', 'lastSeq', 'reportedTime', 'playerCount', 'schedule', 'victim', 'winner', 'matchSecret', 'haltReason',
     ]);
     expect([...PUBLIC_VICTIM_KEYS]).toStrictEqual(['round', 'victim', 'candidates', 'living', 'revealedAt', 'c2', 'a', 'forced', 'seq']);
   });
@@ -84,6 +87,79 @@ describe('the public view type', () => {
     const victimNoneExtra: Exclude<VictimListed, keyof PublicVictim> extends never ? true : false = true;
     const forcedKey: 'forced' extends keyof PublicVictim ? true : false = true;
     expect([noneMissing, noneExtra, noForbidden, victimNoneMissing, victimNoneExtra, forcedKey]).toStrictEqual([true, true, true, true, true, true]);
+  });
+});
+
+describe('the lobby stages in the public view', () => {
+  it('FR-257 STAGES gains lobby and expired after the 008 stages', () => {
+    expect([...STAGES]).toStrictEqual(['phase-1', 'phase-2', 'locked', 'finished', 'halted', 'lobby', 'expired']);
+  });
+
+  it('FR-257 a lobby and an expired view encode with playerCount between reportedTime and the optional members, and with none of them', () => {
+    expect(encodePublicMatch(lobby)).toBe(
+      '{"matchId":"m-1","mapId":"dev","mapDigest":"' + hex('a') + '","totalRounds":2,"timing":{"i":120,"l1":30,"l2":10},"commitment":"' +
+        hex('c') + '","stage":"lobby","appliedRounds":0,"state":{"mode":"classic","round":0,"owners":[[1,1],[2,2],[3,3]]},"stateDigest":"' +
+        hex('d') + '","lastSeq":1,"reportedTime":1000000,"playerCount":0}',
+    );
+    expect(encodePublicMatch(expired)).toContain('"stage":"expired","appliedRounds":0');
+    expect(encodePublicMatch(expired)).toContain('"lastSeq":2,"reportedTime":1900000,"playerCount":7}');
+    for (const m of [lobby, expired, { ...lobby, timing: 'manual' as const }]) {
+      const keys = Object.keys(JSON.parse(encodePublicMatch(m)) as object);
+      expect(keys.slice(-2)).toStrictEqual(['reportedTime', 'playerCount']);
+      for (const k of ['schedule', 'victim', 'winner', 'matchSecret', 'haltReason']) expect(keys).not.toContain(k);
+      expect(encodes(reversed(m) as object)).toBe(encodePublicMatch(m));
+    }
+  });
+
+  it('FR-257 a lobby or expired view without playerCount, or with an unusable one, is refused', () => {
+    for (const m of [lobby, expired]) {
+      const { playerCount: _gone, ...rest } = m;
+      expect(() => encodes(rest), m.stage).toThrow(RangeError);
+      for (const bad of [-1, 1.5, '3', null, Number.NaN, Infinity, 2 ** 53, []]) {
+        expect(() => encodes({ ...m, playerCount: bad }), `${m.stage} ${String(bad)}`).toThrow(RangeError);
+      }
+    }
+  });
+
+  it('FR-257 a lobby or expired view carries none of the members of a running, finished or halted view', () => {
+    const extras: [string, unknown][] = [
+      ['schedule', schedule],
+      ['victim', victim],
+      ['winner', 1],
+      ['matchSecret', hex('5')],
+      ['haltReason', 'map-changed'],
+    ];
+    for (const m of [lobby, expired]) {
+      for (const [key, value] of extras) expect(() => encodes({ ...m, [key]: value }), `${m.stage} ${key}`).toThrow(RangeError);
+    }
+  });
+
+  it('FR-257 a lobby and an expired view have no applied round: the counts and the state stay at round 0', () => {
+    for (const m of [lobby, expired]) {
+      expect(() => encodes({ ...m, appliedRounds: 1, state: { ...m.state, round: 1 } }), m.stage).toThrow(RangeError);
+    }
+  });
+
+  it('FR-257 a running view with playerCount absent keeps the exact bytes of spec 008 (SHA-256 pins, one view per stage)', () => {
+    const pins: [PublicMatch, string][] = [
+      [base, '30b43139709d0c5db223d1e0fadeddb7e4f08d48836bed387cd71cbca5f83f16'],
+      [phase2, '0e154ae74d694aef65d6b7bae4f094b3395b2299a41d32f62a83c895f8680ee4'],
+      [locked, '865d216804c0e3c7361a16e67a42a23c62d176bab6140c4587dbce7f8d0131f1'],
+      [finished, 'c6bc49d191cd074a4ee03322fac0eead12b3315d212f10812c5884da36ea8332'],
+      [halted, 'a1a1608a743a4b8e81cac54a57ca9997efba299cacd87cce5856a94f488f18c0'],
+    ];
+    for (const [m, pin] of pins) {
+      expect(encodePublicMatch(m)).not.toContain('playerCount');
+      expect(createHash('sha256').update(encodePublicMatch(m)).digest('hex'), m.stage).toBe(pin);
+    }
+  });
+
+  it('FR-257 a running view writes playerCount when it is given, also a count of 0, and only then', () => {
+    expect(encodePublicMatch({ ...base, playerCount: 0 })).toContain('"reportedTime":1000000,"playerCount":0,"schedule":');
+    expect(encodePublicMatch({ ...phase2, playerCount: 12 })).toContain('"playerCount":12,"schedule":');
+    expect(encodePublicMatch({ ...finished, playerCount: 3 })).toContain('"reportedTime":1000000,"playerCount":3,"winner":1');
+    expect(encodePublicMatch({ ...base, playerCount: undefined })).toBe(encodePublicMatch(base));
+    expect(() => encodes({ ...base, playerCount: -1 })).toThrow(RangeError);
   });
 });
 
@@ -243,7 +319,7 @@ describe('the public view encoder', () => {
       'text',
     ];
     for (const b of bad) expect(() => encodes(b as object), JSON.stringify(b)).toThrow(RangeError);
-    expect(STAGES).toStrictEqual(['phase-1', 'phase-2', 'locked', 'finished', 'halted']);
+    expect(STAGES).toStrictEqual(['phase-1', 'phase-2', 'locked', 'finished', 'halted', 'lobby', 'expired']);
   });
 
   it('FR-254 inherited fields never count: an input whose fields come from the prototype is refused', () => {

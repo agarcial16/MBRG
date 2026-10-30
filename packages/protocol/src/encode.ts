@@ -341,7 +341,7 @@ export function encodeLeaderboardRow(row: LeaderboardRow): string {
   });
 }
 
-const RUNNING_STAGES = ['phase-1', 'phase-2', 'locked'] as const;
+const SCHEDULE_STAGES = ['phase-1', 'phase-2', 'locked', 'lobby', 'expired'] as const;
 const nullOrInt = (what: string, min: number) => (v: unknown): string => (v === null ? 'null' : int(what, min)(v));
 const schedule = (v: unknown): string => {
   const o = objectOf(v, 'event.schedule', ['c1', 'c2', 'a']);
@@ -371,7 +371,7 @@ const EVENT_WRITERS: Record<MatchEvent['type'], Record<string, (v: unknown) => s
     appliedAt: int('event.appliedAt', 0),
   },
   results: { seq: int('event.seq', 1), round: int('event.round', 1), phase: (v) => (v === 1 || v === 2 ? String(v) : bad('event.phase is not 1 or 2')) },
-  schedule: { seq: int('event.seq', 1), stage: member('event.stage', RUNNING_STAGES), schedule, reportedTime: int('event.reportedTime', 0) },
+  schedule: { seq: int('event.seq', 1), stage: member('event.stage', SCHEDULE_STAGES), schedule, reportedTime: int('event.reportedTime', 0) },
   'match-finished': { seq: int('event.seq', 1), winner: int('event.winner', 1), matchSecret: hex64('event.matchSecret'), rule: text('event.rule'), reportedTime: int('event.reportedTime', 0) },
   'match-halted': { seq: int('event.seq', 1), round: int('event.round', 1), reason: member('event.reason', HALT_REASONS), reportedTime: int('event.reportedTime', 0) },
 };
@@ -390,6 +390,7 @@ export function encodeEvent(event: MatchEvent): string {
   const keys = EVENT_KEYS[kind];
   const o = objectOf(raw, 'event', keys);
   for (const k of keys) if (k in o && !own(o, k)) bad(`event.${k} is inherited`);
+  if (kind === 'schedule' && (o.stage === 'lobby' || o.stage === 'expired') && o.schedule !== undefined) bad('event.schedule is not allowed in a lobby stage');
   if (kind === 'victim-revealed' && (o.c2 === null) !== (o.a === null)) bad('event.c2 and event.a are null together or not at all');
   return write(
     o,

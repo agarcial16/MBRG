@@ -23,6 +23,8 @@ export const STATUS_OF_KIND: Readonly<Record<ErrorKind, number>> = Object.freeze
   'too-many-matches': 409,
   'match-halted': 409,
   'match-finished': 409,
+  'match-started': 409,
+  'match-expired': 409,
   'step-mismatch': 409,
   'round-not-applied': 404,
   'stale-cursor': 409,

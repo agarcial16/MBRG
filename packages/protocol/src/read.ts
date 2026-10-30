@@ -5,11 +5,13 @@ import {
   ADVANCE_FIELDS,
   CREATION_FIELDS,
   PREDICTION_KINDS,
+  START_FIELDS,
   STEP_KINDS,
   SUBMISSION_FIELDS,
   type AdvanceBody,
   type CreationBody,
   type PredictionKind,
+  type StartBody,
   type StepKind,
   type SubmissionBody,
 } from './wire';
@@ -60,6 +62,16 @@ export function readAdvance(input: unknown): ReadResult<AdvanceBody> {
   const extra = firstUnknown(o, ADVANCE_FIELDS);
   if (extra !== undefined) return fail('invalid-request', extra);
   return { ok: true, value: { round: o.round, step: o.step, ...(own(o, 'requestId') ? { requestId: o.requestId as string } : {}) } };
+}
+
+/** Start body `{ requestId? }` (an empty object is accepted); the first failing field is named. */
+export function readStart(input: unknown): ReadResult<StartBody> {
+  const o = bodyOf(input);
+  if (o === undefined) return fail('invalid-request', 'body');
+  if (requestIdProblem(o, false)) return fail('invalid-request', 'requestId');
+  const extra = firstUnknown(o, START_FIELDS);
+  if (extra !== undefined) return fail('invalid-request', extra);
+  return { ok: true, value: own(o, 'requestId') ? { requestId: o.requestId as string } : {} };
 }
 
 /**

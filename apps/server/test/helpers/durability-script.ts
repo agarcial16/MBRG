@@ -8,7 +8,7 @@ import { DEV_DIR } from './digests';
 import type { FakeClock } from './fake-clock';
 import { fakeRandom } from './fake-random';
 import { snapshotOf } from './results-timelines';
-import { CLOCK_TIMING, OPERATOR, START_MS, creationBody } from './service-harness';
+import { CLOCK_TIMING, OFF_PUBLIC, OPERATOR, START_MS, creationBody } from './service-harness';
 
 // The scripted match of the durability tests (spec 008 NFR-57, M2b' T6'), shared by the in-process tests and the child
 // process that is killed for real (fixtures/kill-child.ts). A dev-map clock match with predictions and request ids:
@@ -29,7 +29,17 @@ export const settingsFor = (file: string): Settings => ({
   runningMatchLimit: 20,
   databasePath: file,
   forcedPhaseSeconds: 5,
+  publicCreation: OFF_PUBLIC,
 });
+
+/** Settings with public creation on for the dev map and a 1 h lobby expiry (spec 011 M2 T9; additions only). */
+export const lobbySettingsFor = (file: string): Settings => ({ ...settingsFor(file), publicCreation: { ...OFF_PUBLIC, maps: ['dev'], lobbyExpiryHours: 1 } });
+
+/** Like `serviceOn`, with public creation on (the lobby scripts of the durability proofs). */
+export const lobbyServiceOn = (store: Store, clock: FakeClock, file: string): MatchService => {
+  const settings = lobbySettingsFor(file);
+  return createMatchService({ store, clock, maps: createMapCatalog(settings.maps), settings, random: fakeRandom(RANDOM_SEED) });
+};
 
 /** A service on `store` as a (re)started server builds it: the fake clock, the dev map and a fresh fake random source. */
 export const serviceOn = (store: Store, clock: FakeClock, file: string): MatchService => {

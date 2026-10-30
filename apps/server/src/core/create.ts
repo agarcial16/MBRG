@@ -33,6 +33,18 @@ export type CreateResult = { readonly ok: true; readonly view: CoreMatch } | { r
 
 /** FR-237: map errors are reported as they are (a one-faction map is `too-few-factions`); T = factions - 1 >= 1. */
 export function createMatch(input: CreateInput, deps: CreateDeps): CreateResult {
+  return build(input, deps, 'phase-1');
+}
+
+/**
+ * Spec 011 FR-371: the same checks and the same view as `createMatch`, in stage `lobby`: no anchors (the clock starts at the
+ * start decision) and no round yet. `lastStepMs` is the creation instant, as for a match.
+ */
+export function createLobby(input: CreateInput, deps: CreateDeps): CreateResult {
+  return build(input, deps, 'lobby');
+}
+
+function build(input: CreateInput, deps: CreateDeps, stage: 'phase-1' | 'lobby'): CreateResult {
   const valid = validateMap(deps.map);
   if (!valid.ok) return { ok: false, errors: valid.errors };
   const start = getState(valid.value, 0, 0);
@@ -52,14 +64,14 @@ export function createMatch(input: CreateInput, deps: CreateDeps): CreateResult 
       totalRounds,
       timing: input.timing,
       commitment: input.commitment,
-      stage: 'phase-1',
+      stage,
       appliedRounds: 0,
       state,
       stateDigest: deps.sha256(stateText(state)),
       lastSeq: 0,
       createdAt: at,
       lastStepMs: at,
-      anchors: anchorsFrom(at, input.timing),
+      anchors: stage === 'lobby' ? null : anchorsFrom(at, input.timing),
     },
   };
 }
@@ -78,5 +90,16 @@ export function creationEvents(view: CoreMatch, reportedTime: number): { readonl
     ...(view.anchors === null ? {} : { schedule: { c1: view.anchors.c1, c2: view.anchors.c2, a: view.anchors.a } }),
     reportedTime,
   };
+  return { view: { ...view, lastSeq: 1 }, events: [event] };
+}
+
+/**
+ * Spec 011 FR-371: the first event of a lobby is a `schedule` event, sequence number 1, stage `lobby`, with no anchors (the
+ * clock has not started). The returned view has `lastSeq` 1; the shell stores the event with the creation, before replying.
+ */
+export function lobbyEvents(view: CoreMatch, reportedTime: number): { readonly view: CoreMatch; readonly events: readonly MatchEvent[] } {
+  if (view.stage !== 'lobby') throw new RangeError('the lobby event belongs to a lobby');
+  if (view.lastSeq !== 0) throw new RangeError('the lobby event is the first event of a match');
+  const event: MatchEvent = { type: 'schedule', seq: 1, stage: 'lobby', reportedTime };
   return { view: { ...view, lastSeq: 1 }, events: [event] };
 }

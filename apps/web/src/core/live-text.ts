@@ -12,6 +12,8 @@ const STAGE_TEXTS: Readonly<Record<Stage, string>> = {
   locked: STRINGS.liveStageLocked,
   finished: STRINGS.liveStageFinished,
   halted: STRINGS.liveStageHalted,
+  lobby: STRINGS.liveStageLobby,
+  expired: STRINGS.liveStageExpired,
 };
 const HALT_TEXTS: Readonly<Record<HaltReason, string>> = {
   'map-changed': STRINGS.liveHaltMapChanged,

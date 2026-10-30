@@ -90,15 +90,17 @@ const DONE_010: readonly string[] = ['FR-356', 'FR-357', 'FR-358', 'FR-359', 'FR
  * Ids of spec 011 (playable matches; FR-369..FR-392, NFR-72..NFR-76) whose tests are not written yet
  * (pinned literal list of its 29 ids). Each task of spec 011 moves the ids it closes from here to
  * DONE_011 in its own commit; the last task leaves this list empty.
+ * M1 target: 3 done / 26 pending (reached). M2 target (T10): 9 done / 20 pending. M2 T1 starts at 3 / 26 and moves none;
+ * T4 adds FR-391 (4 / 25); T6 adds FR-371, FR-374, FR-375 (7 / 22); T7 adds FR-372, NFR-76 (9 / 20); T2, T3, T5, T8, T9 move none.
  */
 const PENDING_011: readonly string[] = [
-  'FR-369', 'FR-370', 'FR-371', 'FR-372', 'FR-373', 'FR-374', 'FR-375', 'FR-376', 'FR-377', 'FR-378',
+  'FR-369', 'FR-370', 'FR-373', 'FR-376', 'FR-377', 'FR-378',
   'FR-379', 'FR-380', 'FR-381', 'FR-382', 'FR-383', 'FR-384', 'FR-385', 'FR-386',
-  'FR-390', 'FR-391', 'FR-392', 'NFR-72', 'NFR-73', 'NFR-74', 'NFR-75', 'NFR-76',
+  'FR-390', 'FR-392', 'NFR-72', 'NFR-73', 'NFR-74', 'NFR-75',
 ];
 
-/** Ids of spec 011 already closed (M1 T4: FR-387, a forced absorber is not predicted and does not score; M1 T5: FR-388, the shortened phase 2; M1 T6: FR-389, the victim and winner rules unchanged). */
-const DONE_011: readonly string[] = ['FR-387', 'FR-388', 'FR-389'];
+/** Ids of spec 011 already closed (M1 T4: FR-387, a forced absorber is not predicted and does not score; M1 T5: FR-388, the shortened phase 2; M1 T6: FR-389, the victim and winner rules unchanged; M2 T4: FR-391, a database written by 008 opens unchanged; M2 T6: FR-371, a public creation starts in a lobby, FR-374, the host starts it, FR-375, a manual match is stepped by the host; M2 T7: FR-372, a lobby not started in time expires, NFR-76, time rules on the fake clock and scheduler). */
+const DONE_011: readonly string[] = ['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR-371', 'FR-374', 'FR-375', 'FR-372', 'NFR-76'];
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -669,15 +671,56 @@ describe('traceability', () => {
     expect(tracedIds(testSources).has('FR-389')).toBe(true);
   });
 
-  it('NFR-13 NFR-19 spec 011 closing state of the forced-absorber milestone: 3 done and 26 pending, literal lists', () => {
-    expect([...DONE_011]).toStrictEqual(['FR-387', 'FR-388', 'FR-389']);
+  it('NFR-13 NFR-19 spec 011 forced-absorber milestone stays closed: its three ids are done, none is pending', () => {
+    for (const id of ['FR-387', 'FR-388', 'FR-389']) {
+      expect(DONE_011, id).toContain(id);
+      expect(PENDING_011, id).not.toContain(id);
+    }
+  });
+
+  it('NFR-13 NFR-19 spec 011 after the schema version 2 task: the fourth id is done and traced (4 done, 25 pending at this step; later tasks add to it)', () => {
+    expect(DONE_011.slice(0, 4)).toStrictEqual(['FR-387', 'FR-388', 'FR-389', 'FR-391']);
+    expect(PENDING_011).not.toContain('FR-391');
+    expect(DONE_011.length).toBeGreaterThanOrEqual(4);
+    expect(tracedIds(testSources).has('FR-391')).toBe(true);
+  });
+
+  it('NFR-13 NFR-19 spec 011 after the public lobby and start task: the lobby, start and manual ids are done and traced (7 done, 22 pending at this step; later tasks add to it)', () => {
+    expect(DONE_011.slice(0, 7)).toStrictEqual(['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR-371', 'FR-374', 'FR-375']);
+    for (const id of ['FR-371', 'FR-374', 'FR-375']) {
+      expect(PENDING_011, id).not.toContain(id);
+      expect(tracedIds(testSources).has(id), id).toBe(true);
+    }
+  });
+
+  it('NFR-13 NFR-19 spec 011 after the lobby expiry task: the expiry and time-rule ids are done and traced (9 done, 20 pending at this step; later tasks add to it)', () => {
+    expect([...DONE_011]).toStrictEqual(['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR-371', 'FR-374', 'FR-375', 'FR-372', 'NFR-76']);
     expect([...PENDING_011]).toStrictEqual([
-      'FR-369', 'FR-370', 'FR-371', 'FR-372', 'FR-373', 'FR-374', 'FR-375', 'FR-376', 'FR-377', 'FR-378',
+      'FR-369', 'FR-370', 'FR-373', 'FR-376', 'FR-377', 'FR-378',
       'FR-379', 'FR-380', 'FR-381', 'FR-382', 'FR-383', 'FR-384', 'FR-385', 'FR-386',
-      'FR-390', 'FR-391', 'FR-392', 'NFR-72', 'NFR-73', 'NFR-74', 'NFR-75', 'NFR-76',
+      'FR-390', 'FR-392', 'NFR-72', 'NFR-73', 'NFR-74', 'NFR-75',
     ]);
-    expect(DONE_011).toHaveLength(3);
-    expect(PENDING_011).toHaveLength(26);
+    expect(PENDING_011).toHaveLength(20);
+    for (const id of ['FR-372', 'NFR-76']) {
+      expect(PENDING_011, id).not.toContain(id);
+      expect(tracedIds(testSources).has(id), id).toBe(true);
+    }
+  });
+
+  it('NFR-13 NFR-19 M2 closing state of spec 011: 9 ids done and 20 pending, both as literal lists', () => {
+    // Literal lists, independent of DONE_011 and PENDING_011: the forced absorber (M1), the lobby, the start and the expiry (M2).
+    const doneByM2 = ['FR-371', 'FR-372', 'FR-374', 'FR-375', 'FR-387', 'FR-388', 'FR-389', 'FR-391', 'NFR-76'];
+    const pendingAfterM2 = [
+      'FR-369', 'FR-370', 'FR-373', 'FR-376', 'FR-377', 'FR-378', 'FR-379', 'FR-380', 'FR-381', 'FR-382',
+      'FR-383', 'FR-384', 'FR-385', 'FR-386', 'FR-390', 'FR-392', 'NFR-72', 'NFR-73', 'NFR-74', 'NFR-75',
+    ];
+    expect(doneByM2).toHaveLength(9);
+    expect(pendingAfterM2).toHaveLength(20);
+    expect(new Set([...doneByM2, ...pendingAfterM2]).size).toBe(29);
+    expect([...DONE_011].sort()).toStrictEqual(doneByM2);
+    expect([...PENDING_011].sort()).toStrictEqual(pendingAfterM2);
+    for (const id of doneByM2) expect(tracedIds(testSources).has(id), id).toBe(true);
+    for (const id of pendingAfterM2) expect(tracedIds(testSources).has(id), id).toBe(false);
   });
 
   it('NFR-55 no pending id of spec 011 is already traced by a test title', () => {

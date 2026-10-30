@@ -68,6 +68,7 @@ describe('server core purity', () => {
     const files = Object.keys(core);
     expect(files.some((f) => f.endsWith('/core/time.ts'))).toBe(true);
     expect(files.some((f) => f.endsWith('/core/view.ts'))).toBe(true);
+    expect(files.some((f) => f.endsWith('/core/lobby.ts'))).toBe(true);
   });
 
   it('NFR-51 (server core) planted violations are caught and comments and strings are not', () => {
