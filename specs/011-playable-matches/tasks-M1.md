@@ -53,7 +53,7 @@ Plan sections 6, 11, 12 (M1 rows), 15 (Q2). The rules of `tasks.md` apply; sizes
   - Done when: tests green; mutations caught; FR-388 moved (2 / 27) in this commit.
   - Size: M (about 600; golden JSON apart).
 
-- [ ] **T6. Winner, victim and two-faction rules are unchanged.** FR-389
+- [x] **T6. Winner, victim and two-faction rules are unchanged.** FR-389
   - Depends on: T4, T5.
   - Files: `apps/server/test/{core-predictions,service-scoring,service-results}.test.ts` (new cases only).
   - Tests first: a two-faction round (n = 2, d = 1) accepts a victim prediction (worth 2) and refuses an absorber; winner predictions are accepted before and after a forced reveal with the same candidate rule and are scored at the finish with their stored count; a forced round does not change `scoredPhaseCount` (2N, +1 after a reveal), `readResultsRound` or the leaderboard generation; a player with only forced-round absorber attempts (refused) is not on the leaderboard.

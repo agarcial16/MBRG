@@ -13,6 +13,7 @@ import { dumpRows, withRawDb } from './helpers/db-scan';
 import { DEV_DIR } from './helpers/digests';
 import { DISCORD, GOLD, WEB, expectedBoard, expectedRows, openScript, phaseRows, runScript } from './helpers/results-script';
 import type { ExpectedRow, ScriptRig } from './helpers/results-script';
+import { SECRETS } from './helpers/core-timelines';
 import { OPERATOR, serviceHarness, withTempDir, writeMapPackage } from './helpers/service-harness';
 
 // The three results reads through the lifecycle service (spec 008 M4' T3'): the results of a scored phase, a player's results
@@ -514,3 +515,83 @@ describe('the reads of the service', () => {
   });
 });
 
+
+describe('a forced absorber does not change the generation, the phase reads or the leaderboard', () => {
+  const WEB_CLIENT = { credential: 'client-credential-web-0123456789ab', namespace: 'web' };
+  const STEP_KINDS = ['phase-1-close', 'phase-2-close', 'application'] as const;
+
+  /** The secret all-a5 (manual timing): rounds 3 and 4 are forced (one candidate), rounds 1 and 2 are not. */
+  function forcedMatch() {
+    const h = serviceHarness({ secret: SECRETS['all-a5'] });
+    const made = h.service.create({ credential: OPERATOR, body: { mapId: 'dev', timing: 'manual', requestId: 'f-1' } });
+    if (!made.ok) throw new Error('creation failed');
+    const id = made.reply.matchId;
+    const view = () => h.store.getMatch(id)!.match;
+    const living = (): number[] => [...new Set(view().state.owners.map(([, f]) => f))].sort((a, b) => a - b);
+    const submit = (playerId: string, body: Record<string, unknown>) => h.service.submit({ client: WEB_CLIENT, matchId: id, body: { playerId, ...body } });
+    const advance = (round: number, step: (typeof STEP_KINDS)[number]): void => {
+      const out = h.service.advance({ credential: OPERATOR, matchId: id, body: { round, step } });
+      if (!out.ok) throw new Error(`advance refused: ${JSON.stringify(out.error)}`);
+    };
+    const generation = (): number | undefined => {
+      const next = ok(h.service.leaderboard(id, { limit: 1 })).next;
+      if (next === undefined) return undefined;
+      const decoded = decodeCursor('leaderboard', next);
+      return decoded.ok ? decoded.value[0] : undefined;
+    };
+    return { h, id, view, living, submit, advance, generation };
+  }
+
+  it('FR-389 the generation is 2N, plus 1 after a reveal, through the forced rounds 3 and 4 as through rounds 1 and 2', () => {
+    const m = forcedMatch();
+    const seen: (number | undefined)[] = [];
+    for (let k = 1; k <= 4; k++) {
+      // Two victim predictions per round keep the board longer than one row, so that the first page has a cursor.
+      m.living().slice(0, 2).forEach((f, i) => expect(m.submit(`p${i + 1}`, { kind: 'victim', round: k, faction: f }).ok).toBe(true));
+      for (const kind of STEP_KINDS) {
+        m.advance(k, kind);
+        if (kind === 'phase-1-close') expect(m.view().victim!.candidates.length === 1).toBe(k >= 3);
+        seen.push(m.generation());
+      }
+    }
+    expect(seen).toStrictEqual([1, 1, 2, 3, 3, 4, 5, 5, 6, 7, 7, 8]);
+    m.h.close();
+  });
+
+  it('FR-389 the phase reads of a forced round have the shape of a round that is not: phase 1 at the reveal, phase 2 (empty) once applied, round-not-applied before', () => {
+    const m = forcedMatch();
+    const shapes: Record<number, string[]> = {};
+    for (let k = 1; k <= 3; k++) {
+      m.living().slice(0, 2).forEach((f, i) => m.submit(`p${i + 1}`, { kind: 'victim', round: k, faction: f }));
+      const seen: string[] = [];
+      for (const kind of STEP_KINDS) {
+        m.advance(k, kind);
+        for (const phase of [1, 2] as const) {
+          const out = m.h.service.phaseResults(m.id, k, phase, { limit: 10 });
+          seen.push(out.ok ? `${phase}:ok:${out.reply.items.length > 0 ? 'rows' : 'empty'}` : `${phase}:${out.error.kind}`);
+        }
+      }
+      shapes[k] = seen;
+    }
+    // Round 2 is not forced and has absorber rows; round 3 is forced and has none. Everything else is the same.
+    expect(shapes[2]).toStrictEqual(['1:ok:rows', '2:round-not-applied', '1:ok:rows', '2:round-not-applied', '1:ok:rows', '2:ok:empty']);
+    expect(shapes[3]).toStrictEqual(shapes[2]);
+    m.h.close();
+  });
+
+  it('FR-389 a player whose only predictions are refused absorbers of forced rounds is not on the leaderboard', () => {
+    const m = forcedMatch();
+    for (let k = 1; k <= 2; k++) for (const kind of STEP_KINDS) m.advance(k, kind);
+    m.submit('p1', { kind: 'victim', round: 3, faction: m.living()[0] });
+    m.advance(3, 'phase-1-close');
+    const only = m.view().victim!.candidates[0]!;
+    expect(m.view().victim!.candidates).toHaveLength(1);
+    const refusedOut = m.submit('ghost', { kind: 'absorber', round: 3, faction: only });
+    expect(refusedOut.ok).toBe(false);
+    m.advance(3, 'phase-2-close');
+    m.advance(3, 'application');
+    const players = ok(m.h.service.leaderboard(m.id, { limit: 500 })).items.map((x) => x.playerId);
+    expect(players).toStrictEqual(['web:p1']);
+    m.h.close();
+  });
+});

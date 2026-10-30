@@ -471,3 +471,42 @@ describe('an absorber prediction in a forced round (one candidate)', () => {
     for (const c of d.view.victim!.candidates) accepted(submit(d, { kind: 'absorber', round: 1, choice: c }, d.clock.now()));
   });
 });
+
+describe('the victim and winner rules around a forced absorber', () => {
+  const A5 = (): Driver => coreDriver({ timing: 'manual', start: T0, seedOf: (k) => roundSeed(SECRETS['all-a5'], k) });
+
+  it('FR-389 a round with two factions living (d = 1) predicts the victim: both living factions are accepted in phase-1, the absorber is refused in phase-2', () => {
+    const d = coreDriver({ timing: 'manual', start: T0 });
+    steps(d, 9);
+    expect(d.view.stage).toBe('phase-1');
+    const alive = living(d);
+    expect(alive).toHaveLength(2);
+    for (const choice of alive) expect(accepted(submit(d, { kind: 'victim', round: 4, choice }, d.clock.now())).reply).toStrictEqual({ kind: 'victim', round: 4, choice, version: 1 });
+    expect(submit(d, { kind: 'victim', round: 4, choice: 987_654 }, d.clock.now())).toStrictEqual({ ok: false, error: { kind: 'invalid-choice' } });
+    steps(d, 1);
+    expect(d.view.stage).toBe('phase-2');
+    expect(d.view.victim!.candidates).toHaveLength(1);
+    expect(submit(d, { kind: 'victim', round: 4, choice: alive[0]! }, d.clock.now())).toStrictEqual({ ok: false, error: { kind: 'prediction-closed' } });
+    expect(submit(d, { kind: 'absorber', round: 4, choice: d.view.victim!.candidates[0]! }, d.clock.now())).toStrictEqual({ ok: false, error: { kind: 'forced-absorber' } });
+  });
+
+  it('FR-389 a winner prediction follows one candidate rule before and after the reveal of a forced round and of a round that is not', () => {
+    // Round 2 of the secret all-a5 is not forced, round 3 is (d = 1, with a fourth round to come).
+    for (const [round, forced] of [[2, false], [3, true]] as const) {
+      const d = A5();
+      steps(d, 3 * (round - 1));
+      expect(d.view.stage, `round ${round}`).toBe('phase-1');
+      const before = living(d);
+      expect(winnerCandidates(d.view), `round ${round}`).toStrictEqual(before);
+      const early = accepted(submit(d, { kind: 'winner', choice: before[0]! }, d.clock.now()));
+      expect(early.store!.winnerCandidates, `round ${round}`).toBe(before.length);
+      steps(d, 1);
+      expect(d.view.victim!.forced === true, `round ${round}`).toBe(forced);
+      const victim = d.view.victim!.victim;
+      expect(submit(d, { kind: 'winner', choice: victim }, d.clock.now()), `round ${round}`).toStrictEqual({ ok: false, error: { kind: 'invalid-choice' } });
+      const rest = before.filter((f) => f !== victim);
+      expect(winnerCandidates(d.view), `round ${round}`).toStrictEqual(rest);
+      for (const choice of rest) expect(accepted(submit(d, { kind: 'winner', choice }, d.clock.now())).store!.winnerCandidates, `round ${round}`).toBe(rest.length);
+    }
+  });
+});

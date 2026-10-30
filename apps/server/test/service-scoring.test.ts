@@ -447,3 +447,57 @@ describe('a forced absorber is not predicted and does not score', () => {
     expect(outputs[0]).toContain('"forced":true');
   });
 });
+
+describe('the victim and winner rules around a forced absorber', () => {
+  const A5 = SECRETS['all-a5'];
+  const byPlayer = (rows: readonly ResultRow[]): ResultRow[] => [...rows].sort((a, b) => (a.playerId < b.playerId ? -1 : 1));
+
+  it('FR-389 a two-faction round (n = 2, d = 1) scores the victim at 2 and refuses the absorber', () => {
+    const r = rig();
+    for (let k = 1; k <= 3; k++) play(r, k);
+    const alive = livingAtN(r);
+    expect(alive).toHaveLength(2);
+    alive.forEach((f, i) => predict(r, `p${i + 1}`, { kind: 'victim', round: 4, faction: f }));
+    step(r, 4, 'phase-1-close');
+    const victim = view(r).victim!.victim;
+    expect(victim).toBe(GOLD[3]!.victim);
+    expect(view(r).victim!.candidates).toHaveLength(1);
+    const last = resultCalls(r).filter((c) => c.some((x) => x.round === 4));
+    expect(last).toHaveLength(1);
+    expect(last[0]).toStrictEqual(alive.map((f, i) => row(`web:p${i + 1}`, 'victim', 4, f, victim, 2)));
+    expect(submit(r, 'p1', { kind: 'absorber', round: 4, faction: view(r).victim!.candidates[0] })).toStrictEqual({ ok: false, error: errorReply('forced-absorber') });
+    expect(r.h.store.predictionsOf(r.id, 'web:p1').map((x) => x.kind)).toStrictEqual(['victim']);
+    r.h.close();
+  });
+
+  it('FR-389 winner predictions made before and after the reveal of a forced round are scored at the finish with their own stored count', () => {
+    // Probe: the same secret played to the end; the survivor is public data (the one faction left owning territory).
+    const probe = rig({ secret: A5 });
+    for (let k = 1; k <= 4; k++) play(probe, k);
+    const [winner] = livingAtN(probe);
+    probe.h.close();
+    const r = rig({ secret: A5 });
+    play(r, 1);
+    play(r, 2);
+    const alive = livingAtN(r);
+    expect(alive).toHaveLength(3);
+    const loser = alive.find((f) => f !== winner)!;
+    predict(r, 'p1', { kind: 'winner', faction: winner });
+    predict(r, 'p3', { kind: 'winner', faction: loser });
+    step(r, 3, 'phase-1-close');
+    expect(view(r).victim!.forced).toBe(true);
+    predict(r, 'p2', { kind: 'winner', faction: winner });
+    expect(r.h.store.predictionsOf(r.id, 'web:p1')[0]).toMatchObject({ kind: 'winner', winnerCandidates: 3 });
+    expect(r.h.store.predictionsOf(r.id, 'web:p2')[0]).toMatchObject({ kind: 'winner', winnerCandidates: 2 });
+    step(r, 3, 'phase-2-close');
+    step(r, 3, 'application');
+    play(r, 4);
+    const rows = resultCalls(r).flat().filter((x) => x.kind === 'winner');
+    expect(byPlayer(rows)).toStrictEqual([
+      { playerId: 'web:p1', kind: 'winner', round: 0, choice: winner, correct: true, points: 3 },
+      { playerId: 'web:p2', kind: 'winner', round: 0, choice: winner, correct: true, points: 2 },
+      { playerId: 'web:p3', kind: 'winner', round: 0, choice: loser, correct: false, points: 0 },
+    ]);
+    r.h.close();
+  });
+});

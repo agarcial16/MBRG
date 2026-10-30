@@ -60,3 +60,11 @@ T2 and T3: see their entries. T4 (forced absorber), each with its reason:
 - Results: `npm test` 249 files, 4141 passed, 4 skipped; `npm run typecheck` clean; `CI=1 npm test` same; title-rule scan empty (FR-387/FR-388 excluded); protected-path `git diff --exit-code rewrite` clean. About 410 changed lines without golden JSON.
 - Untested: no HTTP/stream proof yet (T8); the real scheduler is not used with a forced round (fake one only); a forced round with F > L1 is covered (no shortening).
 - Next: T6 (winner, victim and two-faction rules unchanged).
+
+## M1 T6 - Winner, victim and two-faction rules are unchanged (FR-389)
+- Tests only (new cases, no source change, no existing test changed): `core-predictions` (2: a two-faction round d = 1 accepts a victim pick for each living faction and refuses the absorber; the winner candidate rule and stored count are the same before/after the reveal of a forced round (all-a5 round 3) and of a non-forced one (round 2)), `service-scoring` (2: round 4 victim worth 2 and absorber refused; winner predictions before/after a forced reveal scored at the finish with their own stored counts 3 and 2, wrong pick 0), `service-results` (3: leaderboard generation 2N, +1 after a reveal, through forced rounds 3-4 of all-a5; phase-read shapes of forced round 3 equal those of round 2; a player with only refused forced absorbers is not on the leaderboard). Ledger: FR-389 moved to DONE_011 (3 / 26) with a small pin test.
+- Red/green: all new cases passed at once, because the behaviour already holds after T4/T5 (no code was needed, as plan section 6 says); the guards are proven by the mutations below.
+- Mutation proofs (full suite, restored byte for byte, git diff of src empty): victim refused when two factions live (39 fail, incl. the new core-predictions case), `scoredPhaseCount` adding 2 instead of 1 after a forced reveal (5 fail, incl. the new service-results generation case).
+- Results: `npm test` 249 files, 4149 passed, 4 skipped; `npm run typecheck` clean; `CI=1 npm test` same; title-rule scan empty; protected-path diff clean. About 177 changed lines.
+- Untested: HTTP level (T8). The service-results leaderboard check uses a ghost player id for the refused absorber (never registered).
+- Next: T7 (verify the re-pin of the 008 goldens).
