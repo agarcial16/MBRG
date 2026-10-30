@@ -42,6 +42,7 @@ export interface HarnessOptions {
   readonly operator?: string;
   /** The forced-absorber phase span F in seconds (default 5, the setting default). */
   readonly forcedPhaseSeconds?: number;
+  readonly maxPlayers?: number;
   /** The match secret of the first creation (the first 32-byte draw); every other draw comes from the fake random source. */
   readonly secret?: Uint8Array;
   /** Build a fake scheduler on the fake clock and give it to the service. */
@@ -71,7 +72,7 @@ export interface Harness {
 /** The service over an in-memory store, the fake clock and a recording fake random source. */
 export function serviceHarness(options: HarnessOptions = {}): Harness {
   const folders = options.folders ?? { dev: DEV_DIR.replace(/[\\/]$/, '') };
-  const settings: Settings = { operatorCredential: options.operator ?? OPERATOR, maps: folders, runningMatchLimit: options.limit ?? 20, databasePath: ':memory:', forcedPhaseSeconds: options.forcedPhaseSeconds ?? 5, publicCreation: { ...OFF_PUBLIC, ...options.publicCreation } };
+  const settings: Settings = { operatorCredential: options.operator ?? OPERATOR, maps: folders, runningMatchLimit: options.limit ?? 20, databasePath: ':memory:', forcedPhaseSeconds: options.forcedPhaseSeconds ?? 5, maxPlayers: options.maxPlayers ?? 200, publicCreation: { ...OFF_PUBLIC, ...options.publicCreation } };
   const clock = fakeClock(options.start ?? START_MS);
   const source = fakeRandom(options.seed ?? 1);
   const draws: Draw[] = [];

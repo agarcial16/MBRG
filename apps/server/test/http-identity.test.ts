@@ -22,6 +22,7 @@ const settings: ServerSettings = {
   runningMatchLimit: 20,
   databasePath: ':memory:',
   forcedPhaseSeconds: 5,
+  maxPlayers: 200,
   publicCreation: OFF_PUBLIC,
   clients: [
     { namespace: 'web', credential: WEB },

@@ -34,6 +34,8 @@ export interface Settings {
   readonly databasePath: string;
   /** The forced-absorber phase span F in seconds (spec 011 FR-388), whole number 1 to 3,600. */
   readonly forcedPhaseSeconds: number;
+  /** The most players one match holds (spec 011 FR-380), whole number 1 to 10,000. */
+  readonly maxPlayers: number;
   /** Public creation bounds, caps and lobby expiry. */
   readonly publicCreation: PublicCreation;
 }
@@ -80,6 +82,13 @@ export const DEFAULT_HOST = '127.0.0.1';
 export const DEFAULT_PORT = 8787;
 export const DEFAULT_FORCED_PHASE_SECONDS = 5;
 const MAX_FORCED_PHASE_SECONDS = 3_600;
+export const DEFAULT_MAX_PLAYERS = 200;
+const MAX_MAX_PLAYERS = 10_000;
+/**
+ * The client namespace kept for the ids of players who join by name (`player:<local id>`, spec 011 plan P7). A client
+ * credential with it is refused at start. A copy of the protocol constant (this module imports nothing; a test pins them equal).
+ */
+export const RESERVED_CLIENT_NAMESPACE = 'player';
 export const DEFAULT_PUBLIC_CREATION: PublicCreation = Object.freeze({
   maps: Object.freeze([] as string[]),
   minInterval: 30,
@@ -125,6 +134,7 @@ export const SETTING_VARIABLES = [
   'MBRG_MAX_OPEN_LOBBIES',
   'MBRG_MAX_PUBLIC_RUNNING',
   'MBRG_LOBBY_EXPIRY_HOURS',
+  'MBRG_MAX_PLAYERS',
 ] as const;
 
 export type SettingsResult = { readonly ok: true; readonly settings: ServerSettings } | { readonly ok: false; readonly problems: readonly string[] };
@@ -189,7 +199,7 @@ const clientsOf = (text: string | undefined, operator: string | undefined): Clie
     const keys = Object.keys(element).sort();
     if (keys.length !== 2 || keys[0] !== 'credential' || keys[1] !== 'namespace') return undefined;
     const { namespace, credential } = element as Record<string, unknown>;
-    if (typeof namespace !== 'string' || !NAMESPACE.test(namespace) || !isCredential(credential)) return undefined;
+    if (typeof namespace !== 'string' || !NAMESPACE.test(namespace) || namespace === RESERVED_CLIENT_NAMESPACE || !isCredential(credential)) return undefined;
     if (namespaces.has(namespace) || credentials.has(credential) || credential === operator) return undefined;
     namespaces.add(namespace);
     credentials.add(credential);
@@ -304,6 +314,8 @@ export function readSettings(env: Readonly<Record<string, string | undefined>>):
   if (maxPublicRunning === undefined) problems.push('MBRG_MAX_PUBLIC_RUNNING');
   const lobbyExpiryHours = boundedOf(env.MBRG_LOBBY_EXPIRY_HOURS, d.lobbyExpiryHours, MAX_LOBBY_EXPIRY_HOURS);
   if (lobbyExpiryHours === undefined) problems.push('MBRG_LOBBY_EXPIRY_HOURS');
+  const maxPlayers = boundedOf(env.MBRG_MAX_PLAYERS, DEFAULT_MAX_PLAYERS, MAX_MAX_PLAYERS);
+  if (maxPlayers === undefined) problems.push('MBRG_MAX_PLAYERS');
   if (
     problems.length > 0 ||
     !isCredential(credential) ||
@@ -327,7 +339,8 @@ export function readSettings(env: Readonly<Record<string, string | undefined>>):
     maxInterval === undefined ||
     maxOpenLobbies === undefined ||
     maxPublicRunning === undefined ||
-    lobbyExpiryHours === undefined
+    lobbyExpiryHours === undefined ||
+    maxPlayers === undefined
   ) {
     return { ok: false, problems };
   }
@@ -339,6 +352,7 @@ export function readSettings(env: Readonly<Record<string, string | undefined>>):
       runningMatchLimit,
       databasePath,
       forcedPhaseSeconds,
+      maxPlayers,
       publicCreation: { maps: publicMaps, minInterval, minPhase1, minPhase2, maxInterval, maxOpenLobbies, maxPublicRunning, lobbyExpiryHours },
       clients,
       allowedOrigins,

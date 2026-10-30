@@ -29,6 +29,7 @@ export const settingsFor = (file: string): Settings => ({
   runningMatchLimit: 20,
   databasePath: file,
   forcedPhaseSeconds: 5,
+  maxPlayers: 200,
   publicCreation: OFF_PUBLIC,
 });
 

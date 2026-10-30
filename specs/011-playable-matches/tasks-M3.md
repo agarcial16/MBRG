@@ -22,7 +22,7 @@ Plan sections 1 (P7 to P11), 3, 4, 5, 12 (M3 row), 15 (Q3, Q5). Branch cut from 
   - Done when: tests green; mutations caught; protocol purity green; FR-384 moved (10 / 19) in this commit.
   - Size: L (about 650).
 
-- [ ] **T3. Settings: the player cap and the reserved namespace.** (words only; blocked on Q3)
+- [x] **T3. Settings: the player cap and the reserved namespace.** (words only; blocked on Q3)
   - Depends on: T1.
   - Files: `apps/server/src/service/settings.ts` (`MBRG_MAX_PLAYERS` default 200, whole 1 to 10,000; a client credential with the reserved namespace is refused: problem `MBRG_CLIENTS`), `apps/server/test/{server-settings,service-settings,service-seam}.test.ts`, `apps/server/test/helpers/{main-child,service-harness,server-harness}.ts`.
   - Tests first: 25 variables in order; default 200; `0`, `10001`, `x` are problems naming the variable only; a client with namespace `player` (or the namespace Q3 chooses) is refused at start; `web`, `discord` and all existing test namespaces still start; FR-260 scans run over 25.
