@@ -62,7 +62,7 @@ Plan sections 6, 11, 12 (M1 rows), 15 (Q2). The rules of `tasks.md` apply; sizes
   - Done when: tests green; mutations caught; FR-389 moved (3 / 26) in this commit.
   - Size: S (about 200).
 
-- [ ] **T7. Verify the re-pin of the 008 goldens.** (no pending id named; NFR-75 listing)
+- [x] **T7. Verify the re-pin of the 008 goldens.** (no pending id named; NFR-75 listing)
   - Depends on: T4, T5, T6.
   - Files: `specs/011-playable-matches/PROGRESS.md`, scratchpad script (not committed), generators/helpers only if the check shows a defect, `apps/server/test/golden-repin.test.ts` (new, small).
   - Tests first: a test pins literal figures that are NOT read from the regenerated JSON: the forced rounds of the three dev secrets (round numbers, d, shortened `c2`/`a` for I = 47, L1 = 13, L2 = 7, F = 5 computed in the test), the absorber point totals of one scripted match, and that every non-forced round's events/anchors in `core-timelines.json` equal the pre-M1 file (SHA-256 of those rows, taken from the `rewrite` version before the re-pin). A scratchpad script compares the `rewrite` and branch versions of the three JSON files and prints the changed paths; only forced rounds, the anchors/instants following them, absorber rows/totals and digests containing them may differ. The output goes in `PROGRESS.md` with the final list of edited earlier tests and the reason of each.
