@@ -86,6 +86,8 @@ export function decideSubmission(view: CoreMatch, input: SubmissionInput): Submi
   const { submission, effective, stored } = input;
   if (view.stage === 'halted') return { ok: false, error: errorReply('match-halted') };
   if (view.stage === 'finished') return { ok: false, error: errorReply('match-finished') };
+  // Spec 011: nothing is predicted before the start, and an expired lobby never starts.
+  if (view.stage === 'lobby' || view.stage === 'expired') return closed();
   if (!isOpen(view, submission, effective)) return closed();
   const kind = submission.kind;
   // An open absorber submission is in phase 2 of the pending round; with one candidate there is nothing to predict (spec 011 FR-387).

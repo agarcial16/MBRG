@@ -45,6 +45,8 @@ const positionOf = (round: number, kind: StepKind): number => (round - 1) * 3 + 
 export function decideAdvance(view: CoreMatch, input: AdvanceInput, deps: StepDeps): AdvanceDecision {
   if (view.stage === 'halted') return { ok: false, error: errorReply('match-halted') };
   if (view.stage === 'finished') return { ok: false, error: errorReply('match-finished') };
+  // Spec 011: a lobby or an expired lobby has no step; the host starts a lobby with `start`, not `advance`.
+  if (view.stage === 'lobby' || view.stage === 'expired') return { ok: false, error: stepMismatch(view.stage, view.appliedRounds) };
   const next = nextStep(view);
   if (next === null) throw new RangeError(`a running match has a next step; stage ${view.stage}`);
   const mismatch: AdvanceDecision = { ok: false, error: stepMismatch(view.stage, view.appliedRounds) };
