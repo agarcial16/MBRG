@@ -360,6 +360,7 @@ const EVENT_WRITERS: Record<MatchEvent['type'], Record<string, (v: unknown) => s
     revealedAt: int('event.revealedAt', 0),
     c2: nullOrInt('event.c2', 0),
     a: nullOrInt('event.a', 0),
+    forced: (v) => (v === true ? 'true' : bad('event.forced is present but not true')),
     reportedTime: int('event.reportedTime', 0),
   },
   'round-applied': {
@@ -395,7 +396,7 @@ export function encodeEvent(event: MatchEvent): string {
     'event',
     keys,
     { type: member('event.type', [kind]), ...EVENT_WRITERS[kind] },
-    kind === 'schedule' ? ['schedule'] : [],
+    kind === 'schedule' ? ['schedule'] : kind === 'victim-revealed' ? ['forced'] : [],
     kind === 'victim-revealed' ? ['c2', 'a'] : [],
   );
 }

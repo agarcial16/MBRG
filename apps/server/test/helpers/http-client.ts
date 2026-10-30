@@ -42,6 +42,10 @@ export function request(port: number, req: ClientRequest): Promise<ClientReply> 
   });
 }
 
+/** A JSON POST with an optional bearer token. */
+export const postJson = (port: number, path: string, body: unknown, token?: string): Promise<ClientReply> =>
+  request(port, { method: 'POST', path, body, headers: token === undefined ? {} : { authorization: `Bearer ${token}` } });
+
 /** What a raw exchange saw: the bytes the server wrote and how the connection ended. */
 export interface RawReply {
   readonly raw: string;

@@ -13,7 +13,7 @@ import type { FactionId, MapData, Result } from '@mbrg/shared';
 import { absorptionCandidatesOf, livingFactions, playRoundWithSeed } from '@mbrg/sim';
 import type { MatchError, MatchState, RoundRecord } from '@mbrg/sim';
 import type { ScoredPhase } from './scoring';
-import { anchorsAfterStep, dueStep, lastStepAfter } from './time';
+import { anchorsAfterStep, dueStep, forcedAnchors, lastStepAfter } from './time';
 import type { CoreMatch, StepCause, StepRow } from './view';
 
 export interface StepDeps {
@@ -23,6 +23,8 @@ export interface StepDeps {
   readonly seedOf: (k: number) => number;
   /** SHA-256 of an ASCII text, as 64 lowercase hexadecimal characters (the state digest). */
   readonly sha256: (text: string) => string;
+  /** The forced-absorber phase span F in seconds (a setting, whole number 1 to 3,600); read by the forced phase 2 (spec 011). */
+  readonly forcedPhaseSeconds: number;
 }
 
 export interface StepInput {
@@ -92,6 +94,9 @@ function victimOf(map: MapData, state: MatchState, seed: number): { ok: true; vi
   return played.ok ? { ok: true, victim: played.value.record.eliminated } : { ok: false, errors: played.errors };
 }
 
+/** Whether an absorber is forced: the victim has exactly one absorption candidate (spec 011 FR-387). Public data only. */
+export const isForced = (candidates: readonly FactionId[]): boolean => candidates.length === 1;
+
 const must = <T>(r: Result<T, MatchError>, what: string): T => {
   if (!r.ok) throw new RangeError(`inconsistent stored data: ${what}`);
   return r.value;
@@ -106,17 +111,23 @@ function closePhase1(view: CoreMatch, input: StepInput, instant: number, map: Ma
     if (reason === undefined) throw new RangeError('inconsistent stored data: the round cannot be played');
     return haltMatch(view, reason, input.reportedTime);
   }
-  const anchors = anchorsAfterStep(view.anchors, 'phase-1-close', instant, input.cause, view.timing);
+  const candidates = must(absorptionCandidatesOf(map, state, elected.victim), 'candidates');
+  // A forced absorber leaves nothing to predict, so its phase 2 is shortened to min(L1, F) and A moves earlier (spec 011 FR-388).
+  const anchors = isForced(candidates)
+    ? forcedAnchors(view.anchors, view.timing, deps.forcedPhaseSeconds, instant, input.cause)
+    : anchorsAfterStep(view.anchors, 'phase-1-close', instant, input.cause, view.timing);
   let seq = view.lastSeq;
   const closed: MatchEvent = { type: 'phase-closed', seq: ++seq, round: k, phase: 1, at: instant };
   const victim: PublicVictim = {
     round: k,
     victim: elected.victim,
-    candidates: must(absorptionCandidatesOf(map, state, elected.victim), 'candidates'),
+    candidates,
     living: must(livingFactions(map, state), 'living factions'),
     revealedAt: instant,
     c2: anchors === null ? null : anchors.c2,
     a: anchors === null ? null : anchors.a,
+    // A single candidate leaves nothing to predict or score (spec 011 FR-387): the mark exists only when true.
+    ...(isForced(candidates) ? { forced: true as const } : {}),
     seq: seq + 1,
   };
   seq += 1;
@@ -181,8 +192,9 @@ function apply(view: CoreMatch, input: StepInput, instant: number, map: MapData,
     ],
     applied: { record, state, stateDigest },
     // d, the absorption candidates of the victim in the state at k - 1 (FR-272); the winner is scored when the match finishes (FR-273).
+    // A forced absorber (d = 1) is not predicted and never scores: no absorber phase (spec 011 FR-387).
     scored: [
-      { kind: 'absorber', round: k, answer: record.absorber, worth: view.victim.candidates.length },
+      ...(isForced(view.victim.candidates) ? [] : [{ kind: 'absorber' as const, round: k, answer: record.absorber, worth: view.victim.candidates.length }]),
       ...(next.winner === undefined ? [] : [{ kind: 'winner' as const, answer: next.winner }]),
     ],
   };

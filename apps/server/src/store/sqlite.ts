@@ -286,7 +286,7 @@ export const openStore = (path: string): Store => {
       const e = eventOf(row);
       if (e.type !== 'victim-revealed' || e.round !== round) continue;
       if (e.victim !== victim || e.revealedAt !== revealMs) throw corrupt('the victim columns differ from the victim-revealed event');
-      return { round: e.round, victim: e.victim, candidates: e.candidates, living: e.living, revealedAt: e.revealedAt, c2: e.c2, a: e.a, seq: e.seq };
+      return { round: e.round, victim: e.victim, candidates: e.candidates, living: e.living, revealedAt: e.revealedAt, c2: e.c2, a: e.a, ...(e.forced === true ? { forced: true as const } : {}), seq: e.seq };
     }
     throw corrupt(`no victim-revealed event for round ${round}`);
   };

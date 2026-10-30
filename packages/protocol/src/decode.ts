@@ -159,6 +159,11 @@ function anchors(m: Members, manual: boolean | undefined): { c2: number | null; 
   return { c2, a };
 }
 
+/** The forced mark exists only when true (a single candidate): absent gives `undefined`, `false` or anything else is refused. */
+function forcedMark(m: Members): true | undefined {
+  return m.has('forced') ? m.get('forced', (v, f) => (v === true ? true : refuse(f))) : undefined;
+}
+
 /** The victim is among the living and every candidate is too (the neighbours it can be absorbed by are alive). */
 function withinLiving(m: Members, victim: number, candidates: readonly number[], living: readonly number[]): void {
   if (!living.includes(victim)) refuse(m.path('victim'));
@@ -178,7 +183,9 @@ const victimOf =
       withinLiving(m, victim, candidates, living);
       const revealedAt = m.get('revealedAt', int(0));
       const { c2, a } = anchors(m, manual);
-      return { round, victim, candidates, living, revealedAt, c2, a, seq: m.get('seq', int(1)) };
+      const forced = forcedMark(m);
+      const seq = m.get('seq', int(1));
+      return forced ? { round, victim, candidates, living, revealedAt, c2, a, forced, seq } : { round, victim, candidates, living, revealedAt, c2, a, seq };
     });
 
 const RUNNING = ['phase-1', 'phase-2', 'locked'] as const;
@@ -351,7 +358,11 @@ const knownEvent = (type: MatchEvent['type'], input: unknown): MatchEvent =>
         withinLiving(m, victim, candidates, living);
         const revealedAt = m.get('revealedAt', int(0));
         const { c2, a } = anchors(m, undefined);
-        return { type, seq, round, victim, candidates, living, revealedAt, c2, a, reportedTime: m.get('reportedTime', int(0)) };
+        const forced = forcedMark(m);
+        const reportedTime = m.get('reportedTime', int(0));
+        return forced
+          ? { type, seq, round, victim, candidates, living, revealedAt, c2, a, forced, reportedTime }
+          : { type, seq, round, victim, candidates, living, revealedAt, c2, a, reportedTime };
       }
       case 'round-applied': {
         const round = m.get('round', int(1));

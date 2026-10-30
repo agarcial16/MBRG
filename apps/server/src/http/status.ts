@@ -27,6 +27,7 @@ export const STATUS_OF_KIND: Readonly<Record<ErrorKind, number>> = Object.freeze
   'round-not-applied': 404,
   'stale-cursor': 409,
   'prediction-closed': 409,
+  'forced-absorber': 409,
   'invalid-choice': 422,
   unavailable: 503,
 });

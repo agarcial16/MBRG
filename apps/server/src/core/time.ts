@@ -47,6 +47,18 @@ export function anchorsAfterStep(current: Anchors | null, step: StepKind, instan
   return { ...current, a: t + toMs(timing.l2) };
 }
 
+/**
+ * The anchors after the phase-1 close of a round whose absorber is forced (spec 011 FR-388): the 008 anchors of the same close
+ * (`anchorsAfterStep`), with phase 2 shortened from L1 to min(L1, F) seconds. The application A moves earlier by the time saved;
+ * `locked` keeps its L2 and the next round is anchored at the application as in 008. `manual` timing has no anchors: null.
+ */
+export function forcedAnchors(current: Anchors | null, timing: Timing, forcedSeconds: number, instant: number, cause: StepCause): Anchors | null {
+  const normal = anchorsAfterStep(current, 'phase-1-close', instant, cause, timing);
+  if (normal === null || timing === 'manual') return null;
+  const saved = toMs(timing.l1 - Math.min(timing.l1, forcedSeconds));
+  return { ...normal, c2: normal.c2 - saved, a: normal.a - saved };
+}
+
 /** Effective instant of a match: max(clock reading, last step instant) (FR-249); a backward clock never lowers it. */
 export function effectiveInstant(reading: number, lastStepMs: number): number {
   return Math.max(wholeMs(reading), lastStepMs);

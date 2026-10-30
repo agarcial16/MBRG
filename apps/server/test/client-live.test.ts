@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { draftFor, draftKey, factionChoices, playerResultsPath, submissionBody } from '../../web/src/core/client-form';
 import { createPredictionNet } from '../../web/src/ui/live-net';
 import { advanceSteps, get, makeMatch, publicOf, startReads } from './helpers/http-reads-kit';
+import { SECRETS } from './helpers/core-timelines';
 import { CLIENT_CREDENTIAL, closeAllServers } from './helpers/server-harness';
 import type { ServerHarness } from './helpers/server-harness';
 import { startViewer, until } from './helpers/viewer-kit';
@@ -17,7 +18,7 @@ const clientNet = (h: ServerHarness, credential: string | undefined = CLIENT_CRE
 
 describe('the web test client against the real server', () => {
   it('FR-310 (real server) the three kinds are accepted, a replay with the same request id gives the same reply, then the own predictions, the results and the leaderboard', async () => {
-    const h = await startReads({ service: { scheduler: true } });
+    const h = await startReads({ service: { scheduler: true, secret: SECRETS['ascending-00-1f'] } }); // round 1 has three candidates: an absorber is predictable
     const { id } = makeMatch(h, 'c-1', { timing: 'manual' });
     const viewer = startViewer({ port: h.port, matchId: id });
     await until(() => viewer.scene.draws.length === 1, 'the first drawing');

@@ -12,6 +12,8 @@ export interface Settings {
   readonly runningMatchLimit: number;
   /** The database file path, or ':memory:'. */
   readonly databasePath: string;
+  /** The forced-absorber phase span F in seconds (spec 011 FR-388), whole number 1 to 3,600. */
+  readonly forcedPhaseSeconds: number;
 }
 
 /** A client credential and the namespace of its player ids (FR-283). */
@@ -54,6 +56,8 @@ export const DEFAULT_RUNNING_MATCH_LIMIT = 20;
 export const DEFAULT_DATABASE_PATH = 'mbrg.sqlite';
 export const DEFAULT_HOST = '127.0.0.1';
 export const DEFAULT_PORT = 8787;
+export const DEFAULT_FORCED_PHASE_SECONDS = 5;
+const MAX_FORCED_PHASE_SECONDS = 3_600;
 export const DEFAULT_LIMITS: Limits = Object.freeze({ commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120, streams: 50, anonymousStreams: 5 });
 
 /** Connection hardening of the listener (plan PD21, C4): fixed values, not settings. */
@@ -78,6 +82,7 @@ export const SETTING_VARIABLES = [
   'MBRG_LIMIT_ANONYMOUS',
   'MBRG_LIMIT_STREAMS',
   'MBRG_LIMIT_ANONYMOUS_STREAMS',
+  'MBRG_FORCED_PHASE_SECONDS',
 ] as const;
 
 export type SettingsResult = { readonly ok: true; readonly settings: ServerSettings } | { readonly ok: false; readonly problems: readonly string[] };
@@ -178,6 +183,11 @@ const limitOf = (text: string | undefined, fallback: number): number | undefined
   return LIMIT.test(text) && Number(text) <= MAX_LIMIT ? Number(text) : undefined;
 };
 
+const forcedSecondsOf = (text: string | undefined): number | undefined => {
+  if (text === undefined) return DEFAULT_FORCED_PHASE_SECONDS;
+  return LIMIT.test(text) && Number(text) <= MAX_FORCED_PHASE_SECONDS ? Number(text) : undefined;
+};
+
 /** Reads the settings from an environment object. Variables that are not in `SETTING_VARIABLES` are ignored. */
 export function readSettings(env: Readonly<Record<string, string | undefined>>): SettingsResult {
   const problems: string[] = [];
@@ -214,6 +224,8 @@ export function readSettings(env: Readonly<Record<string, string | undefined>>):
   if (streams === undefined) problems.push('MBRG_LIMIT_STREAMS');
   const anonymousStreams = limitOf(env.MBRG_LIMIT_ANONYMOUS_STREAMS, DEFAULT_LIMITS.anonymousStreams);
   if (anonymousStreams === undefined) problems.push('MBRG_LIMIT_ANONYMOUS_STREAMS');
+  const forcedPhaseSeconds = forcedSecondsOf(env.MBRG_FORCED_PHASE_SECONDS);
+  if (forcedPhaseSeconds === undefined) problems.push('MBRG_FORCED_PHASE_SECONDS');
   if (
     problems.length > 0 ||
     !isCredential(credential) ||
@@ -228,7 +240,8 @@ export function readSettings(env: Readonly<Record<string, string | undefined>>):
     advances === undefined ||
     anonymous === undefined ||
     streams === undefined ||
-    anonymousStreams === undefined
+    anonymousStreams === undefined ||
+    forcedPhaseSeconds === undefined
   ) {
     return { ok: false, problems };
   }
@@ -239,6 +252,7 @@ export function readSettings(env: Readonly<Record<string, string | undefined>>):
       maps,
       runningMatchLimit,
       databasePath,
+      forcedPhaseSeconds,
       clients,
       allowedOrigins,
       host,

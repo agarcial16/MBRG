@@ -76,7 +76,7 @@ describe('the test-only round-seed source', () => {
   it('FR-260 a source that is not a function is refused at construction, never ignored', () => {
     const store = openStore(':memory:');
     try {
-      const options = { store, clock: fakeClock(0), maps: createMapCatalog({}), settings: { operatorCredential: OPERATOR, maps: {}, runningMatchLimit: 20, databasePath: ':memory:' } };
+      const options = { store, clock: fakeClock(0), maps: createMapCatalog({}), settings: { operatorCredential: OPERATOR, maps: {}, runningMatchLimit: 20, databasePath: ':memory:', forcedPhaseSeconds: 5 } };
       expect(() => createMatchService({ ...options, testSeedSource: 'fixed' as unknown as TestSeedSource })).toThrow(TypeError);
       expect(() => createMatchService({ ...options, testSeedSource: (() => (k: number) => k) as TestSeedSource })).not.toThrow();
     } finally {
@@ -113,15 +113,26 @@ describe('the production entry point', () => {
     expect(call).not.toBeNull();
     // The service gets its store, clock, maps, settings, the scheduler and the failure report (T4'): nothing seed-like.
     expect(call![1]!.split(',').map((part) => part.trim().split(':')[0]!.trim())).toStrictEqual(['store', 'clock', 'maps', 'settings', 'scheduler', 'onFailure']);
-    // The settings module reads the fifteen listed variables and never anything seed-like.
+    // The settings module reads the sixteen listed variables and never anything seed-like.
     expect(SEED_WORDS.test(settings)).toBe(false);
     expect([...new Set([...settings.matchAll(/env\.([A-Z_]+)/g)].map((m) => m[1]))].sort()).toStrictEqual(
       [
         'MBRG_DATABASE', 'MBRG_MAPS', 'MBRG_MAX_RUNNING_MATCHES', 'MBRG_OPERATOR_CREDENTIAL', 'MBRG_CLIENTS', 'MBRG_ALLOWED_ORIGINS',
         'MBRG_HOST', 'MBRG_PORT', 'MBRG_LIMIT_COMMANDS', 'MBRG_LIMIT_READS', 'MBRG_LIMIT_SUBMISSIONS', 'MBRG_LIMIT_ADVANCES', 'MBRG_LIMIT_ANONYMOUS',
-        'MBRG_LIMIT_STREAMS', 'MBRG_LIMIT_ANONYMOUS_STREAMS',
+        'MBRG_LIMIT_STREAMS', 'MBRG_LIMIT_ANONYMOUS_STREAMS', 'MBRG_FORCED_PHASE_SECONDS',
       ].sort(),
     );
+  });
+
+  it('forced phase setting: StepDeps has exactly map, seedOf, sha256 and forcedPhaseSeconds, and the service passes the setting', () => {
+    const steps = stripComments(Object.entries(sources).find(([f]) => short(f) === 'core/steps.ts')![1]);
+    const body = /export interface StepDeps \{([\s\S]*?)\n\}/.exec(steps);
+    expect(body).not.toBeNull();
+    expect([...body![1]!.matchAll(/^\s+readonly (\w+)\s*:/gm)].map((m) => m[1]).sort()).toStrictEqual(['forcedPhaseSeconds', 'map', 'seedOf', 'sha256']);
+    const matches = stripComments(Object.entries(sources).find(([f]) => short(f) === 'service/matches.ts')![1]);
+    const deps = /const depsOf = [\s\S]*?\n  \};\n/.exec(matches);
+    expect(deps).not.toBeNull();
+    expect(deps![0]).toMatch(/forcedPhaseSeconds:\s*settings\.forcedPhaseSeconds/);
   });
 
   it('NFR-47 (f) a started production entry point is unchanged by environment variables named like a seed source', async () => {

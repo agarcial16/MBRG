@@ -8,6 +8,7 @@ import { credentialDigest } from '../src/service/ids';
 import { createMapCatalog } from '../src/service/maps';
 import { createMatchService } from '../src/service/matches';
 import type { MatchService } from '../src/service/matches';
+import { openStore } from '../src/store/sqlite';
 import { SECRETS } from './helpers/core-timelines';
 import { DEV_DIR } from './helpers/digests';
 import { fakeScheduler } from './helpers/fake-scheduler';
@@ -239,4 +240,124 @@ describe('clock jumps and the wake-ups', () => {
     expect(s.pending()).toStrictEqual([A]);
     h.close();
   });
+});
+
+describe('FR-388 the wake-up after a forced reveal', () => {
+  // Non-round constants: I = 47, L1 = 13, L2 = 7; the secret all-a5 forces round 3 (rounds 1 and 2 have two candidates).
+  const T47 = { i: 47, l1: 13, l2: 7 } as const;
+  const A5 = SECRETS['all-a5'];
+  const nextAt = (h: Harness, id: string): number => {
+    const v = view(h, id);
+    return v.anchors![v.stage === 'phase-1' ? 'c1' : v.stage === 'phase-2' ? 'c2' : 'a'];
+  };
+  /** Runs the wake-ups of whole rounds up to the reveal of round 3; returns the instant C1 of that round. */
+  const toForcedReveal = (h: Harness, id: string): number => {
+    const s = h.scheduler!;
+    while (view(h, id).appliedRounds < 2) s.runTo(nextAt(h, id));
+    const c1 = nextAt(h, id);
+    s.runTo(c1);
+    return c1;
+  };
+
+  it('FR-388 the wake-up is re-armed from the stored view at the shortened C2, then at the shortened A, and the next round at the 008 anchors of that application', () => {
+    const { h, id } = created({ scheduler: true, secret: A5, timing: T47 });
+    const s = h.scheduler!;
+    const c1 = toForcedReveal(h, id);
+    expect(view(h, id).victim!.forced).toBe(true);
+    expect(view(h, id).anchors).toMatchObject({ c1, c2: c1 + 5 * S, a: c1 + 12 * S });
+    expect(s.pending()).toStrictEqual([c1 + 5 * S]); // not the 008 C2 = c1 + 13 s
+    s.runTo(c1 + 5 * S - 1);
+    expect(rows(h, id).at(-1)).toStrictEqual([3, 'phase-1-close', c1, 'clock']);
+    s.runTo(c1 + 5 * S);
+    expect(rows(h, id).at(-1)).toStrictEqual([3, 'phase-2-close', c1 + 5 * S, 'clock']);
+    expect(s.pending()).toStrictEqual([c1 + 12 * S]);
+    s.runTo(c1 + 12 * S);
+    expect(rows(h, id).at(-1)).toStrictEqual([3, 'application', c1 + 12 * S, 'clock']);
+    const next = c1 + 12 * S;
+    expect(view(h, id).anchors).toStrictEqual({ t0: next, c1: next + 27 * S, c2: next + 40 * S, a: next + 47 * S });
+    expect(s.pending()).toStrictEqual([next + 27 * S]);
+    h.close();
+  });
+
+  it('FR-388 the setting reaches the wake-up: F = 9 arms the shortened C2 at 9 s, F = 13 and F = 20 arm the 008 C2', () => {
+    for (const [f, span, total] of [[9, 9, 16], [13, 13, 20], [20, 13, 20]] as const) {
+      const { h, id } = created({ scheduler: true, secret: A5, timing: T47, forcedPhaseSeconds: f });
+      const c1 = toForcedReveal(h, id);
+      expect(view(h, id).victim!.forced, `F = ${f}`).toBe(true);
+      expect(h.scheduler!.pending(), `F = ${f}`).toStrictEqual([c1 + span * S]);
+      expect(view(h, id).anchors!.a, `F = ${f}`).toBe(c1 + total * S);
+      h.close();
+    }
+  });
+
+  it('FR-388 a round that is not forced keeps the 008 wake-up at C1 + L1 whatever F is', () => {
+    const { h, id } = created({ scheduler: true, secret: A5, timing: T47, forcedPhaseSeconds: 1 });
+    h.scheduler!.runTo(nextAt(h, id)); // round 1: two candidates
+    const v = view(h, id);
+    expect(v.victim!.forced).toBeUndefined();
+    expect(h.scheduler!.pending()).toStrictEqual([v.anchors!.c1 + 13 * S]);
+    h.close();
+  });
+
+  it('FR-388 the shortened anchors are published with the reveal and the schedule event, and are the ones the public data show', () => {
+    const { h, id } = created({ scheduler: true, secret: A5, timing: T47 });
+    const c1 = toForcedReveal(h, id);
+    const pub = h.service.publicMatch(id)!;
+    expect(pub.schedule).toStrictEqual({ c1, c2: c1 + 5 * S, a: c1 + 12 * S });
+    expect(pub.victim).toMatchObject({ forced: true, c2: c1 + 5 * S, a: c1 + 12 * S });
+    const events = h.store.eventsAfter(id, 0);
+    expect(events.find((e) => e.type === 'victim-revealed' && e.round === 3)).toMatchObject({ c2: c1 + 5 * S, a: c1 + 12 * S });
+    expect(events.at(-1)).toMatchObject({ type: 'schedule', stage: 'phase-2', schedule: { c1, c2: c1 + 5 * S, a: c1 + 12 * S } });
+    h.close();
+  });
+
+  it('FR-388 a manual advance of a forced phase-1 close shortens phase 2 from the instant of the advance and arms the wake-up there', () => {
+    const { h, id } = created({ scheduler: true, secret: A5, timing: T47 });
+    const s = h.scheduler!;
+    while (view(h, id).appliedRounds < 2) s.runTo(nextAt(h, id));
+    const at = view(h, id).anchors!.c1 - 9 * S;
+    h.clock.set(at);
+    const out = h.service.advance({ credential: OPERATOR, matchId: id, body: { round: 3, step: 'phase-1-close' } });
+    expect(out.ok).toBe(true);
+    expect(rows(h, id).at(-1)).toStrictEqual([3, 'phase-1-close', at, 'manual']);
+    expect(view(h, id).anchors).toMatchObject({ c2: at + 5 * S, a: at + 12 * S });
+    expect(s.pending()).toStrictEqual([at + 5 * S]);
+    h.close();
+  });
+
+  it('FR-388 a restart (new store and service on the file) recovers the shortened anchors, re-arms the wake-up there, and a start past it performs a late phase-2 close', () =>
+    withTempDir((dir) => {
+      const file = join(dir, 'matches.sqlite');
+      const first = serviceHarness({ secret: A5, scheduler: true, store: openStore(file) });
+      const out = first.service.create({ credential: OPERATOR, body: creationBody('c-1', { timing: { ...T47 } }) });
+      if (!out.ok) throw new Error('creation failed');
+      const id = out.reply.matchId;
+      const c1 = toForcedReveal(first, id);
+      const stored = view(first, id).anchors;
+      expect(stored).toMatchObject({ c2: c1 + 5 * S, a: c1 + 12 * S });
+      first.service.close();
+
+      const restartAt = (instant: number) => {
+        const store = openStore(file);
+        const scheduler = fakeScheduler(first.clock);
+        first.clock.set(instant);
+        const service = createMatchService({ store, clock: first.clock, maps: createMapCatalog(first.settings.maps), settings: first.settings, scheduler });
+        const report = service.start();
+        return { store, scheduler, service, report };
+      };
+      // Restart inside the shortened phase 2: the stored anchors are the shortened ones and the wake-up is armed at the new C2.
+      const second = restartAt(c1 + 2 * S);
+      expect(second.store.getMatch(id)!.match.anchors).toStrictEqual(stored);
+      expect(second.report.performed).toStrictEqual([]);
+      expect(second.scheduler.pending()[0]).toBe(c1 + 5 * S);
+      second.service.close();
+      // Restart past the shortened C2 (but before the 008 C2 = C1 + 13 s): the phase-2 close is overdue and runs late at the start instant.
+      const t = c1 + 8 * S;
+      const third = restartAt(t);
+      expect(third.report.performed.map((p) => [p.matchId, p.steps.map((s) => [s.kind, s.instant, s.cause])])).toStrictEqual([[id, [['phase-2-close', t, 'late']]]]);
+      expect(third.store.getMatch(id)!.match.stage).toBe('locked');
+      // A late phase-2 close keeps the 008 rule: A = the instant + L2.
+      expect(third.store.getMatch(id)!.match.anchors).toMatchObject({ a: t + 7 * S });
+      third.service.close();
+    }));
 });

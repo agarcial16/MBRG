@@ -7,7 +7,7 @@ import type { Harness, HarnessOptions } from './service-harness';
 // A scripted dev-map match for the results reads (spec 008 M4'): manual timing, the secret 'ascending-00-1f', seven players in two
 // namespaces and 12 steps (4 rounds x phase-1 close, phase-2 close, application). The expected rows are computed HERE, from
 // the public answers (golden/dev-secrets.json: victim and absorber of each round), the factions the script itself sees alive
-// and its own arithmetic (worth n = 6 - k, worth d = the candidates the reveal shows, the winner's stored count): never from
+// and its own arithmetic (worth n = 6 - k, worth d = the candidates the reveal shows (no absorber phase when d = 1), the winner's stored count): never from
 // src/core/scoring.ts or the results table.
 
 export const WEB = { credential: 'client-credential-web-0123456789ab', namespace: 'web' };
@@ -41,7 +41,7 @@ const VICTIMS: Record<number, Planned[]> = {
   3: [p(WEB, 'p1', 'right'), p(WEB, 'p5', 'wrong')],
   4: [p(WEB, 'p5', 'right')],
 };
-/** Absorber predictions before the phase-2 close of each round (a wrong pick is skipped when the victim has one candidate). */
+/** Absorber predictions before the phase-2 close of each round (a wrong pick is skipped when the victim has one candidate; with one candidate the absorber is forced and the submission is refused, not scored). */
 const ABSORBERS: Record<number, Planned[]> = {
   1: [p(WEB, 'p1', 'right'), p(WEB, 'p2', 'wrong'), p(DISCORD, 'p1', 'right')],
   2: [p(WEB, 'p1', 'right'), p(DISCORD, 'p1', 'right'), p(WEB, 'p5', 'right')],
@@ -91,6 +91,12 @@ function submit(r: ScriptRig, plan: Planned, body: Record<string, unknown>): voi
   if (!out.ok) throw new Error(`submission refused: ${JSON.stringify(out.error)}`);
 }
 
+/** A submission the server must refuse as a forced absorber (one candidate): nothing is stored, so the script records nothing. */
+function submitForced(r: ScriptRig, plan: Planned, body: Record<string, unknown>): void {
+  const out = r.h.service.submit({ client: plan.client, matchId: r.id, body: { playerId: plan.local, ...body } });
+  if (out.ok || out.error.kind !== 'forced-absorber') throw new Error(`expected forced-absorber: ${JSON.stringify(out)}`);
+}
+
 function submitWinner(r: ScriptRig, client: typeof WEB, local: string, choice: number, worth: number): void {
   submit(r, p(client, local, 'right'), { kind: 'winner', faction: choice });
   r.submitted.push({ player: `${client.namespace}:${local}`, kind: 'winner', round: 0, choice, answer: WINNER, worth });
@@ -123,6 +129,10 @@ export function stepScript(r: ScriptRig): void {
     for (const plan of ABSORBERS[k]!) {
       const choice = plan.pick === 'right' ? absorber : r.candidates[k]!.find((c) => c !== absorber);
       if (choice === undefined) continue;
+      if (r.candidates[k]!.length === 1) {
+        submitForced(r, plan, { kind: 'absorber', round: k, faction: choice });
+        continue;
+      }
       submit(r, plan, { kind: 'absorber', round: k, faction: choice });
       r.submitted.push({ player: plan.player, kind: 'absorber', round: k, choice, answer: absorber, worth: r.candidates[k]!.length });
     }

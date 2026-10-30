@@ -7,6 +7,7 @@ import {
   anchorsFrom,
   dueStep,
   effectiveInstant,
+  forcedAnchors,
   isOnTime,
   lastStepAfter,
   reportedTime,
@@ -68,6 +69,69 @@ describe('schedule anchors', () => {
   it('FR-239 with L2 = 0 a phase-2 close at t makes the application due at t', () => {
     const a = anchorsFrom(T0, SHORT)!;
     expect(anchorsAfterStep(a, 'phase-2-close', T0 + 2500, 'manual', SHORT)!.a).toBe(T0 + 2500);
+  });
+});
+
+describe('the shortened phase 2 after a forced reveal', () => {
+  // Non-round constants: I = 47, L1 = 13, L2 = 7 (C1 = +27 s, C2 = +40 s, A = +47 s).
+  const T: Timing = { i: 47, l1: 13, l2: 7 };
+  const base = anchorsFrom(T0, T)!;
+
+  it('FR-388 phase 2 lasts min(L1, F) and A moves earlier by the time saved: F = 5 and F = 9 below L1 = 13 (on-time clock step)', () => {
+    expect(forcedAnchors(base, T, 5, base.c1, 'clock')).toStrictEqual({ t0: T0, c1: base.c1, c2: base.c1 + 5000, a: base.c1 + 5000 + 7000 });
+    expect(forcedAnchors(base, T, 9, base.c1, 'clock')).toStrictEqual({ t0: T0, c1: base.c1, c2: base.c1 + 9000, a: base.c1 + 9000 + 7000 });
+    // A = the 008 A minus the time saved (13 - F); locked keeps L2.
+    expect(forcedAnchors(base, T, 5, base.c1, 'clock')!.a).toBe(base.a - 8000);
+    expect(forcedAnchors(base, T, 9, base.c1, 'clock')!.a).toBe(base.a - 4000);
+  });
+
+  it('FR-388 F equal to L1 and F above L1 change nothing: the anchors are the 008 anchors', () => {
+    for (const f of [13, 14, 20, 3600]) expect(forcedAnchors(base, T, f, base.c1, 'clock'), `F = ${f}`).toStrictEqual(base);
+    // One second under L1 shortens by exactly one second.
+    expect(forcedAnchors(base, T, 12, base.c1, 'clock')).toStrictEqual({ ...base, c2: base.c2 - 1000, a: base.a - 1000 });
+  });
+
+  it('FR-388 a late or manual phase-1 close shifts from its instant and shortens phase 2 the same way', () => {
+    const late = base.c1 + 4321;
+    expect(forcedAnchors(base, T, 5, late, 'late')).toStrictEqual({ ...base, c2: late + 5000, a: late + 5000 + 7000 });
+    expect(forcedAnchors(base, T, 5, late, 'late')).toStrictEqual({ ...anchorsAfterStep(base, 'phase-1-close', late, 'late', T)!, c2: late + 5000, a: late + 12_000 });
+    const early = base.c1 - 9000;
+    expect(forcedAnchors(base, T, 9, early, 'manual')).toStrictEqual({ ...base, c2: early + 9000, a: early + 16_000 });
+    // F at or above L1: exactly the 008 shift.
+    expect(forcedAnchors(base, T, 13, early, 'manual')).toStrictEqual(anchorsAfterStep(base, 'phase-1-close', early, 'manual', T));
+    expect(forcedAnchors(base, T, 99, late, 'late')).toStrictEqual(anchorsAfterStep(base, 'phase-1-close', late, 'late', T));
+  });
+
+  it('FR-388 with L2 = 0 the shortened C2 equals the shortened A', () => {
+    const t: Timing = { i: 20, l1: 13, l2: 0 };
+    const a = anchorsFrom(T0, t)!;
+    const out = forcedAnchors(a, t, 5, a.c1, 'clock')!;
+    expect(out.c2).toBe(a.c1 + 5000);
+    expect(out.a).toBe(out.c2);
+    expect(out.a).toBe(a.a - 8000);
+  });
+
+  it('FR-388 under manual timing, or without anchors, nothing is shortened (no anchors)', () => {
+    expect(forcedAnchors(null, 'manual', 5, T0, 'manual')).toBeNull();
+    expect(forcedAnchors(base, 'manual', 5, T0, 'manual')).toBeNull();
+    expect(forcedAnchors(null, T, 5, T0, 'manual')).toBeNull();
+  });
+
+  it('FR-388 the input anchors are not changed and the result is a new object', () => {
+    const frozen = Object.freeze({ ...base });
+    const out = forcedAnchors(frozen, T, 5, frozen.c1, 'clock')!;
+    expect(out).not.toBe(frozen);
+    expect(frozen).toStrictEqual(base);
+  });
+
+  it('FR-388 the shortened phase 2 closes exactly at the new C2 and the application at the new A (dueStep)', () => {
+    const f = forcedAnchors(base, T, 5, base.c1, 'clock')!;
+    expect(dueStep('phase-2', f, f.c2 - 1)).toBeNull();
+    expect(dueStep('phase-2', f, f.c2)).toMatchObject({ kind: 'phase-2-close', scheduled: f.c2, instant: f.c2, cause: 'clock' });
+    expect(dueStep('locked', f, f.a - 1)).toBeNull();
+    expect(dueStep('locked', f, f.a)).toMatchObject({ kind: 'application', scheduled: f.a, instant: f.a, cause: 'clock' });
+    // The next round is anchored at the application instant, exactly as in 008.
+    expect(anchorsAfterStep(f, 'application', f.a, 'clock', T)).toStrictEqual(anchorsFrom(f.a, T));
   });
 });
 

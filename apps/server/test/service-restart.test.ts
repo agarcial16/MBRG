@@ -181,8 +181,9 @@ describe('FR-294 resuming at the stored stage, round and anchors', () => {
       expect(server.store.eventsAfter(id, 1).map((e) => e.type)).toStrictEqual(['match-halted']);
       expect(server.report.performed).toStrictEqual([{ matchId: other, steps: [{ round: 1, kind: 'phase-1-close', instant: t, cause: 'late' }] }]);
       expect(rowsOf(server.store, other)).toStrictEqual([[1, 'phase-1-close', t, 'late']]);
-      // Armed after the late step, at the shifted C2 (t + L1); nothing for the halted match.
-      expect(server.scheduler.pending()).toStrictEqual([t + 30 * S, START_MS + 24 * 3_600 * S + 1]);
+      // Armed after the late step, at the shifted C2; nothing for the halted match. The fake-random secret of the second match forces its
+      // round 1 (spec 011 FR-388), so phase 2 lasts F = 5 s instead of L1.
+      expect(server.scheduler.pending()).toStrictEqual([t + 5 * S, START_MS + 24 * 3_600 * S + 1]);
       expect(server.published.map((e) => e.type)).toStrictEqual(['match-halted', 'phase-closed', 'victim-revealed', 'results', 'schedule']);
       server.service.close();
     });
@@ -231,7 +232,7 @@ describe('FR-294 FR-292 (retry) a start whose enumeration of the running matches
       expect(viewOf(server.store, id)).toMatchObject({ stage: 'halted', haltReason: 'map-changed' });
       expect(rowsOf(server.store, id)).toStrictEqual([]);
       expect(rowsOf(server.store, other)).toStrictEqual([[1, 'phase-1-close', at, 'late']]);
-      expect(server.scheduler.pending()).toStrictEqual([at + 30 * S, START_MS + 24 * 3_600 * S + 1]);
+      expect(server.scheduler.pending()).toStrictEqual([at + 5 * S, START_MS + 24 * 3_600 * S + 1]);
       expect(server.published.map((e) => e.type)).toStrictEqual(['match-halted', 'phase-closed', 'victim-revealed', 'results', 'schedule']);
       server.service.close();
     });
@@ -349,8 +350,9 @@ describe('FR-294 (robustness) inconsistent stored anchors', () => {
       expect(server.report.performed).toStrictEqual([{ matchId: other, steps: [{ round: 1, kind: 'phase-1-close', instant: C1, cause: 'clock' }] }]);
       expect(viewOf(server.store, id)).toMatchObject({ stage: 'phase-1', anchors: null });
       expect(rowsOf(server.store, id)).toStrictEqual([]);
-      expect(server.scheduler.pending()).toStrictEqual([C2, START_MS + 24 * 3_600 * S + 1]);
-      server.scheduler.runTo(C2);
+      // The second match (fake-random secret) has a forced round 1: its phase 2 lasts F = 5 s (spec 011 FR-388).
+      expect(server.scheduler.pending()).toStrictEqual([C1 + 5 * S, START_MS + 24 * 3_600 * S + 1]);
+      server.scheduler.runTo(C1 + 5 * S);
       expect(rowsOf(server.store, id)).toStrictEqual([]);
       expect(rowsOf(server.store, other)).toHaveLength(2);
       server.service.close();

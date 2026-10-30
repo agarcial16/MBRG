@@ -27,6 +27,8 @@ import type { Harness } from './helpers/service-harness';
 const S = 1000;
 const C1 = START_MS + 80 * S;
 const C2 = START_MS + 110 * S;
+// The second match of the isolation tests has a fake-random secret whose round 1 is forced: its phase 2 lasts F = 5 s (spec 011 FR-388).
+const FORCED_C2 = C1 + 5 * S;
 const UNAVAILABLE = { ok: false, error: errorReply('unavailable') };
 const WEB = { credential: 'client-credential-web-0123456789ab', namespace: 'web' };
 const SERVER_DIR = fileURLToPath(new URL('..', import.meta.url));
@@ -254,7 +256,7 @@ describe('isolation between matches', () => {
       const report = m.h.service.tick();
       expect(report.failed).toStrictEqual([{ matchId: m.id, kind }]);
       expect(report.performed.map((p) => [p.matchId, p.steps.map((s) => s.kind)])).toStrictEqual([[second.reply.matchId, ['phase-1-close']]]);
-      expect(m.h.scheduler!.pending()).toStrictEqual([C1 + 3 * S, C2]);
+      expect(m.h.scheduler!.pending()).toStrictEqual([C1 + 3 * S, FORCED_C2]);
       b.breakMatch(undefined);
       m.h.close();
     });
@@ -269,7 +271,7 @@ describe('isolation between matches', () => {
     const s = m.h.scheduler!;
     expect(() => s.runTo(C1)).not.toThrow();
     expect(rows(m, second.reply.matchId)).toStrictEqual([[1, 'phase-1-close', C1, 'clock']]);
-    expect(s.pending()).toStrictEqual([C1 + 3 * S, C2]);
+    expect(s.pending()).toStrictEqual([C1 + 3 * S, FORCED_C2]);
     b.breakMatch(undefined);
     s.runTo(C1 + 3 * S);
     expect(rows(m)).toStrictEqual([[1, 'phase-1-close', C1 + 3 * S, 'late']]);

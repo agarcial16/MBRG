@@ -20,6 +20,7 @@ const settings: ServerSettings = {
   maps: {},
   runningMatchLimit: 20,
   databasePath: ':memory:',
+  forcedPhaseSeconds: 5,
   clients: [
     { namespace: 'web', credential: WEB },
     { namespace: 'discord', credential: BOT },

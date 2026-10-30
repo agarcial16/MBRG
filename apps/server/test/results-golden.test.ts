@@ -37,22 +37,22 @@ describe('the results golden', () => {
     }
   });
 
-  it('NFR-48 (results) some golden figures are literals: the totals of the first secret, from n = 5, 4, 3, 2 and d = 3, 3, 2, 1', () => {
-    // Worth of a right victim at round k: 6 - k. Worth of a right absorber: the candidates of the victim (3, 3, 2, 1 for this
-    // secret). The winner is worth the candidates stored at the last change: 5 before any reveal, 4 after the reveal of
+  it('NFR-48 (results) some golden figures are literals: the totals of the first secret, from n = 5, 4, 3, 2 and d = 3, 3, 2 (the last absorber, d = 1, is forced and worth nothing)', () => {
+    // Worth of a right victim at round k: 6 - k. Worth of a right absorber: the candidates of the victim (3, 3, 2 for this
+    // secret; round 4 has one candidate: a forced absorber, no prediction and no points). The winner is worth the candidates stored at the last change: 5 before any reveal, 4 after the reveal of
     // round 1, 2 after the reveal of round 3.
     const rows = GOLDEN['ascending-00-1f']!.leaderboard.map((r) => [r.rank, r.playerId, r.total, r.correctVictims, r.correctAbsorbers, r.correctWinner]);
     expect(rows).toStrictEqual([
       [1, 'web:p1', 25, 3, 3, 1], // winner 5 + absorbers 3 + 3 + 2 + victims 5 + 4 + 3
       [2, 'discord:p1', 11, 1, 2, 0], // victim 5 + absorbers 3 + 3
-      [3, 'web:p5', 10, 2, 2, 0], // victims 4 + 2, absorbers 3 + 1
+      [3, 'web:p5', 9, 2, 1, 0], // victims 4 + 2, absorber 3 (its round-4 absorber is forced and was refused)
       [4, 'web:p3', 5, 1, 0, 0], // victim 5 after replacing a wrong pick
       [5, 'web:p2', 4, 0, 0, 1], // winner changed after the reveal of round 1: 4
       [6, 'web:p4', 2, 0, 0, 1], // winner changed after the reveal of round 3: 2
       [7, 'web:p6', 0, 0, 0, 0],
     ]);
-    // A tie of the last secret: 9 and 9 share rank 2, the next rank is 4.
-    expect(GOLDEN['all-a5']!.leaderboard.map((r) => [r.rank, r.total])).toStrictEqual([[1, 22], [2, 9], [2, 9], [4, 5], [5, 4], [6, 2], [7, 0]]);
+    // The last secret has two forced rounds (3 and 4, d = 1): the 9 and 9 tie of the 008 golden is gone (web:p5 loses its round-4 absorber point).
+    expect(GOLDEN['all-a5']!.leaderboard.map((r) => [r.rank, r.total])).toStrictEqual([[1, 21], [2, 9], [3, 8], [4, 5], [5, 4], [6, 2], [7, 0]]);
   });
 
   for (const name of NAMES) {

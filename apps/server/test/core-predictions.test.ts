@@ -8,7 +8,9 @@ import type { StoredPrediction, Submission, SubmissionDecision } from '../src/co
 import { effectiveInstant } from '../src/core/time';
 import { haltMatch } from '../src/core/steps';
 import { publicOf } from '../src/core/view';
+import { roundSeed } from '../src/secret';
 import { coreDriver } from './helpers/core-driver';
+import { SECRETS } from './helpers/core-timelines';
 import type { Driver } from './helpers/core-driver';
 
 const CLOCK: Timing = { i: 100, l1: 30, l2: 20 };
@@ -403,5 +405,108 @@ describe('reply type placement (B4)', () => {
     const core = read('../src/core/predictions.ts');
     expect(core).not.toMatch(/(?:interface|type)\s+PredictionReply/);
     expect(core).toMatch(/import type \{[^}]*PredictionReply[^}]*\} from '@mbrg\/protocol'/);
+  });
+});
+
+describe('an absorber prediction in a forced round (one candidate)', () => {
+  const forcedD = (timing: Timing | 'manual'): Driver => {
+    const d = coreDriver({ timing, start: T0 });
+    steps(d, 10); // rounds 1 to 3 applied and the reveal of round 4 (the last round: two factions, one candidate)
+    expect(d.view.stage).toBe('phase-2');
+    expect(d.view.victim!.candidates).toHaveLength(1);
+    return d;
+  };
+  const refused = { ok: false, error: { kind: 'forced-absorber' } };
+
+  it('FR-387 an absorber prediction in phase-2 of a forced round is forced-absorber, for the one candidate and for any other choice', () => {
+    const d = forcedD('manual');
+    const only = d.view.victim!.candidates[0]!;
+    expect(submit(d, { kind: 'absorber', round: 4, choice: only }, d.clock.now())).toStrictEqual(refused);
+    expect(submit(d, { kind: 'absorber', round: 4, choice: 987_654 }, d.clock.now())).toStrictEqual(refused);
+    expect(submit(d, { kind: 'absorber', round: 4, choice: only }, d.clock.now(), { kind: 'absorber', round: 4, choice: only, version: 1, storedMs: T0 })).toStrictEqual(refused);
+  });
+
+  it('FR-387 the error order is halted, finished, closed, forced, invalid: a closed cutoff or another round is prediction-closed, not forced', () => {
+    const d = forcedD(CLOCK);
+    const only = d.view.victim!.candidates[0]!;
+    const c2 = d.view.anchors!.c2;
+    expect(submit(d, { kind: 'absorber', round: 4, choice: only }, c2 - 1)).toStrictEqual(refused);
+    expect(submit(d, { kind: 'absorber', round: 4, choice: only }, c2)).toStrictEqual({ ok: false, error: { kind: 'prediction-closed' } });
+    expect(submit(d, { kind: 'absorber', round: 3, choice: only }, c2 - 1)).toStrictEqual({ ok: false, error: { kind: 'prediction-closed' } });
+    expect(submit(d, { kind: 'absorber', round: 5, choice: 987_654 }, c2 - 1)).toStrictEqual({ ok: false, error: { kind: 'prediction-closed' } });
+    const halted = { ...d.view, ...haltMatch(d.view, 'map-changed', T0).view };
+    expect(decideSubmission(halted, { submission: { kind: 'absorber', round: 4, choice: only }, effective: c2 - 1 })).toStrictEqual({ ok: false, error: { kind: 'match-halted' } });
+  });
+
+  it('FR-387 in phase-1 of a forced round the absorber prediction is still prediction-closed, at locked too, and match-finished after the end', () => {
+    const d = coreDriver({ timing: 'manual', start: T0 });
+    steps(d, 9);
+    expect(d.view.stage).toBe('phase-1');
+    expect(submit(d, { kind: 'absorber', round: 4, choice: 1 }, d.clock.now())).toStrictEqual({ ok: false, error: { kind: 'prediction-closed' } });
+    steps(d, 2); // phase-2 then locked
+    expect(d.view.stage).toBe('locked');
+    expect(submit(d, { kind: 'absorber', round: 4, choice: d.view.victim!.candidates[0]! }, d.clock.now())).toStrictEqual({ ok: false, error: { kind: 'prediction-closed' } });
+    steps(d, 1);
+    expect(d.view.stage).toBe('finished');
+    expect(submit(d, { kind: 'absorber', round: 4, choice: 1 }, d.clock.now())).toStrictEqual({ ok: false, error: { kind: 'match-finished' } });
+  });
+
+  it('FR-387 a refused forced absorber stores nothing and does not touch the other kinds: victim and winner predictions are accepted in the same round', () => {
+    // Round 3 of the secret all-a5 is forced with a fourth round to come, so winner predictions are still open.
+    const d = coreDriver({ timing: 'manual', start: T0, seedOf: (k) => roundSeed(SECRETS['all-a5'], k) });
+    steps(d, 7);
+    expect(d.view.stage).toBe('phase-2');
+    expect(d.view.victim!.forced).toBe(true);
+    expect(submit(d, { kind: 'absorber', round: 3, choice: d.view.victim!.candidates[0]! }, d.clock.now())).toStrictEqual(refused);
+    const winner = winnerCandidates(d.view)[0]!;
+    expect(accepted(submit(d, { kind: 'winner', choice: winner }, d.clock.now()))).toMatchObject({ change: 'created' });
+    // The victim of round 3 is closed in phase-2 as always.
+    expect(submit(d, { kind: 'victim', round: 3, choice: living(d)[0]! }, d.clock.now())).toStrictEqual({ ok: false, error: { kind: 'prediction-closed' } });
+  });
+
+  it('FR-387 a victim with two candidates (round 1) still accepts every candidate in phase-2', () => {
+    const d = coreDriver({ timing: 'manual', start: T0 });
+    steps(d, 1);
+    expect(d.view.victim!.candidates.length).toBeGreaterThan(1);
+    for (const c of d.view.victim!.candidates) accepted(submit(d, { kind: 'absorber', round: 1, choice: c }, d.clock.now()));
+  });
+});
+
+describe('the victim and winner rules around a forced absorber', () => {
+  const A5 = (): Driver => coreDriver({ timing: 'manual', start: T0, seedOf: (k) => roundSeed(SECRETS['all-a5'], k) });
+
+  it('FR-389 a round with two factions living (d = 1) predicts the victim: both living factions are accepted in phase-1, the absorber is refused in phase-2', () => {
+    const d = coreDriver({ timing: 'manual', start: T0 });
+    steps(d, 9);
+    expect(d.view.stage).toBe('phase-1');
+    const alive = living(d);
+    expect(alive).toHaveLength(2);
+    for (const choice of alive) expect(accepted(submit(d, { kind: 'victim', round: 4, choice }, d.clock.now())).reply).toStrictEqual({ kind: 'victim', round: 4, choice, version: 1 });
+    expect(submit(d, { kind: 'victim', round: 4, choice: 987_654 }, d.clock.now())).toStrictEqual({ ok: false, error: { kind: 'invalid-choice' } });
+    steps(d, 1);
+    expect(d.view.stage).toBe('phase-2');
+    expect(d.view.victim!.candidates).toHaveLength(1);
+    expect(submit(d, { kind: 'victim', round: 4, choice: alive[0]! }, d.clock.now())).toStrictEqual({ ok: false, error: { kind: 'prediction-closed' } });
+    expect(submit(d, { kind: 'absorber', round: 4, choice: d.view.victim!.candidates[0]! }, d.clock.now())).toStrictEqual({ ok: false, error: { kind: 'forced-absorber' } });
+  });
+
+  it('FR-389 a winner prediction follows one candidate rule before and after the reveal of a forced round and of a round that is not', () => {
+    // Round 2 of the secret all-a5 is not forced, round 3 is (d = 1, with a fourth round to come).
+    for (const [round, forced] of [[2, false], [3, true]] as const) {
+      const d = A5();
+      steps(d, 3 * (round - 1));
+      expect(d.view.stage, `round ${round}`).toBe('phase-1');
+      const before = living(d);
+      expect(winnerCandidates(d.view), `round ${round}`).toStrictEqual(before);
+      const early = accepted(submit(d, { kind: 'winner', choice: before[0]! }, d.clock.now()));
+      expect(early.store!.winnerCandidates, `round ${round}`).toBe(before.length);
+      steps(d, 1);
+      expect(d.view.victim!.forced === true, `round ${round}`).toBe(forced);
+      const victim = d.view.victim!.victim;
+      expect(submit(d, { kind: 'winner', choice: victim }, d.clock.now()), `round ${round}`).toStrictEqual({ ok: false, error: { kind: 'invalid-choice' } });
+      const rest = before.filter((f) => f !== victim);
+      expect(winnerCandidates(d.view), `round ${round}`).toStrictEqual(rest);
+      for (const choice of rest) expect(accepted(submit(d, { kind: 'winner', choice }, d.clock.now())).store!.winnerCandidates, `round ${round}`).toBe(rest.length);
+    }
   });
 });

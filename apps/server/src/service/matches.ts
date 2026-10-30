@@ -390,6 +390,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
       },
       sha256: sha256Ascii,
       seedOf,
+      forcedPhaseSeconds: settings.forcedPhaseSeconds,
     };
   };
 

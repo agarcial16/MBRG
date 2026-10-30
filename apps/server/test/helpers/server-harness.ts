@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import type { Server } from 'node:http';
 import type { Socket } from 'node:net';
 import { encodeError, encodePublicMatch, errorReply, readSubmission } from '@mbrg/protocol';
@@ -210,6 +211,15 @@ export async function closeAllServers(): Promise<void> {
   const all = open.splice(0, open.length);
   await Promise.all(all.map((h) => h.close()));
 }
+
+/** The round seeds of one dev secret of golden/dev-secrets.json (round 1 first). */
+export function goldSeeds(secret = 'ascending-00-1f'): number[] {
+  const gold = JSON.parse(readFileSync(new URL('../golden/dev-secrets.json', import.meta.url), 'utf8')) as { matches: Record<string, { rounds: { seed: number }[] }> };
+  return gold.matches[secret]!.rounds.map((r) => r.seed);
+}
+
+/** A test-only round-seed source that plays the seeds in order (`seeds[k - 1]` for round k). */
+export const seedSourceOf = (seeds: readonly number[]) => () => (k: number) => seeds[k - 1] ?? 7000 + k;
 
 /** The error body of a kind with no items, as the server writes it. */
 export const errorBody = (kind: Parameters<typeof errorReply>[0]): string => encodeError(errorReply(kind));

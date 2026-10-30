@@ -25,7 +25,7 @@ const TIMING = { i: 6, l1: 2, l2: 1 } as const;
 const OPERATOR = 'clock-accuracy-operator-credential';
 const DEV = fileURLToPath(new URL('../../../maps/dev', import.meta.url));
 
-const settings: Settings = { operatorCredential: OPERATOR, maps: { dev: DEV }, runningMatchLimit: 20, databasePath: ':memory:' };
+const settings: Settings = { operatorCredential: OPERATOR, maps: { dev: DEV }, runningMatchLimit: 20, databasePath: ':memory:', forcedPhaseSeconds: 5 };
 const store = openStore(':memory:');
 const scheduler = createScheduler(systemClock);
 const service = createMatchService({ store, clock: systemClock, maps: createMapCatalog(settings.maps), settings, scheduler });

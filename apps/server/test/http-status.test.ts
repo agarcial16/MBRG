@@ -27,16 +27,23 @@ const PINNED: Readonly<Record<ErrorKind, number>> = {
   'round-not-applied': 404,
   'stale-cursor': 409,
   'prediction-closed': 409,
+  'forced-absorber': 409,
   'invalid-choice': 422,
   unavailable: 503,
 };
 
 describe('http status table', () => {
   it('FR-301 (status table) every kind of ERROR_ORDER has exactly the status of plan 18.4', () => {
-    expect(ERROR_ORDER).toHaveLength(22);
+    expect(ERROR_ORDER).toHaveLength(23);
     expect(Object.keys(PINNED).sort()).toStrictEqual([...ERROR_ORDER].sort());
     for (const kind of ERROR_ORDER) expect(statusOf(kind), kind).toBe(PINNED[kind]);
     expect(Object.keys(STATUS_OF_KIND).sort()).toStrictEqual([...ERROR_ORDER].sort());
+  });
+
+  it('FR-301 (status table) the forced-absorber refusal is a 409 like prediction-closed, never a 422', () => {
+    expect(statusOf('forced-absorber')).toBe(409);
+    expect(statusOf('forced-absorber')).toBe(statusOf('prediction-closed'));
+    expect(errorHeaders(errorReply('forced-absorber'))).toStrictEqual({});
   });
 
   it('FR-301 (status table) forbidden is always 403, never 401: one kind, one status', () => {

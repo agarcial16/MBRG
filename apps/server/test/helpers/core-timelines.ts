@@ -49,14 +49,26 @@ const S = 1000;
 type Kinds = readonly [StepKind, StepKind, StepKind];
 const KINDS: Kinds = ['phase-1-close', 'phase-2-close', 'application'];
 
-/** Hand model of an on-time match: round k (1-based) starts at (k - 1) * I seconds. */
-function onTime(timing: { i: number; l1: number; l2: number }): Action[] {
+/** The phase-2 span F of a forced round in these scenarios (spec 011 FR-388; the driver and the service harness use 5 s). */
+const F = 5;
+/**
+ * The rounds whose absorber is forced (one candidate, spec 011 FR-387), by secret: counted by hand from the d of each round
+ * of golden/dev-secrets.json (the candidates of the victim in the state before the round). The last round of every match is forced.
+ */
+const FORCED_ROUNDS: Record<Scenario['secret'], readonly number[]> = { 'ascending-00-1f': [4], 'ascending-20-3f': [4], 'all-a5': [3, 4] };
+
+/**
+ * Hand model of an on-time match: round k starts at the application instant of round k - 1 (the first at 0). After a forced reveal
+ * phase 2 lasts min(L1, F) and A moves earlier by the time saved (FR-388); the next round is anchored at the application as in 008.
+ */
+function onTime(timing: { i: number; l1: number; l2: number }, forced: readonly number[]): Action[] {
   const out: Action[] = [];
+  let t0 = 0;
   for (let k = 1; k <= ROUNDS; k++) {
-    const t0 = (k - 1) * timing.i * S;
     const c1 = t0 + (timing.i - timing.l1 - timing.l2) * S;
-    const c2 = c1 + timing.l1 * S;
+    const c2 = c1 + (forced.includes(k) ? Math.min(timing.l1, F) : timing.l1) * S;
     const a = c2 + timing.l2 * S;
+    t0 = a;
     const next = a + (timing.i - timing.l1 - timing.l2) * S;
     const nextAnchors = k < ROUNDS ? ([next, next + timing.l1 * S, next + (timing.l1 + timing.l2) * S] as const) : null;
     const here = [c1, c2, a] as const;
@@ -96,10 +108,11 @@ const I120 = { i: 120, l1: 30, l2: 10 };
 
 export const SCENARIOS: readonly Scenario[] = [
   // (1) I = 120, L1 = 30, L2 = 10, every step on time.
-  { name: 'on-time', timing: I120, secret: 'ascending-00-1f', actions: onTime(I120) },
+  // Round 4 is forced: phase 2 lasts 5 s instead of 30 s.
+  { name: 'on-time', timing: I120, secret: 'ascending-00-1f', actions: onTime(I120, FORCED_ROUNDS['ascending-00-1f']) },
 
-  // (2) L2 = 0 (I = 60, L1 = 20): C2 = A.
-  { name: 'l2-zero', timing: { i: 60, l1: 20, l2: 0 }, secret: 'all-a5', actions: onTime({ i: 60, l1: 20, l2: 0 }) },
+  // (2) L2 = 0 (I = 60, L1 = 20): C2 = A. Rounds 3 and 4 are forced: phase 2 (and the round) lasts 5 s.
+  { name: 'l2-zero', timing: { i: 60, l1: 20, l2: 0 }, secret: 'all-a5', actions: onTime({ i: 60, l1: 20, l2: 0 }, FORCED_ROUNDS['all-a5']) },
 
   // (3) timing manual: three advances per round at 7 s steps; the instants are the clock readings, no anchors.
   {
@@ -132,14 +145,14 @@ export const SCENARIOS: readonly Scenario[] = [
       clock(110 * S, 2, 'phase-1-close', [110 * S, 140 * S, 150 * S], 'phase-2'),
       manual(120 * S, 2, 'phase-2-close', [110 * S, 140 * S, 130 * S], 'locked'),
       manual(125 * S, 2, 'application', [205 * S, 235 * S, 245 * S], 'phase-1'),
-      // Round 3 (t0 = 125 s): all on the clock: C1 = 205 s, C2 = 235 s, A = 245 s.
-      clock(205 * S, 3, 'phase-1-close', [205 * S, 235 * S, 245 * S], 'phase-2'),
-      clock(235 * S, 3, 'phase-2-close', [205 * S, 235 * S, 245 * S], 'locked'),
-      clock(245 * S, 3, 'application', [325 * S, 355 * S, 365 * S], 'phase-1'),
-      // Round 4 (t0 = 245 s): C1 = 325 s, C2 = 355 s, A = 365 s.
-      clock(325 * S, 4, 'phase-1-close', [325 * S, 355 * S, 365 * S], 'phase-2'),
-      clock(355 * S, 4, 'phase-2-close', [325 * S, 355 * S, 365 * S], 'locked'),
-      clock(365 * S, 4, 'application', null, 'finished'),
+      // Round 3 (t0 = 125 s, forced): all on the clock: C1 = 205 s; phase 2 lasts 5 s: C2 = 210 s, A = 220 s (008: 235 s, 245 s).
+      clock(205 * S, 3, 'phase-1-close', [205 * S, 210 * S, 220 * S], 'phase-2'),
+      clock(210 * S, 3, 'phase-2-close', [205 * S, 210 * S, 220 * S], 'locked'),
+      clock(220 * S, 3, 'application', [300 * S, 330 * S, 340 * S], 'phase-1'),
+      // Round 4 (t0 = 220 s, forced): C1 = 300 s, C2 = 305 s, A = 315 s.
+      clock(300 * S, 4, 'phase-1-close', [300 * S, 305 * S, 315 * S], 'phase-2'),
+      clock(305 * S, 4, 'phase-2-close', [300 * S, 305 * S, 315 * S], 'locked'),
+      clock(315 * S, 4, 'application', null, 'finished'),
     ],
   },
 
@@ -165,10 +178,10 @@ export const SCENARIOS: readonly Scenario[] = [
       clock(1361 * S + 1, 3, 'phase-2-close', [1330 * S, 1360 * S, 1371 * S + 1], 'locked', 1361 * S + 1, 'late'),
       none(1371 * S),
       clock(1371 * S + 1, 3, 'application', [1451 * S + 1, 1481 * S + 1, 1491 * S + 1], 'phase-1'),
-      // Round 4 (t0 = 1371.001 s): on time again.
-      clock(1451 * S + 1, 4, 'phase-1-close', [1451 * S + 1, 1481 * S + 1, 1491 * S + 1], 'phase-2'),
-      clock(1481 * S + 1, 4, 'phase-2-close', [1451 * S + 1, 1481 * S + 1, 1491 * S + 1], 'locked'),
-      clock(1491 * S + 1, 4, 'application', null, 'finished'),
+      // Round 4 (t0 = 1371.001 s, forced): on time again; phase 2 lasts 5 s: C2 = 1456.001 s, A = 1466.001 s (008: 1481.001, 1491.001).
+      clock(1451 * S + 1, 4, 'phase-1-close', [1451 * S + 1, 1456 * S + 1, 1466 * S + 1], 'phase-2'),
+      clock(1456 * S + 1, 4, 'phase-2-close', [1451 * S + 1, 1456 * S + 1, 1466 * S + 1], 'locked'),
+      clock(1466 * S + 1, 4, 'application', null, 'finished'),
     ],
   },
 
@@ -189,14 +202,15 @@ export const SCENARIOS: readonly Scenario[] = [
       clock(170 * S, 2, 'phase-1-close', [170 * S, 200 * S, 210 * S], 'phase-2'),
       clock(200 * S, 2, 'phase-2-close', [170 * S, 200 * S, 210 * S], 'locked'),
       clock(210 * S, 2, 'application', [290 * S, 320 * S, 330 * S], 'phase-1'),
-      // Round 3 (t0 = 210 s): a second backward jump of one hour in phase 2.
-      clock(290 * S, 3, 'phase-1-close', [290 * S, 320 * S, 330 * S], 'phase-2'),
+      // Round 3 (t0 = 210 s, forced): a second backward jump of one hour in phase 2; phase 2 lasts 5 s: C2 = 295 s, A = 305 s.
+      clock(290 * S, 3, 'phase-1-close', [290 * S, 295 * S, 305 * S], 'phase-2'),
       none(290 * S - 3_600 * S),
-      clock(320 * S, 3, 'phase-2-close', [290 * S, 320 * S, 330 * S], 'locked'),
-      clock(330 * S, 3, 'application', [410 * S, 440 * S, 450 * S], 'phase-1'),
-      clock(410 * S, 4, 'phase-1-close', [410 * S, 440 * S, 450 * S], 'phase-2'),
-      clock(440 * S, 4, 'phase-2-close', [410 * S, 440 * S, 450 * S], 'locked'),
-      clock(450 * S, 4, 'application', null, 'finished'),
+      clock(295 * S, 3, 'phase-2-close', [290 * S, 295 * S, 305 * S], 'locked'),
+      clock(305 * S, 3, 'application', [385 * S, 415 * S, 425 * S], 'phase-1'),
+      // Round 4 (t0 = 305 s, forced): C1 = 385 s, C2 = 390 s, A = 400 s.
+      clock(385 * S, 4, 'phase-1-close', [385 * S, 390 * S, 400 * S], 'phase-2'),
+      clock(390 * S, 4, 'phase-2-close', [385 * S, 390 * S, 400 * S], 'locked'),
+      clock(400 * S, 4, 'application', null, 'finished'),
     ],
   },
 ];
