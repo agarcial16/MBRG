@@ -416,8 +416,6 @@ const WINNER = GOLD[3]!.absorber;
 
 describe('joining a running match', () => {
   const WEB = { credential: 'client-credential-web-0123456789ab', namespace: 'web' };
-  // The service trusts the (credential, namespace) pair it is given; the namespace `player` stands in for the token path of the HTTP layer.
-  const AS_PLAYER = { credential: 'player-token-stand-in-0123456789ab', namespace: 'player' };
 
   it('FR-380 works in phase-1, phase-2 and locked; the late player has no row for earlier phases, and its later predictions score like any other', () => {
     const h = serviceHarness({ secret: SECRETS['ascending-00-1f'] });
@@ -450,6 +448,11 @@ describe('joining a running match', () => {
 
       const late = joined(join(h, id, 'Late', 'j-late', 's-late'));
       const local = late.playerId.slice('player:'.length);
+      // The token path: the match confirms the token, and the resolved pair submits.
+      const found = h.service.playerTokenOf(id, late.playerToken);
+      if (!found.ok || found.reply === undefined) throw new Error('the late joiner token was not found');
+      expect(found.reply.playerId).toBe(late.playerId);
+      const AS_PLAYER = { tokenDigest: credentialDigest(late.playerToken), playerId: found.reply.playerId };
       const pick = living()[0]!;
       expect(h.service.submit({ client: AS_PLAYER, matchId: id, body: { kind: 'victim', round: 2, faction: pick, playerId: local } }).ok).toBe(true);
       expect(h.service.submit({ client: AS_PLAYER, matchId: id, body: { kind: 'winner', faction: WINNER, playerId: local } }).ok).toBe(true);

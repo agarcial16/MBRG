@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { credentialDigest, sameDigest } from '../src/service/ids';
 import { DEFAULT_LIMITS } from '../src/service/settings';
 import type { ServerSettings } from '../src/service/settings';
-import { MAX_TOKEN_LENGTH, credentialTable, hostIdentity, identify, playerIdFor, readBearer, requireClient } from '../src/http/identity';
+import { MAX_TOKEN_LENGTH, credentialTable, hostIdentity, identify, playerIdFor, playerIdentity, readBearer, requireClient, submitterOf } from '../src/http/identity';
 import type { Identity } from '../src/http/identity';
 import { OFF_PUBLIC } from './helpers/service-harness';
 
@@ -178,5 +178,62 @@ describe('http identity', () => {
         { namespace: 'discord', digest: credentialDigest(BOT) },
       ],
     });
+  });
+});
+
+// The player role (spec 011 M3 T7): the token of a player who joined by name, confirmed by the match, is a `player` for that
+// match only. The identity holds the digest, the player id and the match id, never the token text.
+const PLAYER_TOKEN = 'player-token-planted-0000000000000EEEE';
+const MATCH = 'match-aaaaaaaaaaaa';
+
+describe('http identity: players', () => {
+  const candidate = (): Identity => identify(PLAYER_TOKEN, table);
+
+  it('FR-378 a candidate the match confirms is a player of that match, holding the digest and the ids and no token text', () => {
+    const player = playerIdentity(candidate(), MATCH, () => ({ playerId: 'player:abcdefghijkl' }));
+    expect(player).toStrictEqual({ role: 'player', digest: credentialDigest(PLAYER_TOKEN), playerId: 'player:abcdefghijkl', matchId: MATCH });
+    expect(Object.keys(player).sort()).toStrictEqual(['digest', 'matchId', 'playerId', 'role']);
+    expect(JSON.stringify(player)).not.toContain(PLAYER_TOKEN);
+  });
+
+  it('FR-378 a candidate no player of the match owns is anonymous', () => {
+    expect(playerIdentity(candidate(), MATCH, () => undefined)).toStrictEqual({ role: 'anonymous' });
+  });
+
+  it('FR-378 the lookup runs for a candidate only: an operator, a client, a host or an anonymous caller keep their role and ask nothing', () => {
+    let asked = 0;
+    const lookup = () => {
+      asked += 1;
+      return { playerId: 'player:abcdefghijkl' };
+    };
+    const others: Identity[] = [identify(OPERATOR, table), identify(WEB, table), { role: 'host', digest: credentialDigest(HOST) }, { role: 'anonymous' }];
+    for (const who of others) expect(playerIdentity(who, MATCH, lookup), who.role).toStrictEqual(who);
+    expect(asked).toBe(0);
+    playerIdentity(candidate(), MATCH, lookup);
+    expect(asked).toBe(1);
+  });
+
+  it('submitterOf: a client submits as playerIdFor says, exactly', () => {
+    for (const who of [identify(WEB, table), identify(BOT, table), identify(OPERATOR, table), { role: 'anonymous' } as Identity]) {
+      for (const local of ['alice', 'a b', 'discord:1', '', 'x'.repeat(65)]) expect(submitterOf(who, local), `${who.role} ${local}`).toStrictEqual(playerIdFor(who, local));
+    }
+  });
+
+  it('submitterOf: a player submits only under its own id: its own local id gives it, any other is forbidden, a malformed one invalid-player-id first', () => {
+    const player = playerIdentity(candidate(), MATCH, () => ({ playerId: 'player:abcdefghijkl' }));
+    expect(submitterOf(player, 'abcdefghijkl')).toStrictEqual({ ok: true, playerId: 'player:abcdefghijkl' });
+    for (const other of ['abcdefghijkm', 'ABCDEFGHIJKL', 'abcdefghijk', 'alice']) {
+      expect(submitterOf(player, other), other).toStrictEqual({ ok: false, error: { kind: 'forbidden' } });
+    }
+    for (const bad of ['player:abcdefghijkl', 'a b', '', 'x'.repeat(65)]) {
+      expect(submitterOf(player, bad), bad).toStrictEqual({ ok: false, error: { kind: 'invalid-player-id' } });
+    }
+    // A host or a candidate that was not confirmed is not a player.
+    expect(submitterOf(candidate(), 'abcdefghijkl')).toStrictEqual({ ok: false, error: { kind: 'forbidden' } });
+    expect(submitterOf({ role: 'host', digest: credentialDigest(HOST) }, 'abcdefghijkl')).toStrictEqual({ ok: false, error: { kind: 'forbidden' } });
+  });
+
+  it('submitterOf: a client of a namespace cannot name a joined player: the id comes from its own namespace', () => {
+    expect(submitterOf(identify(WEB, table), 'abcdefghijkl')).toStrictEqual({ ok: true, playerId: 'web:abcdefghijkl' });
   });
 });

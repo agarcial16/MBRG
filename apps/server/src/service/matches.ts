@@ -43,6 +43,7 @@ import {
   encodeJoinReply,
   encodePublicMatch,
   errorReply,
+  isJoinedPlayerId,
   isLocalId,
   isNamespace,
   isPlayerId,
@@ -185,8 +186,27 @@ export interface ClientIdentity {
   readonly namespace: string;
 }
 
+/**
+ * A player the HTTP layer resolved from a match token (spec 011 FR-378, `playerTokenOf`): the digest of the token (the memo
+ * scope; the token text never reaches the service again) and the player id `player:<local id>`. The service trusts the pair.
+ */
+export interface PlayerCaller {
+  readonly tokenDigest: string;
+  readonly playerId: string;
+}
+
+const isPlayerCaller = (caller: ClientIdentity | PlayerCaller): caller is PlayerCaller => Object.hasOwn(caller, 'tokenDigest');
+const PLAYER_TOKEN_DIGEST = /^[0-9a-f]{64}$/;
+/** A resolved player is a digest and a joined player id; anything else is a programming error of the caller. */
+const checkPlayerCaller = (caller: PlayerCaller): void => {
+  if (!PLAYER_TOKEN_DIGEST.test(String(caller.tokenDigest)) || !isJoinedPlayerId(caller.playerId)) {
+    throw new TypeError('the caller identity is a token digest and a joined player id');
+  }
+};
+
 export interface SubmitRequest {
-  readonly client: ClientIdentity;
+  /** A client credential with its namespace (008), or a player resolved from its match token (spec 011 FR-378). */
+  readonly client: ClientIdentity | PlayerCaller;
   readonly matchId: string;
   /** The parsed JSON body `{ kind, round?, faction, playerId, requestId? }`. */
   readonly body: unknown;
@@ -195,13 +215,20 @@ export interface SubmitRequest {
 /** The reply of a submission: the stored prediction and its version (FR-267), or the error (first use, or its memoised replay). */
 export type SubmitOutcome = { readonly ok: true; readonly reply: PredictionReply } | { readonly ok: false; readonly error: ErrorReply };
 
-export interface OwnPredictionsRequest {
-  /** Only the namespace of the credential: a client reads its own player ids and no others. */
-  readonly namespace: string;
-  /** The local player id (the namespace is added here, never taken from the caller's text). */
-  readonly playerId: string;
-  readonly matchId: string;
-}
+export type OwnPredictionsRequest =
+  | {
+      /** Only the namespace of the credential: a client reads its own player ids and no others. */
+      readonly namespace: string;
+      /** The local player id (the namespace is added here, never taken from the caller's text). */
+      readonly playerId: string;
+      readonly matchId: string;
+    }
+  | {
+      /** A player resolved from its match token reads its own predictions; another local id is `forbidden`. */
+      readonly player: PlayerCaller;
+      readonly playerId: string;
+      readonly matchId: string;
+    };
 
 export type OwnPredictionsOutcome = { readonly ok: true; readonly predictions: readonly PredictionReply[] } | { readonly ok: false; readonly error: ErrorReply };
 
@@ -218,13 +245,22 @@ export interface PageRequest<L extends CursorList> {
 }
 
 /** The own predictions of a client (FR-270, FR-281 (h), C3): every player of its namespace, or one local id when given. */
-export interface OwnPredictionsPageRequest extends PageRequest<'predictions'> {
-  /** The namespace of the client credential (resolved by the HTTP layer); never taken from the request. */
-  readonly namespace: string;
-  readonly matchId: string;
-  /** An optional local player id (the namespace is added here, never taken from the caller's text). */
-  readonly playerId?: string;
-}
+export type OwnPredictionsPageRequest = PageRequest<'predictions'> &
+  (
+    | {
+        /** The namespace of the client credential (resolved by the HTTP layer); never taken from the request. */
+        readonly namespace: string;
+        readonly matchId: string;
+        /** An optional local player id (the namespace is added here, never taken from the caller's text). */
+        readonly playerId?: string;
+      }
+    | {
+        /** A player resolved from its match token: its own predictions only; an optional local id must be its own (`forbidden` otherwise). */
+        readonly player: PlayerCaller;
+        readonly matchId: string;
+        readonly playerId?: string;
+      }
+  );
 
 /**
  * A clock step that could not run (FR-292): `unavailable` for a storage failure, `error` for anything else (a programming
@@ -360,6 +396,12 @@ export interface MatchService {
   leaderboard(matchId: string, request: PageRequest<'leaderboard'>): ReadOutcome<Page<LeaderboardRow>>;
   /** FR-300 (host-token check): whether the credential is the host token of the match, by digest comparison; false for an unknown match. */
   hostTokenMatches(matchId: string, credential: string): ReadOutcome<boolean>;
+  /**
+   * FR-378: the player of this match whose token this is, by the digest of the token looked up through the index of the
+   * match's players (the store sees the digest only); undefined for a token of no player of this match (another match, an
+   * unknown match, a wrong, truncated or wrong-case text). `unavailable` on a storage failure. Writes nothing.
+   */
+  playerTokenOf(matchId: string, token: string): ReadOutcome<{ readonly playerId: string } | undefined>;
   /**
    * FR-281 (i), FR-289 (d), (e): the stored events with a number above `after` in order, and the stored last number (the
    * public data's `lastSeq`). `after` absent: no events (a stream of live events only). `unknown-match`, or `unavailable` on
@@ -1239,12 +1281,23 @@ export function createMatchService(options: ServiceOptions): MatchService {
       const read = readSubmission(request.body);
       if (!read.ok) return { ok: false, error: read.error };
       const { client, matchId } = request;
-      if (!isNamespace(client.namespace) || typeof client.credential !== 'string') throw new TypeError('the caller identity is a credential text and a namespace');
       const body = read.value;
-      const playerId = playerIdOf(client.namespace, body.playerId);
+      // A client: the namespace of its credential builds the id (008, unchanged). A player: only its own id, nothing is stored or memoised otherwise.
+      let playerId: string;
+      let scopeDigest: string;
+      if (isPlayerCaller(client)) {
+        checkPlayerCaller(client);
+        if (playerIdOf(PLAYER_NAMESPACE, body.playerId) !== client.playerId) return { ok: false, error: errorReply('forbidden') };
+        playerId = client.playerId;
+        scopeDigest = client.tokenDigest;
+      } else {
+        if (!isNamespace(client.namespace) || typeof client.credential !== 'string') throw new TypeError('the caller identity is a credential text and a namespace');
+        playerId = playerIdOf(client.namespace, body.playerId);
+        scopeDigest = credentialDigest(client.credential);
+      }
       const submission: Submission = body.kind === 'winner' ? { kind: 'winner', choice: body.faction } : { kind: body.kind, round: body.round as number, choice: body.faction };
       const round = body.kind === 'winner' ? 0 : (body.round as number);
-      const scope: MemoScope = { credentialDigest: credentialDigest(client.credential), match: matchId };
+      const scope: MemoScope = { credentialDigest: scopeDigest, match: matchId };
       const content = sha256Ascii(canonicalBody('POST', submissionPath(matchId), request.body));
       const memo: { at?: number } = {};
       // FR-292: a storage failure rolls the prediction and its memo back together: nothing is reported as accepted.
@@ -1284,9 +1337,18 @@ export function createMatchService(options: ServiceOptions): MatchService {
     },
 
     ownPredictions(request: OwnPredictionsRequest): OwnPredictionsOutcome {
-      if (!isNamespace(request.namespace)) throw new TypeError('the caller identity is a namespace');
-      if (!isLocalId(request.playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
-      const player = playerIdOf(request.namespace, request.playerId);
+      let player: string;
+      if ('player' in request) {
+        checkPlayerCaller(request.player);
+        if (!isLocalId(request.playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+        // A player reads its own predictions only (a malformed id first, then another player's id).
+        if (playerIdOf(PLAYER_NAMESPACE, request.playerId) !== request.player.playerId) return { ok: false, error: errorReply('forbidden') };
+        player = request.player.playerId;
+      } else {
+        if (!isNamespace(request.namespace)) throw new TypeError('the caller identity is a namespace');
+        if (!isLocalId(request.playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+        player = playerIdOf(request.namespace, request.playerId);
+      }
       const toReply = (p: StoredPrediction): PredictionReply => ({ kind: p.kind, ...(p.kind === 'winner' ? {} : { round: p.round }), choice: p.choice, version: p.version });
       return orUnavailable(
         (): OwnPredictionsOutcome => {
@@ -1383,11 +1445,24 @@ export function createMatchService(options: ServiceOptions): MatchService {
     },
 
     ownPredictionsPage(request: OwnPredictionsPageRequest): ReadOutcome<Page<OwnPrediction>> {
-      const { namespace, matchId, playerId, limit, after } = request;
-      // The namespace comes from the configured credential (FR-284): one outside its set is a programming error of the caller.
-      if (!isNamespace(namespace)) throw new TypeError('the caller identity is a namespace');
-      // Checked before the store sees it (the store refuses it as a RangeError): a namespace cannot be sent (FR-270).
-      if (playerId !== undefined && !isLocalId(playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+      const { matchId, limit, after } = request;
+      let namespace: string;
+      let playerId = request.playerId;
+      if ('player' in request) {
+        // A player: the namespace is the reserved one and the local id is its own, whatever the caller asked for.
+        checkPlayerCaller(request.player);
+        if (playerId !== undefined && !isLocalId(playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+        const own = request.player.playerId.slice(PLAYER_NAMESPACE.length + 1);
+        if (playerId !== undefined && playerId !== own) return { ok: false, error: errorReply('forbidden') };
+        namespace = PLAYER_NAMESPACE;
+        playerId = own;
+      } else {
+        namespace = request.namespace;
+        // The namespace comes from the configured credential (FR-284): one outside its set is a programming error of the caller.
+        if (!isNamespace(namespace)) throw new TypeError('the caller identity is a namespace');
+        // Checked before the store sees it (the store refuses it as a RangeError): a namespace cannot be sent (FR-270).
+        if (playerId !== undefined && !isLocalId(playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+      }
       checkPageSize(limit);
       return read(() => {
         const stored = storedMatch(matchId);
@@ -1467,6 +1542,16 @@ export function createMatchService(options: ServiceOptions): MatchService {
         const digest = store.hostTokenDigest(matchId);
         // Compared as digests in time independent of the token (FR-300); an unknown match has no host token.
         return { ok: true, reply: presented !== undefined && digest !== undefined && sameDigest(presented, digest) };
+      });
+    },
+
+    playerTokenOf(matchId: string, token: string): ReadOutcome<{ readonly playerId: string } | undefined> {
+      if (typeof matchId !== 'string' || typeof token !== 'string') return { ok: true, reply: undefined };
+      // Only the digest goes to the store, which looks it up by the index within this match; a token of another match finds nothing.
+      const digest = credentialDigest(token);
+      return read(() => {
+        const found = store.playerByTokenDigest(matchId, digest);
+        return { ok: true, reply: found === undefined ? undefined : { playerId: found.playerId } };
       });
     },
 

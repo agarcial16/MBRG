@@ -211,6 +211,22 @@ describe('http limiter', () => {
     expect(DEFAULT_LIMITS.submissions).toBe(30);
   });
 
+  it('FR-378 (limits) a player has its own read and command bucket by digest with the client limits; players behind one address do not share one', () => {
+    const limits: Limits = { commands: 11, reads: 13, submissions: 17, advances: 19, anonymous: 23, streams: 29, anonymousStreams: 31 };
+    const mine = { role: 'player', digest: 'ab'.repeat(32), playerId: 'player:aaaaaaaaaaaa', matchId: 'm1' } as const;
+    const yours = { role: 'player', digest: 'cd'.repeat(32), playerId: 'player:bbbbbbbbbbbb', matchId: 'm1' } as const;
+    expect(limitKeys(mine, 'command', '192.0.2.7', limits)).toStrictEqual([{ key: `command:${mine.digest}`, limit: 11 }]);
+    expect(limitKeys(mine, 'read', '192.0.2.7', limits)).toStrictEqual([{ key: `read:${mine.digest}`, limit: 13 }]);
+    expect(limitKeys(yours, 'read', '192.0.2.7', limits)).toStrictEqual([{ key: `read:${yours.digest}`, limit: 13 }]);
+    // Two players of one address spend separate budgets: the second is admitted although the first holds its limit.
+    const limiter = createLimiter();
+    const one = limitKeys(mine, 'read', '192.0.2.7', { ...limits, reads: 1 });
+    expect(limiter.admit(one, T0).ok).toBe(true);
+    expect(limiter.admit(one, T0).ok).toBe(false);
+    expect(limiter.admit(limitKeys(yours, 'read', '192.0.2.7', { ...limits, reads: 1 }), T0).ok).toBe(true);
+    expect(limiter.count('address:192.0.2.7', T0)).toBe(0);
+  });
+
   it('FR-299 (c) a key list that is empty or a limit that is not a whole number >= 1 is a programming error', () => {
     const limiter = createLimiter();
     expect(() => limiter.admit([], T0)).toThrow(RangeError);

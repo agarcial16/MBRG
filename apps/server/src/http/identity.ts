@@ -8,7 +8,7 @@
 //   advance request, asks the match (`hostTokenMatches`) and promotes it with `hostIdentity`; otherwise it is anonymous.
 // - An identity holds a role and a digest (and a client's namespace), never the credential text.
 
-import { errorReply, isLocalId, playerIdOf } from '@mbrg/protocol';
+import { PLAYER_NAMESPACE, errorReply, isLocalId, playerIdOf } from '@mbrg/protocol';
 import type { ErrorReply } from '@mbrg/protocol';
 import { credentialDigest, sameDigest } from '../service/ids';
 import type { ServerSettings } from '../service/settings';
@@ -22,6 +22,7 @@ export type Identity =
   | { readonly role: 'operator'; readonly digest: string }
   | { readonly role: 'client'; readonly digest: string; readonly namespace: string }
   | { readonly role: 'host'; readonly digest: string }
+  | { readonly role: 'player'; readonly digest: string; readonly playerId: string; readonly matchId: string }
   | { readonly role: 'candidate'; readonly digest: string }
   | { readonly role: 'anonymous' };
 
@@ -74,6 +75,17 @@ export function hostIdentity(identity: Identity, matches: boolean): Identity {
   return matches ? { role: 'host', digest: identity.digest } : { role: 'anonymous' };
 }
 
+/**
+ * A candidate whose token a player of the match owns is that player, for that match only (spec 011 FR-378); an unconfirmed
+ * one is anonymous. `lookup` asks the match and runs for a candidate ONLY: any other role is returned as it is, unasked.
+ * The identity keeps the digest, the player id and the match id, never the token text.
+ */
+export function playerIdentity(identity: Identity, matchId: string, lookup: () => { readonly playerId: string } | undefined): Identity {
+  if (identity.role !== 'candidate') return identity;
+  const found = lookup();
+  return found === undefined ? { role: 'anonymous' } : { role: 'player', digest: identity.digest, playerId: found.playerId, matchId };
+}
+
 /** Submissions and own-prediction reads need a client credential (FR-284): anything else is `forbidden`. */
 export function requireClient(identity: Identity): { readonly ok: true; readonly client: ClientIdentity } | { readonly ok: false; readonly error: ErrorReply } {
   return identity.role === 'client' ? { ok: true, client: identity } : { ok: false, error: errorReply('forbidden') };
@@ -89,4 +101,16 @@ export function playerIdFor(identity: Identity, localId: string): { readonly ok:
   const client = requireClient(identity);
   if (!client.ok) return client;
   return { ok: true, playerId: playerIdOf(client.client.namespace, localId) };
+}
+
+/**
+ * The player id of a submission by any caller that may submit: a client as `playerIdFor` says, byte for byte; a player only
+ * under its own id (`player:<localId>`), any other local id is `forbidden`; no credential is `forbidden`. A malformed local
+ * id is `invalid-player-id` before any of that (FR-301 order).
+ */
+export function submitterOf(identity: Identity, localId: string): { readonly ok: true; readonly playerId: string } | { readonly ok: false; readonly error: ErrorReply } {
+  if (identity.role !== 'player') return playerIdFor(identity, localId);
+  if (!isLocalId(localId)) return { ok: false, error: errorReply('invalid-player-id') };
+  const own = playerIdOf(PLAYER_NAMESPACE, localId);
+  return own === identity.playerId ? { ok: true, playerId: own } : { ok: false, error: errorReply('forbidden') };
 }
