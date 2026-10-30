@@ -69,6 +69,7 @@ import type {
   OwnPrediction,
   Page,
   PhaseResultsPage,
+  PlayerListItem,
   PlayerResultsPage,
   PredictionReply,
   PublicMatch,
@@ -396,6 +397,11 @@ export interface MatchService {
   leaderboard(matchId: string, request: PageRequest<'leaderboard'>): ReadOutcome<Page<LeaderboardRow>>;
   /** FR-300 (host-token check): whether the credential is the host token of the match, by digest comparison; false for an unknown match. */
   hostTokenMatches(matchId: string, credential: string): ReadOutcome<boolean>;
+  /**
+   * FR-385, FR-279: the players of a match in join order (id, name and the join sequence number), one keyset page; any stage
+   * answers. No token, digest or prediction is read. `unknown-match`, or `unavailable` on a storage failure. Writes nothing.
+   */
+  players(matchId: string, request: PageRequest<'players'>): ReadOutcome<Page<PlayerListItem>>;
   /**
    * FR-378: the player of this match whose token this is, by the digest of the token looked up through the index of the
    * match's players (the store sees the digest only); undefined for a token of no player of this match (another match, an
@@ -1542,6 +1548,18 @@ export function createMatchService(options: ServiceOptions): MatchService {
         const digest = store.hostTokenDigest(matchId);
         // Compared as digests in time independent of the token (FR-300); an unknown match has no host token.
         return { ok: true, reply: presented !== undefined && digest !== undefined && sameDigest(presented, digest) };
+      });
+    },
+
+    players(matchId: string, request: PageRequest<'players'>): ReadOutcome<Page<PlayerListItem>> {
+      const { limit, after } = request;
+      checkPageSize(limit);
+      return read(() => {
+        const stored = storedMatch(matchId);
+        if (stored === undefined) return unknownMatch();
+        // The store never reads back a token digest or a name key; only id, name and join order are copied (FR-385).
+        const rows = store.playersAfter(stored.match.matchId, after === undefined ? undefined : after[0], limit + 1);
+        return { ok: true, reply: pageFrom('players', rows, limit, (p): PlayerListItem => ({ playerId: p.playerId, name: p.name, joinedSeq: p.joinedSeq }), (p) => [p.joinedSeq]) };
       });
     },
 

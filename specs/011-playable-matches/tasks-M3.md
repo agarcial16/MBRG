@@ -67,7 +67,7 @@ Plan sections 1 (P7 to P11), 3, 4, 5, 12 (M3 row), 15 (Q3, Q5). Branch cut from 
   - Done when: tests green; mutations caught; FR-378 moved (14 / 15).
   - Size: M (about 550).
 
-- [ ] **T8. Service: the players list and the no-recovery rule.** FR-382 (close)
+- [x] **T8. Service: the players list and the no-recovery rule.** FR-382 (close)
   - Depends on: T6, T7.
   - Files: `apps/server/src/service/matches.ts` (`players(matchId, request)` paged read: id, name, join order), `apps/server/test/{service-players,service-no-recovery}.test.ts`, `service-seam` method list.
   - Tests first: the list is ordered by join order, paged (limits 1, 2, 500, cursors never repeat or skip, a cursor of another list is `invalid-request ['cursor']`), shows only id, name and join order — a table scan of the reply bytes finds no token, digest or prediction; a lobby, a running and a finished match all answer; `unknown-match`; `unavailable` under the fault seam; reading changes nothing in the database dump; FR-382: the service has no method that changes a name, issues a second token for a player, or reads a token back (the method list is pinned), a second `join` with another request id and the same name is `name-taken` even for the same source, and the token exists in clear text only in the join reply and its memo row (a dump scan over every table and the log sink).
