@@ -76,7 +76,7 @@ Plan sections 1 (P1 to P5, P14 to P16), 3, 4, 7, 8, 12 (M2 row), 15 (Q1, Q4, Q6 
   - Done when: `npm run typecheck` green with the widened `Stage`; web suites green; no UI behaviour change for any 008 stage.
   - Size: S (about 90).
 
-- [ ] **T9. Service proofs: caps, restart, kills, a 008 database.** (words only for the pending ids)
+- [x] **T9. Service proofs: caps, restart, kills, a 008 database.** (words only for the pending ids)
   - Depends on: T6, T7.
   - Files: `apps/server/test/{service-public-caps,service-lobby-durability,service-v1-database}.test.ts`, `apps/server/test/helpers/durability-script.ts` (additions only).
   - Tests first: open-lobby cap: creation at `cap - 1` succeeds, at `cap` is `too-many-matches`, nothing stored or drawn; after a start or an expiry the slot frees; public-running cap likewise (whether a `start` that would exceed it is refused with `too-many-matches` is Q13; until answered, only the creation-side cap is tested and `start` is not capped); the operator limit of 008 still applies (Q4); kill points of public creation, start and expiry (every write boundary through `failWrite`/the durability harness) recover to the uninterrupted dump: no lobby without its event, no start without its schedule, no expiry half done; a restart in each lobby state; a v1 file with a running 008 match continues to step and score after the upgrade, byte-equal to a run on the 008 build for events and results; twin lobbies (same public data, different secrets via the test seed source) give identical public data and event bytes; a planted-secret scan over lobby replies, events and the database finds nothing before the finish.
