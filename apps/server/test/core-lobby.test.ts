@@ -3,7 +3,7 @@ import { errorReply, stepMismatch } from '@mbrg/protocol';
 import type { Stage, Timing } from '@mbrg/protocol';
 import { decideAdvance } from '../src/core/advance';
 import { createLobby, lobbyEvents } from '../src/core/create';
-import { expireDecision, startDecision } from '../src/core/lobby';
+import { expireDecision, joinDecision, startDecision } from '../src/core/lobby';
 import { decideSubmission } from '../src/core/predictions';
 import { nextStep } from '../src/core/steps';
 import type { StepDeps } from '../src/core/steps';
@@ -103,6 +103,39 @@ describe('expiry decision', () => {
 
   it('an expired lobby is not expired twice (match-expired)', () => {
     expect(expireDecision({ ...lobbyOf(CLOCK), stage: 'expired' }, T0 + 1)).toStrictEqual({ ok: false, error: errorReply('match-expired') });
+  });
+});
+
+describe('join decision', () => {
+  it.each(['lobby', 'phase-1', 'phase-2', 'locked'] as const)('a join in stage %s is accepted and takes the next sequence number', (stage) => {
+    const before = { ...lobbyOf(CLOCK), stage, lastSeq: 7 };
+    const snapshot = JSON.stringify(before);
+    const d = joinDecision(before, 0, 200);
+    expect(d).toStrictEqual({ ok: true, seq: 8, view: { ...before, lastSeq: 8 } });
+    expect(JSON.stringify(before)).toBe(snapshot);
+  });
+
+  it.each([
+    ['finished', 'match-finished'],
+    ['halted', 'match-halted'],
+    ['expired', 'match-expired'],
+  ] as const)('a join in stage %s is refused with %s and changes nothing', (stage, kind) => {
+    expect(joinDecision({ ...lobbyOf(CLOCK), stage }, 0, 200)).toStrictEqual({ ok: false, error: errorReply(kind) });
+  });
+
+  it('one player below the cap is accepted and a full match is match-full', () => {
+    expect(joinDecision(lobbyOf(CLOCK), 36, 37).ok).toBe(true);
+    expect(joinDecision(lobbyOf(CLOCK), 37, 37)).toStrictEqual({ ok: false, error: errorReply('match-full') });
+    expect(joinDecision(lobbyOf(CLOCK), 38, 37)).toStrictEqual({ ok: false, error: errorReply('match-full') });
+    expect(joinDecision(lobbyOf(CLOCK), 0, 1).ok).toBe(true);
+    expect(joinDecision(lobbyOf(CLOCK), 1, 1)).toStrictEqual({ ok: false, error: errorReply('match-full') });
+  });
+
+  it('the stage errors come before match-full, in a running match too', () => {
+    for (const [stage, kind] of [['finished', 'match-finished'], ['halted', 'match-halted'], ['expired', 'match-expired']] as const) {
+      expect(joinDecision({ ...lobbyOf(CLOCK), stage }, 99, 37), stage).toStrictEqual({ ok: false, error: errorReply(kind) });
+    }
+    expect(joinDecision({ ...lobbyOf(CLOCK), stage: 'phase-2' }, 37, 37)).toStrictEqual({ ok: false, error: errorReply('match-full') });
   });
 });
 

@@ -17,15 +17,15 @@ import {
 const FR_301 = [
   'rate-limited', 'unknown-path', 'method-not-allowed', 'too-large', 'invalid-request', 'invalid-player-id',
   'forbidden', 'request-id-reused', 'unknown-match', 'unknown-map', 'map-validation', 'too-few-factions',
-  'invalid-timing', 'too-many-matches', 'match-halted', 'match-finished', 'match-started', 'match-expired', 'step-mismatch', 'round-not-applied',
+  'invalid-timing', 'too-many-matches', 'match-halted', 'match-finished', 'name-taken', 'match-full', 'match-started', 'match-expired', 'step-mismatch', 'round-not-applied',
   'stale-cursor', 'prediction-closed', 'forced-absorber', 'invalid-choice', 'unavailable',
 ];
 
 describe('error kinds', () => {
-  it('FR-301 ERROR_ORDER equals the fixed list: 24 kinds plus the map-validation group, 25 entries', () => {
+  it('FR-301 ERROR_ORDER equals the fixed list: 26 kinds plus the map-validation group, 27 entries', () => {
     expect([...ERROR_ORDER]).toStrictEqual(FR_301);
-    expect(ERROR_ORDER).toHaveLength(25);
-    expect(new Set(ERROR_ORDER).size).toBe(25);
+    expect(ERROR_ORDER).toHaveLength(27);
+    expect(new Set(ERROR_ORDER).size).toBe(27);
   });
 
   it('FR-301 the forced-absorber kind sits right after prediction-closed and right before invalid-choice', () => {
@@ -41,7 +41,7 @@ describe('error kinds', () => {
 
   it('FR-301 the lobby refusals match-started and match-expired follow match-finished and precede step-mismatch', () => {
     const at = ERROR_ORDER.indexOf('match-finished');
-    expect(ERROR_ORDER.slice(at, at + 4)).toStrictEqual(['match-finished', 'match-started', 'match-expired', 'step-mismatch']);
+    expect(ERROR_ORDER.slice(at, at + 6)).toStrictEqual(['match-finished', 'name-taken', 'match-full', 'match-started', 'match-expired', 'step-mismatch']);
     expect(firstError(['match-expired', 'match-started'])).toBe('match-started');
     expect(firstError(['step-mismatch', 'match-expired'])).toBe('match-expired');
     expect(firstError(['match-started', 'match-finished'])).toBe('match-finished');
@@ -49,6 +49,16 @@ describe('error kinds', () => {
     expect(errorReply('match-expired')).toStrictEqual({ kind: 'match-expired' });
     expect(() => errorReply('match-started', ['a', 'b'])).toThrow(RangeError);
     expect(listsSeveral('match-expired')).toBe(false);
+  });
+
+  it('FR-301 the join refusals name-taken and match-full sit after match-finished and before match-started', () => {
+    expect(firstError(['match-started', 'match-full', 'name-taken'])).toBe('name-taken');
+    expect(firstError(['match-started', 'match-full'])).toBe('match-full');
+    expect(firstError(['match-finished', 'name-taken'])).toBe('match-finished');
+    expect(errorReply('name-taken')).toStrictEqual({ kind: 'name-taken' });
+    expect(errorReply('match-full')).toStrictEqual({ kind: 'match-full' });
+    expect(() => errorReply('match-full', ['a', 'b'])).toThrow(RangeError);
+    expect(listsSeveral('name-taken')).toBe(false);
   });
 
   it('FR-301 firstError returns the earlier kind of every pair, in any argument order', () => {

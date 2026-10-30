@@ -40,7 +40,7 @@ Plan sections 1 (P7 to P11), 3, 4, 5, 12 (M3 row), 15 (Q3, Q5). Branch cut from 
   - Done when: tests green; mutations caught; no id moved.
   - Size: M (about 450).
 
-- [ ] **T5. Core: the join decision and the player count in the view.** (words only)
+- [x] **T5. Core: the join decision and the player count in the view.** (words only)
   - Depends on: T4.
   - Files: `apps/server/src/core/{lobby,view}.ts` (`joinDecision(view, count, max)`; `CoreMatch.playerCount?`, `CORE_MATCH_KEYS` gains it; `publicOf` writes `playerCount` when the stage is `lobby`/`expired` or the count is positive), `apps/server/test/{core-lobby,core-view}.test.ts` and the pinned key test.
   - Tests first: stages `lobby`, `phase-1`, `phase-2`, `locked` accept (the running ones: a join mid-match); `finished` -> `match-finished`, `halted` -> `match-halted`, `expired` -> `match-expired`; the cap: `count = max - 1` accepts, `count = max` is `match-full`, and the stage errors come before `match-full`; the new `lastSeq` is `lastSeq + 1`; `publicOf` omits `playerCount` for a running match with no player (the 008 bytes) and writes it otherwise; no secret-looking key is added to the core view (`CORE_MATCH_KEYS` test).
