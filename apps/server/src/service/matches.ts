@@ -982,7 +982,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
         }
         const times = timesOf(stored.match);
         done.reported = times.reported;
-        const decision = startDecision(stored.match, now, times.reported);
+        const decision = startDecision(stored.match, now, times.reported, store.getLobby(matchId)?.expiresMs);
         if (!decision.ok) return { ok: false, error: decision.error };
         // The 008 limit counts public matches too (D7); the cap of running public matches is checked here, at the start.
         if (store.runningCount() >= limit) return { ok: false, error: errorReply('too-many-matches') };

@@ -17,11 +17,14 @@ const refusal = (view: CoreMatch): LobbyDecision => ({ ok: false, error: errorRe
 /**
  * The start of a lobby: stage `phase-1` of round 1, `lastStepMs` and the clock anchored at the start instant (the effective
  * instant, never below the last step instant, FR-249), none for timing `manual` (the host then advances, FR-375). One
- * `schedule` event with the next sequence number carries the anchors and the reported time.
+ * `schedule` event with the next sequence number carries the anchors and the reported time. A start at or after `expiresMs`
+ * (the lobby expiry instant) is refused `match-expired`; the expiry itself is performed by its own decision.
  */
-export function startDecision(view: CoreMatch, now: number, reportedTime: number): LobbyDecision {
+export function startDecision(view: CoreMatch, now: number, reportedTime: number, expiresMs: number = Infinity): LobbyDecision {
   if (view.stage !== 'lobby') return refusal(view);
   const instant = effectiveInstant(now, view.lastStepMs);
+  // FR-372: at or after the expiry instant the lobby is expired by its own rule, whether or not the wake-up has run yet.
+  if (instant >= expiresMs) return { ok: false, error: errorReply('match-expired') };
   const anchors = anchorsFrom(instant, view.timing);
   const seq = view.lastSeq + 1;
   const event: MatchEvent = {
