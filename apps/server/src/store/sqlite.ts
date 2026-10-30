@@ -486,6 +486,10 @@ export const openStore = (path: string): Store => {
       }
       return ids.length;
     },
+    oldestExpiredMs(): number | undefined {
+      const row = one('SELECT MIN(expired_ms) AS oldest FROM lobbies WHERE expired_ms IS NOT NULL AND started_ms IS NULL');
+      return row === undefined || row.oldest === null ? undefined : num(row, 'oldest');
+    },
     getState(matchId: string, round: number): StoredState | undefined {
       const row = one('SELECT owners_json, state_digest FROM states WHERE match_id = ? AND round = ?', matchId, round);
       if (row === undefined) return undefined;

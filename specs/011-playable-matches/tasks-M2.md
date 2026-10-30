@@ -58,7 +58,7 @@ Plan sections 1 (P1 to P5, P14 to P16), 3, 4, 7, 8, 12 (M2 row), 15 (Q1, Q4, Q6 
   - Done when: tests green; mutations caught; FR-371, FR-374, FR-375 moved (7 / 22).
   - Size: L (about 700).
 
-- [ ] **T7. Service: expiry, ticks and restart of lobbies.** FR-372, NFR-76 (close)
+- [x] **T7. Service: expiry, ticks and restart of lobbies.** FR-372, NFR-76 (close)
   - Depends on: T6.
   - Files: `apps/server/src/service/{matches,scheduler}.ts` (expiry wake-up per lobby; `armAt` takes a kind; `tick` and `start()` handle lobbies; memo-purge tick also calls `purgeExpired`), `apps/server/test/{service-lobby-expiry,service-lobby-restart}.test.ts`.
   - Tests first (fake clock and fake scheduler only; no real timer): a lobby not started within 24 h (the setting; also 1 h and a non-round 7 h) becomes `expired` at `created + expiry` exactly (not 1 ms before), stores and publishes a `schedule` event with stage `expired`, rejects `start` (`match-expired`) and (once M3 exists) joins; the record is kept and then removed after the retention (24 h + 1 ms after expiry; before it a read still answers `expired`; after it `unknown-match`); a started match is never expired by the rule (the wake-up is cancelled at `start`, and a tick at +25 h leaves it running); a restart (new store and service on the same file, `start()`) keeps a lobby a lobby and re-arms its expiry; a lobby already overdue at restart expires at once, with the effective instant; a backward clock does not expire early; an expiry that fails to store (`failWrite`) leaves the lobby and retries after 3 s; timers exist only in `scheduler.ts` (existing scan); open-lobby count drops at expiry and a new public creation succeeds at the cap boundary afterwards.

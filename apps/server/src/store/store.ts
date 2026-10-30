@@ -184,6 +184,8 @@ export interface Store {
    * lobbies, operator matches and the memo are never touched.
    */
   purgeExpired(now: number): number;
+  /** The expiry instant of the oldest expired lobby still stored (where its removal is armed), or undefined with none. */
+  oldestExpiredMs(): number | undefined;
   /** The state at an applied round, or undefined. */
   getState(matchId: string, round: number): StoredState | undefined;
   /** Stores the record of an applied round (1 <= round <= N): any other round is refused (FR-255, FR-256). */

@@ -59,7 +59,7 @@ import type {
 import type { Clock } from '../clock';
 import { decideAdvance } from '../core/advance';
 import { createLobby, createMatch, creationEvents, lobbyEvents } from '../core/create';
-import { startDecision } from '../core/lobby';
+import { expireDecision, startDecision } from '../core/lobby';
 import { MEMO_RETENTION_MS, decideMemo, isMemoisable } from '../core/memo';
 import type { MemoScope } from '../core/memo';
 import { decideSubmission } from '../core/predictions';
@@ -74,7 +74,7 @@ import type { CoreMatch, StepRow } from '../core/view';
 import { DERIVATION_RULE, commitment as commitmentOf, newSecret, secretHex } from '../secret';
 import type { RandomBytes } from '../secret';
 import { seedOfSecret } from '../seeds';
-import { StoreError } from '../store/store';
+import { LOBBY_RETENTION_MS, StoreError } from '../store/store';
 import type { Store, StoredMatch, StoredRecord, StoredStep } from '../store/store';
 import { credentialDigest, newHostToken, newMatchId, sameDigest, sha256Ascii } from './ids';
 import { isMapFileName, mapForStep } from './maps';
@@ -364,6 +364,9 @@ const publicView = (view: CoreMatch, reportedTime: number, matchSecret?: string)
 
 const HOUR_MS = 3_600_000;
 
+/** Which decision a wake-up of a match performs: the clock step of a running match, or the expiry of a lobby (spec 011 P16). */
+type WakeKind = 'step' | 'expiry';
+
 const RUNNING = ['phase-1', 'phase-2', 'locked'];
 const isRunning = (view: CoreMatch): boolean => RUNNING.includes(view.stage);
 
@@ -470,22 +473,42 @@ export function createMatchService(options: ServiceOptions): MatchService {
    * Arms the one wake-up of a match at `at`, replacing the earlier one. The callback is isolated (`stepSafely`): whatever
    * happens inside it, nothing escapes to the timer and the match is armed again (its next step, or the retry).
    */
-  const armAt = (matchId: string, at: number, checkMap: boolean): void => {
+  const armAt = (matchId: string, at: number, checkMap: boolean, kind: WakeKind = 'step'): void => {
     if (scheduler === undefined || life.closed) return;
     disarm(matchId);
     armed.set(
       matchId,
       scheduler.at(at, () => {
         armed.delete(matchId);
-        stepSafely(matchId, checkMap);
+        if (kind === 'expiry') expireSafely(matchId);
+        else stepSafely(matchId, checkMap);
       }),
     );
   };
 
-  /** Arms the scheduler for the next due step of the match, replacing the earlier wake-up (FR-239); nothing when it is not running. */
+  /**
+   * Arms the expiry wake-up of a lobby at the instant stored in its row (FR-372, plan P16). A lobby has this wake-up only; it
+   * shares the match's one slot, so the step wake-up armed at `start` replaces (cancels) it. A storage failure of the read
+   * arms the retry instead: the wake-up reads the row again.
+   */
+  const armExpiry = (matchId: string): void => {
+    if (scheduler === undefined || life.closed) return;
+    let at: number | undefined;
+    try {
+      at = store.getLobby(matchId)?.expiresMs;
+    } catch (error) {
+      if (!isStorageFailure(error)) throw error;
+      at = wholeMs(clock.now()) + RETRY_MS;
+    }
+    if (at === undefined) disarm(matchId);
+    else armAt(matchId, at, false, 'expiry');
+  };
+
+  /** Arms the scheduler for the next due step of the match, replacing the earlier wake-up (FR-239); a lobby gets its expiry wake-up; nothing otherwise. */
   const arm = (view: CoreMatch): void => {
     if (scheduler === undefined) return;
     disarm(view.matchId);
+    if (view.stage === 'lobby') return armExpiry(view.matchId);
     if (!isRunning(view)) return;
     const at = nextInstant(view);
     if (at !== null) armAt(view.matchId, at, false);
@@ -507,7 +530,14 @@ export function createMatchService(options: ServiceOptions): MatchService {
   };
 
   /** The memo purge in its own transaction (FR-238, FR-282 (e)); returns how many entries were deleted. */
-  const purgeNow = (): number => store.transaction(() => store.memoPurge(wholeMs(clock.now())));
+  const purgeNow = (): number =>
+    store.transaction(() => {
+      const now = wholeMs(clock.now());
+      const memos = store.memoPurge(now);
+      // The expired lobbies past their retention go in the same pass (FR-372): the count returned stays the memo entries.
+      store.purgeExpired(now);
+      return memos;
+    });
 
   /** The one purge wake-up (FR-238 purge timer), armed only after `start`. */
   const purgeTimer: { handle?: SchedulerHandle } = {};
@@ -516,11 +546,16 @@ export function createMatchService(options: ServiceOptions): MatchService {
     if (purgeTimer.handle !== undefined) scheduler.cancel(purgeTimer.handle);
     purgeTimer.handle = scheduler.at(at, runPurge);
   };
-  /** Arms the purge at the retention boundary of the oldest stored entry (purged once older than the retention), or disarms it. */
+  /**
+   * Arms the purge at the earlier retention boundary of the oldest memo entry and the oldest expired lobby (purged once older
+   * than the retention), or disarms it.
+   */
   const armPurge = (): void => {
     if (scheduler === undefined || !life.started || life.closed) return;
-    const oldest = store.memoOldest();
-    if (oldest !== undefined) return armPurgeAt(oldest + MEMO_RETENTION_MS + 1);
+    const memo = store.memoOldest();
+    const lobby = store.oldestExpiredMs();
+    const boundaries = [...(memo === undefined ? [] : [memo + MEMO_RETENTION_MS + 1]), ...(lobby === undefined ? [] : [lobby + LOBBY_RETENTION_MS + 1])];
+    if (boundaries.length > 0) return armPurgeAt(Math.min(...boundaries));
     if (purgeTimer.handle !== undefined) scheduler.cancel(purgeTimer.handle);
     delete purgeTimer.handle;
   };
@@ -567,14 +602,67 @@ export function createMatchService(options: ServiceOptions): MatchService {
       return { done: tickMatch(matchId, checkMap) };
     } catch (error) {
       armRetry(matchId, checkMap);
-      const failure: StepFailure = { matchId, kind: isStorageFailure(error) ? 'unavailable' : 'error' };
-      try {
-        onFailure?.(failure, error);
-      } catch {
-        // Ignored on purpose: a failing report must not stop the retry or the other matches.
-      }
-      return { failure };
+      return { failure: reportFailure(matchId, error) };
     }
+  }
+
+  /** Classifies a failed clock step or expiry (FR-292) and tells `onFailure` (NFR-54); a callback that throws changes nothing. */
+  function reportFailure(matchId: string, error: unknown): StepFailure {
+    const failure: StepFailure = { matchId, kind: isStorageFailure(error) ? 'unavailable' : 'error' };
+    try {
+      onFailure?.(failure, error);
+    } catch {
+      // Ignored on purpose: a failing report must not stop the retry or the other matches.
+    }
+    return failure;
+  }
+
+  /**
+   * The expiry of one lobby, isolated like a clock step (FR-372): a failure is reported and tried again RETRY_MS later. The
+   * retry is a wake-up of the same kind, so the lobby stays a lobby until the expiry is stored.
+   */
+  function expireSafely(matchId: string): { failure: StepFailure } | { expired: boolean } {
+    try {
+      return { expired: expireMatch(matchId) };
+    } catch (error) {
+      armAt(matchId, wholeMs(clock.now()) + RETRY_MS, false, 'expiry');
+      return { failure: reportFailure(matchId, error) };
+    }
+  }
+
+  /**
+   * Expires the lobby of `matchId` if it is a lobby neither started nor expired whose expiry instant has come, in one
+   * transaction: the stage change, the lobby mark (at the effective instant: late when the wake-up was late, FR-248 style) and
+   * the `schedule` event of stage `expired`. The decision compares the effective instant, never below the creation, so a
+   * clock that went backward does not expire it early; a wake-up that finds the expiry not due arms it again. A started or
+   * expired match is never touched (FR-372). True when it expired.
+   */
+  function expireMatch(matchId: string): boolean {
+    const done: { committed?: Committed; reported: number; at: number; again?: number } = { reported: 0, at: 0 };
+    store.transaction(() => {
+      const stored = store.getMatch(matchId);
+      const lobby = store.getLobby(matchId);
+      if (stored === undefined || lobby === undefined || lobby.startedMs !== null || lobby.expiredMs !== null || stored.match.stage !== 'lobby') return;
+      const times = timesOf(stored.match);
+      done.reported = times.reported;
+      if (times.effective < lobby.expiresMs) {
+        done.again = lobby.expiresMs;
+        return;
+      }
+      const decision = expireDecision(stored.match, times.reported);
+      if (!decision.ok) return;
+      store.updateMatch(decision.view);
+      store.markExpired(matchId, times.effective);
+      store.appendEvents(matchId, decision.events);
+      done.at = times.effective;
+      done.committed = { view: decision.view, events: decision.events };
+    });
+    if (done.again !== undefined) armAt(matchId, done.again, false, 'expiry');
+    if (done.committed === undefined) return false;
+    // Its removal waits for the retention: an unarmed purge timer is armed at that boundary (an armed one is never later).
+    if (purgeTimer.handle === undefined) armPurgeAt(done.at + LOBBY_RETENTION_MS + 1);
+    settle(matchId, done.reported, done.committed);
+    return true;
   }
 
   /**
@@ -695,8 +783,10 @@ export function createMatchService(options: ServiceOptions): MatchService {
   function startCheck(): StartReport {
     const purged = purgeOrNone();
     let ids: string[];
+    let lobbies: string[];
     try {
       ids = store.runningMatchIds();
+      lobbies = store.lobbyIds();
     } catch (error) {
       if (!isStorageFailure(error)) throw error;
       const at = wholeMs(clock.now()) + RETRY_MS;
@@ -704,6 +794,8 @@ export function createMatchService(options: ServiceOptions): MatchService {
       return { purged, performed: [], failed: [], halted: [], retry: { kind: 'unavailable', at } };
     }
     const report = stepAll(true, ids);
+    // Every stored lobby: expired now if its expiry is past (late, FR-372), armed for its expiry otherwise. A failure arms its own retry.
+    for (const id of lobbies) expireSafely(id);
     try {
       armPurge();
     } catch {
@@ -1100,6 +1192,8 @@ export function createMatchService(options: ServiceOptions): MatchService {
     tick(): TickReport {
       const purged = purgeOrNone();
       const { performed, failed } = stepAll(false, runningIds());
+      // The lobbies whose expiry has come (a failure here arms its retry and is reported; the tick lists clock steps only).
+      for (const id of orUnavailable(() => store.lobbiesExpiringBefore(wholeMs(clock.now())), (): string[] => [])) expireSafely(id);
       return { purged, performed, failed };
     },
 
