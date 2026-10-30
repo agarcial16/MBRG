@@ -25,6 +25,7 @@ export const ERROR_ORDER = [
   'round-not-applied',
   'stale-cursor',
   'prediction-closed',
+  'forced-absorber',
   'invalid-choice',
   'unavailable',
 ] as const;

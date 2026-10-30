@@ -106,7 +106,9 @@ function readVictim(v: unknown, applied: number, timing: Timing): PublicVictim {
     c2 = intField(o, 'c2', 0, 'victim');
     a = intField(o, 'a', 0, 'victim');
   }
-  return { round, victim, candidates, living, revealedAt, c2, a, seq };
+  // `forced` exists only when true (a single candidate); `false`, or any other value, is refused.
+  if (has(o, 'forced') && o.forced !== true) bad('victim.forced is present but not true');
+  return has(o, 'forced') ? { round, victim, candidates, living, revealedAt, c2, a, forced: true, seq } : { round, victim, candidates, living, revealedAt, c2, a, seq };
 }
 
 interface Checked {
@@ -210,7 +212,7 @@ export function encodePublicMatch(view: PublicMatch): string {
   if (m.victim !== undefined) {
     const v = m.victim;
     parts.push(
-      `"victim":{"round":${v.round},"victim":${v.victim},"candidates":${list(v.candidates)},"living":${list(v.living)},"revealedAt":${v.revealedAt},"c2":${v.c2},"a":${v.a},"seq":${v.seq}}`,
+      `"victim":{"round":${v.round},"victim":${v.victim},"candidates":${list(v.candidates)},"living":${list(v.living)},"revealedAt":${v.revealedAt},"c2":${v.c2},"a":${v.a},${v.forced === true ? '"forced":true,' : ''}"seq":${v.seq}}`,
     );
   }
   if (m.winner !== undefined) parts.push(`"winner":${m.winner}`);

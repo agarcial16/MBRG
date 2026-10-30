@@ -15,7 +15,7 @@ Plan sections 6, 11, 12 (M1 rows), 15 (Q2). The rules of `tasks.md` apply; sizes
   - Done when: suite, typecheck, `CI=1` green; counts 0 / 29; `git diff` touches only the traceability test and specs.
   - Size: S (about 90).
 
-- [ ] **T2. Protocol: the forced mark and the `forced-absorber` kind.** (describe in words; no pending id in titles)
+- [x] **T2. Protocol: the forced mark and the `forced-absorber` kind.** (describe in words; no pending id in titles)
   - Depends on: T1.
   - Files: `packages/protocol/src/{wire,errors,encode,decode,public,index}.ts`, `apps/server/src/http/status.ts`, `packages/protocol/test/{errors,public,encode-events,decode,encode}.test.ts`, `apps/server/test/http-status.test.ts`.
   - Tests first: `PublicVictim.forced` and the `victim-revealed` event accept `forced: true` and write it after `a` (PUBLIC_VICTIM_KEYS and `EVENT_KEYS` gain `forced`); `forced: false` is refused by the encoder and decoder (present only when true); a victim without `forced` encodes to exactly the 008 bytes (SHA-256 pin of one 008 `PublicVictim` and one 008 `victim-revealed` frame); `forced-absorber` sits between `prediction-closed` and `invalid-choice` in `ERROR_ORDER`, `firstError` picks by that order, status 409; the error decoder accepts it; the public-view type-level key test lists `forced` (no secret-looking key).

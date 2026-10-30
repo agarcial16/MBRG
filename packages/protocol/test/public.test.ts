@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   PUBLIC_MATCH_KEYS,
@@ -13,6 +14,7 @@ import {
 const hex = (c: string): string => c.repeat(64);
 const schedule = { c1: 1_120_000, c2: 1_150_000, a: 1_160_000 };
 const victim: PublicVictim = { round: 1, victim: 2, candidates: [1, 3], living: [1, 2, 3], revealedAt: 1_120_000, c2: 1_150_000, a: 1_160_000, seq: 4 };
+const forcedVictim: PublicVictim = { ...victim, candidates: [1], forced: true };
 const base: PublicMatch = {
   matchId: 'm-1',
   mapId: 'dev',
@@ -29,6 +31,7 @@ const base: PublicMatch = {
   schedule,
 };
 const phase2: PublicMatch = { ...base, stage: 'phase-2', lastSeq: 5, victim };
+const forcedPhase2: PublicMatch = { ...phase2, victim: forcedVictim };
 const locked: PublicMatch = { ...phase2, stage: 'locked' };
 const finished: PublicMatch = {
   ...base,
@@ -59,12 +62,13 @@ describe('the public view type', () => {
       'matchId', 'mapId', 'mapDigest', 'totalRounds', 'timing', 'commitment', 'stage', 'appliedRounds', 'state',
       'stateDigest', 'lastSeq', 'reportedTime', 'schedule', 'victim', 'winner', 'matchSecret', 'haltReason',
     ]);
-    expect([...PUBLIC_VICTIM_KEYS]).toStrictEqual(['round', 'victim', 'candidates', 'living', 'revealedAt', 'c2', 'a', 'seq']);
+    expect([...PUBLIC_VICTIM_KEYS]).toStrictEqual(['round', 'victim', 'candidates', 'living', 'revealedAt', 'c2', 'a', 'forced', 'seq']);
   });
 
   it('NFR-47 (b) the public view has no absorber, pending-state, seed or secret key except the finished-match secret', () => {
     const all = [...PUBLIC_MATCH_KEYS, ...PUBLIC_VICTIM_KEYS, ...Object.keys(base.state)];
     expect(all.filter((k) => /absorb|pending|seed|record|secret/i.test(k))).toStrictEqual(['matchSecret']);
+    expect(PUBLIC_VICTIM_KEYS).toContain('forced');
   });
 
   it('NFR-47 (b) type level: the key list and the type agree and no forbidden key exists', () => {
@@ -74,7 +78,12 @@ describe('the public view type', () => {
     const noForbidden: Extract<keyof PublicMatch | keyof PublicVictim, 'absorber' | 'pendingState' | 'seed' | 'roundSeed' | 'secret'> extends never
       ? true
       : false = true;
-    expect([noneMissing, noneExtra, noForbidden]).toStrictEqual([true, true, true]);
+    // The victim keys and the type agree too, `forced` included (an optional member).
+    type VictimListed = (typeof PUBLIC_VICTIM_KEYS)[number];
+    const victimNoneMissing: Exclude<keyof PublicVictim, VictimListed> extends never ? true : false = true;
+    const victimNoneExtra: Exclude<VictimListed, keyof PublicVictim> extends never ? true : false = true;
+    const forcedKey: 'forced' extends keyof PublicVictim ? true : false = true;
+    expect([noneMissing, noneExtra, noForbidden, victimNoneMissing, victimNoneExtra, forcedKey]).toStrictEqual([true, true, true, true, true, true]);
   });
 });
 
@@ -98,7 +107,28 @@ describe('the public view encoder', () => {
       expect(keys).toStrictEqual(PUBLIC_MATCH_KEYS.filter((k) => keys.includes(k)));
     }
     const nested = (JSON.parse(encodePublicMatch(phase2)) as { victim: object }).victim;
-    expect(Object.keys(nested)).toStrictEqual([...PUBLIC_VICTIM_KEYS]);
+    // `forced` is present only for a forced round, so a victim without it has every other key, in order.
+    expect(Object.keys(nested)).toStrictEqual(PUBLIC_VICTIM_KEYS.filter((k) => k !== 'forced'));
+    const forcedNested = (JSON.parse(encodePublicMatch(forcedPhase2)) as { victim: object }).victim;
+    expect(Object.keys(forcedNested)).toStrictEqual([...PUBLIC_VICTIM_KEYS]);
+  });
+
+  it('FR-257 the forced mark is written after a and before seq, only when true, and a victim without it keeps its 008 bytes', () => {
+    expect(encodePublicMatch(forcedPhase2)).toContain('"c2":1150000,"a":1160000,"forced":true,"seq":4}');
+    expect(encodePublicMatch(forcedPhase2)).toBe(encodePublicMatch(reversed(forcedPhase2) as PublicMatch));
+    expect(encodePublicMatch(phase2)).not.toContain('forced');
+    expect(encodePublicMatch({ ...phase2, victim: { ...victim, forced: undefined } as PublicVictim })).toBe(encodePublicMatch(phase2));
+    expect(() => encodes({ ...phase2, victim: { ...victim, forced: false } })).toThrow(RangeError);
+    for (const bad of [1, 'true', null, [], {}]) expect(() => encodes({ ...phase2, victim: { ...victim, forced: bad } }), String(bad)).toThrow(RangeError);
+    // A manual match carries the mark too (the reveal of a forced round has no clock but is still forced).
+    const manualForced: PublicMatch = { ...phase2, timing: 'manual', schedule: undefined, victim: { ...forcedVictim, c2: null, a: null } };
+    expect(encodePublicMatch(manualForced)).toContain('"c2":null,"a":null,"forced":true,"seq":4}');
+  });
+
+  it('FR-257 a victim without the mark encodes to exactly the bytes of spec 008 (SHA-256 pin)', () => {
+    const text = JSON.stringify((JSON.parse(encodePublicMatch(phase2)) as { victim: object }).victim);
+    expect(text).toBe('{"round":1,"victim":2,"candidates":[1,3],"living":[1,2,3],"revealedAt":1120000,"c2":1150000,"a":1160000,"seq":4}');
+    expect(createHash('sha256').update(text).digest('hex')).toBe('3809b6300decbeb7bafb187caa825f0ce8f99ebe6395a81c44718c9444e07a6f');
   });
 
   it('FR-257 two inputs with equal public fields encode to identical bytes, and a changed public field changes them', () => {

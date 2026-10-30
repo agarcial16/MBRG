@@ -127,6 +127,7 @@ describe('the wire encoders', () => {
     expect(encodeError(errorReply('forbidden'))).toBe('{"kind":"forbidden"}');
     expect(encodeError({ kind: 'forbidden', items: undefined, stage: undefined })).toBe('{"kind":"forbidden"}');
     expect(encodeError(roundNotApplied(4))).toBe('{"kind":"round-not-applied","appliedRounds":4}');
+    expect(encodeError(errorReply('forced-absorber'))).toBe('{"kind":"forced-absorber"}');
     expect(encodePrediction({ kind: 'winner', choice: 3, version: 1 })).toBe('{"kind":"winner","choice":3,"version":1}');
     expect(encodePrediction({ kind: 'winner', round: undefined, choice: 3, version: 1 })).toBe('{"kind":"winner","choice":3,"version":1}');
     expect(encodeOwnPrediction({ playerId: 'p', kind: 'winner', choice: 3, version: 1 })).toBe('{"playerId":"p","kind":"winner","choice":3,"version":1}');

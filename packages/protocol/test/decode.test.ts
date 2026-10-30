@@ -58,6 +58,8 @@ const base: PublicMatch = {
 const manual: PublicMatch = { ...base, timing: 'manual' };
 delete (manual as { schedule?: unknown }).schedule;
 const phase2: PublicMatch = { ...base, stage: 'phase-2', lastSeq: 5, victim };
+const forcedVictim: PublicVictim = { ...victim, candidates: [1], forced: true };
+const forcedPhase2: PublicMatch = { ...phase2, victim: forcedVictim };
 const locked: PublicMatch = { ...phase2, stage: 'locked' };
 const manualPhase2: PublicMatch = { ...manual, stage: 'phase-2', lastSeq: 5, victim: manualVictim };
 const finished: PublicMatch = {
@@ -73,12 +75,13 @@ const haltedAfterReveal: PublicMatch = { ...manual, stage: 'halted', victim: man
 const clockHalted: PublicMatch = { ...base, stage: 'halted', victim, haltReason: 'isolated-faction' };
 delete (clockHalted as { schedule?: unknown }).schedule;
 
-const views: Record<string, PublicMatch> = { base, manual, phase2, locked, manualPhase2, finished, halted, haltedAfterReveal, clockHalted };
+const views: Record<string, PublicMatch> = { base, manual, phase2, forcedPhase2, locked, manualPhase2, finished, halted, haltedAfterReveal, clockHalted };
 
 const record: RecordReply = { round: 1, eliminated: 2, absorber: 3, transferred: [11, 13] };
 const events: Record<string, MatchEvent> = {
   'phase-closed': { type: 'phase-closed', seq: 2, round: 1, phase: 1, at: 1_012_000 },
   'victim-revealed': { type: 'victim-revealed', seq: 3, round: 1, victim: 4, candidates: [2, 7], living: [1, 2, 4, 7], revealedAt: 1_012_000, c2: 1_018_000, a: 1_020_000, reportedTime: 1_012_003 },
+  'victim-revealed forced': { type: 'victim-revealed', seq: 3, round: 1, victim: 4, candidates: [2], living: [1, 2, 4, 7], revealedAt: 1_012_000, c2: 1_018_000, a: 1_020_000, forced: true, reportedTime: 1_012_003 },
   'victim-revealed manual': { type: 'victim-revealed', seq: 3, round: 1, victim: 4, candidates: [2, 7], living: [1, 2, 4, 7], revealedAt: 1_012_000, c2: null, a: null, reportedTime: 1_012_003 },
   'round-applied': { type: 'round-applied', seq: 6, round: 1, record, stateDigest: hex('d'), appliedAt: 1_020_000 },
   results: { type: 'results', seq: 8, round: 1, phase: 2 },
@@ -153,6 +156,9 @@ describe('FR-287 (readers) the events read back what the encoder wrote', () => {
     ['a missing c2', 'victim-revealed', (o) => delete o.c2, 'c2'],
     ['a victim who is not among the living', 'victim-revealed', (o) => (o.living = [1, 2, 7]), 'victim'],
     ['a candidate who is not among the living', 'victim-revealed', (o) => (o.candidates = [2, 9]), 'candidates'],
+    ['a forced mark of false', 'victim-revealed', (o) => (o.forced = false), 'forced'],
+    ['a forced mark that is not a boolean', 'victim-revealed', (o) => (o.forced = 1), 'forced'],
+    ['a forced mark read before reportedTime', 'victim-revealed', (o) => ((o.forced = false), (o.reportedTime = -1)), 'forced'],
     ['a record of another round', 'round-applied', (o) => (o.record.round = 2), 'record.round'],
     ['a record with an extra member', 'round-applied', (o) => (o.record.seed = 5), 'record.seed'],
     ['a record without an absorber', 'round-applied', (o) => delete o.record.absorber, 'record.absorber'],
@@ -229,6 +235,9 @@ describe('FR-288 (readers) the public data reads back what the encoder wrote', (
     ['a victim with a but no c2', phase2, (o) => (o.victim.c2 = null), 'victim.c2'],
     ['a manual victim with a c2', manualPhase2, (o) => (o.victim.c2 = 5), 'victim.c2'],
     ['a clock victim with both null', phase2, (o) => ((o.victim.c2 = null), (o.victim.a = null)), 'victim.c2'],
+    ['a victim with a forced mark of false', forcedPhase2, (o) => (o.victim.forced = false), 'victim.forced'],
+    ['a victim with a forced mark that is text', forcedPhase2, (o) => (o.victim.forced = 'true'), 'victim.forced'],
+    ['a victim with a forced mark of false and a bad seq', forcedPhase2, (o) => ((o.victim.forced = false), (o.victim.seq = 0)), 'victim.forced'],
     ['a victim with an extra member', phase2, (o) => (o.victim.absorber = 3), 'victim.absorber'],
     ['a fractional revealedAt', phase2, (o) => (o.victim.revealedAt = 0.5), 'victim.revealedAt'],
     ['a victim candidate of 0', phase2, (o) => (o.victim.candidates = [0]), 'victim.candidates[0]'],
@@ -308,6 +317,13 @@ describe('NFR-51 (protocol readers) the readers of the other replies', () => {
 
   it.each(errors.map((e, i) => [i, e] as const))('NFR-51 (protocol readers) the error reply %i round trips', (_i, e) => {
     expect(readErrorReply(roundTrip(encodeError(e)))).toStrictEqual({ ok: true, value: e });
+  });
+
+  it('NFR-51 (protocol readers) the forced-absorber error is read back, and a made-up kind is still refused', () => {
+    const forced: ErrorReply = { kind: 'forced-absorber' };
+    expect(encodeError(forced)).toBe('{"kind":"forced-absorber"}');
+    expect(readErrorReply(roundTrip(encodeError(forced)))).toStrictEqual({ ok: true, value: forced });
+    expect(readErrorReply({ kind: 'forced-absorbers' })).toStrictEqual({ ok: false, field: 'kind' });
   });
 
   it('NFR-51 (protocol readers) the prediction replies and a page of own predictions round trip', () => {

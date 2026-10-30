@@ -18,14 +18,25 @@ const FR_301 = [
   'rate-limited', 'unknown-path', 'method-not-allowed', 'too-large', 'invalid-request', 'invalid-player-id',
   'forbidden', 'request-id-reused', 'unknown-match', 'unknown-map', 'map-validation', 'too-few-factions',
   'invalid-timing', 'too-many-matches', 'match-halted', 'match-finished', 'step-mismatch', 'round-not-applied',
-  'stale-cursor', 'prediction-closed', 'invalid-choice', 'unavailable',
+  'stale-cursor', 'prediction-closed', 'forced-absorber', 'invalid-choice', 'unavailable',
 ];
 
 describe('error kinds', () => {
-  it('FR-301 ERROR_ORDER equals the fixed list: 21 kinds plus the map-validation group, 22 entries', () => {
+  it('FR-301 ERROR_ORDER equals the fixed list: 22 kinds plus the map-validation group, 23 entries', () => {
     expect([...ERROR_ORDER]).toStrictEqual(FR_301);
-    expect(ERROR_ORDER).toHaveLength(22);
-    expect(new Set(ERROR_ORDER).size).toBe(22);
+    expect(ERROR_ORDER).toHaveLength(23);
+    expect(new Set(ERROR_ORDER).size).toBe(23);
+  });
+
+  it('FR-301 the forced-absorber kind sits right after prediction-closed and right before invalid-choice', () => {
+    const at = ERROR_ORDER.indexOf('forced-absorber');
+    expect(ERROR_ORDER[at - 1]).toBe('prediction-closed');
+    expect(ERROR_ORDER[at + 1]).toBe('invalid-choice');
+    expect(firstError(['invalid-choice', 'forced-absorber'])).toBe('forced-absorber');
+    expect(firstError(['forced-absorber', 'prediction-closed'])).toBe('prediction-closed');
+    expect(firstError(['unavailable', 'forced-absorber', 'invalid-choice'])).toBe('forced-absorber');
+    expect(errorReply('forced-absorber')).toStrictEqual({ kind: 'forced-absorber' });
+    expect(() => errorReply('forced-absorber', ['a', 'b'])).toThrow(RangeError);
   });
 
   it('FR-301 firstError returns the earlier kind of every pair, in any argument order', () => {

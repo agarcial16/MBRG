@@ -66,9 +66,11 @@ export interface PublicVictim {
   readonly revealedAt: number;
   readonly c2: number | null;
   readonly a: number | null;
+  /** Present, and `true`, only when the victim has a single candidate (the absorber is forced): never `false`. */
+  readonly forced?: true;
   readonly seq: number;
 }
-export const PUBLIC_VICTIM_KEYS = ['round', 'victim', 'candidates', 'living', 'revealedAt', 'c2', 'a', 'seq'] as const;
+export const PUBLIC_VICTIM_KEYS = ['round', 'victim', 'candidates', 'living', 'revealedAt', 'c2', 'a', 'forced', 'seq'] as const;
 
 /** Owners of the state at N in map order, as [territory, faction] pairs (the shape of a sim `MatchState`). */
 export interface PublicState {
@@ -198,7 +200,7 @@ export type MatchEvent =
  */
 export const EVENT_KEYS = {
   'phase-closed': ['type', 'seq', 'round', 'phase', 'at'],
-  'victim-revealed': ['type', 'seq', 'round', 'victim', 'candidates', 'living', 'revealedAt', 'c2', 'a', 'reportedTime'],
+  'victim-revealed': ['type', 'seq', 'round', 'victim', 'candidates', 'living', 'revealedAt', 'c2', 'a', 'forced', 'reportedTime'],
   'round-applied': ['type', 'seq', 'round', 'record', 'stateDigest', 'appliedAt'],
   results: ['type', 'seq', 'round', 'phase'],
   schedule: ['type', 'seq', 'stage', 'schedule', 'reportedTime'],

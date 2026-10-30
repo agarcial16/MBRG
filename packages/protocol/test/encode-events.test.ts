@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { EVENT_KEYS, encodeEvent, type MatchEvent } from '../src/index';
 
@@ -51,7 +52,7 @@ describe('the event encoder', () => {
   it('FR-257 (event encoders) the key list of each of the 7 types is pinned and holds no secret, seed or credential', () => {
     expect(Object.keys(EVENT_KEYS).sort()).toStrictEqual(Object.keys(events).sort());
     expect([...EVENT_KEYS['phase-closed']]).toStrictEqual(['type', 'seq', 'round', 'phase', 'at']);
-    expect([...EVENT_KEYS['victim-revealed']]).toStrictEqual(['type', 'seq', 'round', 'victim', 'candidates', 'living', 'revealedAt', 'c2', 'a', 'reportedTime']);
+    expect([...EVENT_KEYS['victim-revealed']]).toStrictEqual(['type', 'seq', 'round', 'victim', 'candidates', 'living', 'revealedAt', 'c2', 'a', 'forced', 'reportedTime']);
     expect([...EVENT_KEYS['round-applied']]).toStrictEqual(['type', 'seq', 'round', 'record', 'stateDigest', 'appliedAt']);
     expect([...EVENT_KEYS.results]).toStrictEqual(['type', 'seq', 'round', 'phase']);
     expect([...EVENT_KEYS.schedule]).toStrictEqual(['type', 'seq', 'stage', 'schedule', 'reportedTime']);
@@ -69,7 +70,8 @@ describe('the event encoder', () => {
   it('FR-257 (event encoders) each type is written in its EVENT_KEYS order whatever the order of the input', () => {
     for (const [type, event] of Object.entries(events)) {
       const text = encodeEvent(event);
-      expect(keysOf(text), type).toStrictEqual([...EVENT_KEYS[type as MatchEvent['type']]]);
+      // `forced` is present only for a forced round: the sample events carry none.
+      expect(keysOf(text), type).toStrictEqual(EVENT_KEYS[type as MatchEvent['type']].filter((k) => k !== 'forced'));
       expect(encodeEvent(reversed(event)), type).toBe(text);
     }
     expect(encodeEvent(reversed(events['victim-revealed'] as MatchEvent))).toBe(
@@ -81,6 +83,31 @@ describe('the event encoder', () => {
     expect(encodeEvent(reversed(events.schedule as MatchEvent))).toBe(
       '{"type":"schedule","seq":7,"stage":"phase-1","schedule":{"c1":1032000,"c2":1038000,"a":1040000},"reportedTime":1020002}',
     );
+  });
+
+  it('FR-257 (event encoders) a victim-revealed without the mark keeps its 008 bytes (SHA-256 pin)', () => {
+    const text = encodeEvent(events['victim-revealed'] as MatchEvent);
+    expect(text).toBe(
+      '{"type":"victim-revealed","seq":3,"round":1,"victim":4,"candidates":[2,7],"living":[1,2,4,7],"revealedAt":1012000,"c2":1018000,"a":1020000,"reportedTime":1012003}',
+    );
+    expect(createHash('sha256').update(text).digest('hex')).toBe('8488dbe0520c9d558dd69fc304c6e5097659530e6d39452011b135102379ff49');
+  });
+
+  it('FR-257 (event encoders) the forced mark is written after a and before reportedTime, only when true', () => {
+    const forced = { ...(events['victim-revealed'] as MatchEvent), candidates: [2], forced: true } as MatchEvent;
+    const text = encodeEvent(forced);
+    expect(text).toBe(
+      '{"type":"victim-revealed","seq":3,"round":1,"victim":4,"candidates":[2],"living":[1,2,4,7],"revealedAt":1012000,"c2":1018000,"a":1020000,"forced":true,"reportedTime":1012003}',
+    );
+    expect(keysOf(text)).toStrictEqual([...EVENT_KEYS['victim-revealed']]);
+    expect(encodeEvent(reversed(forced))).toBe(text);
+    expect(JSON.parse(text)).toStrictEqual(forced);
+    expect(encodeEvent({ ...(events['victim-revealed'] as MatchEvent), forced: undefined } as never)).toBe(encodeEvent(events['victim-revealed'] as MatchEvent));
+    for (const bad of [false, 1, 'true', null, []]) {
+      expect(() => encodeEvent(withMember(events['victim-revealed'] as MatchEvent, 'forced', bad)), String(bad)).toThrow(RangeError);
+    }
+    // No other event type takes the member.
+    expect(() => encodeEvent(withMember(events['phase-closed'] as MatchEvent, 'forced', true))).toThrow(RangeError);
   });
 
   it('FR-257 (event encoders) JSON.parse of the text gives back the event', () => {
