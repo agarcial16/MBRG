@@ -6,7 +6,7 @@ Plan sections 6, 11, 12 (M1 rows), 15 (Q2). The rules of `tasks.md` apply; sizes
 
 **Hand-offs from 008/009** (facts the tasks rely on; plan section 0): `closePhase1` builds `PublicVictim` (`candidates`, `living`, `c2`, `a`) and calls `anchorsAfterStep`; `apply()` emits the absorber `ScoredPhase` with `worth = candidates.length`; `persist` writes results only for a non-empty row set; `decideSubmission` order is halted, finished, closed, invalid; `StepDeps` carries `map`, `seedOf`, `sha256`; the settings list is pinned in `server-settings`, `service-settings`, `service-seam` (~line 122) and `helpers/main-child.ts`.
 
-- [ ] **T1. Branch, docs, ledger extension.** (no pending id named)
+- [x] **T1. Branch, docs, ledger extension.** (no pending id named)
   - Depends on: spec approved; plan and tasks approved by the user; Q2 answered (or T5 stays blocked).
   - Files: `specs/011-playable-matches/{plan,tasks,tasks-M1,PROGRESS}.md`, `packages/sim/test/traceability.test.ts`.
   - Tests first: `FR_RANGES [[1, 392]]`, `NFR_RANGES [[1, 76]]`; both `expected.length` assertions 437 -> 466; the two literal range assertions; the comment of the ranges names spec 011; `PENDING_011` = literal list of the 29 ids (FR-369..FR-392, NFR-72..NFR-76) and `DONE_011 = []`; new tests titled `NFR-13 NFR-19 the 29 ids of spec 011 are pinned ...` (independent literal computation: 24 FR from 369, 5 NFR from 72; pending + done = 29, every id expected), `NFR-55 no pending id of spec 011 is already traced by a test title`, a planted-id detection test over a synthetic list, and the "every expected id appears in a test name" filter also excludes `PENDING_011`.
