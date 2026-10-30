@@ -2,6 +2,10 @@
 const LOCAL_ID = /^[A-Za-z0-9_.-]{1,64}$/;
 const MAP_ID = /^[a-z0-9-]{1,64}$/;
 const NAMESPACE = /^[a-z0-9]{1,16}$/;
+const CREDENTIAL = /^[A-Za-z0-9_-]{22,256}$/;
+
+/** The credential namespace of players who joined a match by name (FR-377); no client credential may use it. */
+export const PLAYER_NAMESPACE = 'player';
 
 /** Separator between the namespace and the local id of a player id; never allowed inside either. */
 export const NAMESPACE_SEPARATOR = ':';
@@ -29,6 +33,16 @@ export function isPlayerId(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   const at = value.indexOf(NAMESPACE_SEPARATOR);
   return at > 0 && isNamespace(value.slice(0, at)) && isLocalId(value.slice(at + 1));
+}
+
+/** The id of a player who joined by name: `player:<local id>` (FR-377). */
+export function isJoinedPlayerId(value: unknown): value is string {
+  return isPlayerId(value) && value.startsWith(`${PLAYER_NAMESPACE}${NAMESPACE_SEPARATOR}`);
+}
+
+/** The text of a credential as the server issues it: 22 to 256 characters of `A-Z a-z 0-9 _ -` (the bearer set). */
+export function isCredentialText(value: unknown): value is string {
+  return typeof value === 'string' && CREDENTIAL.test(value);
 }
 
 /** The player id of a credential's namespace and an already checked local id (FR-284). */

@@ -1,11 +1,14 @@
 import { ERROR_ORDER, ERROR_REPLY_KEYS, type ErrorReply } from './errors';
-import { isLocalId, isMapId, isPlayerId } from './ids';
+import { isCredentialText, isJoinedPlayerId, isLocalId, isMapId, isPlayerId } from './ids';
+import { readName } from './names';
 import {
   EVENT_KEYS,
   HALT_REASONS,
+  JOIN_REPLY_KEYS,
   LEADERBOARD_ROW_KEYS,
   OWN_PREDICTION_KEYS,
   PAGE_KEYS,
+  PLAYER_LIST_ITEM_KEYS,
   PLAYER_RESULTS_PAGE_KEYS,
   PLAYER_RESULT_KEYS,
   PREDICTION_KINDS,
@@ -15,10 +18,12 @@ import {
   RECORD_REPLY_KEYS,
   STAGES,
   STATE_REPLY_KEYS,
+  type JoinReply,
   type LeaderboardRow,
   type MatchEvent,
   type OwnPrediction,
   type Page,
+  type PlayerListItem,
   type PlayerResult,
   type PlayerResultsPage,
   type PredictionReply,
@@ -86,6 +91,11 @@ const textWhere =
     typeof v === 'string' && test(v) ? v : refuse(f);
 const text = textWhere((v) => v.length > 0);
 const hex = textWhere((v) => HEX64.test(v));
+/** A name as the server serves it: valid under the name rule and already in its trimmed NFC form (FR-384). */
+const nameOf: Reader<string> = (v, f) => {
+  const read = readName(v);
+  return read.ok && read.name === v ? read.name : refuse(f);
+};
 const bool: Reader<boolean> = (v, f) => (typeof v === 'boolean' ? v : refuse(f));
 const list =
   <T>(item: Reader<T>): Reader<T[]> =>
@@ -347,6 +357,34 @@ export function readLeaderboardPage(input: unknown): Decoded<Page<LeaderboardRow
   return run(() => pageOf(leaderboardRow)(input, ''));
 }
 
+const playersItem: Reader<PlayerListItem> = (v, f) =>
+  object(v, f, PLAYER_LIST_ITEM_KEYS, (m) => ({
+    playerId: m.get('playerId', textWhere(isJoinedPlayerId)),
+    name: m.get('name', nameOf),
+    joinedSeq: m.get('joinedSeq', int(1)),
+  }));
+
+/** A page of the players of a match (FR-385). */
+export function readPlayersPage(input: unknown): Decoded<Page<PlayerListItem>> {
+  return run(() => pageOf(playersItem)(input, ''));
+}
+
+/** The reply to a join (FR-377). */
+export function readJoinReply(input: unknown): Decoded<JoinReply> {
+  return run(() =>
+    object(input, '', JOIN_REPLY_KEYS, (m) => {
+      const playerId = m.get('playerId', textWhere(isJoinedPlayerId));
+      const name = m.get('name', nameOf);
+      const playerToken = m.get('playerToken', textWhere(isCredentialText));
+      const match = m.get('match', (v, f) => {
+        const read = readPublicMatch(v);
+        return read.ok ? read.value : refuse(`${f}.${read.field}`);
+      });
+      return { playerId, name, playerToken, match };
+    }),
+  );
+}
+
 const knownEvent = (type: MatchEvent['type'], input: unknown): MatchEvent =>
   object(input, '', EVENT_KEYS[type], (m): MatchEvent => {
     m.get('type', oneOf([type]));
@@ -394,6 +432,8 @@ const knownEvent = (type: MatchEvent['type'], input: unknown): MatchEvent =>
         };
       case 'match-halted':
         return { type, seq, round: m.get('round', int(1)), reason: m.get('reason', oneOf(HALT_REASONS)), reportedTime: m.get('reportedTime', int(0)) };
+      case 'player-joined':
+        return { type, seq, playerId: m.get('playerId', textWhere(isJoinedPlayerId)), name: m.get('name', nameOf) };
     }
   });
 

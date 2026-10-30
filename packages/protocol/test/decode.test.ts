@@ -3,9 +3,11 @@ import {
   EVENT_KEYS,
   encodeError,
   encodeEvent,
+  encodeJoinReply,
   encodeLeaderboardRow,
   encodeOwnPrediction,
   encodePage,
+  encodePlayerListItem,
   encodePlayerResults,
   encodePrediction,
   encodePublicMatch,
@@ -13,17 +15,21 @@ import {
   encodeState,
   readErrorReply,
   readEvent,
+  readJoinReply,
   readLeaderboardPage,
   readOwnPredictionsPage,
   readPlayerResultsPage,
+  readPlayersPage,
   readPredictionReply,
   readPublicMatch,
   readRecordReply,
   readStateReply,
   type ErrorReply,
+  type JoinReply,
   type LeaderboardRow,
   type MatchEvent,
   type OwnPrediction,
+  type PlayerListItem,
   type PlayerResultsPage,
   type PredictionReply,
   type PublicMatch,
@@ -97,6 +103,7 @@ const events: Record<string, MatchEvent> = {
   'schedule expired': { type: 'schedule', seq: 2, stage: 'expired', reportedTime: 1_900_000 },
   'match-finished': { type: 'match-finished', seq: 30, winner: 2, matchSecret: hex('b'), rule: 'hmac-sha256 rule text', reportedTime: 1_100_000 },
   'match-halted': { type: 'match-halted', seq: 9, round: 2, reason: 'map-changed', reportedTime: 1_050_000 },
+  'player-joined': { type: 'player-joined', seq: 4, playerId: 'player:Ab3_x-9.Qz1k', name: 'Ana Ruiz' },
 };
 
 const roundTrip = (text: string): unknown => JSON.parse(text) as unknown;
@@ -122,7 +129,7 @@ describe('FR-287 (readers) the events read back what the encoder wrote', () => {
     expect(readEvent(roundTrip(encodeEvent(event)))).toStrictEqual({ status: 'known', event });
   });
 
-  it('FR-287 (readers) the seven event types are all covered by a round trip', () => {
+  it('FR-287 (readers) the eight event types are all covered by a round trip', () => {
     const covered = new Set(Object.values(events).map((e) => e.type));
     expect([...covered].sort()).toStrictEqual(Object.keys(EVENT_KEYS).sort());
   });
@@ -178,6 +185,19 @@ describe('FR-287 (readers) the events read back what the encoder wrote', () => {
     ['a schedule with an extra member', 'schedule', (o) => (o.schedule.z = 1), 'schedule.z'],
     ['an empty rule', 'match-finished', (o) => (o.rule = ''), 'rule'],
     ['a halt reason outside the list', 'match-halted', (o) => (o.reason = 'meteor'), 'reason'],
+    ['a joined event with an extra member', 'player-joined', (o) => (o.playerToken = 'x'.repeat(43)), 'playerToken'],
+    ['a joined event with a reportedTime', 'player-joined', (o) => (o.reportedTime = 5), 'reportedTime'],
+    ['a joined event without a player id', 'player-joined', (o) => delete o.playerId, 'playerId'],
+    ['a joined event with a client-namespace player id', 'player-joined', (o) => (o.playerId = 'web:Ana'), 'playerId'],
+    ['a joined event with a bare local id', 'player-joined', (o) => (o.playerId = 'Ana'), 'playerId'],
+    ['a joined event without a name', 'player-joined', (o) => delete o.name, 'name'],
+    ['a joined event with an empty name', 'player-joined', (o) => (o.name = ''), 'name'],
+    ['a joined event with a name of 25 characters', 'player-joined', (o) => (o.name = 'x'.repeat(25)), 'name'],
+    ['a joined event with a name that has a quote', 'player-joined', (o) => (o.name = 'a"b'), 'name'],
+    ['a joined event with a name with edge spaces', 'player-joined', (o) => (o.name = ' Ana'), 'name'],
+    ['a joined event with a number as name', 'player-joined', (o) => (o.name = 7), 'name'],
+    ['a joined event with seq 0', 'player-joined', (o) => (o.seq = 0), 'seq'],
+    ['a joined event with a first failing field before a later one', 'player-joined', (o) => ((o.playerId = 'x'), (o.name = '')), 'playerId'],
   ];
   it.each(bad)('FR-287 (readers) refused: %s', (_n, type, change, expected) => {
     const sample = Object.values(events).find((e) => e.type === type) as MatchEvent;
@@ -418,5 +438,61 @@ describe('NFR-51 (protocol readers) the readers of the other replies', () => {
       const frozen = deepFreeze(roundTrip(encodeEvent(e)));
       expect(readEvent(frozen).status).toBe('known');
     }
+  });
+});
+
+describe('FR-384 the readers of the join reply and the players page', () => {
+  const lobbyView = clone(views.lobby) as PublicMatch;
+  const token = 'Tq7_-' + 'a'.repeat(38);
+  const joined: JoinReply = { playerId: 'player:Ab3_x-9.Qz1k', name: 'Ana Ruiz', playerToken: token, match: { ...lobbyView, playerCount: 1 } };
+  const items: PlayerListItem[] = [
+    { playerId: 'player:Ab3_x-9.Qz1k', name: 'Ana Ruiz', joinedSeq: 2 },
+    { playerId: 'player:Zz9', name: 'Beto', joinedSeq: 3 },
+  ];
+  const page = (list: PlayerListItem[], next?: string): string => encodePage(next === undefined ? { items: list } : { items: list, next }, encodePlayerListItem);
+
+  it('FR-384 the join reply and a page of players round trip', () => {
+    expect(readJoinReply(roundTrip(encodeJoinReply(joined)))).toStrictEqual({ ok: true, value: joined });
+    expect(readPlayersPage(roundTrip(page(items)))).toStrictEqual({ ok: true, value: { items } });
+    expect(readPlayersPage(roundTrip(page(items, 'n')))).toStrictEqual({ ok: true, value: { items, next: 'n' } });
+    expect(readPlayersPage(roundTrip(page([])))).toStrictEqual({ ok: true, value: { items: [] } });
+  });
+
+  const joinedText = JSON.parse(encodeJoinReply(joined)) as unknown;
+  const refusals: [string, () => unknown, string][] = [
+    ['a join reply with an extra member', () => readJoinReply(changed(joinedText, (o) => (o.tokenDigest = 'x'))), 'tokenDigest'],
+    ['a join reply without a token', () => readJoinReply(changed(joinedText, (o) => delete o.playerToken)), 'playerToken'],
+    ['a join reply with a short token', () => readJoinReply(changed(joinedText, (o) => (o.playerToken = 'abc'))), 'playerToken'],
+    ['a join reply with a token that has a space', () => readJoinReply(changed(joinedText, (o) => (o.playerToken = 'a b' + 'c'.repeat(30)))), 'playerToken'],
+    ['a join reply with a client-namespace player id', () => readJoinReply(changed(joinedText, (o) => (o.playerId = 'web:Ana'))), 'playerId'],
+    ['a join reply with a bad name', () => readJoinReply(changed(joinedText, (o) => (o.name = 'a<b'))), 'name'],
+    ['a join reply with a bad match', () => readJoinReply(changed(joinedText, (o) => delete o.match.mapId)), 'match.mapId'],
+    ['a join reply whose first failing field comes before a later one', () => readJoinReply(changed(joinedText, (o) => ((o.playerId = 'x'), (o.playerToken = 'y')))), 'playerId'],
+    ['a players page with a token', () => readPlayersPage({ items: [{ ...items[0], playerToken: token }] }), 'items[0].playerToken'],
+    ['a players page with a bad name', () => readPlayersPage({ items: [{ ...items[0], name: '' }] }), 'items[0].name'],
+    ['a players page with joinedSeq 0', () => readPlayersPage({ items: [{ ...items[0], joinedSeq: 0 }] }), 'items[0].joinedSeq'],
+    ['a players page with a client id', () => readPlayersPage({ items: [items[0], { ...items[1], playerId: 'web:p' }] }), 'items[1].playerId'],
+    ['a players page without items', () => readPlayersPage({ next: 'x' }), 'items'],
+    ['a players page with an empty next', () => readPlayersPage({ items: [], next: '' }), 'next'],
+    ['a players page with an extra member', () => readPlayersPage({ items: [], total: 4 }), 'total'],
+  ];
+  it.each(refusals)('FR-384 refused: %s', (_n, read, expected) => {
+    expect(field(read() as { ok: boolean; field?: string })).toBe(expected);
+  });
+
+  it('FR-384 both readers refuse a non-object as body and read frozen input without changing it', () => {
+    for (const read of [readJoinReply, readPlayersPage]) for (const v of [null, undefined, 3, 'x', []]) expect(read(v)).toStrictEqual({ ok: false, field: 'body' });
+    const cases = [[roundTrip(encodeJoinReply(joined)), readJoinReply], [roundTrip(page(items, 'n')), readPlayersPage]] as [unknown, (v: unknown) => { ok: boolean }][];
+    for (const [input, read] of cases) {
+      const before = JSON.stringify(input);
+      expect(read(deepFreeze(input)).ok).toBe(true);
+      expect(JSON.stringify(input)).toBe(before);
+    }
+  });
+
+  it('FR-384 an inherited member is missing', () => {
+    expect(field(readPlayersPage(Object.create({ items: [] }) as object) as { ok: boolean; field?: string })).toBe('items');
+    const inheriting = Object.assign(Object.create({ playerId: 'player:a' }) as object, { name: 'Ana', playerToken: token, match: joinedText });
+    expect(field(readJoinReply(inheriting) as { ok: boolean; field?: string })).toBe('playerId');
   });
 });

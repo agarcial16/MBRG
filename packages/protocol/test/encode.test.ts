@@ -3,9 +3,11 @@ import {
   ADVANCE_REPLY_KEYS,
   CREATION_REPLY_KEYS,
   ERROR_REPLY_KEYS,
+  JOIN_REPLY_KEYS,
   MATCH_SUMMARY_KEYS,
   OWN_PREDICTION_KEYS,
   PAGE_KEYS,
+  PLAYER_LIST_ITEM_KEYS,
   PREDICTION_REPLY_KEYS,
   RECORD_REPLY_KEYS,
   STATE_REPLY_KEYS,
@@ -13,9 +15,11 @@ import {
   encodeAdvance,
   encodeCreation,
   encodeError,
+  encodeJoinReply,
   encodeMatchSummary,
   encodeOwnPrediction,
   encodePage,
+  encodePlayerListItem,
   encodePrediction,
   encodePublicMatch,
   encodeRecord,
@@ -26,8 +30,10 @@ import {
   stepMismatch,
   type AdvanceReply,
   type CreationReply,
+  type JoinReply,
   type MatchSummary,
   type OwnPrediction,
+  type PlayerListItem,
   type PublicMatch,
   type RecordReply,
   type StateReply,
@@ -199,5 +205,84 @@ describe('the wire encoders', () => {
   it('FR-301 (reply shapes) texts are JSON-escaped, so a quote in a text cannot break the reply', () => {
     const text = encodeError(errorReply('invalid-request', ['a"b\\c']));
     expect(JSON.parse(text)).toStrictEqual({ kind: 'invalid-request', items: ['a"b\\c'] });
+  });
+});
+
+describe('the join reply and the players list item', () => {
+  const lobbyView: PublicMatch = { ...view, stage: 'lobby', playerCount: 1, lastSeq: 2 };
+  delete (lobbyView as { schedule?: unknown }).schedule;
+  const token = 'Tq7_-' + 'a'.repeat(38);
+  const joined: JoinReply = { playerId: 'player:Ab3_x-9.Qz1k', name: 'Ana Ruiz', playerToken: token, match: lobbyView };
+  const item: PlayerListItem = { playerId: 'player:Ab3_x-9.Qz1k', name: 'Ana Ruiz', joinedSeq: 2 };
+
+  it('FR-384 the join reply keys are playerId, name, playerToken, match; the item keys are playerId, name, joinedSeq', () => {
+    expect([...JOIN_REPLY_KEYS]).toStrictEqual(['playerId', 'name', 'playerToken', 'match']);
+    expect([...PLAYER_LIST_ITEM_KEYS]).toStrictEqual(['playerId', 'name', 'joinedSeq']);
+    // The token is the join reply's only credential; the list item carries none.
+    expect(JOIN_REPLY_KEYS.filter((k) => /token/i.test(k))).toStrictEqual(['playerToken']);
+    for (const key of PLAYER_LIST_ITEM_KEYS) expect(key).not.toMatch(/secret|token|credential|seed|password|digest|key/i);
+  });
+
+  it('FR-384 the join reply is written in key order whatever the input order, with the public view encoding unchanged', () => {
+    const text = encodeJoinReply(joined);
+    expect(keysOf(text)).toStrictEqual([...JOIN_REPLY_KEYS]);
+    expect(text).toBe(`{"playerId":"player:Ab3_x-9.Qz1k","name":"Ana Ruiz","playerToken":"${token}","match":${encodePublicMatch(lobbyView)}}`);
+    expect(encodeJoinReply(reversed(joined))).toBe(text);
+  });
+
+  it('FR-384 the list item is written in key order and a page of items goes through the page encoder', () => {
+    const text = encodePlayerListItem(item);
+    expect(text).toBe('{"playerId":"player:Ab3_x-9.Qz1k","name":"Ana Ruiz","joinedSeq":2}');
+    expect(encodePlayerListItem(reversed(item))).toBe(text);
+    expect(encodePage({ items: [item], next: 'c' }, encodePlayerListItem)).toBe(`{"items":[${text}],"next":"c"}`);
+  });
+
+  it('FR-384 an extra, inherited, null or missing member is refused in both shapes', () => {
+    for (const extra of ['nameKey', 'digest', 'tokenDigest', 'predictions', 'secret']) {
+      expect(() => encodeJoinReply({ ...joined, [extra]: 'x' } as never), extra).toThrow(RangeError);
+      expect(() => encodePlayerListItem({ ...item, [extra]: 'x' } as never), extra).toThrow(RangeError);
+    }
+    expect(() => encodePlayerListItem({ ...item, playerToken: token } as never)).toThrow(RangeError);
+    for (const key of JOIN_REPLY_KEYS) {
+      const { [key]: _gone, ...rest } = joined;
+      expect(() => encodeJoinReply(rest as never), `without ${key}`).toThrow(RangeError);
+      expect(() => encodeJoinReply({ ...joined, [key]: null } as never), `null ${key}`).toThrow(RangeError);
+    }
+    for (const key of PLAYER_LIST_ITEM_KEYS) {
+      const { [key]: _gone, ...rest } = item;
+      expect(() => encodePlayerListItem(rest as never), `without ${key}`).toThrow(RangeError);
+      expect(() => encodePlayerListItem({ ...item, [key]: null } as never), `null ${key}`).toThrow(RangeError);
+    }
+    expect(() => encodeJoinReply(Object.create(joined) as JoinReply)).toThrow(RangeError);
+    expect(() => encodePlayerListItem(Object.create(item) as PlayerListItem)).toThrow(RangeError);
+  });
+
+  it('FR-384 values out of shape are refused: ids, names, tokens, counts', () => {
+    for (const playerId of ['', 'web:Ab3', 'Ab3', 'player:', 'player:a b', 7]) {
+      expect(() => encodeJoinReply({ ...joined, playerId } as never), String(playerId)).toThrow(RangeError);
+      expect(() => encodePlayerListItem({ ...item, playerId } as never), String(playerId)).toThrow(RangeError);
+    }
+    for (const name of ['', ' Ana', 'Ana ', 'A  B', 'x'.repeat(25), 'a"b', 'a<b', 7]) {
+      expect(() => encodeJoinReply({ ...joined, name } as never), String(name)).toThrow(RangeError);
+      expect(() => encodePlayerListItem({ ...item, name } as never), String(name)).toThrow(RangeError);
+    }
+    for (const playerToken of ['', 'short', 'a'.repeat(21), 'a'.repeat(257), 'a b' + 'c'.repeat(30), 'a/b' + 'c'.repeat(30), 7]) {
+      expect(() => encodeJoinReply({ ...joined, playerToken } as never), String(playerToken)).toThrow(RangeError);
+    }
+    for (const joinedSeq of [0, -1, 1.5, '2']) expect(() => encodePlayerListItem({ ...item, joinedSeq } as never), String(joinedSeq)).toThrow(RangeError);
+    expect(() => encodeJoinReply({ ...joined, match: { ...lobbyView, secret: 1 } } as never)).toThrow(RangeError);
+  });
+
+  it('FR-384 the messages name fields, never the token or the name', () => {
+    for (const make of [() => encodeJoinReply({ ...joined, playerToken: 'bad token ' + token }), () => encodeJoinReply({ ...joined, name: 'bad<name' }), () => encodePlayerListItem({ ...item, name: 'bad<name' })]) {
+      try {
+        make();
+        throw new Error('not thrown');
+      } catch (e) {
+        const message = (e as Error).message;
+        expect(message).not.toContain('bad');
+        expect(message).not.toContain(token);
+      }
+    }
   });
 });

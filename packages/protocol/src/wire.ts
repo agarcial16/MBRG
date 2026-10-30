@@ -28,6 +28,12 @@ export interface StartBody {
   readonly requestId?: string;
 }
 
+/** The join body of a lobby or a running match: the player's chosen name and a client request id (FR-377, FR-296). */
+export interface JoinBody {
+  readonly name: string;
+  readonly requestId: string;
+}
+
 export interface SubmissionBody {
   readonly kind: PredictionKind;
   /** Present exactly for `victim` and `absorber`. */
@@ -42,6 +48,7 @@ export interface SubmissionBody {
 export const CREATION_FIELDS = ['mapId', 'timing', 'requestId'] as const;
 export const ADVANCE_FIELDS = ['round', 'step', 'requestId'] as const;
 export const START_FIELDS = ['requestId'] as const;
+export const JOIN_FIELDS = ['name', 'requestId'] as const;
 export const SUBMISSION_FIELDS = ['kind', 'round', 'faction', 'playerId', 'requestId'] as const;
 
 /**
@@ -197,6 +204,13 @@ export interface MatchHaltedEvent {
   readonly reason: HaltReason;
   readonly reportedTime: number;
 }
+/** A player joined (FR-376): the namespaced player id and the name, nothing else (no token, no digest, no request id). */
+export interface PlayerJoinedEvent {
+  readonly type: 'player-joined';
+  readonly seq: number;
+  readonly playerId: string;
+  readonly name: string;
+}
 export type MatchEvent =
   | PhaseClosedEvent
   | VictimRevealedEvent
@@ -204,7 +218,8 @@ export type MatchEvent =
   | ResultsEvent
   | ScheduleEvent
   | MatchFinishedEvent
-  | MatchHaltedEvent;
+  | MatchHaltedEvent
+  | PlayerJoinedEvent;
 
 /**
  * Wire key order of each event type (FR-257 (event encoders), FR-287): fixed, whatever the order of the input object.
@@ -218,6 +233,7 @@ export const EVENT_KEYS = {
   schedule: ['type', 'seq', 'stage', 'schedule', 'reportedTime'],
   'match-finished': ['type', 'seq', 'winner', 'matchSecret', 'rule', 'reportedTime'],
   'match-halted': ['type', 'seq', 'round', 'reason', 'reportedTime'],
+  'player-joined': ['type', 'seq', 'playerId', 'name'],
 } as const satisfies Record<MatchEvent['type'], readonly string[]>;
 
 /** Why a step was performed (FR-240): the clock on time, a manual advance, or a late catch-up (FR-248). */
@@ -261,6 +277,24 @@ export interface OwnPrediction {
   readonly round?: number;
   readonly choice: number;
   readonly version: number;
+}
+
+/**
+ * The reply to a join (FR-377): the player's namespaced id, the stored name, the player token (given once, here only) and
+ * the public data after the join, as a creation reply carries it.
+ */
+export interface JoinReply {
+  readonly playerId: string;
+  readonly name: string;
+  readonly playerToken: string;
+  readonly match: PublicMatch;
+}
+
+/** One row of the players list (FR-385): id, name and the sequence number of the event that announced the join. */
+export interface PlayerListItem {
+  readonly playerId: string;
+  readonly name: string;
+  readonly joinedSeq: number;
 }
 
 /** One row of the match list (FR-279 (b): ordered by creation instant, then match id). */
@@ -345,6 +379,8 @@ export interface Page<T> {
 
 /** Wire key order of each reply (FR-257 (encoders)): fixed, whatever the order of the input object. */
 export const CREATION_REPLY_KEYS = ['matchId', 'match', 'hostToken'] as const;
+export const JOIN_REPLY_KEYS = ['playerId', 'name', 'playerToken', 'match'] as const;
+export const PLAYER_LIST_ITEM_KEYS = ['playerId', 'name', 'joinedSeq'] as const;
 export const ADVANCE_REPLY_KEYS = ['result', 'step', 'match'] as const;
 export const STEP_INFO_KEYS = ['round', 'kind', 'instant', 'cause'] as const;
 export const PREDICTION_REPLY_KEYS = ['kind', 'round', 'choice', 'version'] as const;

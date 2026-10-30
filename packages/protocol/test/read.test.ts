@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { START_FIELDS, readAdvance, readCreation, readStart, readSubmission, type ReadResult } from '../src/index';
+import { JOIN_FIELDS, START_FIELDS, readAdvance, readCreation, readJoin, readStart, readSubmission, type ReadResult } from '../src/index';
 
 const err = (r: ReadResult<unknown>): string => (r.ok ? 'ok' : `${r.error.kind}:${(r.error.items ?? []).join(',')}`);
 const creation = { mapId: 'dev', timing: { i: 120, l1: 30, l2: 10 }, requestId: 'req-1' };
@@ -96,6 +96,48 @@ describe('start body reader', () => {
 
   it('FR-296 inherited fields are missing', () => {
     expect(readStart(Object.create({ requestId: 'inherited' }) as object)).toStrictEqual({ ok: true, value: {} });
+  });
+});
+
+describe('join body reader', () => {
+  const join = { name: 'Ana', requestId: 'j-1' };
+
+  it('FR-296 accepts { name, requestId } and returns the trimmed, normalised name', () => {
+    expect([...JOIN_FIELDS]).toStrictEqual(['name', 'requestId']);
+    expect(readJoin(join)).toStrictEqual({ ok: true, value: join });
+    expect(readJoin({ requestId: 'j-1', name: `  Jose${String.fromCharCode(0x301)} Ruiz ` })).toStrictEqual({ ok: true, value: { name: `Jos${String.fromCharCode(0xe9)} Ruiz`, requestId: 'j-1' } });
+  });
+
+  it('FR-296 reads exactly name and requestId, in that order: the first failing field is named', () => {
+    expect(err(readJoin({ name: '', requestId: '' }))).toBe('invalid-request:name');
+    expect(err(readJoin({ name: 'a<b', requestId: 'j-1' }))).toBe('invalid-request:name');
+    expect(err(readJoin({ requestId: 'j-1' }))).toBe('invalid-request:name');
+    expect(err(readJoin({ name: 7, requestId: 'j-1' }))).toBe('invalid-request:name');
+    expect(err(readJoin({ name: 'Ana' }))).toBe('invalid-request:requestId');
+    expect(err(readJoin({ name: 'Ana', requestId: '' }))).toBe('invalid-request:requestId');
+    expect(err(readJoin({ name: 'Ana', requestId: 'a b' }))).toBe('invalid-request:requestId');
+    expect(err(readJoin({ name: 'Ana', requestId: 'x'.repeat(65) }))).toBe('invalid-request:requestId');
+    expect(err(readJoin({ name: 'Ana', requestId: 'j', extra: 1 }))).toBe('invalid-request:extra');
+    expect(err(readJoin({ name: 'Ana', requestId: 'j', zeta: 1, alpha: 2 }))).toBe('invalid-request:alpha');
+    // A failing field comes before an extra member.
+    expect(err(readJoin({ name: '', requestId: 'j', extra: 1 }))).toBe('invalid-request:name');
+    expect(err(readJoin({ name: 'Ana', requestId: '', extra: 1 }))).toBe('invalid-request:requestId');
+  });
+
+  it('FR-296 a body that is not an object is refused naming body', () => {
+    for (const v of [null, undefined, 'x', 1, true, [], [{}]]) expect(err(readJoin(v)), String(v)).toBe('invalid-request:body');
+  });
+
+  it('FR-296 inherited fields are missing and a player id or token in the body is an extra member', () => {
+    expect(err(readJoin(Object.create(join) as object))).toBe('invalid-request:name');
+    expect(err(readJoin({ ...join, playerId: 'player:abc' }))).toBe('invalid-request:playerId');
+    expect(err(readJoin({ ...join, playerToken: 'x'.repeat(43) }))).toBe('invalid-request:playerToken');
+  });
+
+  it('FR-384 the name failure carries no detail of the rule', () => {
+    for (const name of ['', 'x'.repeat(25), 'a<b', 'a  b', `a${String.fromCharCode(0x200b)}b`]) {
+      expect(readJoin({ name, requestId: 'j' })).toStrictEqual({ ok: false, error: { kind: 'invalid-request', items: ['name'] } });
+    }
   });
 });
 

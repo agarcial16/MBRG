@@ -4,11 +4,13 @@ export {
   encodeCreation,
   encodeError,
   encodeEvent,
+  encodeJoinReply,
   encodeLeaderboardRow,
   encodeMatchSummary,
   encodeOwnPrediction,
   encodePage,
   encodePhaseResults,
+  encodePlayerListItem,
   encodePlayerResults,
   encodePrediction,
   encodeRecord,
@@ -29,12 +31,14 @@ export type { CursorKey, CursorKeys, CursorList, PageQuery } from './page';
 export {
   ADVANCE_REPLY_KEYS,
   CREATION_REPLY_KEYS,
+  JOIN_REPLY_KEYS,
   LEADERBOARD_ROW_KEYS,
   MATCH_SUMMARY_KEYS,
   OWN_PREDICTION_KEYS,
   PAGE_KEYS,
   PHASE_RESULTS_PAGE_KEYS,
   PHASE_RESULT_KEYS,
+  PLAYER_LIST_ITEM_KEYS,
   PLAYER_RESULTS_PAGE_KEYS,
   PLAYER_RESULT_KEYS,
   PREDICTION_REPLY_KEYS,
@@ -43,25 +47,29 @@ export {
   STEP_INFO_KEYS,
 } from './wire';
 export type {
+  JoinReply,
   LeaderboardRow,
   MatchSummary,
   OwnPrediction,
   Page,
   PhaseResult,
   PhaseResultsPage,
+  PlayerListItem,
   PlayerResult,
   PlayerResultsPage,
   RecordReply,
   StateReply,
 } from './wire';
 export type { ErrorKind, ErrorReply } from './errors';
-export { NAMESPACE_SEPARATOR, isLocalId, isMapId, isNamespace, isPlayerId, playerIdOf } from './ids';
+export { NAMESPACE_SEPARATOR, PLAYER_NAMESPACE, isCredentialText, isJoinedPlayerId, isLocalId, isMapId, isNamespace, isPlayerId, playerIdOf } from './ids';
+export { NAME_MAX, nameKey, readName } from './names';
+export type { NameResult } from './names';
 export { MAX_INTERVAL_SECONDS, readTiming, readTimingShape, timingRuleFailures } from './timing';
 export type { TimingResult, TimingRule } from './timing';
-export { readAdvance, readCreation, readStart, readSubmission } from './read';
+export { readAdvance, readCreation, readJoin, readStart, readSubmission } from './read';
 export type { ReadResult } from './read';
-export { ADVANCE_FIELDS, CREATION_FIELDS, PREDICTION_KINDS, START_FIELDS, STEP_KINDS, SUBMISSION_FIELDS } from './wire';
-export type { AdvanceBody, CreationBody, PredictionKind, StartBody, StepKind, SubmissionBody, Timing } from './wire';
+export { ADVANCE_FIELDS, CREATION_FIELDS, JOIN_FIELDS, PREDICTION_KINDS, START_FIELDS, STEP_KINDS, SUBMISSION_FIELDS } from './wire';
+export type { AdvanceBody, CreationBody, JoinBody, PredictionKind, StartBody, StepKind, SubmissionBody, Timing } from './wire';
 export { MAP_FILE_NAMES, REQUEST_ID_KEY, canonicalBody, mapDigestBytes, stateText } from './canonical';
 export type { MapFileName } from './canonical';
 export { encodePublicMatch } from './public';
@@ -74,6 +82,7 @@ export type {
   MatchFinishedEvent,
   MatchHaltedEvent,
   PhaseClosedEvent,
+  PlayerJoinedEvent,
   PredictionReply,
   PublicMatch,
   PublicSchedule,
@@ -90,9 +99,11 @@ export type {
 export {
   readErrorReply,
   readEvent,
+  readJoinReply,
   readLeaderboardPage,
   readOwnPredictionsPage,
   readPlayerResultsPage,
+  readPlayersPage,
   readPredictionReply,
   readPublicMatch,
   readRecordReply,

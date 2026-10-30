@@ -57,6 +57,12 @@ describe('protocol purity', () => {
     expect(files.some((f) => f.endsWith('/src/index.ts'))).toBe(true);
   });
 
+  it('FR-384 the name module is scanned and uses no locale-dependent call', () => {
+    const entry = Object.entries(sources).find(([f]) => f.endsWith('/src/names.ts'));
+    expect(entry).toBeDefined();
+    expect(codeOnly(entry?.[1] ?? '')).not.toMatch(/toLocale|localeCompare|Intl\b/);
+  });
+
   it('NFR-51 (protocol) planted violations are caught and comments and strings are not', () => {
     for (const [code, name] of [
       ['const t = Date.now();', 'Date'],
