@@ -22,7 +22,7 @@ Plan sections 4, 9, 11, 12 (M5 row), 13, 15 (Q12). Branch cut from `rewrite` aft
   - Done when: tests green; mutations caught; no id moved.
   - Size: M (about 350).
 
-- [ ] **T3. Store and service: names next to player ids.** FR-383 (close)
+- [x] **T3. Store and service: names next to player ids.** FR-383 (close)
   - Depends on: T2.
   - Files: `apps/server/src/store/{store,sqlite,faults}.ts` (the results reads left-join `players` by `(match_id, player_id)`), `apps/server/src/service/matches.ts` (reads attach `name` when present), tests `apps/server/test/{service-results-names,store-results-names}.test.ts`; earlier results tests change only if they pin key lists (listed in `PROGRESS.md`).
   - Tests first: a match with web players (names) and client-credential players (no names): phase results, player results and leaderboard rows carry `name` for web players and have no `name` member for the others; order, rank, paging, totals and cursors are identical to the same match without names (the 008 results goldens pass unchanged); a player whose name differs only by case from another is two rows with two names; a name is returned exactly as stored (NFC trimmed text); a player id with no `players` row (any client-credential id, even one that looks like `player:xxxx` but was never joined) has no name; names never change the leaderboard generation or `stale-cursor` behaviour; unscored phases still answer `round-not-applied` with the same bytes; reads write nothing.

@@ -936,6 +936,11 @@ export function createMatchService(options: ServiceOptions): MatchService {
     const items = kept.map(item);
     return rows.length > limit && last !== undefined ? { items, next: encodeCursor(list, keyOf(last)) } : { items };
   };
+  /** The `name` member of a player who joined by name, or nothing (a client credential or an id that never joined has none). */
+  const nameOf = (names: ReadonlyMap<string, string>, playerId: string): { name?: string } => {
+    const name = names.get(playerId);
+    return name === undefined ? {} : { name };
+  };
   const recordReply = (r: StoredRecord): RecordReply => ({ round: r.round, eliminated: r.eliminated, absorber: r.absorber, transferred: [...r.transferred] });
 
   /** Everything after the shape, credential and memo checks; runs inside the transaction and writes only on success. */
@@ -1498,7 +1503,9 @@ export function createMatchService(options: ServiceOptions): MatchService {
         if (!scored.ok) return scored;
         const id = stored.match.matchId;
         const rows = store.phaseResultsAfter(id, phase === 1 ? 'victim' : 'absorber', round, after === undefined ? undefined : after[0], limit + 1);
-        const page = pageFrom('phase-results', rows, limit, (r) => ({ playerId: r.playerId, choice: r.choice, correct: r.correct, points: r.points }), (r) => [r.playerId]);
+        // The names of the players of this page who joined by name, found by player id inside the match; the others have no member.
+        const names = store.playerNames(id, rows.slice(0, limit).map((r) => r.playerId));
+        const page = pageFrom('phase-results', rows, limit, (r) => ({ playerId: r.playerId, choice: r.choice, correct: r.correct, points: r.points, ...nameOf(names, r.playerId) }), (r) => [r.playerId]);
         const applied = round <= stored.match.appliedRounds;
         const record = applied ? store.recordsAfter(id, round - 1, 1)[0] : undefined;
         if (applied && (record === undefined || record.round !== round)) throw new RangeError('inconsistent stored data: no record of an applied round');
@@ -1521,7 +1528,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
         const id = stored.match.matchId;
         const rows = store.playerResultsAfter(id, playerId, after, limit + 1);
         const page = pageFrom('player-results', rows, limit, (r) => ({ kind: r.kind, ...(r.kind === 'winner' ? {} : { round: r.round }), choice: r.choice, correct: r.correct, points: r.points }), (r) => [r.round, r.kind]);
-        return { ok: true, reply: { playerId, total: store.playerTotal(id, playerId), ...page } };
+        return { ok: true, reply: { playerId, total: store.playerTotal(id, playerId), ...page, ...nameOf(store.playerNames(id, [playerId]), playerId) } };
       });
     },
 
@@ -1536,7 +1543,8 @@ export function createMatchService(options: ServiceOptions): MatchService {
         if (after !== undefined && after[0] !== generation) return { ok: false, error: errorReply('stale-cursor') };
         const ranked = rankLeaderboard(store.leaderboardTotals(stored.match.matchId));
         const page = pageOf(ranked, (e): readonly [number, string] => [e.rank, e.playerId], after === undefined ? undefined : [after[1], after[2]], limit);
-        const items = page.items.map((e): LeaderboardRow => ({ rank: e.rank, playerId: e.playerId, total: e.total, correctVictims: e.correctVictims, correctAbsorbers: e.correctAbsorbers, correctWinner: e.correctWinner }));
+        const names = store.playerNames(stored.match.matchId, page.items.map((e) => e.playerId));
+        const items = page.items.map((e): LeaderboardRow => ({ rank: e.rank, playerId: e.playerId, total: e.total, correctVictims: e.correctVictims, correctAbsorbers: e.correctAbsorbers, correctWinner: e.correctWinner, ...nameOf(names, e.playerId) }));
         return { ok: true, reply: page.next === undefined ? { items } : { items, next: encodeCursor('leaderboard', [generation, page.next[0], page.next[1]]) } };
       });
     },
