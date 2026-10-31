@@ -58,7 +58,7 @@ Plan sections 1 (P1, P8, P9, P12 to P14), 8, 12 (M4 row), 15 (Q8, Q11). Branch c
   - Done when: tests green; mutations caught; FR-385 moved (20 / 9).
   - Size: M (about 500).
 
-- [ ] **T7. CORS, logs and error bytes for the new paths.** (parts `FR-384 (logs)`)
+- [x] **T7. CORS, logs and error bytes for the new paths.** (parts `FR-384 (logs)`)
   - Depends on: T5, T6.
   - Files: `apps/server/src/http/{cors,respond,log}.ts` as needed, tests `apps/server/test/{http-cors-public,server-log-scan}.test.ts`, `apps/server/test/http-cors*.test.ts` (new paths in the pinned path list).
   - Tests first (Q11): the public `POST` create/join/start preflights and replies follow the plan's rule (allowed origins only; a foreign origin gets no permission; `Authorization` headers per FR-286 unchanged); `GET` players and results stay `*`; `Retry-After` and `Allow` on the new paths; the log scan over a whole scripted session (create, three joins, start, predictions, rate-limited and rejected requests): no token, no host token, no name text, no secret appears in any log line; a name appears in the log only as its length and a hash (a join with a 24-character name of edge characters is logged by length + hash); `request-failed` events carry name and stage only (008); error bodies never echo a name or a token (a join with a name that fails the rules answers `invalid-request ['name']` without the text).

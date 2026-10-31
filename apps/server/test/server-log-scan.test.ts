@@ -272,3 +272,91 @@ describe('the log scan', () => {
     });
   }, 120_000);
 });
+
+// The lobby session (spec 011 M4 T7, FR-384 (logs), NFR-47 (c)): create, three joins with names of edge characters, a taken
+// name, a rejected name, start, predictions by player token, a rate-limited join and a join that throws an error quoting the
+// name and the tokens. No log line holds a token, a host token or a name (the log has closed fields: a name is not even
+// logged as a length or a hash), and no refusal body echoes a name or a token.
+describe('the log scan: the lobby session', () => {
+  const NAMES = ['Zoë_Ñandú.Åsa-Ünal 12345', 'ß.-_ÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅ', 'a b c d e f g h i j k l'];
+  const forms = (name: string): string[] => [name, name.normalize('NFC'), name.normalize('NFD'), name.toLowerCase(), JSON.stringify(name), Buffer.from(name, 'utf8').toString('hex')];
+
+  it('FR-384 (logs) NFR-47 (c) no log line holds a name, a player token or a host token, and no refusal echoes one; a 24-character name of edge characters is accepted and logged nowhere', async () => {
+    expect([...(NAMES[0] as string)].length).toBe(24);
+    const toggle = { throwOn: undefined as string | undefined };
+    const tokens: string[] = [];
+    const H = await startReads({
+      service: { ...OPTIONS, publicCreation: { maps: ['dev'], lobbyExpiryHours: 1, maxOpenLobbies: 10 } },
+      limits: { joinSource: 9, joinMatch: 100 },
+      stub: {
+        join: (input) => {
+          if (toggle.throwOn !== undefined) throw new RangeError(`unexpected join of ${toggle.throwOn} ${tokens.join(' ')}`);
+          return H.base.service.join(input);
+        },
+      },
+    });
+    const replies: ClientReply[] = [];
+    const send = async (req: Parameters<typeof request>[1]): Promise<ClientReply> => {
+      const r = await request(H.port, req);
+      replies.push(r);
+      return r;
+    };
+    const created = await send({ method: 'POST', path: '/matches', body: creationBody('lobby-1') });
+    expect(created.status).toBe(201);
+    const { matchId, hostToken } = created.json() as { matchId: string; hostToken: string };
+    tokens.push(hostToken);
+    const joined: { playerId: string; playerToken: string }[] = [];
+    for (const [i, name] of NAMES.entries()) {
+      const r = await send({ method: 'POST', path: `/matches/${matchId}/players`, body: { name, requestId: `j-${i}` } });
+      expect(r.status).toBe(201);
+      const body = r.json() as { playerId: string; playerToken: string };
+      joined.push(body);
+      tokens.push(body.playerToken);
+    }
+    // The refusals: a taken name (another case), names failing the rules, an unknown match, a wrong start token.
+    const refusals = [
+      await send({ method: 'POST', path: `/matches/${matchId}/players`, body: { name: (NAMES[0] as string).toUpperCase(), requestId: 'j-x' } }),
+      await send({ method: 'POST', path: `/matches/${matchId}/players`, body: { name: 'bad<script>name', requestId: 'j-y' } }),
+      await send({ method: 'POST', path: `/matches/${matchId}/players`, body: { name: 'ñ'.repeat(25), requestId: 'j-z' } }),
+      await send({ method: 'POST', path: `/matches/no-such/players`, body: { name: 'Nobody Here', requestId: 'j-w' } }),
+      await send({ method: 'POST', path: `/matches/${matchId}/start`, body: {}, headers: bearer(joined[0]!.playerToken) }),
+    ];
+    expect(refusals.map((r) => r.status)).toStrictEqual([409, 400, 400, 404, 403]);
+    for (const r of refusals) {
+      for (const text of [...NAMES, 'bad<script>name', 'Nobody Here', ...tokens]) for (const form of forms(text)) expect(r.text, form).not.toContain(form);
+    }
+    expect((await send({ method: 'POST', path: `/matches/${matchId}/start`, body: {}, headers: bearer(hostToken) })).status).toBe(200);
+    const [a] = living(H, matchId);
+    for (const p of joined) {
+      const local = p.playerId.slice('player:'.length);
+      expect((await send({ method: 'POST', path: `/matches/${matchId}/predictions`, body: { kind: 'winner', faction: a, playerId: local }, headers: bearer(p.playerToken) })).status).toBe(200);
+    }
+    // A join that throws an error quoting the name and every token (a 500), then the rate limit (a 429).
+    toggle.throwOn = NAMES[0] as string;
+    const failed = await send({ method: 'POST', path: `/matches/${matchId}/players`, body: { name: 'Quoted Name', requestId: 'j-500' } });
+    expect(failed.status).toBe(500);
+    toggle.throwOn = undefined;
+    let limited: ClientReply | undefined;
+    for (let i = 0; i < 12 && limited?.status !== 429; i += 1) limited = await send({ method: 'POST', path: `/matches/${matchId}/players`, body: { name: `Late ${i}`, requestId: `late-${i}` } });
+    expect(limited?.status).toBe(429);
+
+    // The log: events with closed fields only, none holding a name, a token or a quoted message.
+    expect(H.logs.map((e) => e.event)).toStrictEqual(['request-failed']);
+    const lines = H.logs.map((e) => JSON.stringify(e));
+    for (const line of lines) {
+      for (const text of [...NAMES, 'Quoted Name', 'Late ', 'unexpected', ...tokens, ...joined.map((p) => p.playerId.slice(7))]) for (const form of forms(text)) expect(line, form).not.toContain(form);
+    }
+    expect(Object.keys(H.logs[0] as object).sort()).toStrictEqual(['error', 'event', 'stage']);
+    expect(lines[0]).toBe('{"event":"request-failed","stage":"decide","error":{"name":"RangeError"}}');
+    // No token is in any reply except the one that issued it: the creation reply (host), each join reply (its own player).
+    for (const [i, token] of tokens.entries()) {
+      const holders = replies.filter((r) => r.text.includes(token));
+      expect(holders.length, `token ${i}`).toBe(1);
+      expect(holders[0]?.status).toBe(201);
+    }
+    // The public data and the players list hold the names (they are public) and no token.
+    const list = await send({ path: `/matches/${matchId}/players` });
+    expect(list.text).toContain('ß.-_');
+    for (const token of tokens) expect(list.text).not.toContain(token);
+  }, 60_000);
+});
