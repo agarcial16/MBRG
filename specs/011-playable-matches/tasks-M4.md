@@ -49,7 +49,7 @@ Plan sections 1 (P1, P8, P9, P12 to P14), 8, 12 (M4 row), 15 (Q8, Q11). Branch c
   - Done when: tests green; mutations caught; FR-381 moved (19 / 10).
   - Size: L (about 650).
 
-- [ ] **T6. The players list and the joined event on the wire.** FR-385 (close); parts `FR-376 (stream)`
+- [x] **T6. The players list and the joined event on the wire.** FR-385 (close); parts `FR-376 (stream)`
   - Depends on: T5.
   - Files: `apps/server/src/http/server.ts` (`GET /matches/:id/players`, credential-free), tests `apps/server/test/{http-players,stream-players}.test.ts`.
   - Tests first: 200 bodies byte-equal to the protocol encoders; items in join order with id, name, join order and nothing else; `limit`/`cursor` rules as the other list routes (400 naming the field, `invalid-request ['cursor']` for a foreign cursor); `unknown-match`; `unavailable` under the fault seam; `POST` is 405; the anonymous per-minute limit counts the route; no token, digest, prediction, or count of predictions appears (scan); the stream: a client subscribed to a lobby receives each `player-joined` frame in order with the stored `seq` and `id:` line, a subscriber that connects after three joins and sends `Last-Event-ID: 0` replays them, `Last-Event-ID` in the middle gets the rest, the heartbeat and limits of 008 apply to lobby streams, the `start` event follows the joins, the expiry event ends the lobby's story; the hub is not changed (the existing stream suites pass unchanged).

@@ -169,12 +169,12 @@ describe('http join: the refusals', () => {
 });
 
 describe('http join: methods and bodies', () => {
-  it('a GET or a PUT on the join path is 405 with Allow OPTIONS, POST; a body over 4,096 bytes is 413 and closes', async () => {
+  it('a PUT or a DELETE on the join path is 405 with Allow GET, OPTIONS, POST; a body over 4,096 bytes is 413 and closes', async () => {
     const h = await start();
     const { matchId } = lobbyOf(h);
-    for (const method of ['GET', 'PUT']) {
+    for (const method of ['PUT', 'DELETE']) {
       const refused = await request(h.port, { method, path: `/matches/${matchId}/players` });
-      expect([method, refused.status, refused.headers.allow]).toStrictEqual([method, 405, 'OPTIONS, POST']);
+      expect([method, refused.status, refused.headers.allow]).toStrictEqual([method, 405, 'GET, OPTIONS, POST']);
     }
     const big = await raw(h.port, [head('POST', `/matches/${matchId}/players`, { 'content-length': '5000', connection: 'close' }), 'x'.repeat(10)]);
     expect([big.status, big.headers.connection]).toStrictEqual([413, 'close']);

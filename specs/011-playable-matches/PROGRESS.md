@@ -333,3 +333,13 @@ T2 and T3: see their entries. T4 (forced absorber), each with its reason:
 - Decisions the plan did not cover: (1) the start reply is the public data of the match (`encodePublicMatch`), no wrapper (no protocol encoder exists for `StartReply`); (2) an unknown match on `start` is 403 `forbidden` (the service answers it so: no host, FR-301 order), not 404 as the task text says; (3) a join the service refuses (name, stage, cap, unknown match) holds its join slot, only a malformed body holds none; (4) until T6 the players path allows only `OPTIONS, POST`; (5) the replay of a join over HTTP needs the same source (the memo scope is the source digest).
 - Untested: a real process; the CORS of the new POSTs (T7); bounds at scale (T8).
 - Next: T6 (the players list and the joined event on the wire).
+
+## M4 T6 - The players list and the joined event on the wire (closes FR-385)
+- Changed: `http/server.ts`: `GET /matches/:id/players` (credential-free, `readPageQuery('players')`, `service.players`, `encodePage` with `encodePlayerListItem`); the path now offers `GET, OPTIONS, POST`. The stream hub (`streams.ts`) is unchanged: the `player-joined` frames already flow through it.
+- Tests (new): `http-players` (8), `stream-players` (5; they passed at once because the hub needed no change, the red phase was the 9 route tests). Earlier tests changed (NFR-75): `http-join` (the 405 case now uses PUT and DELETE with Allow `GET, OPTIONS, POST`; a GET is the list), `traceability` (FR-385 to DONE_011, 20 / 9, one test added). The existing stream suites pass unchanged.
+- Red phase seen first (9 failed before the route).
+- Mutations (FULL `npm test` each, restored, `cmp` identical): a digest key in each item (2 failed, `http-players`); list sorted by name (1, `http-players`); the stream frame without `name`, replay path (1, `stream-players`) and live path (3, `stream-players`).
+- Results: `npm test` 282 files, 4646 passed, 4 skipped; `npm run typecheck` clean; `CI=1 npm test` the same. Ledger 20 / 9. Protected paths clean (`streams.ts` too); no package.json/lockfile change; title scan finds only closed ids.
+- Decisions the plan did not cover: (1) "POST is 405" of the task text cannot hold: POST on the players path is the join (T5), so the 405 test uses PUT and DELETE; (2) the heartbeat and anonymous stream limit tests use the 008 hub with a lobby (5 per address in 008, 2 in the test via the setting); (3) the expiry story is pinned as the stored `schedule` event with stage `expired` after the joins, replayed to late subscribers; the hub does not close the stream on expiry (unchanged 008 behaviour).
+- Untested: CORS and the log scan of the new paths (T7); bounds at scale (T8).
+- Next: T7 (CORS, logs and error bytes for the new paths).

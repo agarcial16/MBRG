@@ -28,6 +28,7 @@ import {
   encodeOwnPrediction,
   encodePage,
   encodePhaseResults,
+  encodePlayerListItem,
   encodePlayerResults,
   encodePrediction,
   encodePublicMatch,
@@ -252,6 +253,22 @@ export const productionRoutes = (service: MatchService, settings: ServerSettings
         ...(extra.playerId === undefined ? {} : { playerId: extra.playerId }),
       };
       return replyOf(service.ownPredictionsPage(request), 200, (page) => encodePage(page, encodeOwnPrediction));
+    },
+  },
+  {
+    // The players of a match (spec 011 FR-385): id, name and join order, in join order; credential-free, paged like the other lists.
+    method: 'GET',
+    path: '/matches/:id/players',
+    body: 'none',
+    checkQuery: (ctx) => {
+      const query = readPageQuery('players', pairsOf(ctx.query));
+      return query.ok ? undefined : query.error;
+    },
+    decide: (ctx) => {
+      const query = readPageQuery('players', pairsOf(ctx.query));
+      if (!query.ok) return { kind: 'error', error: query.error };
+      const { limit, after } = query.value;
+      return replyOf(service.players(ctx.params.id as string, after === undefined ? { limit } : { limit, after }), 200, (page) => encodePage(page, encodePlayerListItem));
     },
   },
   {
