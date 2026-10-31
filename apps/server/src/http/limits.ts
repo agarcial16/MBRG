@@ -54,6 +54,7 @@ export function limitKeys(identity: Identity, requestClass: RequestClass, addres
   switch (identity.role) {
     case 'operator':
     case 'client':
+    case 'player':
       return [{ key: `${requestClass}:${identity.digest}`, limit: requestClass === 'read' ? limits.reads : limits.commands }];
     case 'host':
       return [{ key: `advance:${identity.digest}`, limit: limits.advances }];

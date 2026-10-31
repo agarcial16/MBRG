@@ -1,17 +1,20 @@
 import { ERROR_ORDER, ERROR_REPLY_KEYS, listsSeveral, type ErrorReply } from './errors';
-import { isLocalId, isMapId, isPlayerId } from './ids';
+import { isCredentialText, isJoinedPlayerId, isLocalId, isMapId, isPlayerId } from './ids';
+import { readName } from './names';
 import { encodePublicMatch } from './public';
 import {
   ADVANCE_REPLY_KEYS,
   CREATION_REPLY_KEYS,
   EVENT_KEYS,
   HALT_REASONS,
+  JOIN_REPLY_KEYS,
   LEADERBOARD_ROW_KEYS,
   MATCH_SUMMARY_KEYS,
   OWN_PREDICTION_KEYS,
   PAGE_KEYS,
   PHASE_RESULTS_PAGE_KEYS,
   PHASE_RESULT_KEYS,
+  PLAYER_LIST_ITEM_KEYS,
   PLAYER_RESULTS_PAGE_KEYS,
   PLAYER_RESULT_KEYS,
   PREDICTION_KINDS,
@@ -24,12 +27,14 @@ import {
   STEP_KINDS,
   type AdvanceReply,
   type CreationReply,
+  type JoinReply,
   type LeaderboardRow,
   type MatchEvent,
   type MatchSummary,
   type OwnPrediction,
   type Page,
   type PhaseResultsPage,
+  type PlayerListItem,
   type PlayerResultsPage,
   type PredictionReply,
   type RecordReply,
@@ -341,6 +346,37 @@ export function encodeLeaderboardRow(row: LeaderboardRow): string {
   });
 }
 
+/** A name as the server stores and serves it: it already satisfies the name rule and is its own trimmed NFC form (FR-384). */
+const nameText = (what: string) =>
+  text(what, (v) => {
+    const read = readName(v);
+    return read.ok && read.name === v;
+  });
+const joinedPlayerId = (what: string) => text(what, isJoinedPlayerId);
+
+/** The reply to a join (FR-377): player id, name, the player token (given here once) and the public data after the join. */
+export function encodeJoinReply(reply: JoinReply): string {
+  const o = objectOf(reply, 'join reply', JOIN_REPLY_KEYS);
+  noInherited(o, 'join reply', JOIN_REPLY_KEYS);
+  return write(o, 'join reply', JOIN_REPLY_KEYS, {
+    playerId: joinedPlayerId('join reply.playerId'),
+    name: nameText('join reply.name'),
+    playerToken: text('join reply.playerToken', isCredentialText),
+    match: (v) => encodePublicMatch(v as never),
+  });
+}
+
+/** One row of the players list (FR-385); a page of rows goes through `encodePage`. No token, digest or prediction. */
+export function encodePlayerListItem(item: PlayerListItem): string {
+  const o = objectOf(item, 'player', PLAYER_LIST_ITEM_KEYS);
+  noInherited(o, 'player', PLAYER_LIST_ITEM_KEYS);
+  return write(o, 'player', PLAYER_LIST_ITEM_KEYS, {
+    playerId: joinedPlayerId('player.playerId'),
+    name: nameText('player.name'),
+    joinedSeq: int('player.joinedSeq', 1),
+  });
+}
+
 const SCHEDULE_STAGES = ['phase-1', 'phase-2', 'locked', 'lobby', 'expired'] as const;
 const nullOrInt = (what: string, min: number) => (v: unknown): string => (v === null ? 'null' : int(what, min)(v));
 const schedule = (v: unknown): string => {
@@ -374,6 +410,7 @@ const EVENT_WRITERS: Record<MatchEvent['type'], Record<string, (v: unknown) => s
   schedule: { seq: int('event.seq', 1), stage: member('event.stage', SCHEDULE_STAGES), schedule, reportedTime: int('event.reportedTime', 0) },
   'match-finished': { seq: int('event.seq', 1), winner: int('event.winner', 1), matchSecret: hex64('event.matchSecret'), rule: text('event.rule'), reportedTime: int('event.reportedTime', 0) },
   'match-halted': { seq: int('event.seq', 1), round: int('event.round', 1), reason: member('event.reason', HALT_REASONS), reportedTime: int('event.reportedTime', 0) },
+  'player-joined': { seq: int('event.seq', 1), playerId: joinedPlayerId('event.playerId'), name: nameText('event.name') },
 };
 
 /**

@@ -11,6 +11,11 @@ export const MATCH_ID_BYTES = 12;
 /** 32 random bytes = 256 bits, written as 43 base64url characters (FR-236). */
 export const HOST_TOKEN_BYTES = 32;
 
+/** 32 random bytes = 256 bits, written as 43 base64url characters: the token of a player who joins by name (spec 011 plan P9). */
+export const PLAYER_TOKEN_BYTES = 32;
+/** 9 random bytes, written as 12 base64url characters: the local part of `player:<local id>` (spec 011 plan P7). */
+export const PLAYER_ID_BYTES = 9;
+
 /** The credential character set (FR-297) holds the base64url alphabet; no padding is written. */
 const base64url = (bytes: Uint8Array): string => Buffer.from(bytes).toString('base64url');
 
@@ -19,6 +24,12 @@ export const newMatchId = (random?: RandomBytes): string => base64url(drawBytes(
 
 /** A new host token: its own draw of 32 bytes, independent of the secret and the match id (FR-236). */
 export const newHostToken = (random?: RandomBytes): string => base64url(drawBytes(HOST_TOKEN_BYTES, random));
+
+/** A new player token: its own draw of 32 bytes, independent of the secret, the match id, the host token and every other value. */
+export const newPlayerToken = (random?: RandomBytes): string => base64url(drawBytes(PLAYER_TOKEN_BYTES, random));
+
+/** A new local player id: its own draw of 9 bytes, independent of the token. */
+export const newPlayerLocalId = (random?: RandomBytes): string => base64url(drawBytes(PLAYER_ID_BYTES, random));
 
 /** The fixed prefix of every credential digest (PD12). */
 export const CREDENTIAL_PREFIX = 'mbrg/credential/v1/';

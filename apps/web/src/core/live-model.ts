@@ -495,6 +495,7 @@ function consume(model: LiveModel, frame: Frame, at: number): LiveResult {
   switch (e.type) {
     case 'phase-closed':
     case 'results':
+    case 'player-joined': // a join changes nothing the scene shows (the viewer reads players in spec 013)
       return result(m);
     case 'victim-revealed': {
       if (e.round !== m.applied + 1) return resync(model, at);

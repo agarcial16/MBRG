@@ -23,6 +23,8 @@ const PINNED: Readonly<Record<ErrorKind, number>> = {
   'too-many-matches': 409,
   'match-halted': 409,
   'match-finished': 409,
+  'name-taken': 409,
+  'match-full': 409,
   'match-started': 409,
   'match-expired': 409,
   'step-mismatch': 409,
@@ -36,7 +38,7 @@ const PINNED: Readonly<Record<ErrorKind, number>> = {
 
 describe('http status table', () => {
   it('FR-301 (status table) every kind of ERROR_ORDER has exactly the status of plan 18.4', () => {
-    expect(ERROR_ORDER).toHaveLength(25);
+    expect(ERROR_ORDER).toHaveLength(27);
     expect(Object.keys(PINNED).sort()).toStrictEqual([...ERROR_ORDER].sort());
     for (const kind of ERROR_ORDER) expect(statusOf(kind), kind).toBe(PINNED[kind]);
     expect(Object.keys(STATUS_OF_KIND).sort()).toStrictEqual([...ERROR_ORDER].sort());
@@ -49,7 +51,7 @@ describe('http status table', () => {
   });
 
   it('FR-301 (status table) the lobby refusals are 409 like match-finished and carry no extra header', () => {
-    for (const kind of ['match-started', 'match-expired'] as const) {
+    for (const kind of ['name-taken', 'match-full', 'match-started', 'match-expired'] as const) {
       expect(statusOf(kind)).toBe(409);
       expect(statusOf(kind)).toBe(statusOf('match-finished'));
       expect(errorHeaders(errorReply(kind))).toStrictEqual({});

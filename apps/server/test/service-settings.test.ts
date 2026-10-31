@@ -120,6 +120,7 @@ describe('settings', () => {
         runningMatchLimit: 20,
         databasePath: 'mbrg.sqlite',
         forcedPhaseSeconds: 5,
+        maxPlayers: 200,
         publicCreation: { maps: [], minInterval: 30, minPhase1: 10, minPhase2: 5, maxInterval: 3600, maxOpenLobbies: 50, maxPublicRunning: 20, lobbyExpiryHours: 24 },
         clients: [],
         allowedOrigins: [],
@@ -162,6 +163,7 @@ describe('settings', () => {
       'MBRG_FORCED_PHASE_SECONDS',
       'MBRG_PUBLIC_MAPS', 'MBRG_PUBLIC_MIN_INTERVAL', 'MBRG_PUBLIC_MIN_PHASE1', 'MBRG_PUBLIC_MIN_PHASE2', 'MBRG_PUBLIC_MAX_INTERVAL',
       'MBRG_MAX_OPEN_LOBBIES', 'MBRG_MAX_PUBLIC_RUNNING', 'MBRG_LOBBY_EXPIRY_HOURS',
+      'MBRG_MAX_PLAYERS',
     ]);
     const plain = readSettings(env);
     const noisy = readSettings({

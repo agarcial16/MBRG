@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PLAYER_NAMESPACE } from '@mbrg/protocol';
 import { createMatchService } from '../src/service/matches';
 import { createMapCatalog } from '../src/service/maps';
 import {
@@ -6,6 +7,7 @@ import {
   DEFAULT_HOST,
   DEFAULT_LIMITS,
   DEFAULT_PORT,
+  RESERVED_CLIENT_NAMESPACE,
   SETTING_VARIABLES,
   SHUTDOWN_GRACE_MS,
   readSettings,
@@ -43,7 +45,7 @@ const settingsOf = (patch: Record<string, string>): ServerSettings => {
 };
 
 describe('server settings: variables and defaults', () => {
-  it('FR-299 (stream limits) FR-260 the 24 variables read are exactly the plan list, in order, and none can set a round-seed source', () => {
+  it('FR-299 (stream limits) FR-260 the 25 variables read are exactly the plan list, in order, and none can set a round-seed source', () => {
     expect(SETTING_VARIABLES).toStrictEqual([
       'MBRG_OPERATOR_CREDENTIAL', 'MBRG_MAPS', 'MBRG_MAX_RUNNING_MATCHES', 'MBRG_DATABASE', 'MBRG_CLIENTS',
       'MBRG_ALLOWED_ORIGINS', 'MBRG_HOST', 'MBRG_PORT', 'MBRG_LIMIT_COMMANDS', 'MBRG_LIMIT_READS',
@@ -51,6 +53,7 @@ describe('server settings: variables and defaults', () => {
       'MBRG_FORCED_PHASE_SECONDS',
       'MBRG_PUBLIC_MAPS', 'MBRG_PUBLIC_MIN_INTERVAL', 'MBRG_PUBLIC_MIN_PHASE1', 'MBRG_PUBLIC_MIN_PHASE2', 'MBRG_PUBLIC_MAX_INTERVAL',
       'MBRG_MAX_OPEN_LOBBIES', 'MBRG_MAX_PUBLIC_RUNNING', 'MBRG_LOBBY_EXPIRY_HOURS',
+      'MBRG_MAX_PLAYERS',
     ]);
     expect(SETTING_VARIABLES.filter((name) => /seed|random|source/i.test(name))).toStrictEqual([]);
   });
@@ -62,6 +65,7 @@ describe('server settings: variables and defaults', () => {
       runningMatchLimit: 20,
       databasePath: 'mbrg.sqlite',
       forcedPhaseSeconds: 5,
+      maxPlayers: 200,
       publicCreation: { maps: [], minInterval: 30, minPhase1: 10, minPhase2: 5, maxInterval: 3600, maxOpenLobbies: 50, maxPublicRunning: 20, lobbyExpiryHours: 24 },
       clients: [],
       allowedOrigins: [],
@@ -169,6 +173,16 @@ describe('server settings: credentials', () => {
   it('FR-283 (namespaces) a namespace outside a-z 0-9 of 1 to 16 characters is refused naming MBRG_CLIENTS', () => {
     for (const namespace of ['', 'abcdefghijklmnopq', 'Web', 'we b', 'we-b', 'we_b', 'web:', 'wéb', 3, null]) {
       expect(problemsOf({ MBRG_CLIENTS: clients([{ namespace, credential: CLIENT_A }]) }), String(namespace)).toStrictEqual(['MBRG_CLIENTS']);
+    }
+  });
+
+  it('the namespace of web players is reserved: a client with it is refused at start naming MBRG_CLIENTS, at any position, other namespaces still start', () => {
+    expect(RESERVED_CLIENT_NAMESPACE).toBe(PLAYER_NAMESPACE);
+    expect(RESERVED_CLIENT_NAMESPACE).toBe('player');
+    expect(problemsOf({ MBRG_CLIENTS: clients([{ namespace: 'player', credential: CLIENT_A }]) })).toStrictEqual(['MBRG_CLIENTS']);
+    expect(problemsOf({ MBRG_CLIENTS: clients([{ namespace: 'web', credential: CLIENT_A }, { namespace: 'player', credential: CLIENT_B }]) })).toStrictEqual(['MBRG_CLIENTS']);
+    for (const namespace of ['web', 'discord', 'bot', 'players', 'playe', 'player0', 'a']) {
+      expect(settingsOf({ MBRG_CLIENTS: clients([{ namespace, credential: CLIENT_A }]) }).clients, namespace).toHaveLength(1);
     }
   });
 
@@ -357,6 +371,23 @@ describe('server settings: public creation', () => {
     expect(problemsOf({ MBRG_LOBBY_EXPIRY_HOURS: '0', MBRG_PUBLIC_MIN_PHASE1: 'x', MBRG_PUBLIC_MAPS: 'zzz', MBRG_FORCED_PHASE_SECONDS: '0', MBRG_PORT: 'x' })).toStrictEqual([
       'MBRG_PORT', 'MBRG_FORCED_PHASE_SECONDS', 'MBRG_PUBLIC_MAPS', 'MBRG_PUBLIC_MIN_PHASE1', 'MBRG_LOBBY_EXPIRY_HOURS',
     ]);
+  });
+
+  it('the player cap defaults to 200 and reads an operator value from 1 to 10,000, in a non-round number', () => {
+    expect(settingsOf({}).maxPlayers).toBe(200);
+    expect(settingsOf({ MBRG_MAX_PLAYERS: '37' }).maxPlayers).toBe(37);
+    expect(settingsOf({ MBRG_MAX_PLAYERS: '1' }).maxPlayers).toBe(1);
+    expect(settingsOf({ MBRG_MAX_PLAYERS: '10000' }).maxPlayers).toBe(10000);
+  });
+
+  it('the player cap refuses anything but a whole number 1 to 10,000, naming only its variable', () => {
+    for (const value of ['0', '-1', '1.5', 'x', '', ' 5', '05', '1e3', '0x10', '10001', '100000']) {
+      expect(problemsOf({ MBRG_MAX_PLAYERS: value }), JSON.stringify(value)).toStrictEqual(['MBRG_MAX_PLAYERS']);
+    }
+  });
+
+  it('the player cap problem comes last, after the older ones', () => {
+    expect(problemsOf({ MBRG_MAX_PLAYERS: '0', MBRG_LOBBY_EXPIRY_HOURS: '0', MBRG_PORT: 'x' })).toStrictEqual(['MBRG_PORT', 'MBRG_LOBBY_EXPIRY_HOURS', 'MBRG_MAX_PLAYERS']);
   });
 
   it('the older settings alone give a service with public creation off, and the service accepts them', () => {

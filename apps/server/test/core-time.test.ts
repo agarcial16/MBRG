@@ -292,6 +292,24 @@ describe('core view', () => {
     for (const key of Object.keys(fixtureView())) expect(CORE_MATCH_KEYS as readonly string[], key).toContain(key);
   });
 
+  it('the player count is part of the pinned core keys, the view stays free of secret-looking keys, and a built view has no count', () => {
+    expect(CORE_MATCH_KEYS).toContain('playerCount');
+    expect(PUBLIC_MATCH_KEYS as readonly string[]).toContain('playerCount');
+    expect('playerCount' in fixtureView()).toBe(false);
+  });
+
+  it('publicOf writes the player count of a lobby and of an expired lobby (0 when unset) and of a running match once it has players', () => {
+    const view = fixtureView();
+    expect('playerCount' in publicOf(view, 1)).toBe(false);
+    expect('playerCount' in publicOf({ ...view, playerCount: 0 }, 1)).toBe(false);
+    expect(publicOf({ ...view, playerCount: 3 }, 1).playerCount).toBe(3);
+    expect(publicOf({ ...view, stage: 'finished', anchors: null, winner: 3, playerCount: 1 }, 1).playerCount).toBe(1);
+    for (const stage of ['lobby', 'expired'] as const) {
+      expect(publicOf({ ...view, stage, anchors: null }, 1).playerCount, stage).toBe(0);
+      expect(publicOf({ ...view, stage, anchors: null, playerCount: 5 }, 1).playerCount, stage).toBe(5);
+    }
+  });
+
   it('FR-302 publicOf never lets a secret through before the match is finished', () => {
     const view = fixtureView();
     expect(publicOf(view, 1, 'ab'.repeat(32)).matchSecret).toBeUndefined();

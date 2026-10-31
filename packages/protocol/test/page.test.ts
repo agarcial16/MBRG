@@ -78,10 +78,11 @@ describe('cursors per list (FR-279 (b), (e))', () => {
     'phase-results': [['web:p1'], ['discord:A.b-c_9'], ['web:B']],
     'player-results': [[0, 'winner'], [1, 'victim'], [Number.MAX_SAFE_INTEGER, 'absorber']],
     leaderboard: [[0, 1, 'web:p1'], [12, 3, 'discord:A.b-c_9'], [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 'web:p1']],
+    players: [[1], [42], [Number.MAX_SAFE_INTEGER]],
   };
 
-  it('FR-279 (b) the list tags are the three of M3a and the three results lists, and each key round-trips through its cursor', () => {
-    expect([...CURSOR_LISTS]).toStrictEqual(['matches', 'records', 'predictions', 'phase-results', 'player-results', 'leaderboard']);
+  it('FR-279 (b) the list tags are the three of M3a, the three results lists and the players list, and each key round-trips through its cursor', () => {
+    expect([...CURSOR_LISTS]).toStrictEqual(['matches', 'records', 'predictions', 'phase-results', 'player-results', 'leaderboard', 'players']);
     for (const list of CURSOR_LISTS) {
       for (const key of samples[list]) {
         const text = encodeCursor(list, key as never);
@@ -172,6 +173,21 @@ describe('cursors per list (FR-279 (b), (e))', () => {
     expect(decodeCursor('player-results', b64('["player-results",0,"winner"]'))).toStrictEqual({ ok: true, value: [0, 'winner'] });
     for (const [list, key] of [['phase-results', ['web:a:b']], ['player-results', [0, 'victim']], ['leaderboard', [0, 0, 'web:a']], ['leaderboard', [1, 'web:a']]] as const) {
       expect(() => encodeCursor(list, key as never), `${list} ${JSON.stringify(key)}`).toThrow(RangeError);
+    }
+  });
+
+  it('FR-384 the players cursor is the join sequence number alone: a whole number from 1, nothing else', () => {
+    const issued = encodeCursor('players', [7]);
+    expect(issued).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(readPageQuery('players', [['cursor', issued], ['limit', '2']])).toStrictEqual({ ok: true, value: { limit: 2, after: [7], extra: {} } });
+    for (const key of [[0], [-1], [1.5], ['7'], [], [1, 2], [Number.MAX_SAFE_INTEGER + 1]]) {
+      expect(() => encodeCursor('players', key as never), JSON.stringify(key)).toThrow(RangeError);
+    }
+    // A cursor of every other list is refused on the players list, and a players cursor on every other list.
+    for (const other of CURSOR_LISTS) {
+      if (other === 'players') continue;
+      expect(readPageQuery(other, [['cursor', issued]]), other).toStrictEqual(invalid('cursor'));
+      expect(readPageQuery('players', [['cursor', encodeCursor(other, samples[other][0] as never)]]), other).toStrictEqual(invalid('cursor'));
     }
   });
 

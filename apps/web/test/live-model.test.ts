@@ -383,6 +383,21 @@ describe('FR-303 the panel fields follow the events', () => {
     expect(d.model).toBe(frozen);
   });
 
+  it('FR-303 a player-joined event is consumed by number and changes nothing the scene shows', async () => {
+    const s = await scripted();
+    const d = new Driver(s);
+    await d.load(1);
+    const before = d.model;
+    d.log.length = 0;
+    const seq = before.lastSeq + 1;
+    await d.events([json({ type: 'player-joined', seq, playerId: 'player:Ab3_x-9.Qz1k', name: 'Ana' })]);
+    expect(d.model.lastSeq).toBe(seq);
+    expect(d.model.stage).toBe(before.stage);
+    expect(d.model.applied).toBe(before.applied);
+    expect(d.model.phase).toBe('live');
+    expect(d.effects).toStrictEqual([]);
+  });
+
   it('FR-303 match-halted sets the reason and keeps the victim revealed before the halt', async () => {
     const s = await scripted();
     const d = new Driver(s);

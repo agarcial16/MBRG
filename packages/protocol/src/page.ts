@@ -16,8 +16,8 @@ export const PAGE_LIMIT_DEFAULT = 100;
 export const PAGE_LIMIT_MAX = 500;
 export const CURSOR_MAX_LENGTH = 256;
 
-/** The list tags: the three of M3a, then the results lists (phase results, a player's results, the leaderboard). */
-export const CURSOR_LISTS = ['matches', 'records', 'predictions', 'phase-results', 'player-results', 'leaderboard'] as const;
+/** The list tags: the three of M3a, the results lists (phase results, a player's results, the leaderboard), then the players. */
+export const CURSOR_LISTS = ['matches', 'records', 'predictions', 'phase-results', 'player-results', 'leaderboard', 'players'] as const;
 export type CursorList = (typeof CURSOR_LISTS)[number];
 
 /**
@@ -26,7 +26,7 @@ export type CursorList = (typeof CURSOR_LISTS)[number];
  * unit, which equals SQLite's BINARY order for the ASCII texts these keys hold. The results lists (plan 20.7): phase
  * results by namespaced player id; a player's results by round (0 for the winner) then kind; the leaderboard by rank then
  * player id, with the generation (the number of scored phases) the page was cut at, so a cursor from before a new scored
- * phase can be told apart (FR-279 (d)).
+ * phase can be told apart (FR-279 (d)). The players of a match: by the join sequence number (`joinedSeq` of the list item).
  */
 export interface CursorKeys {
   readonly matches: readonly [createdAt: number, matchId: string];
@@ -35,6 +35,7 @@ export interface CursorKeys {
   readonly 'phase-results': readonly [playerId: string];
   readonly 'player-results': readonly [round: number, kind: PredictionKind];
   readonly leaderboard: readonly [generation: number, rank: number, playerId: string];
+  readonly players: readonly [joinedSeq: number];
 }
 export type CursorKey<L extends CursorList> = CursorKeys[L];
 
@@ -76,6 +77,8 @@ function isKeyOf(list: CursorList, parts: readonly unknown[]): boolean {
     }
     case 'leaderboard':
       return parts.length === 3 && isInt(parts[0], 0) && isInt(parts[1], 1) && isPlayerId(parts[2]);
+    case 'players':
+      return parts.length === 1 && isInt(parts[0], 1);
     default:
       return false;
   }

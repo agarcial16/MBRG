@@ -21,6 +21,8 @@ export const ERROR_ORDER = [
   'too-many-matches',
   'match-halted',
   'match-finished',
+  'name-taken',
+  'match-full',
   'match-started',
   'match-expired',
   'step-mismatch',

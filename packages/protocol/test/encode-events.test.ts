@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { EVENT_KEYS, encodeEvent, type MatchEvent } from '../src/index';
 
-// The event encoder (FR-257 (event encoders), PD19): each of the 7 event types is written in its EVENT_KEYS order whatever
+// The event encoder (FR-257 (event encoders), PD19): each of the 8 event types is written in its EVENT_KEYS order whatever
 // the order of the input, an absent optional member is omitted, and an extra, inherited or null member, an unknown type
 // or a value out of shape is refused.
 
@@ -34,6 +34,7 @@ const events: Record<string, MatchEvent> = {
   schedule: { type: 'schedule', seq: 7, stage: 'phase-1', schedule: { c1: 1_032_000, c2: 1_038_000, a: 1_040_000 }, reportedTime: 1_020_002 },
   'match-finished': { type: 'match-finished', seq: 30, winner: 2, matchSecret: hex('b'), rule: 'hmac-sha256 rule text', reportedTime: 1_100_000 },
   'match-halted': { type: 'match-halted', seq: 9, round: 2, reason: 'map-changed', reportedTime: 1_050_000 },
+  'player-joined': { type: 'player-joined', seq: 4, playerId: 'player:Ab3_x-9.Qz1k', name: 'José Ruiz' },
 };
 
 /** The same object with its own keys in reverse order (nested objects too). */
@@ -49,7 +50,7 @@ const keysOf = (text: string): string[] => Object.keys(JSON.parse(text) as objec
 const withMember = (e: MatchEvent, member: string, value: unknown): MatchEvent => ({ ...e, [member]: value }) as MatchEvent;
 
 describe('the event encoder', () => {
-  it('FR-257 (event encoders) the key list of each of the 7 types is pinned and holds no secret, seed or credential', () => {
+  it('FR-257 (event encoders) the key list of each of the 8 types is pinned and holds no secret, seed or credential', () => {
     expect(Object.keys(EVENT_KEYS).sort()).toStrictEqual(Object.keys(events).sort());
     expect([...EVENT_KEYS['phase-closed']]).toStrictEqual(['type', 'seq', 'round', 'phase', 'at']);
     expect([...EVENT_KEYS['victim-revealed']]).toStrictEqual(['type', 'seq', 'round', 'victim', 'candidates', 'living', 'revealedAt', 'c2', 'a', 'forced', 'reportedTime']);
@@ -58,6 +59,7 @@ describe('the event encoder', () => {
     expect([...EVENT_KEYS.schedule]).toStrictEqual(['type', 'seq', 'stage', 'schedule', 'reportedTime']);
     expect([...EVENT_KEYS['match-finished']]).toStrictEqual(['type', 'seq', 'winner', 'matchSecret', 'rule', 'reportedTime']);
     expect([...EVENT_KEYS['match-halted']]).toStrictEqual(['type', 'seq', 'round', 'reason', 'reportedTime']);
+    expect([...EVENT_KEYS['player-joined']]).toStrictEqual(['type', 'seq', 'playerId', 'name']);
     // Only `match-finished` may name the match secret (FR-259); no event can carry an absorber before its application.
     for (const [type, keys] of Object.entries(EVENT_KEYS)) {
       for (const key of keys) {
@@ -214,6 +216,49 @@ describe('the event encoder', () => {
     } catch (error) {
       expect((error as Error).message).toContain('matchSecret');
       expect((error as Error).message).not.toContain('SECRETSECRET');
+    }
+  });
+});
+
+describe('the player-joined event', () => {
+  const joined = events['player-joined'] as MatchEvent;
+
+  it('FR-384 the event encodes type, seq, playerId and name and nothing else', () => {
+    expect(encodeEvent(joined)).toBe('{"type":"player-joined","seq":4,"playerId":"player:Ab3_x-9.Qz1k","name":"José Ruiz"}');
+    expect(encodeEvent(reversed(joined))).toBe(encodeEvent(joined));
+    for (const extra of ['token', 'playerToken', 'digest', 'nameKey', 'joinedSeq', 'reportedTime', 'requestId']) {
+      expect(() => encodeEvent(withMember(joined, extra, 'x')), extra).toThrow(RangeError);
+    }
+  });
+
+  it('FR-384 a name that breaks the name rule is refused by the encoder, so a quote or a backslash cannot occur', () => {
+    for (const name of ['', ' José', 'José ', 'a  b', 'x'.repeat(25), 'a"b', 'a\\b', 'a<b', 'a\nb', 'a\u200Bb', 'e\u0301', 7, null]) {
+      expect(() => encodeEvent(withMember(joined, 'name', name)), JSON.stringify(name)).toThrow(RangeError);
+    }
+  });
+
+  it('FR-384 the name is only ever written as a JSON string: allowed edge characters survive JSON.parse unchanged', () => {
+    for (const name of ['a_b-c.d', '_', '-', '.', '李小龍', 'ñandú', '\u{10400}'.repeat(24), 'x'.repeat(24), 'Ana 2']) {
+      const text = encodeEvent(withMember(joined, 'name', name));
+      expect(JSON.parse(text), name).toStrictEqual({ type: 'player-joined', seq: 4, playerId: 'player:Ab3_x-9.Qz1k', name });
+      expect(text.startsWith('{"type":"player-joined","seq":4,"playerId":"player:Ab3_x-9.Qz1k","name":"'), name).toBe(true);
+    }
+  });
+
+  it('FR-384 the player id is a player-namespace id and the seq a whole number from 1', () => {
+    for (const playerId of ['', 'Ab3', 'web:Ab3', 'player:', 'player:a b', 'player:a:b', 'player', 7, null]) {
+      expect(() => encodeEvent(withMember(joined, 'playerId', playerId)), String(playerId)).toThrow(RangeError);
+    }
+    for (const seq of [0, -1, 1.5, '4']) expect(() => encodeEvent(withMember(joined, 'seq', seq)), String(seq)).toThrow(RangeError);
+  });
+
+  it('FR-384 the message names fields, never the name', () => {
+    try {
+      encodeEvent(withMember(joined, 'name', 'bad<name'));
+      throw new Error('not thrown');
+    } catch (error) {
+      expect((error as Error).message).toContain('name');
+      expect((error as Error).message).not.toContain('bad<name');
     }
   });
 });

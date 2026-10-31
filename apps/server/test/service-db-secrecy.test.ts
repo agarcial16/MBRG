@@ -7,6 +7,7 @@ import type { MatchState } from '@mbrg/sim';
 import { describe, expect, it } from 'vitest';
 import { MEMO_RETENTION_MS } from '../src/core/memo';
 import { roundSeed, secretHex } from '../src/secret';
+import { credentialDigest } from '../src/service/ids';
 import { createMapCatalog } from '../src/service/maps';
 import { createMatchService } from '../src/service/matches';
 import type { MatchService } from '../src/service/matches';
@@ -18,6 +19,7 @@ import {
   encodingsOf,
   listColumns,
   pendingStateColumns,
+  playerTokenPlaces,
   rowsBeyondApplied,
   scanValues,
   storedFutureViolations,
@@ -226,6 +228,48 @@ describe('NFR-47 (d) the database never holds the future', () => {
       expect(stages.at(-1)).toBe('finished/halted');
       // B revealed its victim at the first step, then halted at the next start (victim kept, absorber never stored).
       expect(stages.some((s) => s === 'phase-2/halted')).toBe(true);
+    });
+  });
+});
+
+describe('the storage scan of player tokens (spec 011 M3 T9)', () => {
+  /** A file with one public lobby and one joined player (store closed), then `body` on a raw connection. */
+  const withJoined = (body: (db: DatabaseSync, token: string, hostToken: string) => void): void =>
+    withTempDir((dir) => {
+      const file = join(dir, 'players.sqlite');
+      const h = serviceHarness({ store: openStore(file), publicCreation: { maps: ['dev'] }, secret: PLANTED });
+      const made = h.service.createPublic({ source: 'src-host', body: creationBody('c-1') });
+      if (!made.ok) throw new Error('creation failed');
+      const joined = h.service.join({ source: 'src-a', matchId: made.reply.matchId, body: { name: 'Ana', requestId: 'j-1' } });
+      if (!joined.ok) throw new Error('join failed');
+      h.close();
+      withRawDb(file, (db) => body(db, joined.reply.playerToken, made.reply.hostToken));
+    });
+
+  it('a joined player leaves its plain token in the memo row of its join and nowhere else, and no column of the players table looks like a credential', () => {
+    withJoined((db, token, hostToken) => {
+      expect(scanValues(db, [token])).toStrictEqual(['memo.reply_json']);
+      expect(playerTokenPlaces(db, [token, hostToken], true)).toStrictEqual([]);
+      expect(credentialTextColumns(listColumns(db))).toStrictEqual([]);
+      expect(storedFutureViolations(db)).toStrictEqual([]);
+      expect(scanValues(db, [credentialDigest(token)])).toStrictEqual(['players.token_digest']);
+    });
+  });
+
+  it('the token scan can fail: past the 24 h of the memo the memo row is a violation, and a token in the players table, an event, a name or in another encoding is found', () => {
+    withJoined((db, token, hostToken) => {
+      expect(playerTokenPlaces(db, [token], false)).toStrictEqual(['token in memo.reply_json']);
+      expect(playerTokenPlaces(db, [hostToken], false)).toStrictEqual(['token in memo.reply_json']);
+      db.prepare('UPDATE players SET name = ?').run(`x${token}x`);
+      expect(playerTokenPlaces(db, [token], true)).toStrictEqual(['token in players.name']);
+      db.prepare('UPDATE players SET name = ?, name_key = ?').run('Ana', 'ana');
+      db.prepare('UPDATE events SET payload_json = ? WHERE seq = 1').run(JSON.stringify({ type: 'schedule', note: token }));
+      expect(playerTokenPlaces(db, [token], true)).toStrictEqual(['token in events.payload_json']);
+      db.prepare('UPDATE events SET payload_json = ? WHERE seq = 1').run(JSON.stringify({ type: 'schedule', note: Buffer.from(token, 'base64url').toString('hex') }));
+      expect(playerTokenPlaces(db, [token], true)).toStrictEqual(['token bytes in events.payload_json']);
+      // A column that could hold a token is found by the column scan.
+      db.exec('ALTER TABLE players ADD COLUMN player_token TEXT');
+      expect(credentialTextColumns(listColumns(db))).toStrictEqual(['players.player_token']);
     });
   });
 });

@@ -82,6 +82,15 @@ describe('canonical request body', () => {
     expect(canonicalBody(POST, path, { ...without, requestId2: 'r' })).not.toBe(canonicalBody(POST, path, without));
   });
 
+  it('FR-282 (canonical content) a join body gives the sorted form of its path with the name and without the request id', () => {
+    const join = '/matches/m1/join';
+    expect(canonicalBody(POST, join, { name: 'Ana', requestId: 'j-1' })).toBe('"POST" "/matches/m1/join" {"name":"Ana"}');
+    expect(canonicalBody(POST, join, { requestId: 'j-2', name: 'Ana' })).toBe(canonicalBody(POST, join, { name: 'Ana', requestId: 'j-1' }));
+    expect(canonicalBody(POST, join, { name: 'Ana', requestId: 'j' })).not.toBe(canonicalBody(POST, join, { name: 'Ana ', requestId: 'j' }));
+    expect(canonicalBody(POST, join, { name: 'Ana', requestId: 'j' })).not.toBe(canonicalBody(POST, '/matches/m2/join', { name: 'Ana', requestId: 'j' }));
+    expect(canonicalBody(POST, join, { name: 'Ana', requestId: 'j' })).not.toBe(canonicalBody(POST, join, { name: 'Beto', requestId: 'j' }));
+  });
+
   it('FR-282 (canonical content) a start body gives the sorted form of its path and drops the request id', () => {
     const start = '/matches/m1/start';
     expect(canonicalBody(POST, start, {})).toBe('"POST" "/matches/m1/start" {}');

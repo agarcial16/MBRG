@@ -40,6 +40,11 @@ export interface CoreMatch {
   readonly victim?: PublicVictim;
   readonly winner?: number;
   readonly haltReason?: HaltReason;
+  /**
+   * The number of players (spec 011 FR-377): filled by the shell when it builds the public data; a stored view never carries it
+   * (the players table is the truth). Public data shows it for a lobby, an expired lobby, or a match with players.
+   */
+  readonly playerCount?: number;
 }
 
 /** Field list of the core view, pinned by a test: nothing named like an absorber, a seed or a pending state. */
@@ -61,6 +66,7 @@ export const CORE_MATCH_KEYS = [
   'victim',
   'winner',
   'haltReason',
+  'playerCount',
 ] as const satisfies readonly (keyof CoreMatch)[];
 
 /**
@@ -91,5 +97,8 @@ export function publicOf(view: CoreMatch, reportedTime: number, matchSecret?: st
     if (matchSecret !== undefined) out.matchSecret = matchSecret;
   }
   if (view.stage === 'halted' && view.haltReason !== undefined) out.haltReason = view.haltReason;
+  // A lobby always tells its count (0 when unset); a running or over match only once it has players (the 008 bytes otherwise).
+  const count = view.playerCount ?? 0;
+  if (view.stage === 'lobby' || view.stage === 'expired' || count > 0) out.playerCount = count;
   return out;
 }

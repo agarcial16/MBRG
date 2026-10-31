@@ -35,19 +35,41 @@
 // Reads (FR-281 (a) to (d), (h), (j), FR-258, FR-302; M3a T5): outcomes with an `ErrorReply`, no transaction and no write
 // (only the in-memory reported time); a storage failure is `unavailable`; keyset pages with the cursors of the protocol.
 
-import { PAGE_LIMIT_MAX, canonicalBody, encodeCursor, encodePublicMatch, errorReply, isLocalId, isNamespace, isPlayerId, pageOf, playerIdOf, readAdvance, readCreation, readStart, readSubmission } from '@mbrg/protocol';
+import {
+  PAGE_LIMIT_MAX,
+  PLAYER_NAMESPACE,
+  canonicalBody,
+  encodeCursor,
+  encodeJoinReply,
+  encodePublicMatch,
+  errorReply,
+  isJoinedPlayerId,
+  isLocalId,
+  isNamespace,
+  isPlayerId,
+  nameKey,
+  pageOf,
+  playerIdOf,
+  readAdvance,
+  readCreation,
+  readJoin,
+  readStart,
+  readSubmission,
+} from '@mbrg/protocol';
 import type {
   AdvanceReply,
   CreationReply,
   CursorKey,
   CursorList,
   ErrorReply,
+  JoinReply,
   LeaderboardRow,
   MatchEvent,
   MatchSummary,
   OwnPrediction,
   Page,
   PhaseResultsPage,
+  PlayerListItem,
   PlayerResultsPage,
   PredictionReply,
   PublicMatch,
@@ -59,7 +81,7 @@ import type {
 import type { Clock } from '../clock';
 import { decideAdvance } from '../core/advance';
 import { createLobby, createMatch, creationEvents, lobbyEvents } from '../core/create';
-import { expireDecision, startDecision } from '../core/lobby';
+import { expireDecision, joinDecision, startDecision } from '../core/lobby';
 import { MEMO_RETENTION_MS, decideMemo, isMemoisable } from '../core/memo';
 import type { MemoScope } from '../core/memo';
 import { decideSubmission } from '../core/predictions';
@@ -74,9 +96,9 @@ import type { CoreMatch, StepRow } from '../core/view';
 import { DERIVATION_RULE, commitment as commitmentOf, newSecret, secretHex } from '../secret';
 import type { RandomBytes } from '../secret';
 import { seedOfSecret } from '../seeds';
-import { LOBBY_RETENTION_MS, StoreError } from '../store/store';
+import { LOBBY_RETENTION_MS, NameTakenError, StoreError } from '../store/store';
 import type { Store, StoredMatch, StoredRecord, StoredStep } from '../store/store';
-import { credentialDigest, newHostToken, newMatchId, sameDigest, sha256Ascii } from './ids';
+import { credentialDigest, newHostToken, newMatchId, newPlayerLocalId, newPlayerToken, sameDigest, sha256Ascii } from './ids';
 import { isMapFileName, mapForStep } from './maps';
 import type { MapCatalog, MapFile } from './maps';
 import { checkPublicCreation } from './publiccreate';
@@ -124,6 +146,22 @@ export interface StartReply {
 
 export type StartOutcome = { readonly ok: true; readonly reply: StartReply } | { readonly ok: false; readonly error: ErrorReply };
 
+/** The path text of a join in the canonical content of FR-282 (the HTTP layer of M4 uses the same text). */
+export const joinPath = (matchId: string): string => `${CREATION_PATH}/${matchId}/join`;
+
+/**
+ * A join (spec 011 FR-377): no credential. `source` is the text the HTTP layer resolved for the caller (the service keys the
+ * memo by its digest and trusts it); the parsed JSON body is `{ name, requestId }`.
+ */
+export interface JoinRequest {
+  readonly source: string;
+  readonly matchId: string;
+  readonly body: unknown;
+}
+
+/** The reply of a join: `{ playerId, name, playerToken, match }` (the only time the token leaves the server), or the error. */
+export type JoinOutcome = { readonly ok: true; readonly reply: JoinReply } | { readonly ok: false; readonly error: ErrorReply };
+
 /** The reply of an advance: the reply of FR-295 (b), or the error (`step-mismatch` carries the stage and N, C6). */
 export type AdvanceOutcome = { readonly ok: true; readonly reply: AdvanceReply } | { readonly ok: false; readonly error: ErrorReply };
 
@@ -149,8 +187,27 @@ export interface ClientIdentity {
   readonly namespace: string;
 }
 
+/**
+ * A player the HTTP layer resolved from a match token (spec 011 FR-378, `playerTokenOf`): the digest of the token (the memo
+ * scope; the token text never reaches the service again) and the player id `player:<local id>`. The service trusts the pair.
+ */
+export interface PlayerCaller {
+  readonly tokenDigest: string;
+  readonly playerId: string;
+}
+
+const isPlayerCaller = (caller: ClientIdentity | PlayerCaller): caller is PlayerCaller => Object.hasOwn(caller, 'tokenDigest');
+const PLAYER_TOKEN_DIGEST = /^[0-9a-f]{64}$/;
+/** A resolved player is a digest and a joined player id; anything else is a programming error of the caller. */
+const checkPlayerCaller = (caller: PlayerCaller): void => {
+  if (!PLAYER_TOKEN_DIGEST.test(String(caller.tokenDigest)) || !isJoinedPlayerId(caller.playerId)) {
+    throw new TypeError('the caller identity is a token digest and a joined player id');
+  }
+};
+
 export interface SubmitRequest {
-  readonly client: ClientIdentity;
+  /** A client credential with its namespace (008), or a player resolved from its match token (spec 011 FR-378). */
+  readonly client: ClientIdentity | PlayerCaller;
   readonly matchId: string;
   /** The parsed JSON body `{ kind, round?, faction, playerId, requestId? }`. */
   readonly body: unknown;
@@ -159,13 +216,20 @@ export interface SubmitRequest {
 /** The reply of a submission: the stored prediction and its version (FR-267), or the error (first use, or its memoised replay). */
 export type SubmitOutcome = { readonly ok: true; readonly reply: PredictionReply } | { readonly ok: false; readonly error: ErrorReply };
 
-export interface OwnPredictionsRequest {
-  /** Only the namespace of the credential: a client reads its own player ids and no others. */
-  readonly namespace: string;
-  /** The local player id (the namespace is added here, never taken from the caller's text). */
-  readonly playerId: string;
-  readonly matchId: string;
-}
+export type OwnPredictionsRequest =
+  | {
+      /** Only the namespace of the credential: a client reads its own player ids and no others. */
+      readonly namespace: string;
+      /** The local player id (the namespace is added here, never taken from the caller's text). */
+      readonly playerId: string;
+      readonly matchId: string;
+    }
+  | {
+      /** A player resolved from its match token reads its own predictions; another local id is `forbidden`. */
+      readonly player: PlayerCaller;
+      readonly playerId: string;
+      readonly matchId: string;
+    };
 
 export type OwnPredictionsOutcome = { readonly ok: true; readonly predictions: readonly PredictionReply[] } | { readonly ok: false; readonly error: ErrorReply };
 
@@ -182,13 +246,22 @@ export interface PageRequest<L extends CursorList> {
 }
 
 /** The own predictions of a client (FR-270, FR-281 (h), C3): every player of its namespace, or one local id when given. */
-export interface OwnPredictionsPageRequest extends PageRequest<'predictions'> {
-  /** The namespace of the client credential (resolved by the HTTP layer); never taken from the request. */
-  readonly namespace: string;
-  readonly matchId: string;
-  /** An optional local player id (the namespace is added here, never taken from the caller's text). */
-  readonly playerId?: string;
-}
+export type OwnPredictionsPageRequest = PageRequest<'predictions'> &
+  (
+    | {
+        /** The namespace of the client credential (resolved by the HTTP layer); never taken from the request. */
+        readonly namespace: string;
+        readonly matchId: string;
+        /** An optional local player id (the namespace is added here, never taken from the caller's text). */
+        readonly playerId?: string;
+      }
+    | {
+        /** A player resolved from its match token: its own predictions only; an optional local id must be its own (`forbidden` otherwise). */
+        readonly player: PlayerCaller;
+        readonly matchId: string;
+        readonly playerId?: string;
+      }
+  );
 
 /**
  * A clock step that could not run (FR-292): `unavailable` for a storage failure, `error` for anything else (a programming
@@ -273,6 +346,12 @@ export interface MatchService {
    * `schedule` event, all in one storage transaction. The same request id and content replays the first reply.
    */
   startMatch(request: StartRequest): StartOutcome;
+  /**
+   * FR-377, FR-376, FR-380: a caller with no credential joins a lobby or a running match with a name; one storage transaction
+   * writes the player (as a token digest), the `player-joined` event and the match's last number, and the memo (the plain token
+   * lives only there, 24 h). A refusal stores, draws and memoises nothing.
+   */
+  join(request: JoinRequest): JoinOutcome;
   /** FR-244, FR-245, FR-295: an advance naming the step the caller expects; one storage transaction when it performs a step. */
   advance(request: AdvanceRequest): AdvanceOutcome;
   /** FR-261 to FR-267, FR-282 (b) (c): stores or replaces a prediction, or replays or refuses; one storage transaction. */
@@ -319,6 +398,17 @@ export interface MatchService {
   /** FR-300 (host-token check): whether the credential is the host token of the match, by digest comparison; false for an unknown match. */
   hostTokenMatches(matchId: string, credential: string): ReadOutcome<boolean>;
   /**
+   * FR-385, FR-279: the players of a match in join order (id, name and the join sequence number), one keyset page; any stage
+   * answers. No token, digest or prediction is read. `unknown-match`, or `unavailable` on a storage failure. Writes nothing.
+   */
+  players(matchId: string, request: PageRequest<'players'>): ReadOutcome<Page<PlayerListItem>>;
+  /**
+   * FR-378: the player of this match whose token this is, by the digest of the token looked up through the index of the
+   * match's players (the store sees the digest only); undefined for a token of no player of this match (another match, an
+   * unknown match, a wrong, truncated or wrong-case text). `unavailable` on a storage failure. Writes nothing.
+   */
+  playerTokenOf(matchId: string, token: string): ReadOutcome<{ readonly playerId: string } | undefined>;
+  /**
    * FR-281 (i), FR-289 (d), (e): the stored events with a number above `after` in order, and the stored last number (the
    * public data's `lastSeq`). `after` absent: no events (a stream of live events only). `unknown-match`, or `unavailable` on
    * a storage failure. Writes nothing. An `after` that is not a whole number from 0 is a RangeError (the caller maps it).
@@ -354,13 +444,12 @@ export const roundSeeds =
 const failure = (error: ErrorReply): CreateOutcome => ({ ok: false, error });
 
 /**
- * The public data of a view: `publicOf`, plus the player count of a lobby or an expired lobby (spec 011 plan P5: present in
- * those stages, absent otherwise until the match has players). No player can join before the join task of M3, so it is 0.
+ * The public data of a view: `publicOf` with the player count of the match when the caller knows it (spec 011 plan P5:
+ * always present for a lobby or an expired lobby, otherwise only once the match has players). A view built before any join
+ * has no count of its own: a lobby then shows 0.
  */
-const publicView = (view: CoreMatch, reportedTime: number, matchSecret?: string): PublicMatch => {
-  const match = publicOf(view, reportedTime, matchSecret);
-  return view.stage === 'lobby' || view.stage === 'expired' ? { ...match, playerCount: 0 } : match;
-};
+const publicView = (view: CoreMatch, reportedTime: number, matchSecret?: string, playerCount?: number): PublicMatch =>
+  publicOf(playerCount === undefined ? view : { ...view, playerCount }, reportedTime, matchSecret);
 
 const HOUR_MS = 3_600_000;
 
@@ -831,7 +920,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
   const publicNow = (stored: StoredMatch): PublicMatch => {
     const { reported } = timesOf(stored.match);
     remember(stored.match.matchId, reported);
-    return publicView(stored.match, reported, stored.match.stage === 'finished' ? secretHex(stored.secret) : undefined);
+    return publicView(stored.match, reported, stored.match.stage === 'finished' ? secretHex(stored.secret) : undefined, store.playerCount(stored.match.matchId));
   };
   /** A page size outside 1 to 500 never comes from `readPageQuery`: a programming error of the caller. */
   const checkPageSize = (limit: number): void => {
@@ -991,7 +1080,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
         store.markStarted(matchId, decision.view.lastStepMs);
         store.appendEvents(matchId, decision.events);
         done.committed = { view: decision.view, events: decision.events };
-        const result: StartOutcome = { ok: true, reply: { match: publicView(decision.view, times.reported) } };
+        const result: StartOutcome = { ok: true, reply: { match: publicView(decision.view, times.reported, undefined, store.playerCount(matchId)) } };
         // Only a start is memoised: a refusal (started, expired, a cap) stores nothing.
         if (requestId !== undefined) {
           store.memoPut(memoScope, requestId, { contentDigest: content, reply: result, createdMs: now });
@@ -999,6 +1088,73 @@ export function createMatchService(options: ServiceOptions): MatchService {
         }
         return result;
       }), (): StartOutcome => unavailable);
+      if (outcome === unavailable) return outcome;
+      memoStored(done.memoAt);
+      if (done.committed !== undefined) settle(matchId, done.reported, done.committed);
+      return outcome;
+    },
+
+    join(request: JoinRequest): JoinOutcome {
+      if (typeof request.source !== 'string' || request.source.length === 0) throw new TypeError('the source of a join is a non-empty text');
+      const read = readJoin(request.body);
+      if (!read.ok) return { ok: false, error: read.error };
+      const { matchId } = request;
+      if (typeof matchId !== 'string') return { ok: false, error: errorReply('unknown-match') };
+      const { name, requestId } = read.value;
+      // The scope is the digest of the source and the match: the same id from another source, or for another match, is another join.
+      const scope: MemoScope = { credentialDigest: credentialDigest(`join:${request.source}`), match: matchId };
+      const content = sha256Ascii(canonicalBody('POST', joinPath(matchId), request.body));
+      const done: { committed?: Committed; reported: number; memoAt?: number } = { reported: 0 };
+      const unavailable = { ok: false as const, error: errorReply('unavailable') };
+      let outcome: JoinOutcome;
+      try {
+        outcome = orUnavailable(
+          (): JoinOutcome =>
+            store.transaction((): JoinOutcome => {
+              const now = wholeMs(clock.now());
+              const first = store.memoGet(scope, requestId);
+              const memo = decideMemo<JoinOutcome>(
+                first === undefined ? undefined : { content: first.contentDigest, reply: first.reply as JoinOutcome, createdMs: first.createdMs },
+                { content, now },
+              );
+              if (memo.decision === 'replay') return memo.reply;
+              if (memo.decision === 'request-id-reused') return { ok: false, error: memo.error };
+              const stored = store.getMatch(matchId);
+              if (stored === undefined) return { ok: false, error: errorReply('unknown-match') };
+              const times = timesOf(stored.match);
+              done.reported = times.reported;
+              // A lobby at or after its expiry instant is expired by its own rule, whether or not the wake-up has run yet (FR-372).
+              const expiresMs = stored.match.stage === 'lobby' ? store.getLobby(matchId)?.expiresMs : undefined;
+              if (expiresMs !== undefined && times.effective >= expiresMs) return { ok: false, error: errorReply('match-expired') };
+              const count = store.playerCount(matchId);
+              const decision = joinDecision(stored.match, count, settings.maxPlayers);
+              if (!decision.ok) return { ok: false, error: decision.error };
+              // The name rule comes after the shape, stage and cap checks, and before any draw: a taken name draws nothing.
+              const key = nameKey(name);
+              if (store.nameKeyTaken(matchId, key)) return { ok: false, error: errorReply('name-taken') };
+
+              const playerId = playerIdOf(PLAYER_NAMESPACE, newPlayerLocalId(random));
+              const playerToken = newPlayerToken(random);
+              const reply: JoinReply = { playerId, name, playerToken, match: publicView(decision.view, times.reported, undefined, count + 1) };
+              encodeJoinReply(reply); // the reply must be encodable before anything is stored
+              const events: MatchEvent[] = [{ type: 'player-joined', seq: decision.seq, playerId, name }];
+              store.insertPlayer({ matchId, playerId, name, nameKey: key, tokenDigest: credentialDigest(playerToken), joinedSeq: decision.seq, joinedMs: now });
+              store.appendEvents(matchId, events);
+              store.updateMatch(decision.view);
+              const result: JoinOutcome = { ok: true, reply };
+              // Only a join is memoised (the token is in the reply, kept 24 h): a refusal stores nothing and may be retried.
+              store.memoPut(scope, requestId, { contentDigest: content, reply: result, createdMs: now });
+              done.memoAt = now;
+              done.committed = { view: decision.view, events };
+              return result;
+            }),
+          (): JoinOutcome => unavailable,
+        );
+      } catch (error) {
+        // The unique index decided a race the check could not see: the transaction rolled back, nothing was stored.
+        if (error instanceof NameTakenError) return { ok: false, error: errorReply('name-taken') };
+        throw error;
+      }
       if (outcome === unavailable) return outcome;
       memoStored(done.memoAt);
       if (done.committed !== undefined) settle(matchId, done.reported, done.committed);
@@ -1131,12 +1287,23 @@ export function createMatchService(options: ServiceOptions): MatchService {
       const read = readSubmission(request.body);
       if (!read.ok) return { ok: false, error: read.error };
       const { client, matchId } = request;
-      if (!isNamespace(client.namespace) || typeof client.credential !== 'string') throw new TypeError('the caller identity is a credential text and a namespace');
       const body = read.value;
-      const playerId = playerIdOf(client.namespace, body.playerId);
+      // A client: the namespace of its credential builds the id (008, unchanged). A player: only its own id, nothing is stored or memoised otherwise.
+      let playerId: string;
+      let scopeDigest: string;
+      if (isPlayerCaller(client)) {
+        checkPlayerCaller(client);
+        if (playerIdOf(PLAYER_NAMESPACE, body.playerId) !== client.playerId) return { ok: false, error: errorReply('forbidden') };
+        playerId = client.playerId;
+        scopeDigest = client.tokenDigest;
+      } else {
+        if (!isNamespace(client.namespace) || typeof client.credential !== 'string') throw new TypeError('the caller identity is a credential text and a namespace');
+        playerId = playerIdOf(client.namespace, body.playerId);
+        scopeDigest = credentialDigest(client.credential);
+      }
       const submission: Submission = body.kind === 'winner' ? { kind: 'winner', choice: body.faction } : { kind: body.kind, round: body.round as number, choice: body.faction };
       const round = body.kind === 'winner' ? 0 : (body.round as number);
-      const scope: MemoScope = { credentialDigest: credentialDigest(client.credential), match: matchId };
+      const scope: MemoScope = { credentialDigest: scopeDigest, match: matchId };
       const content = sha256Ascii(canonicalBody('POST', submissionPath(matchId), request.body));
       const memo: { at?: number } = {};
       // FR-292: a storage failure rolls the prediction and its memo back together: nothing is reported as accepted.
@@ -1176,9 +1343,18 @@ export function createMatchService(options: ServiceOptions): MatchService {
     },
 
     ownPredictions(request: OwnPredictionsRequest): OwnPredictionsOutcome {
-      if (!isNamespace(request.namespace)) throw new TypeError('the caller identity is a namespace');
-      if (!isLocalId(request.playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
-      const player = playerIdOf(request.namespace, request.playerId);
+      let player: string;
+      if ('player' in request) {
+        checkPlayerCaller(request.player);
+        if (!isLocalId(request.playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+        // A player reads its own predictions only (a malformed id first, then another player's id).
+        if (playerIdOf(PLAYER_NAMESPACE, request.playerId) !== request.player.playerId) return { ok: false, error: errorReply('forbidden') };
+        player = request.player.playerId;
+      } else {
+        if (!isNamespace(request.namespace)) throw new TypeError('the caller identity is a namespace');
+        if (!isLocalId(request.playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+        player = playerIdOf(request.namespace, request.playerId);
+      }
       const toReply = (p: StoredPrediction): PredictionReply => ({ kind: p.kind, ...(p.kind === 'winner' ? {} : { round: p.round }), choice: p.choice, version: p.version });
       return orUnavailable(
         (): OwnPredictionsOutcome => {
@@ -1275,11 +1451,24 @@ export function createMatchService(options: ServiceOptions): MatchService {
     },
 
     ownPredictionsPage(request: OwnPredictionsPageRequest): ReadOutcome<Page<OwnPrediction>> {
-      const { namespace, matchId, playerId, limit, after } = request;
-      // The namespace comes from the configured credential (FR-284): one outside its set is a programming error of the caller.
-      if (!isNamespace(namespace)) throw new TypeError('the caller identity is a namespace');
-      // Checked before the store sees it (the store refuses it as a RangeError): a namespace cannot be sent (FR-270).
-      if (playerId !== undefined && !isLocalId(playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+      const { matchId, limit, after } = request;
+      let namespace: string;
+      let playerId = request.playerId;
+      if ('player' in request) {
+        // A player: the namespace is the reserved one and the local id is its own, whatever the caller asked for.
+        checkPlayerCaller(request.player);
+        if (playerId !== undefined && !isLocalId(playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+        const own = request.player.playerId.slice(PLAYER_NAMESPACE.length + 1);
+        if (playerId !== undefined && playerId !== own) return { ok: false, error: errorReply('forbidden') };
+        namespace = PLAYER_NAMESPACE;
+        playerId = own;
+      } else {
+        namespace = request.namespace;
+        // The namespace comes from the configured credential (FR-284): one outside its set is a programming error of the caller.
+        if (!isNamespace(namespace)) throw new TypeError('the caller identity is a namespace');
+        // Checked before the store sees it (the store refuses it as a RangeError): a namespace cannot be sent (FR-270).
+        if (playerId !== undefined && !isLocalId(playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+      }
       checkPageSize(limit);
       return read(() => {
         const stored = storedMatch(matchId);
@@ -1359,6 +1548,28 @@ export function createMatchService(options: ServiceOptions): MatchService {
         const digest = store.hostTokenDigest(matchId);
         // Compared as digests in time independent of the token (FR-300); an unknown match has no host token.
         return { ok: true, reply: presented !== undefined && digest !== undefined && sameDigest(presented, digest) };
+      });
+    },
+
+    players(matchId: string, request: PageRequest<'players'>): ReadOutcome<Page<PlayerListItem>> {
+      const { limit, after } = request;
+      checkPageSize(limit);
+      return read(() => {
+        const stored = storedMatch(matchId);
+        if (stored === undefined) return unknownMatch();
+        // The store never reads back a token digest or a name key; only id, name and join order are copied (FR-385).
+        const rows = store.playersAfter(stored.match.matchId, after === undefined ? undefined : after[0], limit + 1);
+        return { ok: true, reply: pageFrom('players', rows, limit, (p): PlayerListItem => ({ playerId: p.playerId, name: p.name, joinedSeq: p.joinedSeq }), (p) => [p.joinedSeq]) };
+      });
+    },
+
+    playerTokenOf(matchId: string, token: string): ReadOutcome<{ readonly playerId: string } | undefined> {
+      if (typeof matchId !== 'string' || typeof token !== 'string') return { ok: true, reply: undefined };
+      // Only the digest goes to the store, which looks it up by the index within this match; a token of another match finds nothing.
+      const digest = credentialDigest(token);
+      return read(() => {
+        const found = store.playerByTokenDigest(matchId, digest);
+        return { ok: true, reply: found === undefined ? undefined : { playerId: found.playerId } };
       });
     },
 

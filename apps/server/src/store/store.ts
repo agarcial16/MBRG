@@ -41,6 +41,18 @@ export class StoreError extends Error {
   }
 }
 
+/**
+ * A second player with a name key a match already holds (spec 011 FR-377, plan section 3). It is an `invalid-write` for the
+ * classification of storage failures (a constraint violation is not a storage failure), and a type of its own so the service
+ * can answer `name-taken` and nothing else. The message carries no name and no key.
+ */
+export class NameTakenError extends StoreError {
+  constructor(details: StoreErrorDetails = {}) {
+    super('invalid-write', 'the name key is already taken in this match', details);
+    this.name = 'NameTakenError';
+  }
+}
+
 /** The settings of the open database, read back from the connection (plan PD9). */
 export interface StoreSettings {
   readonly journalMode: string;
@@ -125,6 +137,31 @@ export interface StoredLobby {
   readonly expiredMs: number | null;
 }
 
+/** A player as the store reads it back: no token digest and no name key leave the store (spec 011 FR-378, FR-382). */
+export interface StoredPlayer {
+  /** `player:<local id>`. */
+  readonly playerId: string;
+  /** The name as shown (trimmed, NFC). */
+  readonly name: string;
+  /** The sequence number of the `player-joined` event: the join order and the key of the players list. */
+  readonly joinedSeq: number;
+  readonly joinedMs: number;
+}
+
+/**
+ * A player to store. There is no token here: the token is hashed by the service and only `tokenDigest` (64 lowercase
+ * hexadecimal characters) is written. `nameKey` is the folded name of protocol `nameKey`, unique in the match.
+ */
+export interface NewPlayer {
+  readonly matchId: string;
+  readonly playerId: string;
+  readonly name: string;
+  readonly nameKey: string;
+  readonly tokenDigest: string;
+  readonly joinedSeq: number;
+  readonly joinedMs: number;
+}
+
 /** An expired lobby is kept this long after its expiry, then purged with its match (FR-282 retention, 24 h). */
 export const LOBBY_RETENTION_MS = 24 * 60 * 60 * 1000;
 
@@ -186,6 +223,30 @@ export interface Store {
   purgeExpired(now: number): number;
   /** The expiry instant of the oldest expired lobby still stored (where its removal is armed), or undefined with none. */
   oldestExpiredMs(): number | undefined;
+  /**
+   * Stores a player of a match that exists (insert it first, in the same transaction as the `player-joined` event). Refused
+   * as `invalid-write`: a digest that is not 64 lowercase hexadecimal characters, a player id outside the `player:` namespace,
+   * an empty name or key, a join order that is not a whole number from 1 or an instant that is not a non-negative whole
+   * number, a missing match, a player id or join order the match already holds. A name key the match already holds is a
+   * `NameTakenError` (an `invalid-write`), raised by the unique index of the table.
+   */
+  insertPlayer(player: NewPlayer): void;
+  /** The number of players of a match (0 with none or for an unknown match). */
+  playerCount(matchId: string): number;
+  /** Whether a player of the match already holds this name key (the service checks it before it draws; the unique index still decides a race). */
+  nameKeyTaken(matchId: string, nameKey: string): boolean;
+  /**
+   * The player of a match whose token has this digest, or undefined: looked up by the index on the digest and always scoped
+   * to the match. A value that is not a digest is a RangeError.
+   */
+  playerByTokenDigest(matchId: string, tokenDigest: string): StoredPlayer | undefined;
+  /**
+   * The players of a match with a join order above `after` (exclusive; from the start when absent), at most `limit`, in
+   * join order. A page asks `limit + 1` to know whether another follows.
+   */
+  playersAfter(matchId: string, after: number | undefined, limit: number): StoredPlayer[];
+  /** The names of the joined players of a match among `ids` (an id that is not a player of this match is left out). */
+  playerNames(matchId: string, ids: readonly string[]): ReadonlyMap<string, string>;
   /** The state at an applied round, or undefined. */
   getState(matchId: string, round: number): StoredState | undefined;
   /** Stores the record of an applied round (1 <= round <= N): any other round is refused (FR-255, FR-256). */

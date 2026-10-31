@@ -1,7 +1,7 @@
 // The SQLite adapter (spec 008 FR-291, FR-292; plan PD9, PD10): the only module that imports `node:sqlite`.
 // It does not depend on the ExperimentalWarning being printed: warnings.ts only hides it where Node prints it.
 import { DatabaseSync } from 'node:sqlite';
-import { isLocalId, isNamespace, NAMESPACE_SEPARATOR, PREDICTION_KINDS } from '@mbrg/protocol';
+import { isJoinedPlayerId, isLocalId, isNamespace, NAMESPACE_SEPARATOR, PREDICTION_KINDS } from '@mbrg/protocol';
 import type { MatchEvent, MatchSummary, PredictionKind, PublicState, PublicVictim, Timing } from '@mbrg/protocol';
 import { MEMO_RETENTION_MS, type MemoScope } from '../core/memo';
 import type { StoredPrediction } from '../core/predictions';
@@ -11,9 +11,11 @@ import type { CoreMatch } from '../core/view';
 import { SCHEMA_V1, SCHEMA_V2_ADDITIONS, SCHEMA_VERSION, TABLES } from './schema';
 import {
   LOBBY_RETENTION_MS,
+  NameTakenError,
   StoreError,
   type MatchListKey,
   type NamespacePrediction,
+  type NewPlayer,
   type PlayerResultKey,
   type PredictionKey,
   type Store,
@@ -21,6 +23,7 @@ import {
   type StoredMatch,
   type StoredMemo,
   type StoredPhaseResult,
+  type StoredPlayer,
   type StoredPlayerResult,
   type StoredRecord,
   type StoredState,
@@ -169,6 +172,10 @@ export const READ_SQL = {
     WHERE match_id = ? AND player_id >= ? AND player_id < ? AND (? IS NULL OR player_id = ?) AND (player_id, round, kind) > (?, ?, ?)
     ORDER BY player_id, round, kind LIMIT ?`,
   hostTokenDigest: 'SELECT host_token_digest FROM matches WHERE id = ?',
+  // A player by the digest of its token: always inside one match, through the index on the digest.
+  playerByTokenDigest: 'SELECT player_id, name, joined_seq, joined_ms FROM players INDEXED BY players_by_token WHERE match_id = ? AND token_digest = ?',
+  // The players list: a keyset on the join order (unique in a match). No digest and no name key is selected.
+  playersAfter: 'SELECT player_id, name, joined_seq, joined_ms FROM players WHERE match_id = ? AND joined_seq > ? ORDER BY joined_seq LIMIT ?',
   // The scorer's input: one phase of one match, by player id (BINARY order, the code unit order of the ASCII ids).
   predictionsOfPhase: 'SELECT player_id, choice, winner_candidates FROM predictions WHERE match_id = ? AND kind = ? AND round = ? ORDER BY player_id',
   // The results reads (M4'): a keyset on the primary key (match, round, kind, player id) for a phase; a player's rows and the
@@ -193,6 +200,13 @@ const recordOf = (r: Row): StoredRecord => ({
   absorber: num(r, 'absorber'),
   transferred: JSON.parse(str(r, 'transferred_json')) as number[],
 });
+
+const playerOf = (r: Row): StoredPlayer => ({ playerId: str(r, 'player_id'), name: str(r, 'name'), joinedSeq: num(r, 'joined_seq'), joinedMs: num(r, 'joined_ms') });
+
+/** The ids of `playerNames` go to SQLite in groups of this many (one `?` each). */
+const NAME_IDS_PER_QUERY = 400;
+/** The message SQLite gives when the unique index on (match, name key) refuses a row. */
+const NAME_KEY_CONFLICT = /UNIQUE constraint failed: players\.match_id, players\.name_key/;
 
 const STAGES: readonly string[] = ['lobby', 'expired', 'phase-1', 'phase-2', 'locked', 'halted', 'finished'];
 
@@ -489,6 +503,54 @@ export const openStore = (path: string): Store => {
     oldestExpiredMs(): number | undefined {
       const row = one('SELECT MIN(expired_ms) AS oldest FROM lobbies WHERE expired_ms IS NOT NULL AND started_ms IS NULL');
       return row === undefined || row.oldest === null ? undefined : num(row, 'oldest');
+    },
+    insertPlayer(player: NewPlayer): void {
+      requireTransaction();
+      if (!DIGEST.test(player.tokenDigest)) throw invalid('a player token is stored as a digest (64 lowercase hexadecimal characters)');
+      if (!isJoinedPlayerId(player.playerId)) throw invalid('a joined player id is player:<local id>');
+      if (typeof player.name !== 'string' || player.name.length === 0 || typeof player.nameKey !== 'string' || player.nameKey.length === 0) throw invalid('a player has a name and a name key');
+      if (!Number.isSafeInteger(player.joinedSeq) || player.joinedSeq < 1) throw invalid('a join order is a whole number from 1');
+      checkInstant(player.joinedMs, 'a join instant');
+      if (one('SELECT 1 AS found FROM matches WHERE id = ?', player.matchId) === undefined) throw invalid(`the match ${player.matchId} does not exist`);
+      if (one('SELECT 1 AS found FROM players WHERE match_id = ? AND player_id = ?', player.matchId, player.playerId) !== undefined) throw invalid('the match already holds this player id');
+      if (one('SELECT 1 AS found FROM players WHERE match_id = ? AND joined_seq = ?', player.matchId, player.joinedSeq) !== undefined) throw invalid('the match already holds this join order');
+      // The name key is left to the unique index of the table: the statement fails and the failure is named below.
+      try {
+        db.prepare('INSERT INTO players (match_id, player_id, name, name_key, token_digest, joined_seq, joined_ms) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+          player.matchId, player.playerId, player.name, player.nameKey, player.tokenDigest, player.joinedSeq, player.joinedMs,
+        );
+      } catch (error) {
+        if (error instanceof Error && NAME_KEY_CONFLICT.test(error.message)) throw new NameTakenError({ cause: error });
+        throw classifyStoreError(error);
+      }
+    },
+    playerCount(matchId: string): number {
+      const row = one('SELECT COUNT(*) AS n FROM players WHERE match_id = ?', matchId);
+      return row === undefined ? 0 : num(row, 'n');
+    },
+    nameKeyTaken(matchId: string, nameKey: string): boolean {
+      return one('SELECT 1 AS found FROM players WHERE match_id = ? AND name_key = ?', matchId, nameKey) !== undefined;
+    },
+    playerByTokenDigest(matchId: string, tokenDigest: string): StoredPlayer | undefined {
+      if (typeof tokenDigest !== 'string' || !DIGEST.test(tokenDigest)) throw new RangeError('a token digest is 64 lowercase hexadecimal characters');
+      const row = one(READ_SQL.playerByTokenDigest, matchId, tokenDigest);
+      return row === undefined ? undefined : playerOf(row);
+    },
+    playersAfter(matchId: string, after: number | undefined, limit: number): StoredPlayer[] {
+      if (after !== undefined && (!Number.isSafeInteger(after) || after < 0)) throw new RangeError('a players keyset is a join order of at least 0');
+      checkLimit(limit);
+      return all(READ_SQL.playersAfter, matchId, after ?? 0, limit).map(playerOf);
+    },
+    playerNames(matchId: string, ids: readonly string[]): ReadonlyMap<string, string> {
+      for (const id of ids) if (typeof id !== 'string') throw new RangeError('a player id is a text');
+      const names = new Map<string, string>();
+      const wanted = [...new Set(ids)];
+      for (let from = 0; from < wanted.length; from += NAME_IDS_PER_QUERY) {
+        const group = wanted.slice(from, from + NAME_IDS_PER_QUERY);
+        const marks = group.map(() => '?').join(', ');
+        for (const row of all(`SELECT player_id, name FROM players WHERE match_id = ? AND player_id IN (${marks})`, matchId, ...group)) names.set(str(row, 'player_id'), str(row, 'name'));
+      }
+      return names;
     },
     getState(matchId: string, round: number): StoredState | undefined {
       const row = one('SELECT owners_json, state_digest FROM states WHERE match_id = ? AND round = ?', matchId, round);

@@ -14,6 +14,25 @@ export type LobbyDecision =
 /** What a non-lobby stage answers: an expired lobby `match-expired`, any other stage (it has started) `match-started`. */
 const refusal = (view: CoreMatch): LobbyDecision => ({ ok: false, error: errorReply(view.stage === 'expired' ? 'match-expired' : 'match-started') });
 
+/** An accepted join: the view with the next sequence number, and that number for the `player-joined` event the shell builds. */
+export type JoinDecision =
+  | { readonly ok: true; readonly view: CoreMatch; readonly seq: number }
+  | { readonly ok: false; readonly error: ErrorReply };
+
+/**
+ * A join (FR-377, FR-380): accepted in a lobby and in a running match (`phase-1`, `phase-2`, `locked`). The stage errors come
+ * first (`match-finished`, `match-halted`, `match-expired`), then the cap: with `count` players and a cap of `max`, a join is
+ * `match-full` from `count >= max`. The name rule is the shell's (it needs the stored names). Nothing is drawn or stored here.
+ */
+export function joinDecision(view: CoreMatch, count: number, max: number): JoinDecision {
+  if (view.stage === 'finished') return { ok: false, error: errorReply('match-finished') };
+  if (view.stage === 'halted') return { ok: false, error: errorReply('match-halted') };
+  if (view.stage === 'expired') return { ok: false, error: errorReply('match-expired') };
+  if (count >= max) return { ok: false, error: errorReply('match-full') };
+  const seq = view.lastSeq + 1;
+  return { ok: true, view: { ...view, lastSeq: seq }, seq };
+}
+
 /**
  * The start of a lobby: stage `phase-1` of round 1, `lastStepMs` and the clock anchored at the start instant (the effective
  * instant, never below the last step instant, FR-249), none for timing `manual` (the host then advances, FR-375). One

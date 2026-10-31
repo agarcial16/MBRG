@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isLocalId, isMapId, isNamespace, playerIdOf } from '../src/index';
+import { PLAYER_NAMESPACE, isLocalId, isMapId, isNamespace, isPlayerId, playerIdOf } from '../src/index';
 
 describe('identifier text rules', () => {
   it('FR-297 a local id is 1 to 64 characters of A-Z a-z 0-9 _ - .', () => {
@@ -29,5 +29,14 @@ describe('identifier text rules', () => {
     expect(playerIdOf('web', 'Ana_1')).toBe('web:Ana_1');
     expect(() => playerIdOf('Web', 'a')).toThrow();
     expect(() => playerIdOf('web', 'a:b')).toThrow();
+  });
+
+  it('FR-384 the player namespace is player and a joined player id is player:<local id>', () => {
+    expect(PLAYER_NAMESPACE).toBe('player');
+    expect(isNamespace(PLAYER_NAMESPACE)).toBe(true);
+    expect(playerIdOf(PLAYER_NAMESPACE, 'Ab3_x-9.Qz1k')).toBe('player:Ab3_x-9.Qz1k');
+    expect(isPlayerId('player:Ab3_x-9.Qz1k')).toBe(true);
+    expect(isPlayerId('player:' + 'x'.repeat(12))).toBe(true);
+    for (const bad of ['player', 'player:', ':abc', 'player:a:b', 'Player:abc', 'player:a b']) expect(isPlayerId(bad), bad).toBe(false);
   });
 });

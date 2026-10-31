@@ -1,15 +1,18 @@
 import { errorReply, type ErrorReply } from './errors';
 import { isLocalId, isMapId } from './ids';
+import { readName } from './names';
 import { readTimingShape, timingRuleFailures } from './timing';
 import {
   ADVANCE_FIELDS,
   CREATION_FIELDS,
+  JOIN_FIELDS,
   PREDICTION_KINDS,
   START_FIELDS,
   STEP_KINDS,
   SUBMISSION_FIELDS,
   type AdvanceBody,
   type CreationBody,
+  type JoinBody,
   type PredictionKind,
   type StartBody,
   type StepKind,
@@ -72,6 +75,21 @@ export function readStart(input: unknown): ReadResult<StartBody> {
   const extra = firstUnknown(o, START_FIELDS);
   if (extra !== undefined) return fail('invalid-request', extra);
   return { ok: true, value: own(o, 'requestId') ? { requestId: o.requestId as string } : {} };
+}
+
+/**
+ * Join body `{ name, requestId }` (FR-377, FR-296): the first failing field in this order is named. The name comes back
+ * trimmed and NFC-normalised; a name failure carries no detail of the rule (FR-384).
+ */
+export function readJoin(input: unknown): ReadResult<JoinBody> {
+  const o = bodyOf(input);
+  if (o === undefined) return fail('invalid-request', 'body');
+  const name = own(o, 'name') ? readName(o.name) : undefined;
+  if (name === undefined || !name.ok) return fail('invalid-request', 'name');
+  if (requestIdProblem(o, true)) return fail('invalid-request', 'requestId');
+  const extra = firstUnknown(o, JOIN_FIELDS);
+  if (extra !== undefined) return fail('invalid-request', extra);
+  return { ok: true, value: { name: name.name, requestId: o.requestId as string } };
 }
 
 /**
