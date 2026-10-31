@@ -6,7 +6,7 @@ Plan sections 1 (P1, P8, P9, P12 to P14), 8, 12 (M4 row), 15 (Q8, Q11). Branch c
 
 **Hand-offs from M3**: service methods `createPublic`, `start`, `join`, `players`, `playerTokenOf`, `submit`/`ownPredictions` with a resolved player id; `identity.ts` has the `player` role and `submitterOf`; `limitKeys` handles `player`; settings list of 25; status table has the five new kinds (M1, M2, M3 added `forced-absorber`, `match-started`, `match-expired`; this milestone adds `name-taken` and `match-full` if M3 did not; check); `Route` has `hostParam`, `authorize`, `playerLimit`.
 
-- [ ] **T1. Branch and bookkeeping targets.** (no pending id named)
+- [x] **T1. Branch and bookkeeping targets.** (no pending id named)
   - Depends on: M3 merged; Q8, Q11 answered.
   - Files: `packages/sim/test/traceability.test.ts` (comments), `specs/011-playable-matches/PROGRESS.md`.
   - Commit: `test: prepare the spec 011 bookkeeping for M4`.
