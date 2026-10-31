@@ -129,6 +129,22 @@ export function testRoutes(service: MatchService, settings: ServerSettings): rea
       decide: (ctx) => success(`{"as":"${ctx.identity.role}"}`),
     },
     {
+      method: 'POST',
+      path: '/holders/:id',
+      body: 'none',
+      matchParam: 'id',
+      holders: ['player'],
+      decide: (ctx) => success(`{"as":"${ctx.identity.role}"}`),
+    },
+    {
+      method: 'POST',
+      path: '/either/:id',
+      body: 'none',
+      matchParam: 'id',
+      holders: ['host', 'player'],
+      decide: (ctx) => success(`{"as":"${ctx.identity.role}"}`),
+    },
+    {
       method: 'GET',
       path: '/match/:id',
       body: 'none',

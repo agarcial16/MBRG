@@ -22,7 +22,7 @@ Plan sections 1 (P1, P8, P9, P12 to P14), 8, 12 (M4 row), 15 (Q8, Q11). Branch c
   - Done when: tests green; mutations caught; no id moved.
   - Size: M (about 400).
 
-- [ ] **T3. Pipeline: the player role and token submissions over HTTP.** FR-379 (close)
+- [x] **T3. Pipeline: the player role and token submissions over HTTP.** FR-379 (close)
   - Depends on: T2.
   - Files: `apps/server/src/http/{router,server}.ts` (`Route.holders`/`matchParam` replace the single `hostParam` internally while keeping `hostParam` working for advance; stage 1 asks `service.playerTokenOf` for a `candidate` on a route that lists `player`), the submission and own-predictions routes (`shape`/`authorize`/`playerLimit`/`decide` use `submitterOf`), tests `apps/server/test/{http-player-token,http-pipeline,http-commands,http-reads}.test.ts`.
   - Tests first (real listener, port 0, fake clock): with a player token, `POST /matches/:id/predictions` stores for `player:<local>` and answers exactly the 008 reply bytes; the body `playerId` of another player or a client-style id is 403 `forbidden`, a malformed one 400 `invalid-player-id` (checked first), no Bearer 403, a client credential behaves as in 008 (existing suites unchanged); the token of match A on match B is 403; `GET /matches/:id/predictions` with a player token returns its own predictions only and 403 for another `playerId`; the per-player submission limit applies to a player id exactly as to a client's; the stage-1 lookup costs one indexed read and only for routes that list `player`; a token never appears in any reply or log (scan); a host token on a submission route is 403; an advance route still accepts the host token and the operator only.
