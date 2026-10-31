@@ -67,7 +67,7 @@ Plan sections 1 (P1, P8, P9, P12 to P14), 8, 12 (M4 row), 15 (Q8, Q11). Branch c
   - Done when: tests green; mutations caught; no id moved.
   - Size: M (about 400).
 
-- [ ] **T8. Bounds of anonymous creation and join, driven to their edges.** NFR-72 (close)
+- [x] **T8. Bounds of anonymous creation and join, driven to their edges.** NFR-72 (close)
   - Depends on: T4, T5, T6.
   - Files: `apps/server/test/{anonymous-bounds,anonymous-bounds-wire}.test.ts`, helpers (additions only).
   - Tests first (service plus real listener, fake clock; sockets opened in batches of 100 on Windows): each list and body is bounded and tested at its edge: players per match (`maxPlayers`, then `match-full`), open lobbies, public running matches, names (24), request body (4,096), players page (500), request ids (credential set and length), memo rows after N creations/joins at the rate limit (at most N, purged at 24 h + 1 ms), anonymous streams (5 per address), event backlog of a lobby with 200 joins (replay ordered and bounded by the page of the read and by the stream's own limits), limiter key count after a flood from 10,000 distinct fake sources (keys pruned after the window; `keyCount` returns to 0 after 60 s + sweep), a 10,000-join flood at the rate limit stores at most the limit and leaves memory in the per-window bound; no test depends on wall-clock sleeping.
