@@ -76,7 +76,7 @@ Plan sections 1 (P7 to P11), 3, 4, 5, 12 (M3 row), 15 (Q3, Q5). Branch cut from 
   - Done when: tests green; mutations caught; FR-382 moved (15 / 14).
   - Size: M (about 350).
 
-- [ ] **T9. Service proofs: restart, kills, impersonation, lobby-to-match flow.** (words only for the pending ids)
+- [x] **T9. Service proofs: restart, kills, impersonation, lobby-to-match flow.** (words only for the pending ids)
   - Depends on: T6, T7, T8.
   - Files: `apps/server/test/{service-players-durability,service-players-flow}.test.ts`, `apps/server/test/helpers/{durability-script,db-scan}.ts`, `apps/server/test/service-db-secrecy.test.ts` (token allowance: plain tokens only in `memo`).
   - Tests first: a full flow on the file DB with the fake clock: create public, three joins with names, start, predictions by token and by client credential side by side, finish; the leaderboard (read through the existing service read, ids only) has both kinds; kill points at every write boundary of join recover to the uninterrupted dump (no player without its event, no event without its player); restart in the lobby keeps players, names, join order and tokens valid; the database scan: after the whole flow, no table except `memo` contains any token text (base64url, hex, bytes) and `memo` rows are gone after 24 h; the 008 secrecy scans (secret, seeds, absorber) pass unchanged with players present; impersonation matrix (token A with ids of B, of a client namespace, malformed ids) all refused with nothing stored.

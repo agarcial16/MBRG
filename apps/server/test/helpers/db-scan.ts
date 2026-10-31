@@ -190,6 +190,50 @@ export function storedFutureViolations(db: DatabaseSync): string[] {
   return out;
 }
 
+/**
+ * Where the tokens of players (and hosts) sit in the database, as violations (spec 011 M3 T9): the plain token text is allowed
+ * only in `memo.reply_json` and only while `inMemo` (the 24 h retention of the reply that carried it); the raw bytes of a
+ * token in any other encoding (hexadecimal, base64, decimal, raw) are allowed nowhere. No other table or column may hold it.
+ */
+export const playerTokenPlaces = (db: DatabaseSync, tokens: readonly string[], inMemo: boolean): string[] => {
+  const out: string[] = [];
+  for (const token of tokens) {
+    const bytes = Uint8Array.from(Buffer.from(token, 'base64url'));
+    for (const where of scanValues(db, encodingsOf(bytes).filter((e) => e !== token))) out.push(`token bytes in ${where}`);
+    for (const where of scanValues(db, [token])) if (!inMemo || where !== 'memo.reply_json') out.push(`token in ${where}`);
+  }
+  return out;
+};
+
+/**
+ * What a partial join would leave behind (spec 011 M3 T9), as readable violations: event numbers with a gap; a player without
+ * its `player-joined` event (same number as its join order, same id and name) or an event without its player; players out of
+ * the order of their events; a memoised join reply of a player who does not exist.
+ */
+export function playerEventViolations(db: DatabaseSync): string[] {
+  const out: string[] = [];
+  for (const m of db.prepare('SELECT id FROM matches ORDER BY rowid').all()) {
+    const id = String(m.id);
+    const events = db.prepare('SELECT seq, type, payload_json FROM events WHERE match_id = ? ORDER BY seq').all(id);
+    if (events.some((e, i) => Number(e.seq) !== i + 1)) out.push(`${id}: event numbers have a gap`);
+    const joined = events.filter((e) => e.type === 'player-joined').map((e) => ({ seq: Number(e.seq), ...(JSON.parse(String(e.payload_json)) as { playerId: string; name: string }) }));
+    const players = db.prepare('SELECT player_id, name, joined_seq FROM players WHERE match_id = ? ORDER BY joined_seq').all(id);
+    for (const p of players) {
+      const hit = joined.filter((e) => e.playerId === String(p.player_id));
+      if (hit.length !== 1) out.push(`${id}: player ${String(p.player_id)} has ${hit.length} joined events`);
+      else if (hit[0]!.seq !== Number(p.joined_seq) || hit[0]!.name !== String(p.name)) out.push(`${id}: player ${String(p.player_id)} differs from its event`);
+    }
+    for (const e of joined) if (!players.some((p) => String(p.player_id) === e.playerId)) out.push(`${id}: joined event ${e.seq} without its player`);
+    if (players.map((p) => Number(p.joined_seq)).join() !== joined.map((e) => e.seq).join()) out.push(`${id}: players are not in the order of their events`);
+  }
+  for (const r of db.prepare('SELECT request_id, reply_json FROM memo ORDER BY rowid').all()) {
+    const reply = parsed(String(r.reply_json)) as { reply?: { playerId?: string; playerToken?: string } } | undefined;
+    const joinedId = reply?.reply?.playerToken === undefined ? undefined : reply.reply.playerId;
+    if (joinedId !== undefined && db.prepare('SELECT 1 AS x FROM players WHERE player_id = ?').get(joinedId) === undefined) out.push(`memo ${String(r.request_id)}: a join reply of a player who does not exist`);
+  }
+  return out;
+}
+
 /** Runs `body` with a raw read connection on a closed store's file. */
 export const withRawDb = <T>(file: string, body: (db: DatabaseSync) => T): T => {
   const db = new DatabaseSync(file);

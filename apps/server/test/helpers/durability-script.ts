@@ -42,6 +42,15 @@ export const lobbyServiceOn = (store: Store, clock: FakeClock, file: string): Ma
   return createMatchService({ store, clock, maps: createMapCatalog(settings.maps), settings, random: fakeRandom(RANDOM_SEED) });
 };
 
+/**
+ * Like `lobbyServiceOn`, with the random source given: the players' scripts share ONE source across a restart, so that a join
+ * performed again after a kill draws new bytes (a restarted server does not repeat the ids and tokens of a lost decision).
+ */
+export const lobbyServiceWith = (store: Store, clock: FakeClock, file: string, random: (length: number) => Uint8Array): MatchService => {
+  const settings = lobbySettingsFor(file);
+  return createMatchService({ store, clock, maps: createMapCatalog(settings.maps), settings, random });
+};
+
 /** A service on `store` as a (re)started server builds it: the fake clock, the dev map and a fresh fake random source. */
 export const serviceOn = (store: Store, clock: FakeClock, file: string): MatchService => {
   const settings = settingsFor(file);
