@@ -751,6 +751,25 @@ describe('traceability', () => {
     expect(tracedIds(testSources).has('FR-382')).toBe(true);
   });
 
+  it('NFR-13 NFR-19 M3 closing state of spec 011: 15 ids done and 14 pending, both as literal lists', () => {
+    // Literal lists, independent of DONE_011 and PENDING_011: M1 and M2 (9 ids) plus the names, the join, the joined event, the
+    // player cap, the player token and the no-recovery rule (6 ids).
+    const doneByM3 = [
+      'FR-371', 'FR-372', 'FR-374', 'FR-375', 'FR-376', 'FR-377', 'FR-378', 'FR-380', 'FR-382', 'FR-384',
+      'FR-387', 'FR-388', 'FR-389', 'FR-391', 'NFR-76',
+    ];
+    const pendingAfterM3 = ['FR-369', 'FR-370', 'FR-373', 'FR-379', 'FR-381', 'FR-383', 'FR-385', 'FR-386', 'FR-390', 'FR-392', 'NFR-72', 'NFR-73', 'NFR-74', 'NFR-75'];
+    expect(doneByM3).toHaveLength(15);
+    expect(pendingAfterM3).toHaveLength(14);
+    expect(new Set([...doneByM3, ...pendingAfterM3]).size).toBe(29);
+    // M4 and M5 close the rest in their own tasks: the ids closed since M3 are the tail of DONE_011 and have left the pending list.
+    const sinceM3 = DONE_011.slice(15);
+    expect([...DONE_011.slice(0, 15)].sort()).toStrictEqual(doneByM3);
+    expect([...PENDING_011, ...sinceM3].sort()).toStrictEqual(pendingAfterM3);
+    for (const id of doneByM3) expect(tracedIds(testSources).has(id), id).toBe(true);
+    for (const id of pendingAfterM3) expect(tracedIds(testSources).has(id), id).toBe(sinceM3.includes(id));
+  });
+
   it('NFR-55 no pending id of spec 011 is already traced by a test title', () => {
     const used = tracedIds(testSources);
     const traced = PENDING_011.filter((id) => used.has(id));
