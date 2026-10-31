@@ -28,6 +28,7 @@ import {
   encodeOwnPrediction,
   encodePage,
   encodePhaseResults,
+  encodePhaseWinners,
   encodePlayerListItem,
   encodePlayerResults,
   encodePrediction,
@@ -286,6 +287,24 @@ export const productionRoutes = (service: MatchService, settings: ServerSettings
       const { limit, after } = query.value;
       const phase = ctx.params.phase === '1' ? 1 : 2;
       return replyOf(service.phaseResults(ctx.params.id as string, roundOf(ctx), phase, after === undefined ? { limit } : { limit, after }), 200, encodePhaseResults);
+    },
+  },
+  {
+    // Who guessed a scored phase right (spec 011 FR-386): same shape checks, query and scored rule as the phase results.
+    method: 'GET',
+    path: '/matches/:id/results/:round/:phase/winners',
+    body: 'none',
+    checkQuery: (ctx) => {
+      const query = readPageQuery('phase-winners', pairsOf(ctx.query));
+      return query.ok ? undefined : query.error;
+    },
+    shape: resultsShape,
+    decide: (ctx) => {
+      const query = readPageQuery('phase-winners', pairsOf(ctx.query));
+      if (!query.ok) return { kind: 'error', error: query.error };
+      const { limit, after } = query.value;
+      const phase = ctx.params.phase === '1' ? 1 : 2;
+      return replyOf(service.phaseWinners(ctx.params.id as string, roundOf(ctx), phase, after === undefined ? { limit } : { limit, after }), 200, encodePhaseWinners);
     },
   },
   {

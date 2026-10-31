@@ -44,7 +44,11 @@ const living = (rig: ScriptRig): number[] => [...new Set(rig.h.store.getMatch(ri
 
 /** The script match with Ana, Bea, Jose and Zed joined and the round 1 victim and winner predictions made (before step 1). */
 export function openNamedScript(options: HarnessOptions = {}): NamedRig {
-  const rig = openScript(options);
+  return namedOn(openScript(options));
+}
+
+/** The same four players and predictions on a script rig that already exists (an HTTP test server's match, `attachScript`). */
+export function namedOn(rig: ScriptRig): NamedRig {
   const ana = join(rig, 'Ana', 'Ana', 'ana');
   const bea = join(rig, ' Bea ', 'Bea', 'bea');
   const jose = join(rig, 'José', 'José', 'jose');

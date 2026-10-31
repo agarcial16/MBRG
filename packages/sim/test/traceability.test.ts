@@ -98,12 +98,11 @@ const DONE_010: readonly string[] = ['FR-356', 'FR-357', 'FR-358', 'FR-359', 'FR
  */
 const PENDING_011: readonly string[] = [
   'FR-373',
-  'FR-386',
   'FR-390', 'FR-392', 'NFR-73', 'NFR-74', 'NFR-75',
 ];
 
-/** Ids of spec 011 already closed (M1 T4: FR-387, a forced absorber is not predicted and does not score; M1 T5: FR-388, the shortened phase 2; M1 T6: FR-389, the victim and winner rules unchanged; M2 T4: FR-391, a database written by 008 opens unchanged; M2 T6: FR-371, a public creation starts in a lobby, FR-374, the host starts it, FR-375, a manual match is stepped by the host; M2 T7: FR-372, a lobby not started in time expires, NFR-76, time rules on the fake clock and scheduler; M3 T2: FR-384, names are untrusted text, and the join, joined-event and players-list shapes of the protocol; M3 T6: FR-377, a caller joins with a name and gets a token, FR-376, the joined event on the stream and its replay, FR-380, a join in a running match and the player cap; M3 T7: FR-378, a player authenticates by its match token; M3 T8: FR-382, no account, no recovery and no name change; M4 T3: FR-379, player tokens for predictions over HTTP; M4 T4: FR-369, public creation over HTTP, FR-370, its caps and rates over HTTP; M4 T5: FR-381, the join rates and the memo over HTTP; M4 T6: FR-385, the players list on the wire; M4 T8: NFR-72, the anonymous bounds driven to their edges; M5 T3: FR-383, the names next to the player ids in the results reads). */
-const DONE_011: readonly string[] = ['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR-371', 'FR-374', 'FR-375', 'FR-372', 'NFR-76', 'FR-384', 'FR-377', 'FR-376', 'FR-380', 'FR-378', 'FR-382', 'FR-379', 'FR-369', 'FR-370', 'FR-381', 'FR-385', 'NFR-72', 'FR-383'];
+/** Ids of spec 011 already closed (M1 T4: FR-387, a forced absorber is not predicted and does not score; M1 T5: FR-388, the shortened phase 2; M1 T6: FR-389, the victim and winner rules unchanged; M2 T4: FR-391, a database written by 008 opens unchanged; M2 T6: FR-371, a public creation starts in a lobby, FR-374, the host starts it, FR-375, a manual match is stepped by the host; M2 T7: FR-372, a lobby not started in time expires, NFR-76, time rules on the fake clock and scheduler; M3 T2: FR-384, names are untrusted text, and the join, joined-event and players-list shapes of the protocol; M3 T6: FR-377, a caller joins with a name and gets a token, FR-376, the joined event on the stream and its replay, FR-380, a join in a running match and the player cap; M3 T7: FR-378, a player authenticates by its match token; M3 T8: FR-382, no account, no recovery and no name change; M4 T3: FR-379, player tokens for predictions over HTTP; M4 T4: FR-369, public creation over HTTP, FR-370, its caps and rates over HTTP; M4 T5: FR-381, the join rates and the memo over HTTP; M4 T6: FR-385, the players list on the wire; M4 T8: NFR-72, the anonymous bounds driven to their edges; M5 T3: FR-383, the names next to the player ids in the results reads; M5 T4: FR-386, who guessed each scored phase right). */
+const DONE_011: readonly string[] = ['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR-371', 'FR-374', 'FR-375', 'FR-372', 'NFR-76', 'FR-384', 'FR-377', 'FR-376', 'FR-380', 'FR-378', 'FR-382', 'FR-379', 'FR-369', 'FR-370', 'FR-381', 'FR-385', 'NFR-72', 'FR-383', 'FR-386'];
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -833,6 +832,13 @@ describe('traceability', () => {
     expect(DONE_011.length).toBeGreaterThanOrEqual(22);
     expect(PENDING_011).not.toContain('FR-383');
     expect(tracedIds(testSources).has('FR-383')).toBe(true);
+  });
+
+  it('NFR-13 NFR-19 spec 011 after the who-guessed-right task: its id is done and traced (23 done, 6 pending at this step; later tasks add to it)', () => {
+    expect(DONE_011.slice(22, 23)).toStrictEqual(['FR-386']);
+    expect(DONE_011.length).toBeGreaterThanOrEqual(23);
+    expect(PENDING_011).not.toContain('FR-386');
+    expect(tracedIds(testSources).has('FR-386')).toBe(true);
   });
 
   it('NFR-55 no pending id of spec 011 is already traced by a test title', () => {

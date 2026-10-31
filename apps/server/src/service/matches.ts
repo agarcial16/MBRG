@@ -69,6 +69,7 @@ import type {
   OwnPrediction,
   Page,
   PhaseResultsPage,
+  PhaseWinnersPage,
   PlayerListItem,
   PlayerResultsPage,
   PredictionReply,
@@ -384,6 +385,13 @@ export interface MatchService {
    * `['phase']`, both checked before the match is looked up.
    */
   phaseResults(matchId: string, round: number, phase: 1 | 2, request: PageRequest<'phase-results'>): ReadOutcome<PhaseResultsPage>;
+  /**
+   * FR-386, FR-270: the players who guessed the phase `phase` of `round` right, by player id, one keyset page: only players who
+   * joined by name are listed (each with its name), and nothing of a wrong guess, a choice or the points. The scored check, the
+   * errors and their order are those of `phaseResults`: an unscored phase (any stage) is `round-not-applied` naming only N.
+   * A forced round's phase 2 has no rows and lists nobody. Writes nothing.
+   */
+  phaseWinners(matchId: string, round: number, phase: 1 | 2, request: PageRequest<'phase-winners'>): ReadOutcome<PhaseWinnersPage>;
   /**
    * FR-281 (f), FR-276: the scored predictions of one player id (namespaced, as stored), one keyset page by round (0 for the
    * winner) then kind, with the `total` of every scored item. A well-formed player id with no scored prediction gets an
@@ -1515,6 +1523,23 @@ export function createMatchService(options: ServiceOptions): MatchService {
           ok: true,
           reply: { round, phase, ...(phase === 1 ? { victim: victim! } : { record: recordReply(record!) }), ...page },
         };
+      });
+    },
+
+    phaseWinners(matchId: string, round: number, phase: 1 | 2, request: PageRequest<'phase-winners'>): ReadOutcome<PhaseWinnersPage> {
+      const { limit, after } = request;
+      checkPageSize(limit);
+      // The same shape checks, before the match is looked up, and the same scored check as the phase results (FR-258, P12).
+      if (typeof round !== 'number' || !Number.isInteger(round) || round < 1) return invalidRound();
+      if (phase !== 1 && phase !== 2) return { ok: false, error: errorReply('invalid-request', ['phase']) };
+      return read(() => {
+        const stored = storedMatch(matchId);
+        if (stored === undefined) return unknownMatch();
+        const scored = readResultsRound(stored.match, round, phase);
+        if (!scored.ok) return scored;
+        const rows = store.winnersAfter(stored.match.matchId, phase === 1 ? 'victim' : 'absorber', round, after === undefined ? undefined : after[0], limit + 1);
+        const page = pageFrom('phase-winners', rows, limit, (r) => ({ playerId: r.playerId, name: r.name }), (r) => [r.playerId]);
+        return { ok: true, reply: { round, phase, ...page } };
       });
     },
 
