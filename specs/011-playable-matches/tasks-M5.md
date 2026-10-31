@@ -6,7 +6,7 @@ Plan sections 4, 9, 11, 12 (M5 row), 13, 15 (Q12). Branch cut from `rewrite` aft
 
 **Hand-offs from M4**: routes `POST /matches` (public and operator), `POST /matches/:id/start`, `POST /matches/:id/players`, `GET /matches/:id/players`; player token role; 30 variables; the results reads exist since 008 M4' (`PhaseResult`, `PlayerResultsPage`, `LeaderboardRow` with fixed key lists, cursor lists, `isScored`, `readResultsRound`); `players` table has `name` and `player_id`.
 
-- [ ] **T1. Branch and bookkeeping targets.** (no pending id named)
+- [x] **T1. Branch and bookkeeping targets.** (no pending id named)
   - Depends on: M4 merged; Q12 answered.
   - Files: `packages/sim/test/traceability.test.ts` (comments), `specs/011-playable-matches/PROGRESS.md`.
   - Commit: `test: prepare the spec 011 bookkeeping for M5`.

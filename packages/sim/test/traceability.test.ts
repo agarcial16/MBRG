@@ -94,6 +94,7 @@ const DONE_010: readonly string[] = ['FR-356', 'FR-357', 'FR-358', 'FR-359', 'FR
  * T4 adds FR-391 (4 / 25); T6 adds FR-371, FR-374, FR-375 (7 / 22); T7 adds FR-372, NFR-76 (9 / 20); T2, T3, T5, T8, T9 move none.
  * M3 target (T10): 15 done / 14 pending. M3 T1 starts at 9 / 20 and moves none; T2 adds FR-384 (10 / 19); T6 adds FR-377, FR-376, FR-380 (13 / 16); T7 adds FR-378 (14 / 15); T8 adds FR-382 (15 / 14); later M3 tasks move their ids in their own commits.
  * M4 target (T10): 21 done / 8 pending. M4 T1 and T2 start at 15 / 14 and move none; T3 adds FR-379 (16 / 13); T4 adds FR-369, FR-370 (18 / 11); T5 adds FR-381 (19 / 10); T6 adds FR-385 (20 / 9); T7 moves none; T8 adds NFR-72 (21 / 8); T9 and T10 move none (T10 pins the closing state).
+ * M5 target (T9): 29 done / 0 pending. M5 T1 and T2 start at 21 / 8 and move none; T3 adds FR-383 (22 / 7); T4 adds FR-386 (23 / 6); T5 adds FR-373 (24 / 5); T6 adds FR-390, FR-392 (26 / 3); T7 adds NFR-73, NFR-74 (28 / 1); T8 moves none; T9 adds NFR-75 (29 / 0).
  */
 const PENDING_011: readonly string[] = [
   'FR-373',
