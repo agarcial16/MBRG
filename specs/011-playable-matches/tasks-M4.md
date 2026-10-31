@@ -85,7 +85,7 @@ Plan sections 1 (P1, P8, P9, P12 to P14), 8, 12 (M4 row), 15 (Q8, Q11). Branch c
   - Done when: tests green; mutations caught; no id moved.
   - Size: M (about 450).
 
-- [ ] **T10. Close M4: closing-state test, process checks, PR.** (no pending id named in titles)
+- [x] **T10. Close M4: closing-state test, process checks, PR.** (no pending id named in titles)
   - Depends on: T1 to T9.
   - Files: `packages/sim/test/traceability.test.ts` (closing-state test for M4: 21 done / 8 pending), `specs/011-playable-matches/PROGRESS.md`, `MEMORY.md` (local).
   - Steps: as M1 T9; the PR lists Q8, Q11, the ledger, the new routes and variables (30), the changed tests.
