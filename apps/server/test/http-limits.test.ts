@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_LIMITS } from '../src/service/settings';
 import type { Limits } from '../src/service/settings';
-import { SWEEP_EVERY, WINDOW_MS, createGauge, createLimiter, limitKeys, playerKey, streamKeys } from '../src/http/limits';
+import { SWEEP_EVERY, WINDOW_MS, createGauge, createKeys, createLimiter, joinKeys, limitKeys, playerKey, streamKeys } from '../src/http/limits';
 import type { LimitKey } from '../src/http/limits';
 
 // The sliding-window limiter of plan 18.6 (M3a T6), driven with explicit instants (no clock): FR-299 (c) counts only
@@ -198,7 +198,7 @@ describe('http limiter', () => {
   });
 
   it('FR-299 (a) the keys of a request follow its credential and class, and anonymous requests the address', () => {
-    const limits: Limits = { commands: 11, reads: 13, submissions: 17, advances: 19, anonymous: 23, streams: 29, anonymousStreams: 31 };
+    const limits: Limits = { commands: 11, reads: 13, submissions: 17, advances: 19, anonymous: 23, streams: 29, anonymousStreams: 31, createSource: 37, createAll: 41, joinSource: 43, joinMatch: 47 };
     const digest = 'ab'.repeat(32);
     expect(limitKeys({ role: 'operator', digest }, 'command', '192.0.2.7', limits)).toStrictEqual([{ key: `command:${digest}`, limit: 11 }]);
     expect(limitKeys({ role: 'client', digest, namespace: 'web' }, 'read', '192.0.2.7', limits)).toStrictEqual([{ key: `read:${digest}`, limit: 13 }]);
@@ -212,7 +212,7 @@ describe('http limiter', () => {
   });
 
   it('FR-378 (limits) a player has its own read and command bucket by digest with the client limits; players behind one address do not share one', () => {
-    const limits: Limits = { commands: 11, reads: 13, submissions: 17, advances: 19, anonymous: 23, streams: 29, anonymousStreams: 31 };
+    const limits: Limits = { commands: 11, reads: 13, submissions: 17, advances: 19, anonymous: 23, streams: 29, anonymousStreams: 31, createSource: 37, createAll: 41, joinSource: 43, joinMatch: 47 };
     const mine = { role: 'player', digest: 'ab'.repeat(32), playerId: 'player:aaaaaaaaaaaa', matchId: 'm1' } as const;
     const yours = { role: 'player', digest: 'cd'.repeat(32), playerId: 'player:bbbbbbbbbbbb', matchId: 'm1' } as const;
     expect(limitKeys(mine, 'command', '192.0.2.7', limits)).toStrictEqual([{ key: `command:${mine.digest}`, limit: 11 }]);
@@ -309,7 +309,7 @@ describe('http open-stream gauge', () => {
   });
 
   it('FR-299 (stream limits) the keys of a stream: operator and client by credential digest, every other role by address', () => {
-    const limits: Limits = { commands: 11, reads: 13, submissions: 17, advances: 19, anonymous: 23, streams: 29, anonymousStreams: 31 };
+    const limits: Limits = { commands: 11, reads: 13, submissions: 17, advances: 19, anonymous: 23, streams: 29, anonymousStreams: 31, createSource: 37, createAll: 41, joinSource: 43, joinMatch: 47 };
     const digest = 'cd'.repeat(32);
     expect(streamKeys({ role: 'operator', digest }, '192.0.2.7', limits)).toStrictEqual([{ key: `streams:${digest}`, limit: 29 }]);
     expect(streamKeys({ role: 'client', digest, namespace: 'web' }, '192.0.2.7', limits)).toStrictEqual([{ key: `streams:${digest}`, limit: 29 }]);
@@ -321,5 +321,64 @@ describe('http open-stream gauge', () => {
     expect(streamKeys({ role: 'operator', digest }, '192.0.2.7', limits)).toStrictEqual(streamKeys({ role: 'operator', digest }, '198.51.100.1', limits));
     expect(DEFAULT_LIMITS.streams).toBe(50);
     expect(DEFAULT_LIMITS.anonymousStreams).toBe(5);
+  });
+});
+
+describe('http limiter: public creation and join keys', () => {
+  const limits: Limits = { commands: 11, reads: 13, submissions: 17, advances: 19, anonymous: 23, streams: 29, anonymousStreams: 31, createSource: 3, createAll: 5, joinSource: 7, joinMatch: 9 };
+
+  it('creation is limited per source and overall: two keys, the overall one the same for every source', () => {
+    const mine = createKeys('192.0.2.7', limits);
+    const yours = createKeys('198.51.100.1', limits);
+    expect(mine).toStrictEqual([{ key: 'create-source:192.0.2.7', limit: 3 }, { key: 'create-all', limit: 5 }]);
+    expect(yours).toStrictEqual([{ key: 'create-source:198.51.100.1', limit: 3 }, { key: 'create-all', limit: 5 }]);
+    expect(mine[1]).toStrictEqual(yours[1]);
+    expect(mine[0]?.key).not.toBe(yours[0]?.key);
+  });
+
+  it('a join is limited per source and per match: two keys, the match key the same for every source and not shared across matches', () => {
+    const mine = joinKeys('192.0.2.7', 'm1', limits);
+    expect(mine).toStrictEqual([{ key: 'join-source:192.0.2.7', limit: 7 }, { key: 'join-match:m1', limit: 9 }]);
+    expect(joinKeys('198.51.100.1', 'm1', limits)[1]).toStrictEqual(mine[1]);
+    expect(joinKeys('192.0.2.7', 'm2', limits)[1]?.key).not.toBe(mine[1]?.key);
+    expect(joinKeys('192.0.2.7', 'm2', limits)[0]).toStrictEqual(mine[0]);
+  });
+
+  it('the creation and the join keys never collide with each other or with the older keys', () => {
+    const names = [...createKeys('x', limits), ...joinKeys('x', 'x', limits), ...limitKeys({ role: 'anonymous' }, 'read', 'x', limits), ...streamKeys({ role: 'anonymous' }, 'x', limits)].map((k) => k.key);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it('creation: per source at its edge (3 pass, the 4th is refused), then the overall key at its edge across sources (5)', () => {
+    const limiter = createLimiter();
+    for (let i = 0; i < 3; i += 1) expect(limiter.admit(createKeys('a', limits), T0 + i).ok, `a${i}`).toBe(true);
+    const refused = limiter.admit(createKeys('a', limits), T0 + 3);
+    expect(refused.ok).toBe(false);
+    // The refused request counted nowhere: the overall key holds 3, so two more sources fit and the next one does not.
+    expect(limiter.count('create-all', T0 + 3)).toBe(3);
+    expect(limiter.admit(createKeys('b', limits), T0 + 4).ok).toBe(true);
+    expect(limiter.admit(createKeys('c', limits), T0 + 5).ok).toBe(true);
+    expect(limiter.admit(createKeys('d', limits), T0 + 6).ok).toBe(false);
+    expect(limiter.count('create-source:d', T0 + 6)).toBe(0);
+    // The window slides: once the first request is 60 s old one place opens again.
+    expect(limiter.admit(createKeys('d', limits), T0 + WINDOW_MS).ok).toBe(true);
+  });
+
+  it('join: per source at its edge (7), then per match at its edge (9) across sources, and another match is not affected', () => {
+    const limiter = createLimiter();
+    for (let i = 0; i < 7; i += 1) expect(limiter.admit(joinKeys('a', 'm1', limits), T0 + i).ok, `a${i}`).toBe(true);
+    expect(limiter.admit(joinKeys('a', 'm1', limits), T0 + 7).ok).toBe(false);
+    expect(limiter.admit(joinKeys('a', 'm2', limits), T0 + 8).ok).toBe(false);
+    expect(limiter.admit(joinKeys('b', 'm1', limits), T0 + 9).ok).toBe(true);
+    expect(limiter.admit(joinKeys('c', 'm1', limits), T0 + 10).ok).toBe(true);
+    expect(limiter.admit(joinKeys('d', 'm1', limits), T0 + 11).ok).toBe(false);
+    expect(limiter.admit(joinKeys('d', 'm2', limits), T0 + 12).ok).toBe(true);
+  });
+
+  it('the defaults are 5 and 30 creations and 20 and 120 joins per minute', () => {
+    expect(DEFAULT_LIMITS.createSource).toBe(5);
+    expect(DEFAULT_LIMITS.createAll).toBe(30);
+    expect(DEFAULT_LIMITS.joinSource).toBe(20);
+    expect(DEFAULT_LIMITS.joinMatch).toBe(120);
   });
 });

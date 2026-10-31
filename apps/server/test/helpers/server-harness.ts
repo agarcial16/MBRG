@@ -161,6 +161,7 @@ export async function startServer(options: ServerHarnessOptions = {}): Promise<S
     host: '127.0.0.1',
     port: options.port ?? 0,
     limits: { ...DEFAULT_LIMITS, ...(options.limits ?? {}) },
+    trustedProxyHops: 0,
   };
   const logs: LogEvent[] = [];
   const routes = (options.routes ?? testRoutes)(service, settings);

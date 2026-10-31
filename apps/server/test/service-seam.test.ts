@@ -113,7 +113,7 @@ describe('the production entry point', () => {
     expect(call).not.toBeNull();
     // The service gets its store, clock, maps, settings, the scheduler and the failure report (T4'): nothing seed-like.
     expect(call![1]!.split(',').map((part) => part.trim().split(':')[0]!.trim())).toStrictEqual(['store', 'clock', 'maps', 'settings', 'scheduler', 'onFailure']);
-    // The settings module reads the 25 listed variables and never anything seed-like.
+    // The settings module reads the 30 listed variables and never anything seed-like.
     expect(SEED_WORDS.test(settings)).toBe(false);
     expect([...new Set([...settings.matchAll(/env\.([A-Z0-9_]+)/g)].map((m) => m[1]))].sort()).toStrictEqual(
       [
@@ -123,6 +123,7 @@ describe('the production entry point', () => {
         'MBRG_PUBLIC_MAPS', 'MBRG_PUBLIC_MIN_INTERVAL', 'MBRG_PUBLIC_MIN_PHASE1', 'MBRG_PUBLIC_MIN_PHASE2', 'MBRG_PUBLIC_MAX_INTERVAL',
         'MBRG_MAX_OPEN_LOBBIES', 'MBRG_MAX_PUBLIC_RUNNING', 'MBRG_LOBBY_EXPIRY_HOURS',
         'MBRG_MAX_PLAYERS',
+        'MBRG_LIMIT_CREATE_SOURCE', 'MBRG_LIMIT_CREATE_ALL', 'MBRG_LIMIT_JOIN_SOURCE', 'MBRG_LIMIT_JOIN_MATCH', 'MBRG_TRUSTED_PROXY_HOPS',
       ].sort(),
     );
   });

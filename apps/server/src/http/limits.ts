@@ -72,6 +72,25 @@ export function streamKeys(identity: Identity, address: string, limits: Limits):
   return [{ key: `streams-address:${address}`, limit: limits.anonymousStreams }];
 }
 
+/**
+ * The keys of a public creation (spec 011 FR-370, plan section 8): one per source and one overall, shared by every source.
+ * The source is the string `sourceOf` returns; it is only ever a key held in memory for a minute.
+ */
+export function createKeys(source: string, limits: Limits): LimitKey[] {
+  return [
+    { key: `create-source:${source}`, limit: limits.createSource },
+    { key: 'create-all', limit: limits.createAll },
+  ];
+}
+
+/** The keys of a join (spec 011 FR-381): one per source and one per match, shared by every source joining that match. */
+export function joinKeys(source: string, matchId: string, limits: Limits): LimitKey[] {
+  return [
+    { key: `join-source:${source}`, limit: limits.joinSource },
+    { key: `join-match:${matchId}`, limit: limits.joinMatch },
+  ];
+}
+
 /** The key of the per-player limit of a match (a NUL separates the two parts: neither can hold one). */
 export const playerKey = (matchId: string, playerId: string): string => `player:${matchId}\u0000${playerId}`;
 

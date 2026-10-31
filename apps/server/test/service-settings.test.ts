@@ -126,7 +126,8 @@ describe('settings', () => {
         allowedOrigins: [],
         host: '127.0.0.1',
         port: 8787,
-        limits: { commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120, streams: 50, anonymousStreams: 5 },
+        trustedProxyHops: 0,
+        limits: { commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120, streams: 50, anonymousStreams: 5, createSource: 5, createAll: 30, joinSource: 20, joinMatch: 120 },
       },
     });
     expect(DEFAULT_RUNNING_MATCH_LIMIT).toBe(20);
@@ -164,6 +165,7 @@ describe('settings', () => {
       'MBRG_PUBLIC_MAPS', 'MBRG_PUBLIC_MIN_INTERVAL', 'MBRG_PUBLIC_MIN_PHASE1', 'MBRG_PUBLIC_MIN_PHASE2', 'MBRG_PUBLIC_MAX_INTERVAL',
       'MBRG_MAX_OPEN_LOBBIES', 'MBRG_MAX_PUBLIC_RUNNING', 'MBRG_LOBBY_EXPIRY_HOURS',
       'MBRG_MAX_PLAYERS',
+      'MBRG_LIMIT_CREATE_SOURCE', 'MBRG_LIMIT_CREATE_ALL', 'MBRG_LIMIT_JOIN_SOURCE', 'MBRG_LIMIT_JOIN_MATCH', 'MBRG_TRUSTED_PROXY_HOPS',
     ]);
     const plain = readSettings(env);
     const noisy = readSettings({

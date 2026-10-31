@@ -13,7 +13,7 @@ Plan sections 1 (P1, P8, P9, P12 to P14), 8, 12 (M4 row), 15 (Q8, Q11). Branch c
   - Done when: suite, typecheck, `CI=1` green; counts 15 / 14.
   - Size: S (about 30).
 
-- [ ] **T2. Rate settings, trusted proxy hops and the source of a request.** (words only)
+- [x] **T2. Rate settings, trusted proxy hops and the source of a request.** (words only)
   - Depends on: T1; Q8.
   - Files: `apps/server/src/service/settings.ts` (`MBRG_LIMIT_CREATE_SOURCE`, `MBRG_LIMIT_CREATE_ALL`, `MBRG_LIMIT_JOIN_SOURCE`, `MBRG_LIMIT_JOIN_MATCH`, `MBRG_TRUSTED_PROXY_HOPS`; `Limits` gains four entries; 30 variables), `apps/server/src/http/source.ts` (new, pure: `sourceOf(peer, forwardedValues, hops)`), `apps/server/src/http/limits.ts` (`createKeys(source, limits)`, `joinKeys(source, matchId, limits)`), tests `apps/server/test/{server-settings,service-settings,service-seam,http-source,http-limits}.test.ts`, `helpers/main-child.ts`.
   - Tests first: 30 variables in order; defaults (the starred values of plan 14.1); `LIMIT` rules reused; `MBRG_TRUSTED_PROXY_HOPS` 0 to 8, default 0; `sourceOf` with hops 0 ignores `X-Forwarded-For` entirely (a forged header changes nothing); hops 1 takes the last entry, hops 2 the second from the right; fewer entries than hops falls back to the peer; entries that are not IP literals, empty, over 64 characters or more than 16 entries fall back to the peer; several header lines are joined in order; the result is a string used only as a limiter key (and hashed in the memo scope, never stored raw); `createKeys` returns the per-source and the overall key with their limits; `joinKeys` the per-source and per-match keys.

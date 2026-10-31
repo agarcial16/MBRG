@@ -63,6 +63,14 @@ export interface Limits {
   readonly streams: number;
   /** Open event streams per network address without a valid credential (FR-299 (b)). */
   readonly anonymousStreams: number;
+  /** Public creations per source per minute (spec 011 FR-370). */
+  readonly createSource: number;
+  /** Public creations per minute across all sources (spec 011 FR-370). */
+  readonly createAll: number;
+  /** Joins per source per minute (spec 011 FR-381). */
+  readonly joinSource: number;
+  /** Joins per match per minute across all sources (spec 011 FR-381). */
+  readonly joinMatch: number;
 }
 
 /** The settings of the HTTP server: the service settings plus clients, origins, listener and limits. */
@@ -74,6 +82,8 @@ export interface ServerSettings extends Settings {
   /** The listener port; 0 means any free port (tests). */
   readonly port: number;
   readonly limits: Limits;
+  /** How many trusted reverse proxies sit in front of the listener, whole number 0 to 8 (spec 011 plan P12); 0 trusts no header. */
+  readonly trustedProxyHops: number;
 }
 
 export const DEFAULT_RUNNING_MATCH_LIMIT = 20;
@@ -101,7 +111,9 @@ export const DEFAULT_PUBLIC_CREATION: PublicCreation = Object.freeze({
 });
 const MAX_PUBLIC_SECONDS = 86_400;
 const MAX_LOBBY_EXPIRY_HOURS = 720;
-export const DEFAULT_LIMITS: Limits = Object.freeze({ commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120, streams: 50, anonymousStreams: 5 });
+export const DEFAULT_LIMITS: Limits = Object.freeze({ commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120, streams: 50, anonymousStreams: 5, createSource: 5, createAll: 30, joinSource: 20, joinMatch: 120 });
+export const DEFAULT_TRUSTED_PROXY_HOPS = 0;
+const MAX_TRUSTED_PROXY_HOPS = 8;
 
 /** Connection hardening of the listener (plan PD21, C4): fixed values, not settings. */
 export const CONNECTION_OPTIONS = Object.freeze({ maxHeaderSize: 8192, headersTimeout: 10_000, requestTimeout: 30_000, keepAliveTimeout: 5_000 });
@@ -135,6 +147,11 @@ export const SETTING_VARIABLES = [
   'MBRG_MAX_PUBLIC_RUNNING',
   'MBRG_LOBBY_EXPIRY_HOURS',
   'MBRG_MAX_PLAYERS',
+  'MBRG_LIMIT_CREATE_SOURCE',
+  'MBRG_LIMIT_CREATE_ALL',
+  'MBRG_LIMIT_JOIN_SOURCE',
+  'MBRG_LIMIT_JOIN_MATCH',
+  'MBRG_TRUSTED_PROXY_HOPS',
 ] as const;
 
 export type SettingsResult = { readonly ok: true; readonly settings: ServerSettings } | { readonly ok: false; readonly problems: readonly string[] };
@@ -235,6 +252,13 @@ const limitOf = (text: string | undefined, fallback: number): number | undefined
   return LIMIT.test(text) && Number(text) <= MAX_LIMIT ? Number(text) : undefined;
 };
 
+const HOPS = /^[0-8]$/;
+
+const hopsOf = (text: string | undefined): number | undefined => {
+  if (text === undefined) return DEFAULT_TRUSTED_PROXY_HOPS;
+  return HOPS.test(text) && Number(text) <= MAX_TRUSTED_PROXY_HOPS ? Number(text) : undefined;
+};
+
 const forcedSecondsOf = (text: string | undefined): number | undefined => {
   if (text === undefined) return DEFAULT_FORCED_PHASE_SECONDS;
   return LIMIT.test(text) && Number(text) <= MAX_FORCED_PHASE_SECONDS ? Number(text) : undefined;
@@ -316,6 +340,16 @@ export function readSettings(env: Readonly<Record<string, string | undefined>>):
   if (lobbyExpiryHours === undefined) problems.push('MBRG_LOBBY_EXPIRY_HOURS');
   const maxPlayers = boundedOf(env.MBRG_MAX_PLAYERS, DEFAULT_MAX_PLAYERS, MAX_MAX_PLAYERS);
   if (maxPlayers === undefined) problems.push('MBRG_MAX_PLAYERS');
+  const createSource = limitOf(env.MBRG_LIMIT_CREATE_SOURCE, DEFAULT_LIMITS.createSource);
+  if (createSource === undefined) problems.push('MBRG_LIMIT_CREATE_SOURCE');
+  const createAll = limitOf(env.MBRG_LIMIT_CREATE_ALL, DEFAULT_LIMITS.createAll);
+  if (createAll === undefined) problems.push('MBRG_LIMIT_CREATE_ALL');
+  const joinSource = limitOf(env.MBRG_LIMIT_JOIN_SOURCE, DEFAULT_LIMITS.joinSource);
+  if (joinSource === undefined) problems.push('MBRG_LIMIT_JOIN_SOURCE');
+  const joinMatch = limitOf(env.MBRG_LIMIT_JOIN_MATCH, DEFAULT_LIMITS.joinMatch);
+  if (joinMatch === undefined) problems.push('MBRG_LIMIT_JOIN_MATCH');
+  const trustedProxyHops = hopsOf(env.MBRG_TRUSTED_PROXY_HOPS);
+  if (trustedProxyHops === undefined) problems.push('MBRG_TRUSTED_PROXY_HOPS');
   if (
     problems.length > 0 ||
     !isCredential(credential) ||
@@ -340,7 +374,12 @@ export function readSettings(env: Readonly<Record<string, string | undefined>>):
     maxOpenLobbies === undefined ||
     maxPublicRunning === undefined ||
     lobbyExpiryHours === undefined ||
-    maxPlayers === undefined
+    maxPlayers === undefined ||
+    createSource === undefined ||
+    createAll === undefined ||
+    joinSource === undefined ||
+    joinMatch === undefined ||
+    trustedProxyHops === undefined
   ) {
     return { ok: false, problems };
   }
@@ -358,7 +397,8 @@ export function readSettings(env: Readonly<Record<string, string | undefined>>):
       allowedOrigins,
       host,
       port,
-      limits: { commands, reads, submissions, advances, anonymous, streams, anonymousStreams },
+      limits: { commands, reads, submissions, advances, anonymous, streams, anonymousStreams, createSource, createAll, joinSource, joinMatch },
+      trustedProxyHops,
     },
   };
 }
