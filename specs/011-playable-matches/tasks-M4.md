@@ -76,7 +76,7 @@ Plan sections 1 (P1, P8, P9, P12 to P14), 8, 12 (M4 row), 15 (Q8, Q11). Branch c
   - Done when: tests green; mutations caught; NFR-72 moved (21 / 8).
   - Size: M (about 450).
 
-- [ ] **T9. Real-server flow and lobby secrecy on the wire.** (words only for pending ids; parts of closed ids named)
+- [x] **T9. Real-server flow and lobby secrecy on the wire.** (words only for pending ids; parts of closed ids named)
   - Depends on: T7, T8.
   - Files: `apps/server/test/{http-lobby-flow,http-lobby-twins}.test.ts`, `apps/server/test/helpers/{http-client,stream-run}.ts` (additions only).
   - Tests first (child process kill by PID in `finally`, port 0, fake clock where possible): create (anonymous), two joins with tokens, a stream open from before the first join, start, predictions by token, the stream shows `schedule`/`victim-revealed`/... after the start; `GET /matches/:id` in the lobby contains stage, map, timing, player count and no field of a round; twins (two lobbies with equal public data, different secrets via the test seed source) give byte-identical lobby reads and streams; the planted-secret scan (decimal, hex, base64, base64url, raw bytes) over every lobby reply and event finds nothing; a restart of the real server process in the lobby keeps the players and the tokens; `main.ts` offers no seed-source option (008 scan re-run over 30 variables).

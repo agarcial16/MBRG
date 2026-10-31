@@ -42,6 +42,9 @@ export function request(port: number, req: ClientRequest): Promise<ClientReply> 
   });
 }
 
+/** The `Authorization` header of a bearer token. */
+export const bearerHeader = (token: string): Record<string, string> => ({ authorization: `Bearer ${token}` });
+
 /** A JSON POST with an optional bearer token. */
 export const postJson = (port: number, path: string, body: unknown, token?: string): Promise<ClientReply> =>
   request(port, { method: 'POST', path, body, headers: token === undefined ? {} : { authorization: `Bearer ${token}` } });
