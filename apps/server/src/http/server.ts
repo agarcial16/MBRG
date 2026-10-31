@@ -1,7 +1,8 @@
 // The HTTP listener and the request pipeline (spec 008 FR-280, FR-298, FR-299, FR-301; plan 18.2, PD14, PD21).
 // Every request runs these stages in order and the first that fails answers, so the reply kind is the first applicable one of
 // the FR-301 order:
-//   1 admit        identity (Bearer from the list of header values), limiter (credential or address key)  -> rate-limited
+//   1 admit        identity (Bearer from the list of header values; a route that lists a match token kind asks the match for
+//                  the host token, then the player token), limiter (credential or address key)         -> rate-limited
 //   2 route        the router                                                                      -> unknown-path, method-not-allowed
 //   3 body         Content-Length above 4,096 (nothing read), chunked counting, JSON object, query     -> too-large, invalid-request
 //   4 shape        the route's protocol reader                                              -> invalid-request, invalid-player-id
@@ -21,11 +22,13 @@ import type { Readable } from 'node:stream';
 import {
   encodeAdvance,
   encodeCreation,
+  encodeJoinReply,
   encodeLeaderboardRow,
   encodeMatchSummary,
   encodeOwnPrediction,
   encodePage,
   encodePhaseResults,
+  encodePlayerListItem,
   encodePlayerResults,
   encodePrediction,
   encodePublicMatch,
@@ -35,6 +38,8 @@ import {
   isLocalId,
   isPlayerId,
   rateLimited,
+  readCreation,
+  readJoin,
   readPageQuery,
   readSubmission,
 } from '@mbrg/protocol';
@@ -47,16 +52,17 @@ import { CONNECTION_OPTIONS } from '../service/settings';
 import type { ServerSettings } from '../service/settings';
 import { answerClientError } from './client-error';
 import { discardBody, readBody, tooLargeByLength, unreadLargeBody } from './body';
-import { credentialTable, hostIdentity, identify, playerIdFor, readBearer, requireClient } from './identity';
+import { credentialTable, hostIdentity, identify, playerIdentity, readBearer, requireClient, submitterOf } from './identity';
 import type { Identity } from './identity';
-import { createGauge, createLimiter, limitKeys, playerKey, streamKeys } from './limits';
+import { createGauge, createKeys, createLimiter, joinKeys, limitKeys, playerKey, streamKeys } from './limits';
 import type { RequestClass, StreamLease } from './limits';
 import { requestFailed } from './log';
 import type { FailureStage, LogSink } from './log';
 import { corsRequestOf, sendError, sendFile, sendPreflight, sendSuccess, sendUnexpected, streamHeaders } from './respond';
 import type { ReplyTarget } from './respond';
-import { createRouter, parseRoundSegment } from './router';
+import { createRouter, holdersOf, parseRoundSegment } from './router';
 import type { Reply, Route, RouteContext } from './router';
+import { sourceOf } from './source';
 import { STREAM_RETRY_SECONDS, readStreamStart } from './sse';
 import type { StreamHub } from './streams';
 
@@ -227,25 +233,42 @@ export const productionRoutes = (service: MatchService, settings: ServerSettings
       const local = playerId.ok ? playerId.value.extra.playerId : undefined;
       return local === undefined || isLocalId(local) ? undefined : errorReply('invalid-player-id', ['playerId']);
     },
-    authorize: (ctx) => {
-      const client = requireClient(ctx.identity);
-      return client.ok ? undefined : client.error;
-    },
+    // A client credential, or the match token of a player of this match (spec 011 FR-379).
+    matchParam: 'id',
+    holders: ['player'],
+    authorize: (ctx) => (ctx.identity.role === 'client' || ctx.identity.role === 'player' ? undefined : errorReply('forbidden')),
     decide: (ctx) => {
-      const client = requireClient(ctx.identity);
-      if (!client.ok) return { kind: 'error', error: client.error };
+      const caller = ctx.identity;
+      if (caller.role !== 'client' && caller.role !== 'player') return { kind: 'error', error: errorReply('forbidden') };
       const query = readPageQuery('predictions', pairsOf(ctx.query), ['playerId']);
       if (!query.ok) return { kind: 'error', error: query.error };
       const { limit, after, extra } = query.value;
-      // The namespace is the one of the credential; no query text can name another (FR-270).
+      // The namespace is the one of the credential; no query text can name another (FR-270). A player reads its own id only.
+      const who = caller.role === 'player' ? { player: { tokenDigest: caller.digest, playerId: caller.playerId } } : { namespace: caller.namespace };
       const request = {
-        namespace: client.client.namespace,
+        ...who,
         matchId: ctx.params.id as string,
         limit,
         ...(after === undefined ? {} : { after }),
         ...(extra.playerId === undefined ? {} : { playerId: extra.playerId }),
       };
       return replyOf(service.ownPredictionsPage(request), 200, (page) => encodePage(page, encodeOwnPrediction));
+    },
+  },
+  {
+    // The players of a match (spec 011 FR-385): id, name and join order, in join order; credential-free, paged like the other lists.
+    method: 'GET',
+    path: '/matches/:id/players',
+    body: 'none',
+    checkQuery: (ctx) => {
+      const query = readPageQuery('players', pairsOf(ctx.query));
+      return query.ok ? undefined : query.error;
+    },
+    decide: (ctx) => {
+      const query = readPageQuery('players', pairsOf(ctx.query));
+      if (!query.ok) return { kind: 'error', error: query.error };
+      const { limit, after } = query.value;
+      return replyOf(service.players(ctx.params.id as string, after === undefined ? { limit } : { limit, after }), 200, (page) => encodePage(page, encodePlayerListItem));
     },
   },
   {
@@ -328,7 +351,19 @@ export const productionRoutes = (service: MatchService, settings: ServerSettings
     method: 'POST',
     path: CREATION_PATH,
     body: 'object',
-    decide: (ctx) => replyOf(service.create({ credential: ctx.token, body: ctx.body }), 201, encodeCreation),
+    // Only the operator credential creates a running match (008). Every other caller, a bad credential included, is anonymous:
+    // the public path answers it, so the route tells nothing about credentials (spec 011 FR-369).
+    shape: (ctx) => {
+      if (ctx.identity.role === 'operator') return undefined;
+      // A malformed body is `invalid-request` before it costs a creation slot (plan section 8); timing rules are the decision's.
+      const read = readCreation(ctx.body);
+      return read.ok || read.error.kind === 'invalid-timing' ? undefined : read.error;
+    },
+    playerLimit: (ctx) => (ctx.identity.role === 'operator' ? undefined : createKeys(ctx.source, settings.limits)),
+    decide: (ctx) =>
+      ctx.identity.role === 'operator'
+        ? replyOf(service.create({ credential: ctx.token, body: ctx.body }), 201, encodeCreation)
+        : replyOf(service.createPublic({ source: ctx.source, body: ctx.body }), 201, encodeCreation),
   },
   {
     method: 'POST',
@@ -338,28 +373,59 @@ export const productionRoutes = (service: MatchService, settings: ServerSettings
     decide: (ctx) => replyOf(service.advance({ credential: ctx.token, matchId: ctx.params.id as string, body: ctx.body }), 200, encodeAdvance),
   },
   {
+    // Only the host token of the lobby starts it (spec 011 FR-374); the service compares it (the operator credential is refused).
+    method: 'POST',
+    path: '/matches/:id/start',
+    body: 'object',
+    hostParam: 'id',
+    decide: (ctx) => replyOf(service.startMatch({ credential: ctx.token, matchId: ctx.params.id as string, body: ctx.body }), 200, (reply) => encodePublicMatch(reply.match)),
+  },
+  {
+    // A join needs no credential (FR-377). A malformed body is `invalid-request` before it costs a join slot (FR-381); a join the
+    // service refuses (name, stage, cap) has passed the shape stage and holds its slot.
+    method: 'POST',
+    path: '/matches/:id/players',
+    body: 'object',
+    shape: (ctx) => {
+      const read = readJoin(ctx.body);
+      return read.ok ? undefined : read.error;
+    },
+    playerLimit: (ctx) => joinKeys(ctx.source, ctx.params.id as string, settings.limits),
+    decide: (ctx) => replyOf(service.join({ source: ctx.source, matchId: ctx.params.id as string, body: ctx.body }), 201, encodeJoinReply),
+  },
+  {
     method: 'POST',
     path: '/matches/:id/predictions',
     body: 'object',
     // Stage 4: the structure first (`invalid-request`), then only the `invalid-player-id` case of the local id (before `forbidden`).
+    // A client credential, or the match token of a player of this match, which submits under its own id only (spec 011 FR-379).
+    matchParam: 'id',
+    holders: ['player'],
     shape: (ctx) => {
       const read = readSubmission(ctx.body);
       if (!read.ok) return read.error;
-      const id = playerIdFor(ctx.identity, read.value.playerId);
+      const id = submitterOf(ctx.identity, read.value.playerId);
       return id.ok || id.error.kind !== 'invalid-player-id' ? undefined : id.error;
     },
     authorize: (ctx) => {
-      const client = requireClient(ctx.identity);
-      return client.ok ? undefined : client.error;
+      if (ctx.identity.role !== 'client' && ctx.identity.role !== 'player') return errorReply('forbidden');
+      const read = readSubmission(ctx.body);
+      if (!read.ok) return read.error;
+      const id = submitterOf(ctx.identity, read.value.playerId);
+      return id.ok ? undefined : id.error;
     },
     playerLimit: (ctx) => {
       const read = readSubmission(ctx.body);
       if (!read.ok) return undefined;
-      const id = playerIdFor(ctx.identity, read.value.playerId);
+      const id = submitterOf(ctx.identity, read.value.playerId);
       return id.ok ? [{ key: playerKey(ctx.params.id as string, id.playerId), limit: settings.limits.submissions }] : undefined;
     },
     decide: (ctx) => {
-      const client = requireClient(ctx.identity);
+      const caller = ctx.identity;
+      if (caller.role === 'player') {
+        return replyOf(service.submit({ client: { tokenDigest: caller.digest, playerId: caller.playerId }, matchId: ctx.params.id as string, body: ctx.body }), 200, encodePrediction);
+      }
+      const client = requireClient(caller);
       if (!client.ok) return { kind: 'error', error: client.error };
       if (ctx.token === undefined) return { kind: 'error', error: errorReply('forbidden') };
       return replyOf(
@@ -409,15 +475,27 @@ export function createServer(options: ServerOptions): Server {
     const resolution = router.resolve(method, req.url ?? '/');
     const token = readBearer(req.headersDistinct.authorization);
     let identity: Identity = identify(token, table);
-    let hostMatch = false;
-    if (identity.role === 'candidate' && token !== undefined && resolution.kind === 'found' && resolution.route.hostParam !== undefined) {
-      // Only an advance may be authorised by a host token; the match is asked (PD16). A storage failure here leaves the
-      // request anonymous: the service answers `unavailable` itself at the decision.
-      const checked = service.hostTokenMatches(resolution.params[resolution.route.hostParam] ?? '', token);
-      hostMatch = checked.ok && checked.reply;
+    const holders = resolution.kind === 'found' ? holdersOf(resolution.route) : undefined;
+    if (identity.role === 'candidate' && token !== undefined && resolution.kind === 'found' && holders !== undefined) {
+      // Only a route that lists a kind of match token asks for it, and the match is asked (PD16): the host token (an advance),
+      // then the player token (a prediction route, spec 011). A storage failure here leaves the request anonymous: the
+      // service answers `unavailable` itself at the decision.
+      const matchId = resolution.params[holders.param] ?? '';
+      if (holders.host) {
+        const checked = service.hostTokenMatches(matchId, token);
+        if (checked.ok && checked.reply) identity = hostIdentity(identity, true);
+      }
+      if (holders.player) {
+        identity = playerIdentity(identity, matchId, () => {
+          const found = service.playerTokenOf(matchId, token);
+          return found.ok ? found.reply : undefined;
+        });
+      }
     }
-    identity = hostIdentity(identity, hostMatch);
-    const address = addressOf(req.socket.remoteAddress, ordinalOf(req.socket));
+    // A token no credential, host or player confirmed is nobody.
+    identity = hostIdentity(identity, false);
+    // The source of the request: the peer, unless the operator trusts proxy hops (then the entry they name; hops 0 ignores the header).
+    const address = sourceOf(addressOf(req.socket.remoteAddress, ordinalOf(req.socket)), req.headersDistinct['x-forwarded-for'] ?? [], settings.trustedProxyHops);
     const admission = limiter.admit(limitKeys(identity, classOf(method), address, settings.limits), now);
     if (resolution.kind === 'found' && resolution.route.stream === true) {
       // An event stream is one read of the per-minute limit AND a place in the open-stream gauge (FR-299 (b), plan 19.4); a
@@ -455,7 +533,7 @@ export function createServer(options: ServerOptions): Server {
       if (read.kind === 'aborted') return;
       if (read.kind === 'error') return sendError(target, read.error);
     }
-    const ctx: RouteContext = { params, query, body, token, lastEventId: req.headersDistinct['last-event-id'], identity, now };
+    const ctx: RouteContext = { params, query, body, token, lastEventId: req.headersDistinct['last-event-id'], identity, now, source: address };
     const queryError = route.checkQuery?.(ctx);
     if (queryError !== undefined) return sendError(target, queryError);
 

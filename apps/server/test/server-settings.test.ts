@@ -45,7 +45,7 @@ const settingsOf = (patch: Record<string, string>): ServerSettings => {
 };
 
 describe('server settings: variables and defaults', () => {
-  it('FR-299 (stream limits) FR-260 the 25 variables read are exactly the plan list, in order, and none can set a round-seed source', () => {
+  it('FR-299 (stream limits) FR-260 the 30 variables read are exactly the plan list, in order, and none can set a round-seed source', () => {
     expect(SETTING_VARIABLES).toStrictEqual([
       'MBRG_OPERATOR_CREDENTIAL', 'MBRG_MAPS', 'MBRG_MAX_RUNNING_MATCHES', 'MBRG_DATABASE', 'MBRG_CLIENTS',
       'MBRG_ALLOWED_ORIGINS', 'MBRG_HOST', 'MBRG_PORT', 'MBRG_LIMIT_COMMANDS', 'MBRG_LIMIT_READS',
@@ -54,8 +54,11 @@ describe('server settings: variables and defaults', () => {
       'MBRG_PUBLIC_MAPS', 'MBRG_PUBLIC_MIN_INTERVAL', 'MBRG_PUBLIC_MIN_PHASE1', 'MBRG_PUBLIC_MIN_PHASE2', 'MBRG_PUBLIC_MAX_INTERVAL',
       'MBRG_MAX_OPEN_LOBBIES', 'MBRG_MAX_PUBLIC_RUNNING', 'MBRG_LOBBY_EXPIRY_HOURS',
       'MBRG_MAX_PLAYERS',
+      'MBRG_LIMIT_CREATE_SOURCE', 'MBRG_LIMIT_CREATE_ALL', 'MBRG_LIMIT_JOIN_SOURCE', 'MBRG_LIMIT_JOIN_MATCH', 'MBRG_TRUSTED_PROXY_HOPS',
     ]);
-    expect(SETTING_VARIABLES.filter((name) => /seed|random|source/i.test(name))).toStrictEqual([]);
+    expect(SETTING_VARIABLES).toHaveLength(30);
+    // "source" in the two per-source rate limits means the requesting address, not a seed source: named exactly.
+    expect(SETTING_VARIABLES.filter((name) => /seed|random|source/i.test(name))).toStrictEqual(['MBRG_LIMIT_CREATE_SOURCE', 'MBRG_LIMIT_JOIN_SOURCE']);
   });
 
   it('FR-299 (b) the defaults: no clients, no origins, 127.0.0.1:8787, limits 600 / 1,200 / 30 / 30 / 120 per minute, 50 and 5 open streams', () => {
@@ -71,11 +74,12 @@ describe('server settings: variables and defaults', () => {
       allowedOrigins: [],
       host: '127.0.0.1',
       port: 8787,
-      limits: { commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120, streams: 50, anonymousStreams: 5 },
+      trustedProxyHops: 0,
+      limits: { commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120, streams: 50, anonymousStreams: 5, createSource: 5, createAll: 30, joinSource: 20, joinMatch: 120 },
     });
     expect(DEFAULT_HOST).toBe('127.0.0.1');
     expect(DEFAULT_PORT).toBe(8787);
-    expect(DEFAULT_LIMITS).toStrictEqual({ commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120, streams: 50, anonymousStreams: 5 });
+    expect(DEFAULT_LIMITS).toStrictEqual({ commands: 600, reads: 1200, submissions: 30, advances: 30, anonymous: 120, streams: 50, anonymousStreams: 5, createSource: 5, createAll: 30, joinSource: 20, joinMatch: 120 });
   });
 
   it('FR-299 (b) every limit is an operator setting, so a test or the performance run can raise each one', () => {
@@ -88,7 +92,7 @@ describe('server settings: variables and defaults', () => {
       MBRG_LIMIT_STREAMS: '1000000',
       MBRG_LIMIT_ANONYMOUS_STREAMS: '1',
     });
-    expect(raised.limits).toStrictEqual({ commands: 1000000, reads: 999999, submissions: 1, advances: 77, anonymous: 4321, streams: 1000000, anonymousStreams: 1 });
+    expect(raised.limits).toStrictEqual({ commands: 1000000, reads: 999999, submissions: 1, advances: 77, anonymous: 4321, streams: 1000000, anonymousStreams: 1, createSource: 5, createAll: 30, joinSource: 20, joinMatch: 120 });
   });
 
   it('FR-299 (stream limits) a limit that is not a whole number 1 to 1,000,000 is refused naming its variable', () => {
@@ -388,6 +392,39 @@ describe('server settings: public creation', () => {
 
   it('the player cap problem comes last, after the older ones', () => {
     expect(problemsOf({ MBRG_MAX_PLAYERS: '0', MBRG_LOBBY_EXPIRY_HOURS: '0', MBRG_PORT: 'x' })).toStrictEqual(['MBRG_PORT', 'MBRG_LOBBY_EXPIRY_HOURS', 'MBRG_MAX_PLAYERS']);
+  });
+
+  it('the creation and join limits are operator settings read like the older ones, in non-round numbers', () => {
+    const raised = settingsOf({ MBRG_LIMIT_CREATE_SOURCE: '7', MBRG_LIMIT_CREATE_ALL: '77', MBRG_LIMIT_JOIN_SOURCE: '13', MBRG_LIMIT_JOIN_MATCH: '1000000' });
+    expect(raised.limits).toMatchObject({ createSource: 7, createAll: 77, joinSource: 13, joinMatch: 1000000 });
+    // Each one alone moves only itself.
+    expect(settingsOf({ MBRG_LIMIT_CREATE_ALL: '77' }).limits).toStrictEqual({ ...DEFAULT_LIMITS, createAll: 77 });
+    expect(settingsOf({ MBRG_LIMIT_JOIN_SOURCE: '13' }).limits).toStrictEqual({ ...DEFAULT_LIMITS, joinSource: 13 });
+  });
+
+  it('a creation or join limit that is not a whole number 1 to 1,000,000 is refused naming its variable', () => {
+    for (const name of ['MBRG_LIMIT_CREATE_SOURCE', 'MBRG_LIMIT_CREATE_ALL', 'MBRG_LIMIT_JOIN_SOURCE', 'MBRG_LIMIT_JOIN_MATCH']) {
+      for (const value of ['0', '1000001', '-5', '2.5', '1e3', 'many', '', ' 30', '030', '0x10']) {
+        expect(problemsOf({ [name]: value }), `${name}=${value}`).toStrictEqual([name]);
+      }
+    }
+  });
+
+  it('the proxy hop count defaults to 0 and reads a whole number 0 to 8', () => {
+    expect(settingsOf({}).trustedProxyHops).toBe(0);
+    for (let hops = 0; hops <= 8; hops += 1) expect(settingsOf({ MBRG_TRUSTED_PROXY_HOPS: String(hops) }).trustedProxyHops, String(hops)).toBe(hops);
+  });
+
+  it('the proxy hop count refuses anything else, naming only its variable', () => {
+    for (const value of ['9', '10', '-1', '1.5', 'x', '', ' 1', '01', '1e0', '0x1', '+1', '00']) {
+      expect(problemsOf({ MBRG_TRUSTED_PROXY_HOPS: value }), JSON.stringify(value)).toStrictEqual(['MBRG_TRUSTED_PROXY_HOPS']);
+    }
+  });
+
+  it('the problems of the five newest settings come last, in the order of the variable list', () => {
+    expect(problemsOf({ MBRG_TRUSTED_PROXY_HOPS: '9', MBRG_LIMIT_JOIN_MATCH: '0', MBRG_LIMIT_JOIN_SOURCE: '0', MBRG_LIMIT_CREATE_ALL: '0', MBRG_LIMIT_CREATE_SOURCE: '0', MBRG_MAX_PLAYERS: '0', MBRG_PORT: 'x' })).toStrictEqual([
+      'MBRG_PORT', 'MBRG_MAX_PLAYERS', 'MBRG_LIMIT_CREATE_SOURCE', 'MBRG_LIMIT_CREATE_ALL', 'MBRG_LIMIT_JOIN_SOURCE', 'MBRG_LIMIT_JOIN_MATCH', 'MBRG_TRUSTED_PROXY_HOPS',
+    ]);
   });
 
   it('the older settings alone give a service with public creation off, and the service accepts them', () => {

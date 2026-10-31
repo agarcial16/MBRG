@@ -54,12 +54,14 @@ describe('http commands: creation', () => {
     expect(reply.text).toBe(encodeCreation({ matchId: id, match: body.match as never, hostToken }));
   });
 
-  it('FR-280 FR-298 a creation without the operator credential is forbidden and creates nothing', async () => {
+  // Spec 011 M4 T4 (NFR-75): a caller without the operator credential is anonymous and takes the public path; with no public map
+  // (the default) that path answers an unknown map, the same for every such caller. It was `forbidden` in 008.
+  it('FR-280 FR-298 a creation without the operator credential creates nothing: with public creation off it is an unknown map for everyone', async () => {
     const h = await start();
     for (const token of [undefined, 'wrong-credential-0123456789abcdef', CLIENT_CREDENTIAL]) {
       const reply = await post(h, '/matches', creationBody('r-x'), token);
-      expect(reply.status).toBe(403);
-      expect(reply.text).toBe(errorBody('forbidden'));
+      expect(reply.status).toBe(404);
+      expect(reply.text).toBe(errorBody('unknown-map'));
     }
     const list = h.service.listMatches({ limit: 10 });
     expect(list.ok && list.reply.items).toStrictEqual([]);
@@ -133,7 +135,8 @@ describe('http commands: advance', () => {
     const other = await create(h, 'c-2');
     const wrongMatch = await post(h, `/matches/${m.id}/advance`, step(1, 'application'), other.hostToken);
     expect(wrongMatch.status).toBe(403);
-    expect((await post(h, '/matches', creationBody('c-3'), m.hostToken)).status).toBe(403);
+    // (Spec 011 M4 T4, NFR-75: 403 in 008; now the host token is no credential for the public path, which is off here.)
+    expect((await post(h, '/matches', creationBody('c-3'), m.hostToken)).status).toBe(404);
   });
 
   it('FR-299 (over HTTP) the host token of the match is limited under its own advances bucket, apart from the anonymous address bucket', async () => {

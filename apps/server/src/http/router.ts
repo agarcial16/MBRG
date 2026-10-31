@@ -33,6 +33,11 @@ export interface RouteContext {
   readonly lastEventId: readonly string[] | undefined;
   readonly identity: Identity;
   readonly now: number;
+  /**
+   * Where the request came from (spec 011): the socket peer, or the entry of `X-Forwarded-For` that the trusted proxy hops
+   * name (`sourceOf`). Used only as a limiter key and, hashed, as a memo scope; never stored or logged as given.
+   */
+  readonly source: string;
 }
 
 /** What a route decides: an encoded success, or an error reply (status by `status.ts`, body by the protocol encoder). */
@@ -58,13 +63,31 @@ export interface Route {
   readonly body: 'none' | 'object';
   /** An event-stream route: the pipeline takes an open-stream place at stage 1 and hands it to the hub (FR-299 (b)). */
   readonly stream?: true;
-  /** Names the path parameter holding the match id when the token may be that match's host token (advance only, PD16). */
+  /** Names the path parameter holding the match id when the token may be that match's host token (advance only, PD16). Same as `matchParam` with `holders: ['host']`. */
   readonly hostParam?: string;
+  /**
+   * Spec 011: names the path parameter holding the match id when an unrecognised token may be a token OF that match, and
+   * `holders` says which kinds of match token the route accepts. The pipeline looks a token up (one indexed read) only for
+   * a route that lists the kind, in the order host, player; the first that matches gives the role. A route without
+   * `holders` asks for nothing.
+   */
+  readonly matchParam?: string;
+  readonly holders?: readonly ('host' | 'player')[];
   checkQuery?(ctx: RouteContext): ErrorReply | undefined;
   shape?(ctx: RouteContext): ErrorReply | undefined;
   authorize?(ctx: RouteContext): ErrorReply | undefined;
   playerLimit?(ctx: RouteContext): readonly LimitKey[] | undefined;
   decide(ctx: RouteContext): Reply | Promise<Reply>;
+}
+
+/** The match parameter and the kinds of match token a route accepts (`hostParam` alone means the host token), if any. */
+export function holdersOf(route: Route): { readonly param: string; readonly host: boolean; readonly player: boolean } | undefined {
+  const param = route.matchParam ?? route.hostParam;
+  if (param === undefined) return undefined;
+  const holders = route.holders ?? (route.hostParam === undefined ? [] : ['host' as const]);
+  const host = holders.includes('host');
+  const player = holders.includes('player');
+  return host || player ? { param, host, player } : undefined;
 }
 
 export type Resolution<R extends Route = Route> =

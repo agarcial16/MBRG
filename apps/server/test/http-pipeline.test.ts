@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createRouter, parseRoundSegment } from '../src/http/router';
 import type { Route } from '../src/http/router';
 import { SERVER_OPTION_KEYS, addressOf } from '../src/http/server';
+import type { MatchService } from '../src/service/matches';
 import { CONNECTION_OPTIONS } from '../src/service/settings';
 import { raw, head, request } from './helpers/http-client';
 import type { ClientReply } from './helpers/http-client';
@@ -107,6 +108,84 @@ describe('http pipeline: the stage order', () => {
     expect((await advance('another-match', made.reply.hostToken)).status).toBe(403);
     expect((await advance(made.reply.matchId, 'not-the-host-token-0123456789')).status).toBe(403);
     expect((await advance(made.reply.matchId, OPERATOR)).json()).toStrictEqual({ as: 'operator' });
+  });
+});
+
+describe('http pipeline: token holders of a route', () => {
+  const PUBLIC = { maps: ['dev'], lobbyExpiryHours: 48 } as const;
+  /** A server whose service counts the two token lookups, with one lobby and one player. */
+  async function counted() {
+    const calls = { host: 0, player: 0 };
+    let real: MatchService | undefined;
+    const served = await startServer({
+      service: { publicCreation: PUBLIC },
+      stub: {
+        hostTokenMatches: (matchId, token) => {
+          calls.host += 1;
+          return (real as MatchService).hostTokenMatches(matchId, token);
+        },
+        playerTokenOf: (matchId, token) => {
+          calls.player += 1;
+          return (real as MatchService).playerTokenOf(matchId, token);
+        },
+      },
+    });
+    real = served.base.service;
+    const made = served.base.service.createPublic({ source: 'src-1', body: creationBody('c-1') });
+    if (!made.ok) throw new Error('creation failed');
+    const joined = served.base.service.join({ source: 'src-2', matchId: made.reply.matchId, body: { name: 'Ana', requestId: 'j-1' } });
+    if (!joined.ok) throw new Error('join refused');
+    return { h: served, calls, matchId: made.reply.matchId, hostToken: made.reply.hostToken, playerToken: joined.reply.playerToken, playerId: joined.reply.playerId };
+  }
+  const call = (h: { port: number }, method: string, path: string, token?: string): Promise<ClientReply> =>
+    request(h.port, { method, path, headers: token === undefined ? {} : bearer(token) });
+
+  it('FR-301 the lookup of a player token runs for an unrecognised token on a route that lists player, and on no other route', async () => {
+    const { h, calls, matchId, playerToken, hostToken } = await counted();
+    // A route that lists neither (read, the echo, the creation): no lookup of any kind.
+    await call(h, 'GET', '/ping', playerToken);
+    await call(h, 'POST', `/echo`, playerToken);
+    expect(calls).toStrictEqual({ host: 0, player: 0 });
+    // An advance (host only): the host lookup, never the player one.
+    await call(h, 'POST', `/advance/${matchId}`, playerToken);
+    expect(calls).toStrictEqual({ host: 1, player: 0 });
+    // A player-only route: the player lookup, never the host one; a host token is not a player.
+    const asPlayer = await call(h, 'POST', `/holders/${matchId}`, playerToken);
+    expect(asPlayer.json()).toMatchObject({ as: 'player' });
+    expect(calls).toStrictEqual({ host: 1, player: 1 });
+    expect((await call(h, 'POST', `/holders/${matchId}`, hostToken)).json()).toMatchObject({ as: 'anonymous' });
+    expect(calls).toStrictEqual({ host: 1, player: 2 });
+    // The operator, a client and no token cost no lookup.
+    await call(h, 'POST', `/holders/${matchId}`, OPERATOR);
+    await call(h, 'POST', `/holders/${matchId}`, CLIENT_CREDENTIAL);
+    await call(h, 'POST', `/holders/${matchId}`);
+    expect(calls).toStrictEqual({ host: 1, player: 2 });
+  });
+
+  it('FR-301 a route may list both holders: the host lookup first, the player lookup only when the host one fails', async () => {
+    const { h, calls, matchId, playerToken, hostToken } = await counted();
+    expect((await call(h, 'POST', `/either/${matchId}`, hostToken)).json()).toMatchObject({ as: 'host' });
+    expect(calls).toStrictEqual({ host: 1, player: 0 });
+    expect((await call(h, 'POST', `/either/${matchId}`, playerToken)).json()).toMatchObject({ as: 'player' });
+    expect(calls).toStrictEqual({ host: 2, player: 1 });
+    expect((await call(h, 'POST', `/either/${matchId}`, 'wrong-credential-0123456789abcdef')).json()).toMatchObject({ as: 'anonymous' });
+    expect(calls).toStrictEqual({ host: 3, player: 2 });
+  });
+
+  it('FR-301 a token that cannot be looked up (a storage failure) leaves the request anonymous, and the lookup is one read', async () => {
+    const { calls, matchId, playerToken } = await counted();
+    const failing = await startServer({
+      service: { publicCreation: PUBLIC },
+      stub: {
+        playerTokenOf: () => {
+          calls.player += 1;
+          return { ok: false, error: { kind: 'unavailable' } } as never;
+        },
+      },
+    });
+    const reply = await call(failing, 'POST', `/holders/${matchId}`, playerToken);
+    expect(reply.json()).toMatchObject({ as: 'anonymous' });
+    expect(calls.player).toBe(1);
   });
 });
 

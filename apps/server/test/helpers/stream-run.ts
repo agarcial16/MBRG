@@ -29,6 +29,17 @@ export interface Played {
   readonly reader: SseReader;
 }
 
+/** Takes event frames until one has the given `type` (inclusive); gives the parsed events in order. Real time limit per frame. */
+export async function takeUntilType(reader: SseReader, type: string, timeoutMs = 20_000): Promise<Record<string, unknown>[]> {
+  const out: Record<string, unknown>[] = [];
+  for (;;) {
+    const [frame] = await reader.takeEvents(1, timeoutMs);
+    const event = JSON.parse(frame!.data) as Record<string, unknown>;
+    out.push(event);
+    if (event.type === type) return out;
+  }
+}
+
 export async function openFromStart(h: ServerHarness, id: string, track: SseReader[]): Promise<SseReader> {
   const reader = await openStream({ port: h.port, path: `/matches/${id}/events?lastEventId=0` });
   track.push(reader);

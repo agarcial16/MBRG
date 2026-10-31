@@ -93,15 +93,16 @@ const DONE_010: readonly string[] = ['FR-356', 'FR-357', 'FR-358', 'FR-359', 'FR
  * M1 target: 3 done / 26 pending (reached). M2 target (T10): 9 done / 20 pending. M2 T1 starts at 3 / 26 and moves none;
  * T4 adds FR-391 (4 / 25); T6 adds FR-371, FR-374, FR-375 (7 / 22); T7 adds FR-372, NFR-76 (9 / 20); T2, T3, T5, T8, T9 move none.
  * M3 target (T10): 15 done / 14 pending. M3 T1 starts at 9 / 20 and moves none; T2 adds FR-384 (10 / 19); T6 adds FR-377, FR-376, FR-380 (13 / 16); T7 adds FR-378 (14 / 15); T8 adds FR-382 (15 / 14); later M3 tasks move their ids in their own commits.
+ * M4 target (T10): 21 done / 8 pending. M4 T1 and T2 start at 15 / 14 and move none; T3 adds FR-379 (16 / 13); T4 adds FR-369, FR-370 (18 / 11); T5 adds FR-381 (19 / 10); T6 adds FR-385 (20 / 9); T7 moves none; T8 adds NFR-72 (21 / 8); T9 and T10 move none (T10 pins the closing state).
  */
 const PENDING_011: readonly string[] = [
-  'FR-369', 'FR-370', 'FR-373',
-  'FR-379', 'FR-381', 'FR-383', 'FR-385', 'FR-386',
-  'FR-390', 'FR-392', 'NFR-72', 'NFR-73', 'NFR-74', 'NFR-75',
+  'FR-373',
+  'FR-383', 'FR-386',
+  'FR-390', 'FR-392', 'NFR-73', 'NFR-74', 'NFR-75',
 ];
 
-/** Ids of spec 011 already closed (M1 T4: FR-387, a forced absorber is not predicted and does not score; M1 T5: FR-388, the shortened phase 2; M1 T6: FR-389, the victim and winner rules unchanged; M2 T4: FR-391, a database written by 008 opens unchanged; M2 T6: FR-371, a public creation starts in a lobby, FR-374, the host starts it, FR-375, a manual match is stepped by the host; M2 T7: FR-372, a lobby not started in time expires, NFR-76, time rules on the fake clock and scheduler; M3 T2: FR-384, names are untrusted text, and the join, joined-event and players-list shapes of the protocol; M3 T6: FR-377, a caller joins with a name and gets a token, FR-376, the joined event on the stream and its replay, FR-380, a join in a running match and the player cap; M3 T7: FR-378, a player authenticates by its match token; M3 T8: FR-382, no account, no recovery and no name change). */
-const DONE_011: readonly string[] = ['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR-371', 'FR-374', 'FR-375', 'FR-372', 'NFR-76', 'FR-384', 'FR-377', 'FR-376', 'FR-380', 'FR-378', 'FR-382'];
+/** Ids of spec 011 already closed (M1 T4: FR-387, a forced absorber is not predicted and does not score; M1 T5: FR-388, the shortened phase 2; M1 T6: FR-389, the victim and winner rules unchanged; M2 T4: FR-391, a database written by 008 opens unchanged; M2 T6: FR-371, a public creation starts in a lobby, FR-374, the host starts it, FR-375, a manual match is stepped by the host; M2 T7: FR-372, a lobby not started in time expires, NFR-76, time rules on the fake clock and scheduler; M3 T2: FR-384, names are untrusted text, and the join, joined-event and players-list shapes of the protocol; M3 T6: FR-377, a caller joins with a name and gets a token, FR-376, the joined event on the stream and its replay, FR-380, a join in a running match and the player cap; M3 T7: FR-378, a player authenticates by its match token; M3 T8: FR-382, no account, no recovery and no name change; M4 T3: FR-379, player tokens for predictions over HTTP; M4 T4: FR-369, public creation over HTTP, FR-370, its caps and rates over HTTP; M4 T5: FR-381, the join rates and the memo over HTTP; M4 T6: FR-385, the players list on the wire; M4 T8: NFR-72, the anonymous bounds driven to their edges). */
+const DONE_011: readonly string[] = ['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR-371', 'FR-374', 'FR-375', 'FR-372', 'NFR-76', 'FR-384', 'FR-377', 'FR-376', 'FR-380', 'FR-378', 'FR-382', 'FR-379', 'FR-369', 'FR-370', 'FR-381', 'FR-385', 'NFR-72'];
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -768,6 +769,62 @@ describe('traceability', () => {
     expect([...PENDING_011, ...sinceM3].sort()).toStrictEqual(pendingAfterM3);
     for (const id of doneByM3) expect(tracedIds(testSources).has(id), id).toBe(true);
     for (const id of pendingAfterM3) expect(tracedIds(testSources).has(id), id).toBe(sinceM3.includes(id));
+  });
+
+  it('NFR-13 NFR-19 spec 011 after the player token routes task: the HTTP token id is done and traced (16 done, 13 pending at this step; later tasks add to it)', () => {
+    expect(DONE_011.slice(0, 16)).toStrictEqual(['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR-371', 'FR-374', 'FR-375', 'FR-372', 'NFR-76', 'FR-384', 'FR-377', 'FR-376', 'FR-380', 'FR-378', 'FR-382', 'FR-379']);
+    expect(DONE_011.length).toBeGreaterThanOrEqual(16);
+    expect(PENDING_011).not.toContain('FR-379');
+    expect(tracedIds(testSources).has('FR-379')).toBe(true);
+  });
+
+  it('NFR-13 NFR-19 spec 011 after the public creation over HTTP task: the creation and its limits are done and traced (18 done, 11 pending at this step; later tasks add to it)', () => {
+    expect(DONE_011.slice(0, 18)).toStrictEqual(['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR-371', 'FR-374', 'FR-375', 'FR-372', 'NFR-76', 'FR-384', 'FR-377', 'FR-376', 'FR-380', 'FR-378', 'FR-382', 'FR-379', 'FR-369', 'FR-370']);
+    expect(DONE_011.length).toBeGreaterThanOrEqual(18);
+    for (const id of ['FR-369', 'FR-370']) {
+      expect(PENDING_011, id).not.toContain(id);
+      expect(tracedIds(testSources).has(id), id).toBe(true);
+    }
+  });
+
+  it('NFR-13 NFR-19 spec 011 after the start and join over HTTP task: the join rates are done and traced (19 done, 10 pending at this step; later tasks add to it)', () => {
+    expect(DONE_011.slice(0, 19)).toStrictEqual(['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR-371', 'FR-374', 'FR-375', 'FR-372', 'NFR-76', 'FR-384', 'FR-377', 'FR-376', 'FR-380', 'FR-378', 'FR-382', 'FR-379', 'FR-369', 'FR-370', 'FR-381']);
+    expect(DONE_011.length).toBeGreaterThanOrEqual(19);
+    expect(PENDING_011).not.toContain('FR-381');
+    expect(tracedIds(testSources).has('FR-381')).toBe(true);
+  });
+
+  it('NFR-13 NFR-19 spec 011 after the players list task: the players list is done and traced (20 done, 9 pending at this step; later tasks add to it)', () => {
+    expect(DONE_011.slice(0, 20)).toStrictEqual(['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR-371', 'FR-374', 'FR-375', 'FR-372', 'NFR-76', 'FR-384', 'FR-377', 'FR-376', 'FR-380', 'FR-378', 'FR-382', 'FR-379', 'FR-369', 'FR-370', 'FR-381', 'FR-385']);
+    expect(DONE_011.length).toBeGreaterThanOrEqual(20);
+    expect(PENDING_011).not.toContain('FR-385');
+    expect(tracedIds(testSources).has('FR-385')).toBe(true);
+  });
+
+  it('NFR-13 NFR-19 spec 011 after the anonymous bounds task: the bounds of anonymous creation and join are done and traced (21 done, 8 pending at this step; later tasks add to it)', () => {
+    expect(DONE_011.slice(0, 21)).toStrictEqual(['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR-371', 'FR-374', 'FR-375', 'FR-372', 'NFR-76', 'FR-384', 'FR-377', 'FR-376', 'FR-380', 'FR-378', 'FR-382', 'FR-379', 'FR-369', 'FR-370', 'FR-381', 'FR-385', 'NFR-72']);
+    expect(DONE_011.length).toBeGreaterThanOrEqual(21);
+    expect(PENDING_011).not.toContain('NFR-72');
+    expect(tracedIds(testSources).has('NFR-72')).toBe(true);
+  });
+
+  it('NFR-13 NFR-19 M4 closing state of spec 011: 21 ids done and 8 pending, both as literal lists', () => {
+    // Literal lists, independent of DONE_011 and PENDING_011: M1 to M3 (15 ids) plus the player token, public creation, its caps,
+    // the join rates, the players list and the anonymous bounds (6 ids).
+    const doneByM4 = [
+      'FR-369', 'FR-370', 'FR-371', 'FR-372', 'FR-374', 'FR-375', 'FR-376', 'FR-377', 'FR-378', 'FR-379', 'FR-380',
+      'FR-381', 'FR-382', 'FR-384', 'FR-385', 'FR-387', 'FR-388', 'FR-389', 'FR-391', 'NFR-72', 'NFR-76',
+    ];
+    const pendingAfterM4 = ['FR-373', 'FR-383', 'FR-386', 'FR-390', 'FR-392', 'NFR-73', 'NFR-74', 'NFR-75'];
+    expect(doneByM4).toHaveLength(21);
+    expect(pendingAfterM4).toHaveLength(8);
+    expect(new Set([...doneByM4, ...pendingAfterM4]).size).toBe(29);
+    // M5 closes the rest in its own tasks: the ids closed since M4 are the tail of DONE_011 and have left the pending list.
+    const sinceM4 = DONE_011.slice(21);
+    expect([...DONE_011.slice(0, 21)].sort()).toStrictEqual(doneByM4);
+    expect([...PENDING_011, ...sinceM4].sort()).toStrictEqual(pendingAfterM4);
+    for (const id of doneByM4) expect(tracedIds(testSources).has(id), id).toBe(true);
+    for (const id of pendingAfterM4) expect(tracedIds(testSources).has(id), id).toBe(sinceM4.includes(id));
   });
 
   it('NFR-55 no pending id of spec 011 is already traced by a test title', () => {

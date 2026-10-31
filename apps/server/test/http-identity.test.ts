@@ -32,6 +32,7 @@ const settings: ServerSettings = {
   host: '127.0.0.1',
   port: 0,
   limits: DEFAULT_LIMITS,
+  trustedProxyHops: 0,
 };
 const table = credentialTable(settings);
 

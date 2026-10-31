@@ -47,6 +47,8 @@ export interface ServerHarnessOptions {
   readonly service?: Omit<HarnessOptions, 'store'>;
   /** The port to listen on (default 0: any free port); the hand-run fixture uses a fixed one. */
   readonly port?: number;
+  /** The trusted proxy hops of the settings (default 0: `X-Forwarded-For` is ignored). */
+  readonly trustedProxyHops?: number;
   /** Called after each logged event is recorded (it may throw: a failing sink). */
   readonly onLog?: (event: LogEvent) => void;
 }
@@ -129,6 +131,22 @@ export function testRoutes(service: MatchService, settings: ServerSettings): rea
       decide: (ctx) => success(`{"as":"${ctx.identity.role}"}`),
     },
     {
+      method: 'POST',
+      path: '/holders/:id',
+      body: 'none',
+      matchParam: 'id',
+      holders: ['player'],
+      decide: (ctx) => success(`{"as":"${ctx.identity.role}"}`),
+    },
+    {
+      method: 'POST',
+      path: '/either/:id',
+      body: 'none',
+      matchParam: 'id',
+      holders: ['host', 'player'],
+      decide: (ctx) => success(`{"as":"${ctx.identity.role}"}`),
+    },
+    {
       method: 'GET',
       path: '/match/:id',
       body: 'none',
@@ -161,6 +179,7 @@ export async function startServer(options: ServerHarnessOptions = {}): Promise<S
     host: '127.0.0.1',
     port: options.port ?? 0,
     limits: { ...DEFAULT_LIMITS, ...(options.limits ?? {}) },
+    trustedProxyHops: options.trustedProxyHops ?? 0,
   };
   const logs: LogEvent[] = [];
   const routes = (options.routes ?? testRoutes)(service, settings);
