@@ -40,7 +40,7 @@ Plan sections 4, 9, 11, 12 (M5 row), 13, 15 (Q12). Branch cut from `rewrite` aft
   - Done when: tests green; mutations caught; FR-386 moved (23 / 6).
   - Size: L (about 600).
 
-- [ ] **T5. The lobby's public data, end to end.** FR-373 (close)
+- [x] **T5. The lobby's public data, end to end.** FR-373 (close)
   - Depends on: T3.
   - Files: `apps/server/test/{http-lobby-public,service-lobby-public}.test.ts` (tests only unless a defect shows).
   - Tests first: for a lobby with three players, `GET /matches/:id` shows stage `lobby`, map id, timing, `playerCount` 3, and `GET /matches/:id/players` shows the three names in join order; nothing about a round exists: no `schedule`, `victim`, `winner`, `matchSecret`, `haltReason`, no `results` or `victim-revealed` event in the stream, the state is the round-0 state; after `start` the lobby fields disappear in the way plan P5 states (`playerCount` stays because players exist) and the 008 fields appear; an expired lobby shows stage `expired`, keeps its players list until removed, then `unknown-match`; the match list `GET /matches` includes lobbies with stage `lobby` and the 008 summary fields only (no player data); a match with no players and a running stage has no `playerCount` (008 bytes).
