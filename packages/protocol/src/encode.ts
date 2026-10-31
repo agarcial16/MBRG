@@ -14,6 +14,8 @@ import {
   PAGE_KEYS,
   PHASE_RESULTS_PAGE_KEYS,
   PHASE_RESULT_KEYS,
+  PHASE_WINNERS_PAGE_KEYS,
+  PHASE_WINNER_KEYS,
   PLAYER_LIST_ITEM_KEYS,
   PLAYER_RESULTS_PAGE_KEYS,
   PLAYER_RESULT_KEYS,
@@ -34,6 +36,7 @@ import {
   type OwnPrediction,
   type Page,
   type PhaseResultsPage,
+  type PhaseWinnersPage,
   type PlayerListItem,
   type PlayerResultsPage,
   type PredictionReply,
@@ -260,7 +263,8 @@ function encodePhaseResult(v: unknown): string {
     choice: int('phase result.choice', 1),
     correct: bool('phase result.correct'),
     points: int('phase result.points', 0),
-  });
+    name: nameText('phase result.name'),
+  }, ['name']);
 }
 
 /**
@@ -327,8 +331,9 @@ export function encodePlayerResults(page: PlayerResultsPage): string {
       total: int('player results.total', 0),
       items: encodeListOf('player results', encodePlayerResult),
       next: text('player results.next'),
+      name: nameText('player results.name'),
     },
-    ['next'],
+    ['next', 'name'],
   );
 }
 
@@ -343,7 +348,8 @@ export function encodeLeaderboardRow(row: LeaderboardRow): string {
     correctVictims: int('leaderboard row.correctVictims', 0),
     correctAbsorbers: int('leaderboard row.correctAbsorbers', 0),
     correctWinner: (v) => (v === 0 || v === 1 ? String(v) : bad('leaderboard row.correctWinner is not 0 or 1')),
-  });
+    name: nameText('leaderboard row.name'),
+  }, ['name']);
 }
 
 /** A name as the server stores and serves it: it already satisfies the name rule and is its own trimmed NFC form (FR-384). */
@@ -353,6 +359,33 @@ const nameText = (what: string) =>
     return read.ok && read.name === v;
   });
 const joinedPlayerId = (what: string) => text(what, isJoinedPlayerId);
+
+function encodePhaseWinner(v: unknown): string {
+  const o = objectOf(v, 'phase winner', PHASE_WINNER_KEYS);
+  noInherited(o, 'phase winner', PHASE_WINNER_KEYS);
+  return write(o, 'phase winner', PHASE_WINNER_KEYS, {
+    playerId: joinedPlayerId('phase winner.playerId'),
+    name: nameText('phase winner.name'),
+  });
+}
+
+/** One page of the named players who guessed a scored phase right: `round`, `phase`, `items` (id and name only), then `next` when present. */
+export function encodePhaseWinners(page: PhaseWinnersPage): string {
+  const o = objectOf(page, 'phase winners', PHASE_WINNERS_PAGE_KEYS);
+  noInherited(o, 'phase winners', PHASE_WINNERS_PAGE_KEYS);
+  return write(
+    o,
+    'phase winners',
+    PHASE_WINNERS_PAGE_KEYS,
+    {
+      round: int('phase winners.round', 1),
+      phase: phaseOf,
+      items: encodeListOf('phase winners', encodePhaseWinner),
+      next: text('phase winners.next'),
+    },
+    ['next'],
+  );
+}
 
 /** The reply to a join (FR-377): player id, name, the player token (given here once) and the public data after the join. */
 export function encodeJoinReply(reply: JoinReply): string {

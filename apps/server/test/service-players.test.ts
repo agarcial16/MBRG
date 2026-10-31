@@ -104,7 +104,7 @@ describe('the players list', () => {
     const own = encodeCursor('players', [3]);
     expect(readPageQuery('players', [['cursor', own]])).toMatchObject({ ok: true, value: { after: [3] } });
     for (const list of CURSOR_LISTS.filter((l) => l !== 'players')) {
-      const key = list === 'matches' ? ([1, 'm'] as const) : list === 'records' ? ([1] as const) : list === 'predictions' ? (['a', 1, 'victim'] as const) : list === 'phase-results' ? (['web:a'] as const) : list === 'player-results' ? ([1, 'victim'] as const) : ([1, 1, 'web:a'] as const);
+      const key = list === 'matches' ? ([1, 'm'] as const) : list === 'records' ? ([1] as const) : list === 'predictions' ? (['a', 1, 'victim'] as const) : list === 'phase-results' ? (['web:a'] as const) : list === 'player-results' ? ([1, 'victim'] as const) : list === 'phase-winners' ? (['player:a'] as const) : ([1, 1, 'web:a'] as const);
       const foreign = encodeCursor(list, key as never);
       expect(readPageQuery('players', [['cursor', foreign]]), list).toStrictEqual({ ok: false, error: errorReply('invalid-request', ['cursor']) });
     }

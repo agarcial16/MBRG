@@ -13,7 +13,7 @@ Plan sections 4, 9, 11, 12 (M5 row), 13, 15 (Q12). Branch cut from `rewrite` aft
   - Done when: suite, typecheck, `CI=1` green; counts 21 / 8.
   - Size: S (about 30).
 
-- [ ] **T2. Protocol: the optional `name` and the winners page.** (words only)
+- [x] **T2. Protocol: the optional `name` and the winners page.** (words only)
   - Depends on: T1.
   - Files: `packages/protocol/src/{wire,encode,decode,page,index}.ts`, tests `packages/protocol/test/{encode-results,decode,page}.test.ts`.
   - Tests first: `name` is the LAST key of `PHASE_RESULT_KEYS`, `LEADERBOARD_ROW_KEYS` and `PLAYER_RESULTS_PAGE_KEYS`, written only when present (a row without `name` encodes to the exact 008 bytes; SHA-256 pins of one 008 page of each shape); the name is a string of 1 to 24 characters passing the name rules, anything else is refused by the encoder; `PhaseWinnersPage` shape `round, phase, items{playerId, name}, next?` (no `victim`/`record`, no choice, no points: only who was right); cursor list `phase-winners [playerId]` round-trips and is refused on the other lists; the existing keys, their order and the paging cursors are unchanged (`CURSOR_LISTS` test: 7 old + 2 from M3/M5).

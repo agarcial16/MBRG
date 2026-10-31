@@ -8,6 +8,8 @@ import {
   LEADERBOARD_ROW_KEYS,
   OWN_PREDICTION_KEYS,
   PAGE_KEYS,
+  PHASE_WINNERS_PAGE_KEYS,
+  PHASE_WINNER_KEYS,
   PLAYER_LIST_ITEM_KEYS,
   PLAYER_RESULTS_PAGE_KEYS,
   PLAYER_RESULT_KEYS,
@@ -23,6 +25,8 @@ import {
   type MatchEvent,
   type OwnPrediction,
   type Page,
+  type PhaseWinner,
+  type PhaseWinnersPage,
   type PlayerListItem,
   type PlayerResult,
   type PlayerResultsPage,
@@ -337,7 +341,13 @@ export function readPlayerResultsPage(input: unknown): Decoded<PlayerResultsPage
       const playerId = m.get('playerId', textWhere(isPlayerId));
       const total = m.get('total', int(0));
       const items = m.get('items', list(playerResult));
-      return m.has('next') ? { playerId, total, items, next: m.get('next', text) } : { playerId, total, items };
+      return {
+        playerId,
+        total,
+        items,
+        ...(m.has('next') ? { next: m.get('next', text) } : {}),
+        ...(m.has('name') ? { name: m.get('name', nameOf) } : {}),
+      };
     }),
   );
 }
@@ -350,11 +360,30 @@ const leaderboardRow: Reader<LeaderboardRow> = (v, f) =>
     correctVictims: m.get('correctVictims', int(0)),
     correctAbsorbers: m.get('correctAbsorbers', int(0)),
     correctWinner: m.get('correctWinner', (x, ff) => (x === 0 || x === 1 ? x : refuse(ff))),
+    ...(m.has('name') ? { name: m.get('name', nameOf) } : {}),
   }));
 
 /** A page of the leaderboard. */
 export function readLeaderboardPage(input: unknown): Decoded<Page<LeaderboardRow>> {
   return run(() => pageOf(leaderboardRow)(input, ''));
+}
+
+const phaseWinner: Reader<PhaseWinner> = (v, f) =>
+  object(v, f, PHASE_WINNER_KEYS, (m) => ({
+    playerId: m.get('playerId', textWhere(isJoinedPlayerId)),
+    name: m.get('name', nameOf),
+  }));
+
+/** A page of the named players who guessed a scored phase right. */
+export function readPhaseWinnersPage(input: unknown): Decoded<PhaseWinnersPage> {
+  return run(() =>
+    object(input, '', PHASE_WINNERS_PAGE_KEYS, (m) => {
+      const round = m.get('round', int(1));
+      const ph = m.get('phase', phase);
+      const items = m.get('items', list(phaseWinner));
+      return m.has('next') ? { round, phase: ph, items, next: m.get('next', text) } : { round, phase: ph, items };
+    }),
+  );
 }
 
 const playersItem: Reader<PlayerListItem> = (v, f) =>

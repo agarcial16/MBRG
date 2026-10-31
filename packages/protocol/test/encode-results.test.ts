@@ -1,19 +1,24 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   LEADERBOARD_ROW_KEYS,
   PHASE_RESULTS_PAGE_KEYS,
   PHASE_RESULT_KEYS,
+  PHASE_WINNERS_PAGE_KEYS,
+  PHASE_WINNER_KEYS,
   PLAYER_RESULTS_PAGE_KEYS,
   PLAYER_RESULT_KEYS,
   encodeCursor,
   encodeLeaderboardRow,
   encodePage,
   encodePhaseResults,
+  encodePhaseWinners,
   encodePlayerResults,
   isPlayerId,
   decodeCursor,
   type LeaderboardRow,
   type PhaseResultsPage,
+  type PhaseWinnersPage,
   type PlayerResultsPage,
 } from '../src/index';
 
@@ -37,7 +42,7 @@ const phase2: PhaseResultsPage = { round: 3, phase: 2, record, items: [{ playerI
 describe('FR-257 (results encoders) the phase results page', () => {
   it('FR-257 (results encoders) writes round, phase, victim, items and next in the fixed order whatever the input order', () => {
     expect([...PHASE_RESULTS_PAGE_KEYS]).toStrictEqual(['round', 'phase', 'victim', 'record', 'items', 'next']);
-    expect([...PHASE_RESULT_KEYS]).toStrictEqual(['playerId', 'choice', 'correct', 'points']);
+    expect([...PHASE_RESULT_KEYS]).toStrictEqual(['playerId', 'choice', 'correct', 'points', 'name']);
     const text = encodePhaseResults(phase1);
     expect(text).toBe(
       '{"round":3,"phase":1,"victim":4,"items":[{"playerId":"web:p1","choice":4,"correct":true,"points":5},' +
@@ -110,7 +115,7 @@ const playerPage: PlayerResultsPage = {
 
 describe('FR-257 (results encoders) the player results page', () => {
   it('FR-257 (results encoders) writes playerId, total, items and next; round is absent exactly for a winner item', () => {
-    expect([...PLAYER_RESULTS_PAGE_KEYS]).toStrictEqual(['playerId', 'total', 'items', 'next']);
+    expect([...PLAYER_RESULTS_PAGE_KEYS]).toStrictEqual(['playerId', 'total', 'items', 'next', 'name']);
     expect([...PLAYER_RESULT_KEYS]).toStrictEqual(['kind', 'round', 'choice', 'correct', 'points']);
     const text = encodePlayerResults(playerPage);
     expect(text).toBe(
@@ -146,7 +151,7 @@ const row: LeaderboardRow = { rank: 1, playerId: 'web:p1', total: 12, correctVic
 
 describe('FR-257 (results encoders) the leaderboard row', () => {
   it('FR-257 (results encoders) writes rank, playerId, total and the three correct counts in the fixed order', () => {
-    expect([...LEADERBOARD_ROW_KEYS]).toStrictEqual(['rank', 'playerId', 'total', 'correctVictims', 'correctAbsorbers', 'correctWinner']);
+    expect([...LEADERBOARD_ROW_KEYS]).toStrictEqual(['rank', 'playerId', 'total', 'correctVictims', 'correctAbsorbers', 'correctWinner', 'name']);
     const text = encodeLeaderboardRow(row);
     expect(text).toBe('{"rank":1,"playerId":"web:p1","total":12,"correctVictims":2,"correctAbsorbers":1,"correctWinner":1}');
     expect(encodeLeaderboardRow(reverse(row))).toBe(text);
