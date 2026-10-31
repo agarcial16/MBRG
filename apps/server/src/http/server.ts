@@ -22,6 +22,7 @@ import type { Readable } from 'node:stream';
 import {
   encodeAdvance,
   encodeCreation,
+  encodeJoinReply,
   encodeLeaderboardRow,
   encodeMatchSummary,
   encodeOwnPrediction,
@@ -37,6 +38,7 @@ import {
   isPlayerId,
   rateLimited,
   readCreation,
+  readJoin,
   readPageQuery,
   readSubmission,
 } from '@mbrg/protocol';
@@ -51,7 +53,7 @@ import { answerClientError } from './client-error';
 import { discardBody, readBody, tooLargeByLength, unreadLargeBody } from './body';
 import { credentialTable, hostIdentity, identify, playerIdentity, readBearer, requireClient, submitterOf } from './identity';
 import type { Identity } from './identity';
-import { createGauge, createKeys, createLimiter, limitKeys, playerKey, streamKeys } from './limits';
+import { createGauge, createKeys, createLimiter, joinKeys, limitKeys, playerKey, streamKeys } from './limits';
 import type { RequestClass, StreamLease } from './limits';
 import { requestFailed } from './log';
 import type { FailureStage, LogSink } from './log';
@@ -352,6 +354,27 @@ export const productionRoutes = (service: MatchService, settings: ServerSettings
     body: 'object',
     hostParam: 'id',
     decide: (ctx) => replyOf(service.advance({ credential: ctx.token, matchId: ctx.params.id as string, body: ctx.body }), 200, encodeAdvance),
+  },
+  {
+    // Only the host token of the lobby starts it (spec 011 FR-374); the service compares it (the operator credential is refused).
+    method: 'POST',
+    path: '/matches/:id/start',
+    body: 'object',
+    hostParam: 'id',
+    decide: (ctx) => replyOf(service.startMatch({ credential: ctx.token, matchId: ctx.params.id as string, body: ctx.body }), 200, (reply) => encodePublicMatch(reply.match)),
+  },
+  {
+    // A join needs no credential (FR-377). A malformed body is `invalid-request` before it costs a join slot (FR-381); a join the
+    // service refuses (name, stage, cap) has passed the shape stage and holds its slot.
+    method: 'POST',
+    path: '/matches/:id/players',
+    body: 'object',
+    shape: (ctx) => {
+      const read = readJoin(ctx.body);
+      return read.ok ? undefined : read.error;
+    },
+    playerLimit: (ctx) => joinKeys(ctx.source, ctx.params.id as string, settings.limits),
+    decide: (ctx) => replyOf(service.join({ source: ctx.source, matchId: ctx.params.id as string, body: ctx.body }), 201, encodeJoinReply),
   },
   {
     method: 'POST',
