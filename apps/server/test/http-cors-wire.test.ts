@@ -77,7 +77,8 @@ describe('http cors on the wire: actual requests', () => {
     const created = await request(h.port, { method: 'POST', path: '/matches', body: creationBody('w-1'), headers: { origin: ALLOWED, ...bearer(OPERATOR) } });
     expect([created.status, corsOf(created)]).toStrictEqual([201, ECHO]);
     const anonymous = await request(h.port, { method: 'POST', path: '/matches', body: creationBody('w-2'), headers: { origin: ALLOWED } });
-    expect([anonymous.status, corsOf(anonymous)]).toStrictEqual([403, ECHO]);
+    // (Spec 011 M4 T4, NFR-75: 403 in 008; now the public path answers, and it is off in this harness: an unknown map.)
+    expect([anonymous.status, corsOf(anonymous)]).toStrictEqual([404, ECHO]);
     for (const token of [undefined, OPERATOR]) {
       const other = await request(h.port, { method: 'POST', path: '/matches', body: creationBody('w-3'), headers: { origin: OTHER, ...(token === undefined ? {} : bearer(token)) } });
       expect(acao(other)).toBeUndefined();

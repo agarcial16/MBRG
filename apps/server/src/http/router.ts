@@ -33,6 +33,11 @@ export interface RouteContext {
   readonly lastEventId: readonly string[] | undefined;
   readonly identity: Identity;
   readonly now: number;
+  /**
+   * Where the request came from (spec 011): the socket peer, or the entry of `X-Forwarded-For` that the trusted proxy hops
+   * name (`sourceOf`). Used only as a limiter key and, hashed, as a memo scope; never stored or logged as given.
+   */
+  readonly source: string;
 }
 
 /** What a route decides: an encoded success, or an error reply (status by `status.ts`, body by the protocol encoder). */

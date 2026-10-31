@@ -36,6 +36,7 @@ import {
   isLocalId,
   isPlayerId,
   rateLimited,
+  readCreation,
   readPageQuery,
   readSubmission,
 } from '@mbrg/protocol';
@@ -50,7 +51,7 @@ import { answerClientError } from './client-error';
 import { discardBody, readBody, tooLargeByLength, unreadLargeBody } from './body';
 import { credentialTable, hostIdentity, identify, playerIdentity, readBearer, requireClient, submitterOf } from './identity';
 import type { Identity } from './identity';
-import { createGauge, createLimiter, limitKeys, playerKey, streamKeys } from './limits';
+import { createGauge, createKeys, createLimiter, limitKeys, playerKey, streamKeys } from './limits';
 import type { RequestClass, StreamLease } from './limits';
 import { requestFailed } from './log';
 import type { FailureStage, LogSink } from './log';
@@ -58,6 +59,7 @@ import { corsRequestOf, sendError, sendFile, sendPreflight, sendSuccess, sendUne
 import type { ReplyTarget } from './respond';
 import { createRouter, holdersOf, parseRoundSegment } from './router';
 import type { Reply, Route, RouteContext } from './router';
+import { sourceOf } from './source';
 import { STREAM_RETRY_SECONDS, readStreamStart } from './sse';
 import type { StreamHub } from './streams';
 
@@ -330,7 +332,19 @@ export const productionRoutes = (service: MatchService, settings: ServerSettings
     method: 'POST',
     path: CREATION_PATH,
     body: 'object',
-    decide: (ctx) => replyOf(service.create({ credential: ctx.token, body: ctx.body }), 201, encodeCreation),
+    // Only the operator credential creates a running match (008). Every other caller, a bad credential included, is anonymous:
+    // the public path answers it, so the route tells nothing about credentials (spec 011 FR-369).
+    shape: (ctx) => {
+      if (ctx.identity.role === 'operator') return undefined;
+      // A malformed body is `invalid-request` before it costs a creation slot (plan section 8); timing rules are the decision's.
+      const read = readCreation(ctx.body);
+      return read.ok || read.error.kind === 'invalid-timing' ? undefined : read.error;
+    },
+    playerLimit: (ctx) => (ctx.identity.role === 'operator' ? undefined : createKeys(ctx.source, settings.limits)),
+    decide: (ctx) =>
+      ctx.identity.role === 'operator'
+        ? replyOf(service.create({ credential: ctx.token, body: ctx.body }), 201, encodeCreation)
+        : replyOf(service.createPublic({ source: ctx.source, body: ctx.body }), 201, encodeCreation),
   },
   {
     method: 'POST',
@@ -440,7 +454,8 @@ export function createServer(options: ServerOptions): Server {
     }
     // A token no credential, host or player confirmed is nobody.
     identity = hostIdentity(identity, false);
-    const address = addressOf(req.socket.remoteAddress, ordinalOf(req.socket));
+    // The source of the request: the peer, unless the operator trusts proxy hops (then the entry they name; hops 0 ignores the header).
+    const address = sourceOf(addressOf(req.socket.remoteAddress, ordinalOf(req.socket)), req.headersDistinct['x-forwarded-for'] ?? [], settings.trustedProxyHops);
     const admission = limiter.admit(limitKeys(identity, classOf(method), address, settings.limits), now);
     if (resolution.kind === 'found' && resolution.route.stream === true) {
       // An event stream is one read of the per-minute limit AND a place in the open-stream gauge (FR-299 (b), plan 19.4); a
@@ -478,7 +493,7 @@ export function createServer(options: ServerOptions): Server {
       if (read.kind === 'aborted') return;
       if (read.kind === 'error') return sendError(target, read.error);
     }
-    const ctx: RouteContext = { params, query, body, token, lastEventId: req.headersDistinct['last-event-id'], identity, now };
+    const ctx: RouteContext = { params, query, body, token, lastEventId: req.headersDistinct['last-event-id'], identity, now, source: address };
     const queryError = route.checkQuery?.(ctx);
     if (queryError !== undefined) return sendError(target, queryError);
 
