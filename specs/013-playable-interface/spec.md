@@ -10,7 +10,7 @@ Let a person who is not the operator play in the browser, end to end: create a m
 
 ## Functional requirements
 **Create and share**
-- FR-393: WHEN a visitor opens the start screen, THE SYSTEM SHALL offer "Crear partida": the public map list, a timing choice limited to the public bounds the server publishes (or refused by it), and a create button; the operator credential is never requested or stored.
+- FR-393: WHEN a visitor opens the start screen, THE SYSTEM SHALL offer "Crear partida": the public map list, a timing choice (Rápido / Normal / Lento) limited to the public bounds read from the public config read of spec 014 (this requirement is blocked until 014 is implemented; the rest of 013 is not), and a create button; the operator credential is never requested or stored.
 - FR-394: WHEN creation succeeds, THE SYSTEM SHALL keep the host token in the browser, show the match link with a copy button (and the phone share sheet where it exists) and enter the lobby.
 - FR-395: IF creation is refused (`too-many-matches`, `rate-limited`, invalid timing, network), THEN THE SYSTEM SHALL show one plain sentence per code and keep the form values.
 
@@ -22,7 +22,7 @@ Let a person who is not the operator play in the browser, end to end: create a m
 - FR-400: WHEN a `player-joined` event arrives, THE SYSTEM SHALL add the player to the list and never treat it as a protocol fault; joining a running match shows "Predices desde la próxima fase".
 
 **Prediction**
-- FR-401: WHILE phase 1 is open and the player has joined, THE SYSTEM SHALL let the player choose the victim from the HUD bar (living factions) and by tapping a living faction on the map, show the choice, allow changing it until the phase closes, and show the "already predicted" seal (010).
+- FR-401: WHILE phase 1 is open and the player has joined, THE SYSTEM SHALL let the player choose the victim from the HUD bar (living factions) and by tapping a living faction on the map, send the choice on the tap or click itself, with no confirm step, show it as sent, allow changing it by choosing another until the phase closes, and show the "already predicted" seal (010).
 - FR-402: WHILE phase 2 is open, THE SYSTEM SHALL do the same for the absorber among the candidates, ordered by territory count (largest first, ties by faction id).
 - FR-403: IF the round is forced, THEN THE SYSTEM SHALL offer no absorber choice, show "Absorbente forzado" with the faction, say that it gives no points, and use the shorter phase 2 the server sets.
 - FR-404: IF a submission is refused or fails (closed phase, forced absorber, network), THEN THE SYSTEM SHALL keep the previous choice, show one plain sentence and allow retry while the phase is open. A tap on the map while no phase is open or in replay does nothing but show the reason.
@@ -45,6 +45,9 @@ Let a person who is not the operator play in the browser, end to end: create a m
 - NFR-79: Anti-spoiler and determinism unchanged: no request for a future round; the displayed data is only what the server published; scans and goldens of 008, 009, 010 and 011 pass.
 - NFR-80: Pure parts (forms, name rule, token store, candidate order, banner and overlay state, camera-return rule, speed profile, results model) are tested in Node; no change in `packages/*`, `apps/server`, `tools`, `maps` unless a gap is approved.
 
+## Design (agreed with the user, 2026-11-01)
+Reuses the look of 010: wood panels with gilt rules, small-caps headings (Cormorant SC), Spectral text, parchment bands, the same buttons and chips. No new palette. Desktop: the bottom panel switches to "Tu predicción" while a phase is open; the chosen faction is outlined in gilt on the map; the lobby shows the players list on the left and the share panel (link, "Copiar enlace", "Empezar") bottom right over a dimmed map; the create screen is one wood panel on the parchment with map, pace and a create button. Phone: keeps the 010 skeleton (top bar, map between parchment bands, bottom dock with tabs Partida / Orden / Ranking); the dock shows players and "Empezar" in the lobby, "Tu predicción" in an open phase, and the ranking after a scored phase. Wireframes were shown in the session; the reviewed screenshots of done criterion 2 replace them.
+
 ## Edge cases
 Token present but the server answers unknown player (match removed): clear it and show the join screen. Two tabs, one player: both submit, the last wins. Join while the host starts: the start wins, the joiner lands in a running match. Name with accents or emoji: refused by the rule, message shows the allowed characters. Lobby `expired`: plain state with a link to create. Phase closing while a submission is in flight: the server answer rules. Host closes the tab: the lobby waits; others see the host is absent only if the server says so (none today).
 
@@ -58,7 +61,7 @@ Server, protocol, sim and map format changes; Discord bot; accounts, recovery, n
 4. One PR into `rewrite`; if it passes about 3,000 changed lines it splits into (a) create, join, lobby, token; (b) prediction and results; (c) banner, camera, tour, overlay, pinch.
 
 ## Open questions (answers: user 2026-11-01; OQ3 and OQ4 checked against the server code)
-- OQ1: decided: add a small public read with the allowed maps and the timing bounds. It is a server change, so it gets its own small Full-SDD spec (014), implemented before the create screen; the rest of 013 does not depend on it.
+- OQ1: decided: add a small public read (spec 014) with the allowed maps and the timing bounds. It is a server change, so it gets its own small Full-SDD spec (014), implemented before the create screen; the rest of 013 does not depend on it.
 - OQ2: open (deployment shape). For local development the viewer reads the server origin `http://127.0.0.1:8787` and the server allows only the configured origin; the production shape is decided with the first deployment.
 - OQ3: answered by the code: `forced` is in the public victim data and in `victim-revealed`, available when phase 2 starts.
 - OQ4: answered by the code: `GET /matches/:id/predictions` with the player token returns the player's own predictions and `GET /matches/:id/players/:playerId/results` the scored ones.
