@@ -39,7 +39,7 @@ Spec: `spec.md`. Plan: `plan.md`. Branch: `feat/014-public-config`. One mileston
   - Done when: tests green; mutations caught; FR-416 moved (1 / 11).
   - Size: M (about 350).
 
-- [ ] **T3. Service read from the settings (same object as creation).** FR-414
+- [x] **T3. Service read from the settings (same object as creation).** FR-414
   - Depends on: T2.
   - Files: `apps/server/src/service/public-config.ts` (new), `apps/server/src/service/matches.ts` (`publicConfig()`), `apps/server/test/service-public-config.test.ts`.
   - Tests first: defaults (empty maps: `enabled` false, `[]`, 30 / 3600 / 10 / 5, cap 200); operator values published as set; map order kept, one and many maps; disabled keeps bounds and cap; a new map list set on the service's settings object changes the next read (one object, no copy); the result is a fresh array; sentinel values in every non-public setting never appear; no storage access (the read answers with a throwing store seam).

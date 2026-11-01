@@ -1,5 +1,5 @@
 # Progress 014 — Public match config read
-Branch: `feat/014-public-config`. Ledger (done / pending of 12): 1 / 11.
+Branch: `feat/014-public-config`. Ledger (done / pending of 12): 2 / 10.
 
 Entry format per task: what changed · tests run and results · mutation proofs (mutant -> test that failed) · untested · next step.
 
@@ -21,3 +21,10 @@ No re-pin expected (plan section 1). Record here any exception with its reason.
 - Tests: red first (36 of 37 failed before the code). Green: `npm test` 304 files / 4840 passed / 4 skipped; typecheck green; `CI=1 npm test` same.
 - Mutations (full `npm test` each, restored byte for byte): two keys swapped in `PUBLIC_CONFIG_KEYS` -> 8 failures (key list, 3 text, literal, SHA pins); `enabled` dropped from the written keys -> text and SHA tests fail; decoder key set widened to the input's own keys -> "refuses an unknown field"; decoder `isMapId` skipped -> "map id of a bad shape"; encoder `JSON.stringify(config)` -> "key order whatever the input order" and "refuses a value out of shape".
 - Untested: nothing server-side yet. Next: T3 (service read, FR-414).
+
+### T3 Service read from the settings (ledger 2 / 10: FR-414)
+- Changed: `apps/server/src/service/public-config.ts` (new, pure `publicConfigOf(settings)`, field by field, fresh array), `matches.ts` (`publicConfig()` on `MatchService`, reads the service's own `settings` object at call time, returns `{ ok: true, reply }`), `apps/server/test/service-public-config.test.ts` (12 tests), `traceability.test.ts` (FR-414 done).
+- Existing tests touched (one entry each, reason: the service gained one method): the three pinned method lists in `service-create.test.ts`, `service-no-recovery.test.ts`, `service-seam.test.ts` now include `publicConfig` (sorted between `players` and `publicMatch`). Nothing else changed.
+- Tests: red first (module missing). Green: `npm test` 305 files / 4852 passed / 4 skipped; typecheck green; `CI=1 npm test` same.
+- Mutations (full `npm test` each, restored byte for byte): `enabled` as `length >= 0` -> 4 failures; `enabled: true` -> 4; `maxInterval` read from `minInterval` -> 6; `maxPlayers` omitted -> 8; maps `.sort()` -> 3 (order tests); snapshot of the config taken when the service is built -> 2 ("one object, no copy" test). Before the method lists were extended, the mutants also tripped the three pinned lists (that run is not counted).
+- Untested: the HTTP surface (T4). Next: T4 (route, FR-413 / FR-418 / FR-419).
