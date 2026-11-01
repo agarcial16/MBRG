@@ -1,0 +1,1137 @@
+{
+  "note": "Lobby goldens of spec 011 (FR-390, FR-392): for each dev secret, the roster (text sent and name stored, in join order), the predictions (concrete factions; `before` is the index of the step they are sent before), the events and public views of the lobby flow (public creation, clock timing) and of the operator flow (manual timing), the phase results with names, the who-guessed-right lists, the players results and the leaderboard at the end. A player is keyed by its name, a client player by its namespaced id. Written by generate-dev-lobby.ts from dev-secrets.json, the sim exports and its own arithmetic.",
+  "secrets": {
+    "ascending-00-1f": {
+      "roster": [
+        {"sent":"Ana","name":"Ana","joinStep":-1},
+        {"sent":" José ","name":"José","joinStep":-1},
+        {"sent":"Zoë-Ñ.9","name":"Zoë-Ñ.9","joinStep":-1},
+        {"sent":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","name":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","joinStep":-1},
+        {"sent":"X","name":"X","joinStep":-1},
+        {"sent":"Late Joiner","name":"Late Joiner","joinStep":3}
+      ],
+      "clients": ["web:p1","discord:p1"],
+      "predictions": [
+        {"before":0,"who":"Ana","kind":"winner","faction":1},
+        {"before":0,"who":"José","kind":"winner","faction":2},
+        {"before":0,"who":"web:p1","kind":"winner","faction":2},
+        {"before":0,"who":"Ana","kind":"victim","round":1,"faction":2},
+        {"before":0,"who":"José","kind":"victim","round":1,"faction":1},
+        {"before":0,"who":"Zoë-Ñ.9","kind":"victim","round":1,"faction":1},
+        {"before":0,"who":"Zoë-Ñ.9","kind":"victim","round":1,"faction":2},
+        {"before":0,"who":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","kind":"victim","round":1,"faction":1},
+        {"before":0,"who":"web:p1","kind":"victim","round":1,"faction":2},
+        {"before":0,"who":"discord:p1","kind":"victim","round":1,"faction":1},
+        {"before":1,"who":"Ana","kind":"absorber","round":1,"faction":5},
+        {"before":1,"who":"José","kind":"absorber","round":1,"faction":3},
+        {"before":1,"who":"Zoë-Ñ.9","kind":"absorber","round":1,"faction":5},
+        {"before":1,"who":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","kind":"absorber","round":1,"faction":3},
+        {"before":1,"who":"web:p1","kind":"absorber","round":1,"faction":5},
+        {"before":1,"who":"José","kind":"winner","faction":1},
+        {"before":3,"who":"Late Joiner","kind":"victim","round":2,"faction":3},
+        {"before":3,"who":"Ana","kind":"victim","round":2,"faction":1},
+        {"before":3,"who":"Zoë-Ñ.9","kind":"victim","round":2,"faction":3},
+        {"before":3,"who":"José","kind":"victim","round":2,"faction":3},
+        {"before":4,"who":"Late Joiner","kind":"absorber","round":2,"faction":1},
+        {"before":4,"who":"Ana","kind":"absorber","round":2,"faction":1},
+        {"before":4,"who":"Zoë-Ñ.9","kind":"absorber","round":2,"faction":5},
+        {"before":6,"who":"Ana","kind":"victim","round":3,"faction":4},
+        {"before":6,"who":"Late Joiner","kind":"victim","round":3,"faction":1},
+        {"before":6,"who":"web:p1","kind":"victim","round":3,"faction":4},
+        {"before":7,"who":"Ana","kind":"absorber","round":3,"faction":5},
+        {"before":7,"who":"Late Joiner","kind":"absorber","round":3,"faction":5},
+        {"before":7,"who":"Late Joiner","kind":"winner","faction":1},
+        {"before":9,"who":"Ana","kind":"victim","round":4,"faction":5},
+        {"before":9,"who":"Late Joiner","kind":"victim","round":4,"faction":5}
+      ],
+      "lobbyEvents": [
+        {"seq":1,"type":"schedule","stage":"lobby"},
+        {"seq":2,"type":"player-joined","name":"Ana"},
+        {"seq":3,"type":"player-joined","name":"José"},
+        {"seq":4,"type":"player-joined","name":"Zoë-Ñ.9"},
+        {"seq":5,"type":"player-joined","name":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa"},
+        {"seq":6,"type":"player-joined","name":"X"},
+        {"seq":7,"type":"schedule","stage":"phase-1"},
+        {"seq":8,"type":"phase-closed","round":1,"phase":1},
+        {"seq":9,"type":"victim-revealed","round":1,"victim":2},
+        {"seq":10,"type":"results","round":1,"phase":1},
+        {"seq":11,"type":"schedule","stage":"phase-2"},
+        {"seq":12,"type":"phase-closed","round":1,"phase":2},
+        {"seq":13,"type":"schedule","stage":"locked"},
+        {"seq":14,"type":"round-applied","round":1,"eliminated":2,"absorber":5},
+        {"seq":15,"type":"results","round":1,"phase":2},
+        {"seq":16,"type":"schedule","stage":"phase-1"},
+        {"seq":17,"type":"player-joined","name":"Late Joiner"},
+        {"seq":18,"type":"phase-closed","round":2,"phase":1},
+        {"seq":19,"type":"victim-revealed","round":2,"victim":3},
+        {"seq":20,"type":"results","round":2,"phase":1},
+        {"seq":21,"type":"schedule","stage":"phase-2"},
+        {"seq":22,"type":"phase-closed","round":2,"phase":2},
+        {"seq":23,"type":"schedule","stage":"locked"},
+        {"seq":24,"type":"round-applied","round":2,"eliminated":3,"absorber":1},
+        {"seq":25,"type":"results","round":2,"phase":2},
+        {"seq":26,"type":"schedule","stage":"phase-1"},
+        {"seq":27,"type":"phase-closed","round":3,"phase":1},
+        {"seq":28,"type":"victim-revealed","round":3,"victim":4},
+        {"seq":29,"type":"results","round":3,"phase":1},
+        {"seq":30,"type":"schedule","stage":"phase-2"},
+        {"seq":31,"type":"phase-closed","round":3,"phase":2},
+        {"seq":32,"type":"schedule","stage":"locked"},
+        {"seq":33,"type":"round-applied","round":3,"eliminated":4,"absorber":5},
+        {"seq":34,"type":"results","round":3,"phase":2},
+        {"seq":35,"type":"schedule","stage":"phase-1"},
+        {"seq":36,"type":"phase-closed","round":4,"phase":1},
+        {"seq":37,"type":"victim-revealed","round":4,"victim":5,"forced":true},
+        {"seq":38,"type":"results","round":4,"phase":1},
+        {"seq":39,"type":"schedule","stage":"phase-2"},
+        {"seq":40,"type":"phase-closed","round":4,"phase":2},
+        {"seq":41,"type":"schedule","stage":"locked"},
+        {"seq":42,"type":"round-applied","round":4,"eliminated":5,"absorber":1},
+        {"seq":43,"type":"results","round":4,"phase":2},
+        {"seq":44,"type":"match-finished","winner":1}
+      ],
+      "lobbyViews": [
+        {"label":"created","stage":"lobby","appliedRounds":0,"playerCount":0,"lastSeq":1},
+        {"label":"joined Ana","stage":"lobby","appliedRounds":0,"playerCount":1,"lastSeq":2},
+        {"label":"joined José","stage":"lobby","appliedRounds":0,"playerCount":2,"lastSeq":3},
+        {"label":"joined Zoë-Ñ.9","stage":"lobby","appliedRounds":0,"playerCount":3,"lastSeq":4},
+        {"label":"joined ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","stage":"lobby","appliedRounds":0,"playerCount":4,"lastSeq":5},
+        {"label":"joined X","stage":"lobby","appliedRounds":0,"playerCount":5,"lastSeq":6},
+        {"label":"started","stage":"phase-1","appliedRounds":0,"playerCount":5,"lastSeq":7},
+        {"label":"step 0","stage":"phase-2","appliedRounds":0,"playerCount":5,"lastSeq":11},
+        {"label":"step 1","stage":"locked","appliedRounds":0,"playerCount":5,"lastSeq":13},
+        {"label":"step 2","stage":"phase-1","appliedRounds":1,"playerCount":5,"lastSeq":16},
+        {"label":"joined Late Joiner","stage":"phase-1","appliedRounds":1,"playerCount":6,"lastSeq":17},
+        {"label":"step 3","stage":"phase-2","appliedRounds":1,"playerCount":6,"lastSeq":21},
+        {"label":"step 4","stage":"locked","appliedRounds":1,"playerCount":6,"lastSeq":23},
+        {"label":"step 5","stage":"phase-1","appliedRounds":2,"playerCount":6,"lastSeq":26},
+        {"label":"step 6","stage":"phase-2","appliedRounds":2,"playerCount":6,"lastSeq":30},
+        {"label":"step 7","stage":"locked","appliedRounds":2,"playerCount":6,"lastSeq":32},
+        {"label":"step 8","stage":"phase-1","appliedRounds":3,"playerCount":6,"lastSeq":35},
+        {"label":"step 9","stage":"phase-2","appliedRounds":3,"playerCount":6,"lastSeq":39},
+        {"label":"step 10","stage":"locked","appliedRounds":3,"playerCount":6,"lastSeq":41},
+        {"label":"step 11","stage":"finished","appliedRounds":4,"playerCount":6,"lastSeq":44}
+      ],
+      "operatorEvents": [
+        {"seq":1,"type":"schedule","stage":"phase-1"},
+        {"seq":2,"type":"player-joined","name":"Ana"},
+        {"seq":3,"type":"player-joined","name":"José"},
+        {"seq":4,"type":"player-joined","name":"Zoë-Ñ.9"},
+        {"seq":5,"type":"player-joined","name":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa"},
+        {"seq":6,"type":"player-joined","name":"X"},
+        {"seq":7,"type":"phase-closed","round":1,"phase":1},
+        {"seq":8,"type":"victim-revealed","round":1,"victim":2},
+        {"seq":9,"type":"results","round":1,"phase":1},
+        {"seq":10,"type":"schedule","stage":"phase-2"},
+        {"seq":11,"type":"phase-closed","round":1,"phase":2},
+        {"seq":12,"type":"schedule","stage":"locked"},
+        {"seq":13,"type":"round-applied","round":1,"eliminated":2,"absorber":5},
+        {"seq":14,"type":"results","round":1,"phase":2},
+        {"seq":15,"type":"schedule","stage":"phase-1"},
+        {"seq":16,"type":"player-joined","name":"Late Joiner"},
+        {"seq":17,"type":"phase-closed","round":2,"phase":1},
+        {"seq":18,"type":"victim-revealed","round":2,"victim":3},
+        {"seq":19,"type":"results","round":2,"phase":1},
+        {"seq":20,"type":"schedule","stage":"phase-2"},
+        {"seq":21,"type":"phase-closed","round":2,"phase":2},
+        {"seq":22,"type":"schedule","stage":"locked"},
+        {"seq":23,"type":"round-applied","round":2,"eliminated":3,"absorber":1},
+        {"seq":24,"type":"results","round":2,"phase":2},
+        {"seq":25,"type":"schedule","stage":"phase-1"},
+        {"seq":26,"type":"phase-closed","round":3,"phase":1},
+        {"seq":27,"type":"victim-revealed","round":3,"victim":4},
+        {"seq":28,"type":"results","round":3,"phase":1},
+        {"seq":29,"type":"schedule","stage":"phase-2"},
+        {"seq":30,"type":"phase-closed","round":3,"phase":2},
+        {"seq":31,"type":"schedule","stage":"locked"},
+        {"seq":32,"type":"round-applied","round":3,"eliminated":4,"absorber":5},
+        {"seq":33,"type":"results","round":3,"phase":2},
+        {"seq":34,"type":"schedule","stage":"phase-1"},
+        {"seq":35,"type":"phase-closed","round":4,"phase":1},
+        {"seq":36,"type":"victim-revealed","round":4,"victim":5,"forced":true},
+        {"seq":37,"type":"results","round":4,"phase":1},
+        {"seq":38,"type":"schedule","stage":"phase-2"},
+        {"seq":39,"type":"phase-closed","round":4,"phase":2},
+        {"seq":40,"type":"schedule","stage":"locked"},
+        {"seq":41,"type":"round-applied","round":4,"eliminated":5,"absorber":1},
+        {"seq":42,"type":"results","round":4,"phase":2},
+        {"seq":43,"type":"match-finished","winner":1}
+      ],
+      "operatorViews": [
+        {"label":"created","stage":"phase-1","appliedRounds":0,"playerCount":null,"lastSeq":1},
+        {"label":"joined Ana","stage":"phase-1","appliedRounds":0,"playerCount":1,"lastSeq":2},
+        {"label":"joined José","stage":"phase-1","appliedRounds":0,"playerCount":2,"lastSeq":3},
+        {"label":"joined Zoë-Ñ.9","stage":"phase-1","appliedRounds":0,"playerCount":3,"lastSeq":4},
+        {"label":"joined ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","stage":"phase-1","appliedRounds":0,"playerCount":4,"lastSeq":5},
+        {"label":"joined X","stage":"phase-1","appliedRounds":0,"playerCount":5,"lastSeq":6},
+        {"label":"step 0","stage":"phase-2","appliedRounds":0,"playerCount":5,"lastSeq":10},
+        {"label":"step 1","stage":"locked","appliedRounds":0,"playerCount":5,"lastSeq":12},
+        {"label":"step 2","stage":"phase-1","appliedRounds":1,"playerCount":5,"lastSeq":15},
+        {"label":"joined Late Joiner","stage":"phase-1","appliedRounds":1,"playerCount":6,"lastSeq":16},
+        {"label":"step 3","stage":"phase-2","appliedRounds":1,"playerCount":6,"lastSeq":20},
+        {"label":"step 4","stage":"locked","appliedRounds":1,"playerCount":6,"lastSeq":22},
+        {"label":"step 5","stage":"phase-1","appliedRounds":2,"playerCount":6,"lastSeq":25},
+        {"label":"step 6","stage":"phase-2","appliedRounds":2,"playerCount":6,"lastSeq":29},
+        {"label":"step 7","stage":"locked","appliedRounds":2,"playerCount":6,"lastSeq":31},
+        {"label":"step 8","stage":"phase-1","appliedRounds":3,"playerCount":6,"lastSeq":34},
+        {"label":"step 9","stage":"phase-2","appliedRounds":3,"playerCount":6,"lastSeq":38},
+        {"label":"step 10","stage":"locked","appliedRounds":3,"playerCount":6,"lastSeq":40},
+        {"label":"step 11","stage":"finished","appliedRounds":4,"playerCount":6,"lastSeq":43}
+      ],
+      "phaseResults": {
+        "1/1": {
+          "round": 1,
+          "phase": 1,
+          "victim": 2,
+          "items": [
+            {"who":"Ana","name":"Ana","choice":2,"correct":true,"points":5},
+            {"who":"José","name":"José","choice":1,"correct":false,"points":0},
+            {"who":"Zoë-Ñ.9","name":"Zoë-Ñ.9","choice":2,"correct":true,"points":5},
+            {"who":"discord:p1","choice":1,"correct":false,"points":0},
+            {"who":"web:p1","choice":2,"correct":true,"points":5},
+            {"who":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","name":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","choice":1,"correct":false,"points":0}
+          ]
+        },
+        "1/2": {
+          "round": 1,
+          "phase": 2,
+          "record": {"round":1,"eliminated":2,"absorber":5,"transferred":[17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]},
+          "items": [
+            {"who":"Ana","name":"Ana","choice":5,"correct":true,"points":3},
+            {"who":"José","name":"José","choice":3,"correct":false,"points":0},
+            {"who":"Zoë-Ñ.9","name":"Zoë-Ñ.9","choice":5,"correct":true,"points":3},
+            {"who":"web:p1","choice":5,"correct":true,"points":3},
+            {"who":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","name":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","choice":3,"correct":false,"points":0}
+          ]
+        },
+        "2/1": {
+          "round": 2,
+          "phase": 1,
+          "victim": 3,
+          "items": [
+            {"who":"Ana","name":"Ana","choice":1,"correct":false,"points":0},
+            {"who":"José","name":"José","choice":3,"correct":true,"points":4},
+            {"who":"Late Joiner","name":"Late Joiner","choice":3,"correct":true,"points":4},
+            {"who":"Zoë-Ñ.9","name":"Zoë-Ñ.9","choice":3,"correct":true,"points":4}
+          ]
+        },
+        "2/2": {
+          "round": 2,
+          "phase": 2,
+          "record": {"round":2,"eliminated":3,"absorber":1,"transferred":[33,34,35,36,37,38,39,40,41,42,43,44,45]},
+          "items": [
+            {"who":"Ana","name":"Ana","choice":1,"correct":true,"points":3},
+            {"who":"Late Joiner","name":"Late Joiner","choice":1,"correct":true,"points":3},
+            {"who":"Zoë-Ñ.9","name":"Zoë-Ñ.9","choice":5,"correct":false,"points":0}
+          ]
+        },
+        "3/1": {
+          "round": 3,
+          "phase": 1,
+          "victim": 4,
+          "items": [
+            {"who":"Ana","name":"Ana","choice":4,"correct":true,"points":3},
+            {"who":"Late Joiner","name":"Late Joiner","choice":1,"correct":false,"points":0},
+            {"who":"web:p1","choice":4,"correct":true,"points":3}
+          ]
+        },
+        "3/2": {
+          "round": 3,
+          "phase": 2,
+          "record": {"round":3,"eliminated":4,"absorber":5,"transferred":[46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65]},
+          "items": [
+            {"who":"Ana","name":"Ana","choice":5,"correct":true,"points":2},
+            {"who":"Late Joiner","name":"Late Joiner","choice":5,"correct":true,"points":2}
+          ]
+        },
+        "4/1": {
+          "round": 4,
+          "phase": 1,
+          "victim": 5,
+          "items": [
+            {"who":"Ana","name":"Ana","choice":5,"correct":true,"points":2},
+            {"who":"Late Joiner","name":"Late Joiner","choice":5,"correct":true,"points":2}
+          ]
+        },
+        "4/2": {
+          "round": 4,
+          "phase": 2,
+          "record": {
+            "round": 4,
+            "eliminated": 5,
+            "absorber": 1,
+            "transferred": [17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70]
+          },
+          "items": []
+        }
+      },
+      "winners": {
+        "1/1": ["Ana","Zoë-Ñ.9"],
+        "1/2": ["Ana","Zoë-Ñ.9"],
+        "2/1": ["José","Late Joiner","Zoë-Ñ.9"],
+        "2/2": ["Ana","Late Joiner"],
+        "3/1": ["Ana"],
+        "3/2": ["Ana","Late Joiner"],
+        "4/1": ["Ana","Late Joiner"],
+        "4/2": []
+      },
+      "players": {
+        "Ana": {
+          "who": "Ana",
+          "name": "Ana",
+          "total": 23,
+          "items": [
+            {"kind":"winner","choice":1,"correct":true,"points":5},
+            {"kind":"absorber","round":1,"choice":5,"correct":true,"points":3},
+            {"kind":"victim","round":1,"choice":2,"correct":true,"points":5},
+            {"kind":"absorber","round":2,"choice":1,"correct":true,"points":3},
+            {"kind":"victim","round":2,"choice":1,"correct":false,"points":0},
+            {"kind":"absorber","round":3,"choice":5,"correct":true,"points":2},
+            {"kind":"victim","round":3,"choice":4,"correct":true,"points":3},
+            {"kind":"victim","round":4,"choice":5,"correct":true,"points":2}
+          ]
+        },
+        "José": {
+          "who": "José",
+          "name": "José",
+          "total": 8,
+          "items": [
+            {"kind":"winner","choice":1,"correct":true,"points":4},
+            {"kind":"absorber","round":1,"choice":3,"correct":false,"points":0},
+            {"kind":"victim","round":1,"choice":1,"correct":false,"points":0},
+            {"kind":"victim","round":2,"choice":3,"correct":true,"points":4}
+          ]
+        },
+        "Zoë-Ñ.9": {
+          "who": "Zoë-Ñ.9",
+          "name": "Zoë-Ñ.9",
+          "total": 12,
+          "items": [
+            {"kind":"absorber","round":1,"choice":5,"correct":true,"points":3},
+            {"kind":"victim","round":1,"choice":2,"correct":true,"points":5},
+            {"kind":"absorber","round":2,"choice":5,"correct":false,"points":0},
+            {"kind":"victim","round":2,"choice":3,"correct":true,"points":4}
+          ]
+        },
+        "ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa": {
+          "who": "ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa",
+          "name": "ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa",
+          "total": 0,
+          "items": [{"kind":"absorber","round":1,"choice":3,"correct":false,"points":0},{"kind":"victim","round":1,"choice":1,"correct":false,"points":0}]
+        },
+        "X": {"who":"X","name":"X","total":0,"items":[]},
+        "Late Joiner": {
+          "who": "Late Joiner",
+          "name": "Late Joiner",
+          "total": 13,
+          "items": [
+            {"kind":"winner","choice":1,"correct":true,"points":2},
+            {"kind":"absorber","round":2,"choice":1,"correct":true,"points":3},
+            {"kind":"victim","round":2,"choice":3,"correct":true,"points":4},
+            {"kind":"absorber","round":3,"choice":5,"correct":true,"points":2},
+            {"kind":"victim","round":3,"choice":1,"correct":false,"points":0},
+            {"kind":"victim","round":4,"choice":5,"correct":true,"points":2}
+          ]
+        },
+        "web:p1": {
+          "who": "web:p1",
+          "total": 11,
+          "items": [
+            {"kind":"winner","choice":2,"correct":false,"points":0},
+            {"kind":"absorber","round":1,"choice":5,"correct":true,"points":3},
+            {"kind":"victim","round":1,"choice":2,"correct":true,"points":5},
+            {"kind":"victim","round":3,"choice":4,"correct":true,"points":3}
+          ]
+        },
+        "discord:p1": {"who":"discord:p1","total":0,"items":[{"kind":"victim","round":1,"choice":1,"correct":false,"points":0}]},
+        "web:nobody": {"who":"web:nobody","total":0,"items":[]}
+      },
+      "leaderboard": [
+        {"rank":1,"who":"Ana","name":"Ana","total":23,"correctVictims":3,"correctAbsorbers":3,"correctWinner":1},
+        {"rank":2,"who":"Late Joiner","name":"Late Joiner","total":13,"correctVictims":2,"correctAbsorbers":2,"correctWinner":1},
+        {"rank":3,"who":"Zoë-Ñ.9","name":"Zoë-Ñ.9","total":12,"correctVictims":2,"correctAbsorbers":1,"correctWinner":0},
+        {"rank":4,"who":"web:p1","total":11,"correctVictims":2,"correctAbsorbers":1,"correctWinner":0},
+        {"rank":5,"who":"José","name":"José","total":8,"correctVictims":1,"correctAbsorbers":0,"correctWinner":1},
+        {"rank":6,"who":"discord:p1","total":0,"correctVictims":0,"correctAbsorbers":0,"correctWinner":0},
+        {
+          "rank": 6,
+          "who": "ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa",
+          "name": "ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa",
+          "total": 0,
+          "correctVictims": 0,
+          "correctAbsorbers": 0,
+          "correctWinner": 0
+        }
+      ]
+    },
+    "ascending-20-3f": {
+      "roster": [
+        {"sent":"Ana","name":"Ana","joinStep":-1},
+        {"sent":" José ","name":"José","joinStep":-1},
+        {"sent":"Zoë-Ñ.9","name":"Zoë-Ñ.9","joinStep":-1},
+        {"sent":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","name":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","joinStep":-1},
+        {"sent":"X","name":"X","joinStep":-1},
+        {"sent":"Late Joiner","name":"Late Joiner","joinStep":3}
+      ],
+      "clients": ["web:p1","discord:p1"],
+      "predictions": [
+        {"before":0,"who":"Ana","kind":"winner","faction":1},
+        {"before":0,"who":"José","kind":"winner","faction":2},
+        {"before":0,"who":"web:p1","kind":"winner","faction":2},
+        {"before":0,"who":"Ana","kind":"victim","round":1,"faction":3},
+        {"before":0,"who":"José","kind":"victim","round":1,"faction":1},
+        {"before":0,"who":"Zoë-Ñ.9","kind":"victim","round":1,"faction":1},
+        {"before":0,"who":"Zoë-Ñ.9","kind":"victim","round":1,"faction":3},
+        {"before":0,"who":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","kind":"victim","round":1,"faction":1},
+        {"before":0,"who":"web:p1","kind":"victim","round":1,"faction":3},
+        {"before":0,"who":"discord:p1","kind":"victim","round":1,"faction":1},
+        {"before":1,"who":"Ana","kind":"absorber","round":1,"faction":1},
+        {"before":1,"who":"José","kind":"absorber","round":1,"faction":2},
+        {"before":1,"who":"Zoë-Ñ.9","kind":"absorber","round":1,"faction":1},
+        {"before":1,"who":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","kind":"absorber","round":1,"faction":2},
+        {"before":1,"who":"web:p1","kind":"absorber","round":1,"faction":1},
+        {"before":1,"who":"José","kind":"winner","faction":1},
+        {"before":3,"who":"Late Joiner","kind":"victim","round":2,"faction":4},
+        {"before":3,"who":"Ana","kind":"victim","round":2,"faction":1},
+        {"before":3,"who":"Zoë-Ñ.9","kind":"victim","round":2,"faction":4},
+        {"before":3,"who":"José","kind":"victim","round":2,"faction":4},
+        {"before":4,"who":"Late Joiner","kind":"absorber","round":2,"faction":2},
+        {"before":4,"who":"Ana","kind":"absorber","round":2,"faction":2},
+        {"before":4,"who":"Zoë-Ñ.9","kind":"absorber","round":2,"faction":1},
+        {"before":6,"who":"Ana","kind":"victim","round":3,"faction":2},
+        {"before":6,"who":"Late Joiner","kind":"victim","round":3,"faction":1},
+        {"before":6,"who":"web:p1","kind":"victim","round":3,"faction":2},
+        {"before":7,"who":"Ana","kind":"absorber","round":3,"faction":1},
+        {"before":7,"who":"Late Joiner","kind":"absorber","round":3,"faction":1},
+        {"before":7,"who":"Late Joiner","kind":"winner","faction":1},
+        {"before":9,"who":"Ana","kind":"victim","round":4,"faction":5},
+        {"before":9,"who":"Late Joiner","kind":"victim","round":4,"faction":5}
+      ],
+      "lobbyEvents": [
+        {"seq":1,"type":"schedule","stage":"lobby"},
+        {"seq":2,"type":"player-joined","name":"Ana"},
+        {"seq":3,"type":"player-joined","name":"José"},
+        {"seq":4,"type":"player-joined","name":"Zoë-Ñ.9"},
+        {"seq":5,"type":"player-joined","name":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa"},
+        {"seq":6,"type":"player-joined","name":"X"},
+        {"seq":7,"type":"schedule","stage":"phase-1"},
+        {"seq":8,"type":"phase-closed","round":1,"phase":1},
+        {"seq":9,"type":"victim-revealed","round":1,"victim":3},
+        {"seq":10,"type":"results","round":1,"phase":1},
+        {"seq":11,"type":"schedule","stage":"phase-2"},
+        {"seq":12,"type":"phase-closed","round":1,"phase":2},
+        {"seq":13,"type":"schedule","stage":"locked"},
+        {"seq":14,"type":"round-applied","round":1,"eliminated":3,"absorber":1},
+        {"seq":15,"type":"results","round":1,"phase":2},
+        {"seq":16,"type":"schedule","stage":"phase-1"},
+        {"seq":17,"type":"player-joined","name":"Late Joiner"},
+        {"seq":18,"type":"phase-closed","round":2,"phase":1},
+        {"seq":19,"type":"victim-revealed","round":2,"victim":4},
+        {"seq":20,"type":"results","round":2,"phase":1},
+        {"seq":21,"type":"schedule","stage":"phase-2"},
+        {"seq":22,"type":"phase-closed","round":2,"phase":2},
+        {"seq":23,"type":"schedule","stage":"locked"},
+        {"seq":24,"type":"round-applied","round":2,"eliminated":4,"absorber":2},
+        {"seq":25,"type":"results","round":2,"phase":2},
+        {"seq":26,"type":"schedule","stage":"phase-1"},
+        {"seq":27,"type":"phase-closed","round":3,"phase":1},
+        {"seq":28,"type":"victim-revealed","round":3,"victim":2},
+        {"seq":29,"type":"results","round":3,"phase":1},
+        {"seq":30,"type":"schedule","stage":"phase-2"},
+        {"seq":31,"type":"phase-closed","round":3,"phase":2},
+        {"seq":32,"type":"schedule","stage":"locked"},
+        {"seq":33,"type":"round-applied","round":3,"eliminated":2,"absorber":1},
+        {"seq":34,"type":"results","round":3,"phase":2},
+        {"seq":35,"type":"schedule","stage":"phase-1"},
+        {"seq":36,"type":"phase-closed","round":4,"phase":1},
+        {"seq":37,"type":"victim-revealed","round":4,"victim":5,"forced":true},
+        {"seq":38,"type":"results","round":4,"phase":1},
+        {"seq":39,"type":"schedule","stage":"phase-2"},
+        {"seq":40,"type":"phase-closed","round":4,"phase":2},
+        {"seq":41,"type":"schedule","stage":"locked"},
+        {"seq":42,"type":"round-applied","round":4,"eliminated":5,"absorber":1},
+        {"seq":43,"type":"results","round":4,"phase":2},
+        {"seq":44,"type":"match-finished","winner":1}
+      ],
+      "lobbyViews": [
+        {"label":"created","stage":"lobby","appliedRounds":0,"playerCount":0,"lastSeq":1},
+        {"label":"joined Ana","stage":"lobby","appliedRounds":0,"playerCount":1,"lastSeq":2},
+        {"label":"joined José","stage":"lobby","appliedRounds":0,"playerCount":2,"lastSeq":3},
+        {"label":"joined Zoë-Ñ.9","stage":"lobby","appliedRounds":0,"playerCount":3,"lastSeq":4},
+        {"label":"joined ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","stage":"lobby","appliedRounds":0,"playerCount":4,"lastSeq":5},
+        {"label":"joined X","stage":"lobby","appliedRounds":0,"playerCount":5,"lastSeq":6},
+        {"label":"started","stage":"phase-1","appliedRounds":0,"playerCount":5,"lastSeq":7},
+        {"label":"step 0","stage":"phase-2","appliedRounds":0,"playerCount":5,"lastSeq":11},
+        {"label":"step 1","stage":"locked","appliedRounds":0,"playerCount":5,"lastSeq":13},
+        {"label":"step 2","stage":"phase-1","appliedRounds":1,"playerCount":5,"lastSeq":16},
+        {"label":"joined Late Joiner","stage":"phase-1","appliedRounds":1,"playerCount":6,"lastSeq":17},
+        {"label":"step 3","stage":"phase-2","appliedRounds":1,"playerCount":6,"lastSeq":21},
+        {"label":"step 4","stage":"locked","appliedRounds":1,"playerCount":6,"lastSeq":23},
+        {"label":"step 5","stage":"phase-1","appliedRounds":2,"playerCount":6,"lastSeq":26},
+        {"label":"step 6","stage":"phase-2","appliedRounds":2,"playerCount":6,"lastSeq":30},
+        {"label":"step 7","stage":"locked","appliedRounds":2,"playerCount":6,"lastSeq":32},
+        {"label":"step 8","stage":"phase-1","appliedRounds":3,"playerCount":6,"lastSeq":35},
+        {"label":"step 9","stage":"phase-2","appliedRounds":3,"playerCount":6,"lastSeq":39},
+        {"label":"step 10","stage":"locked","appliedRounds":3,"playerCount":6,"lastSeq":41},
+        {"label":"step 11","stage":"finished","appliedRounds":4,"playerCount":6,"lastSeq":44}
+      ],
+      "operatorEvents": [
+        {"seq":1,"type":"schedule","stage":"phase-1"},
+        {"seq":2,"type":"player-joined","name":"Ana"},
+        {"seq":3,"type":"player-joined","name":"José"},
+        {"seq":4,"type":"player-joined","name":"Zoë-Ñ.9"},
+        {"seq":5,"type":"player-joined","name":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa"},
+        {"seq":6,"type":"player-joined","name":"X"},
+        {"seq":7,"type":"phase-closed","round":1,"phase":1},
+        {"seq":8,"type":"victim-revealed","round":1,"victim":3},
+        {"seq":9,"type":"results","round":1,"phase":1},
+        {"seq":10,"type":"schedule","stage":"phase-2"},
+        {"seq":11,"type":"phase-closed","round":1,"phase":2},
+        {"seq":12,"type":"schedule","stage":"locked"},
+        {"seq":13,"type":"round-applied","round":1,"eliminated":3,"absorber":1},
+        {"seq":14,"type":"results","round":1,"phase":2},
+        {"seq":15,"type":"schedule","stage":"phase-1"},
+        {"seq":16,"type":"player-joined","name":"Late Joiner"},
+        {"seq":17,"type":"phase-closed","round":2,"phase":1},
+        {"seq":18,"type":"victim-revealed","round":2,"victim":4},
+        {"seq":19,"type":"results","round":2,"phase":1},
+        {"seq":20,"type":"schedule","stage":"phase-2"},
+        {"seq":21,"type":"phase-closed","round":2,"phase":2},
+        {"seq":22,"type":"schedule","stage":"locked"},
+        {"seq":23,"type":"round-applied","round":2,"eliminated":4,"absorber":2},
+        {"seq":24,"type":"results","round":2,"phase":2},
+        {"seq":25,"type":"schedule","stage":"phase-1"},
+        {"seq":26,"type":"phase-closed","round":3,"phase":1},
+        {"seq":27,"type":"victim-revealed","round":3,"victim":2},
+        {"seq":28,"type":"results","round":3,"phase":1},
+        {"seq":29,"type":"schedule","stage":"phase-2"},
+        {"seq":30,"type":"phase-closed","round":3,"phase":2},
+        {"seq":31,"type":"schedule","stage":"locked"},
+        {"seq":32,"type":"round-applied","round":3,"eliminated":2,"absorber":1},
+        {"seq":33,"type":"results","round":3,"phase":2},
+        {"seq":34,"type":"schedule","stage":"phase-1"},
+        {"seq":35,"type":"phase-closed","round":4,"phase":1},
+        {"seq":36,"type":"victim-revealed","round":4,"victim":5,"forced":true},
+        {"seq":37,"type":"results","round":4,"phase":1},
+        {"seq":38,"type":"schedule","stage":"phase-2"},
+        {"seq":39,"type":"phase-closed","round":4,"phase":2},
+        {"seq":40,"type":"schedule","stage":"locked"},
+        {"seq":41,"type":"round-applied","round":4,"eliminated":5,"absorber":1},
+        {"seq":42,"type":"results","round":4,"phase":2},
+        {"seq":43,"type":"match-finished","winner":1}
+      ],
+      "operatorViews": [
+        {"label":"created","stage":"phase-1","appliedRounds":0,"playerCount":null,"lastSeq":1},
+        {"label":"joined Ana","stage":"phase-1","appliedRounds":0,"playerCount":1,"lastSeq":2},
+        {"label":"joined José","stage":"phase-1","appliedRounds":0,"playerCount":2,"lastSeq":3},
+        {"label":"joined Zoë-Ñ.9","stage":"phase-1","appliedRounds":0,"playerCount":3,"lastSeq":4},
+        {"label":"joined ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","stage":"phase-1","appliedRounds":0,"playerCount":4,"lastSeq":5},
+        {"label":"joined X","stage":"phase-1","appliedRounds":0,"playerCount":5,"lastSeq":6},
+        {"label":"step 0","stage":"phase-2","appliedRounds":0,"playerCount":5,"lastSeq":10},
+        {"label":"step 1","stage":"locked","appliedRounds":0,"playerCount":5,"lastSeq":12},
+        {"label":"step 2","stage":"phase-1","appliedRounds":1,"playerCount":5,"lastSeq":15},
+        {"label":"joined Late Joiner","stage":"phase-1","appliedRounds":1,"playerCount":6,"lastSeq":16},
+        {"label":"step 3","stage":"phase-2","appliedRounds":1,"playerCount":6,"lastSeq":20},
+        {"label":"step 4","stage":"locked","appliedRounds":1,"playerCount":6,"lastSeq":22},
+        {"label":"step 5","stage":"phase-1","appliedRounds":2,"playerCount":6,"lastSeq":25},
+        {"label":"step 6","stage":"phase-2","appliedRounds":2,"playerCount":6,"lastSeq":29},
+        {"label":"step 7","stage":"locked","appliedRounds":2,"playerCount":6,"lastSeq":31},
+        {"label":"step 8","stage":"phase-1","appliedRounds":3,"playerCount":6,"lastSeq":34},
+        {"label":"step 9","stage":"phase-2","appliedRounds":3,"playerCount":6,"lastSeq":38},
+        {"label":"step 10","stage":"locked","appliedRounds":3,"playerCount":6,"lastSeq":40},
+        {"label":"step 11","stage":"finished","appliedRounds":4,"playerCount":6,"lastSeq":43}
+      ],
+      "phaseResults": {
+        "1/1": {
+          "round": 1,
+          "phase": 1,
+          "victim": 3,
+          "items": [
+            {"who":"Ana","name":"Ana","choice":3,"correct":true,"points":5},
+            {"who":"José","name":"José","choice":1,"correct":false,"points":0},
+            {"who":"Zoë-Ñ.9","name":"Zoë-Ñ.9","choice":3,"correct":true,"points":5},
+            {"who":"discord:p1","choice":1,"correct":false,"points":0},
+            {"who":"web:p1","choice":3,"correct":true,"points":5},
+            {"who":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","name":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","choice":1,"correct":false,"points":0}
+          ]
+        },
+        "1/2": {
+          "round": 1,
+          "phase": 2,
+          "record": {"round":1,"eliminated":3,"absorber":1,"transferred":[33,34,35,36,37,38,39,40,41,42,43,44,45]},
+          "items": [
+            {"who":"Ana","name":"Ana","choice":1,"correct":true,"points":3},
+            {"who":"José","name":"José","choice":2,"correct":false,"points":0},
+            {"who":"Zoë-Ñ.9","name":"Zoë-Ñ.9","choice":1,"correct":true,"points":3},
+            {"who":"web:p1","choice":1,"correct":true,"points":3},
+            {"who":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","name":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","choice":2,"correct":false,"points":0}
+          ]
+        },
+        "2/1": {
+          "round": 2,
+          "phase": 1,
+          "victim": 4,
+          "items": [
+            {"who":"Ana","name":"Ana","choice":1,"correct":false,"points":0},
+            {"who":"José","name":"José","choice":4,"correct":true,"points":4},
+            {"who":"Late Joiner","name":"Late Joiner","choice":4,"correct":true,"points":4},
+            {"who":"Zoë-Ñ.9","name":"Zoë-Ñ.9","choice":4,"correct":true,"points":4}
+          ]
+        },
+        "2/2": {
+          "round": 2,
+          "phase": 2,
+          "record": {"round":2,"eliminated":4,"absorber":2,"transferred":[46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65]},
+          "items": [
+            {"who":"Ana","name":"Ana","choice":2,"correct":true,"points":2},
+            {"who":"Late Joiner","name":"Late Joiner","choice":2,"correct":true,"points":2},
+            {"who":"Zoë-Ñ.9","name":"Zoë-Ñ.9","choice":1,"correct":false,"points":0}
+          ]
+        },
+        "3/1": {
+          "round": 3,
+          "phase": 1,
+          "victim": 2,
+          "items": [
+            {"who":"Ana","name":"Ana","choice":2,"correct":true,"points":3},
+            {"who":"Late Joiner","name":"Late Joiner","choice":1,"correct":false,"points":0},
+            {"who":"web:p1","choice":2,"correct":true,"points":3}
+          ]
+        },
+        "3/2": {
+          "round": 3,
+          "phase": 2,
+          "record": {
+            "round": 3,
+            "eliminated": 2,
+            "absorber": 1,
+            "transferred": [17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65]
+          },
+          "items": [
+            {"who":"Ana","name":"Ana","choice":1,"correct":true,"points":2},
+            {"who":"Late Joiner","name":"Late Joiner","choice":1,"correct":true,"points":2}
+          ]
+        },
+        "4/1": {
+          "round": 4,
+          "phase": 1,
+          "victim": 5,
+          "items": [
+            {"who":"Ana","name":"Ana","choice":5,"correct":true,"points":2},
+            {"who":"Late Joiner","name":"Late Joiner","choice":5,"correct":true,"points":2}
+          ]
+        },
+        "4/2": {"round":4,"phase":2,"record":{"round":4,"eliminated":5,"absorber":1,"transferred":[66,67,68,69,70]},"items":[]}
+      },
+      "winners": {
+        "1/1": ["Ana","Zoë-Ñ.9"],
+        "1/2": ["Ana","Zoë-Ñ.9"],
+        "2/1": ["José","Late Joiner","Zoë-Ñ.9"],
+        "2/2": ["Ana","Late Joiner"],
+        "3/1": ["Ana"],
+        "3/2": ["Ana","Late Joiner"],
+        "4/1": ["Ana","Late Joiner"],
+        "4/2": []
+      },
+      "players": {
+        "Ana": {
+          "who": "Ana",
+          "name": "Ana",
+          "total": 22,
+          "items": [
+            {"kind":"winner","choice":1,"correct":true,"points":5},
+            {"kind":"absorber","round":1,"choice":1,"correct":true,"points":3},
+            {"kind":"victim","round":1,"choice":3,"correct":true,"points":5},
+            {"kind":"absorber","round":2,"choice":2,"correct":true,"points":2},
+            {"kind":"victim","round":2,"choice":1,"correct":false,"points":0},
+            {"kind":"absorber","round":3,"choice":1,"correct":true,"points":2},
+            {"kind":"victim","round":3,"choice":2,"correct":true,"points":3},
+            {"kind":"victim","round":4,"choice":5,"correct":true,"points":2}
+          ]
+        },
+        "José": {
+          "who": "José",
+          "name": "José",
+          "total": 8,
+          "items": [
+            {"kind":"winner","choice":1,"correct":true,"points":4},
+            {"kind":"absorber","round":1,"choice":2,"correct":false,"points":0},
+            {"kind":"victim","round":1,"choice":1,"correct":false,"points":0},
+            {"kind":"victim","round":2,"choice":4,"correct":true,"points":4}
+          ]
+        },
+        "Zoë-Ñ.9": {
+          "who": "Zoë-Ñ.9",
+          "name": "Zoë-Ñ.9",
+          "total": 12,
+          "items": [
+            {"kind":"absorber","round":1,"choice":1,"correct":true,"points":3},
+            {"kind":"victim","round":1,"choice":3,"correct":true,"points":5},
+            {"kind":"absorber","round":2,"choice":1,"correct":false,"points":0},
+            {"kind":"victim","round":2,"choice":4,"correct":true,"points":4}
+          ]
+        },
+        "ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa": {
+          "who": "ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa",
+          "name": "ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa",
+          "total": 0,
+          "items": [{"kind":"absorber","round":1,"choice":2,"correct":false,"points":0},{"kind":"victim","round":1,"choice":1,"correct":false,"points":0}]
+        },
+        "X": {"who":"X","name":"X","total":0,"items":[]},
+        "Late Joiner": {
+          "who": "Late Joiner",
+          "name": "Late Joiner",
+          "total": 12,
+          "items": [
+            {"kind":"winner","choice":1,"correct":true,"points":2},
+            {"kind":"absorber","round":2,"choice":2,"correct":true,"points":2},
+            {"kind":"victim","round":2,"choice":4,"correct":true,"points":4},
+            {"kind":"absorber","round":3,"choice":1,"correct":true,"points":2},
+            {"kind":"victim","round":3,"choice":1,"correct":false,"points":0},
+            {"kind":"victim","round":4,"choice":5,"correct":true,"points":2}
+          ]
+        },
+        "web:p1": {
+          "who": "web:p1",
+          "total": 11,
+          "items": [
+            {"kind":"winner","choice":2,"correct":false,"points":0},
+            {"kind":"absorber","round":1,"choice":1,"correct":true,"points":3},
+            {"kind":"victim","round":1,"choice":3,"correct":true,"points":5},
+            {"kind":"victim","round":3,"choice":2,"correct":true,"points":3}
+          ]
+        },
+        "discord:p1": {"who":"discord:p1","total":0,"items":[{"kind":"victim","round":1,"choice":1,"correct":false,"points":0}]},
+        "web:nobody": {"who":"web:nobody","total":0,"items":[]}
+      },
+      "leaderboard": [
+        {"rank":1,"who":"Ana","name":"Ana","total":22,"correctVictims":3,"correctAbsorbers":3,"correctWinner":1},
+        {"rank":2,"who":"Late Joiner","name":"Late Joiner","total":12,"correctVictims":2,"correctAbsorbers":2,"correctWinner":1},
+        {"rank":2,"who":"Zoë-Ñ.9","name":"Zoë-Ñ.9","total":12,"correctVictims":2,"correctAbsorbers":1,"correctWinner":0},
+        {"rank":4,"who":"web:p1","total":11,"correctVictims":2,"correctAbsorbers":1,"correctWinner":0},
+        {"rank":5,"who":"José","name":"José","total":8,"correctVictims":1,"correctAbsorbers":0,"correctWinner":1},
+        {"rank":6,"who":"discord:p1","total":0,"correctVictims":0,"correctAbsorbers":0,"correctWinner":0},
+        {
+          "rank": 6,
+          "who": "ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa",
+          "name": "ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa",
+          "total": 0,
+          "correctVictims": 0,
+          "correctAbsorbers": 0,
+          "correctWinner": 0
+        }
+      ]
+    },
+    "all-a5": {
+      "roster": [
+        {"sent":"Ana","name":"Ana","joinStep":-1},
+        {"sent":" José ","name":"José","joinStep":-1},
+        {"sent":"Zoë-Ñ.9","name":"Zoë-Ñ.9","joinStep":-1},
+        {"sent":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","name":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","joinStep":-1},
+        {"sent":"X","name":"X","joinStep":-1},
+        {"sent":"Late Joiner","name":"Late Joiner","joinStep":3}
+      ],
+      "clients": ["web:p1","discord:p1"],
+      "predictions": [
+        {"before":0,"who":"Ana","kind":"winner","faction":1},
+        {"before":0,"who":"José","kind":"winner","faction":2},
+        {"before":0,"who":"web:p1","kind":"winner","faction":2},
+        {"before":0,"who":"Ana","kind":"victim","round":1,"faction":4},
+        {"before":0,"who":"José","kind":"victim","round":1,"faction":1},
+        {"before":0,"who":"Zoë-Ñ.9","kind":"victim","round":1,"faction":1},
+        {"before":0,"who":"Zoë-Ñ.9","kind":"victim","round":1,"faction":4},
+        {"before":0,"who":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","kind":"victim","round":1,"faction":1},
+        {"before":0,"who":"web:p1","kind":"victim","round":1,"faction":4},
+        {"before":0,"who":"discord:p1","kind":"victim","round":1,"faction":1},
+        {"before":1,"who":"Ana","kind":"absorber","round":1,"faction":2},
+        {"before":1,"who":"José","kind":"absorber","round":1,"faction":3},
+        {"before":1,"who":"Zoë-Ñ.9","kind":"absorber","round":1,"faction":2},
+        {"before":1,"who":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","kind":"absorber","round":1,"faction":3},
+        {"before":1,"who":"web:p1","kind":"absorber","round":1,"faction":2},
+        {"before":1,"who":"José","kind":"winner","faction":1},
+        {"before":3,"who":"Late Joiner","kind":"victim","round":2,"faction":2},
+        {"before":3,"who":"Ana","kind":"victim","round":2,"faction":1},
+        {"before":3,"who":"Zoë-Ñ.9","kind":"victim","round":2,"faction":2},
+        {"before":3,"who":"José","kind":"victim","round":2,"faction":2},
+        {"before":4,"who":"Late Joiner","kind":"absorber","round":2,"faction":3},
+        {"before":4,"who":"Ana","kind":"absorber","round":2,"faction":3},
+        {"before":4,"who":"Zoë-Ñ.9","kind":"absorber","round":2,"faction":5},
+        {"before":6,"who":"Ana","kind":"victim","round":3,"faction":5},
+        {"before":6,"who":"Late Joiner","kind":"victim","round":3,"faction":1},
+        {"before":6,"who":"web:p1","kind":"victim","round":3,"faction":5},
+        {"before":7,"who":"Late Joiner","kind":"winner","faction":1},
+        {"before":9,"who":"Ana","kind":"victim","round":4,"faction":3},
+        {"before":9,"who":"Late Joiner","kind":"victim","round":4,"faction":3}
+      ],
+      "lobbyEvents": [
+        {"seq":1,"type":"schedule","stage":"lobby"},
+        {"seq":2,"type":"player-joined","name":"Ana"},
+        {"seq":3,"type":"player-joined","name":"José"},
+        {"seq":4,"type":"player-joined","name":"Zoë-Ñ.9"},
+        {"seq":5,"type":"player-joined","name":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa"},
+        {"seq":6,"type":"player-joined","name":"X"},
+        {"seq":7,"type":"schedule","stage":"phase-1"},
+        {"seq":8,"type":"phase-closed","round":1,"phase":1},
+        {"seq":9,"type":"victim-revealed","round":1,"victim":4},
+        {"seq":10,"type":"results","round":1,"phase":1},
+        {"seq":11,"type":"schedule","stage":"phase-2"},
+        {"seq":12,"type":"phase-closed","round":1,"phase":2},
+        {"seq":13,"type":"schedule","stage":"locked"},
+        {"seq":14,"type":"round-applied","round":1,"eliminated":4,"absorber":2},
+        {"seq":15,"type":"results","round":1,"phase":2},
+        {"seq":16,"type":"schedule","stage":"phase-1"},
+        {"seq":17,"type":"player-joined","name":"Late Joiner"},
+        {"seq":18,"type":"phase-closed","round":2,"phase":1},
+        {"seq":19,"type":"victim-revealed","round":2,"victim":2},
+        {"seq":20,"type":"results","round":2,"phase":1},
+        {"seq":21,"type":"schedule","stage":"phase-2"},
+        {"seq":22,"type":"phase-closed","round":2,"phase":2},
+        {"seq":23,"type":"schedule","stage":"locked"},
+        {"seq":24,"type":"round-applied","round":2,"eliminated":2,"absorber":3},
+        {"seq":25,"type":"results","round":2,"phase":2},
+        {"seq":26,"type":"schedule","stage":"phase-1"},
+        {"seq":27,"type":"phase-closed","round":3,"phase":1},
+        {"seq":28,"type":"victim-revealed","round":3,"victim":5,"forced":true},
+        {"seq":29,"type":"results","round":3,"phase":1},
+        {"seq":30,"type":"schedule","stage":"phase-2"},
+        {"seq":31,"type":"phase-closed","round":3,"phase":2},
+        {"seq":32,"type":"schedule","stage":"locked"},
+        {"seq":33,"type":"round-applied","round":3,"eliminated":5,"absorber":3},
+        {"seq":34,"type":"results","round":3,"phase":2},
+        {"seq":35,"type":"schedule","stage":"phase-1"},
+        {"seq":36,"type":"phase-closed","round":4,"phase":1},
+        {"seq":37,"type":"victim-revealed","round":4,"victim":3,"forced":true},
+        {"seq":38,"type":"results","round":4,"phase":1},
+        {"seq":39,"type":"schedule","stage":"phase-2"},
+        {"seq":40,"type":"phase-closed","round":4,"phase":2},
+        {"seq":41,"type":"schedule","stage":"locked"},
+        {"seq":42,"type":"round-applied","round":4,"eliminated":3,"absorber":1},
+        {"seq":43,"type":"results","round":4,"phase":2},
+        {"seq":44,"type":"match-finished","winner":1}
+      ],
+      "lobbyViews": [
+        {"label":"created","stage":"lobby","appliedRounds":0,"playerCount":0,"lastSeq":1},
+        {"label":"joined Ana","stage":"lobby","appliedRounds":0,"playerCount":1,"lastSeq":2},
+        {"label":"joined José","stage":"lobby","appliedRounds":0,"playerCount":2,"lastSeq":3},
+        {"label":"joined Zoë-Ñ.9","stage":"lobby","appliedRounds":0,"playerCount":3,"lastSeq":4},
+        {"label":"joined ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","stage":"lobby","appliedRounds":0,"playerCount":4,"lastSeq":5},
+        {"label":"joined X","stage":"lobby","appliedRounds":0,"playerCount":5,"lastSeq":6},
+        {"label":"started","stage":"phase-1","appliedRounds":0,"playerCount":5,"lastSeq":7},
+        {"label":"step 0","stage":"phase-2","appliedRounds":0,"playerCount":5,"lastSeq":11},
+        {"label":"step 1","stage":"locked","appliedRounds":0,"playerCount":5,"lastSeq":13},
+        {"label":"step 2","stage":"phase-1","appliedRounds":1,"playerCount":5,"lastSeq":16},
+        {"label":"joined Late Joiner","stage":"phase-1","appliedRounds":1,"playerCount":6,"lastSeq":17},
+        {"label":"step 3","stage":"phase-2","appliedRounds":1,"playerCount":6,"lastSeq":21},
+        {"label":"step 4","stage":"locked","appliedRounds":1,"playerCount":6,"lastSeq":23},
+        {"label":"step 5","stage":"phase-1","appliedRounds":2,"playerCount":6,"lastSeq":26},
+        {"label":"step 6","stage":"phase-2","appliedRounds":2,"playerCount":6,"lastSeq":30},
+        {"label":"step 7","stage":"locked","appliedRounds":2,"playerCount":6,"lastSeq":32},
+        {"label":"step 8","stage":"phase-1","appliedRounds":3,"playerCount":6,"lastSeq":35},
+        {"label":"step 9","stage":"phase-2","appliedRounds":3,"playerCount":6,"lastSeq":39},
+        {"label":"step 10","stage":"locked","appliedRounds":3,"playerCount":6,"lastSeq":41},
+        {"label":"step 11","stage":"finished","appliedRounds":4,"playerCount":6,"lastSeq":44}
+      ],
+      "operatorEvents": [
+        {"seq":1,"type":"schedule","stage":"phase-1"},
+        {"seq":2,"type":"player-joined","name":"Ana"},
+        {"seq":3,"type":"player-joined","name":"José"},
+        {"seq":4,"type":"player-joined","name":"Zoë-Ñ.9"},
+        {"seq":5,"type":"player-joined","name":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa"},
+        {"seq":6,"type":"player-joined","name":"X"},
+        {"seq":7,"type":"phase-closed","round":1,"phase":1},
+        {"seq":8,"type":"victim-revealed","round":1,"victim":4},
+        {"seq":9,"type":"results","round":1,"phase":1},
+        {"seq":10,"type":"schedule","stage":"phase-2"},
+        {"seq":11,"type":"phase-closed","round":1,"phase":2},
+        {"seq":12,"type":"schedule","stage":"locked"},
+        {"seq":13,"type":"round-applied","round":1,"eliminated":4,"absorber":2},
+        {"seq":14,"type":"results","round":1,"phase":2},
+        {"seq":15,"type":"schedule","stage":"phase-1"},
+        {"seq":16,"type":"player-joined","name":"Late Joiner"},
+        {"seq":17,"type":"phase-closed","round":2,"phase":1},
+        {"seq":18,"type":"victim-revealed","round":2,"victim":2},
+        {"seq":19,"type":"results","round":2,"phase":1},
+        {"seq":20,"type":"schedule","stage":"phase-2"},
+        {"seq":21,"type":"phase-closed","round":2,"phase":2},
+        {"seq":22,"type":"schedule","stage":"locked"},
+        {"seq":23,"type":"round-applied","round":2,"eliminated":2,"absorber":3},
+        {"seq":24,"type":"results","round":2,"phase":2},
+        {"seq":25,"type":"schedule","stage":"phase-1"},
+        {"seq":26,"type":"phase-closed","round":3,"phase":1},
+        {"seq":27,"type":"victim-revealed","round":3,"victim":5,"forced":true},
+        {"seq":28,"type":"results","round":3,"phase":1},
+        {"seq":29,"type":"schedule","stage":"phase-2"},
+        {"seq":30,"type":"phase-closed","round":3,"phase":2},
+        {"seq":31,"type":"schedule","stage":"locked"},
+        {"seq":32,"type":"round-applied","round":3,"eliminated":5,"absorber":3},
+        {"seq":33,"type":"results","round":3,"phase":2},
+        {"seq":34,"type":"schedule","stage":"phase-1"},
+        {"seq":35,"type":"phase-closed","round":4,"phase":1},
+        {"seq":36,"type":"victim-revealed","round":4,"victim":3,"forced":true},
+        {"seq":37,"type":"results","round":4,"phase":1},
+        {"seq":38,"type":"schedule","stage":"phase-2"},
+        {"seq":39,"type":"phase-closed","round":4,"phase":2},
+        {"seq":40,"type":"schedule","stage":"locked"},
+        {"seq":41,"type":"round-applied","round":4,"eliminated":3,"absorber":1},
+        {"seq":42,"type":"results","round":4,"phase":2},
+        {"seq":43,"type":"match-finished","winner":1}
+      ],
+      "operatorViews": [
+        {"label":"created","stage":"phase-1","appliedRounds":0,"playerCount":null,"lastSeq":1},
+        {"label":"joined Ana","stage":"phase-1","appliedRounds":0,"playerCount":1,"lastSeq":2},
+        {"label":"joined José","stage":"phase-1","appliedRounds":0,"playerCount":2,"lastSeq":3},
+        {"label":"joined Zoë-Ñ.9","stage":"phase-1","appliedRounds":0,"playerCount":3,"lastSeq":4},
+        {"label":"joined ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","stage":"phase-1","appliedRounds":0,"playerCount":4,"lastSeq":5},
+        {"label":"joined X","stage":"phase-1","appliedRounds":0,"playerCount":5,"lastSeq":6},
+        {"label":"step 0","stage":"phase-2","appliedRounds":0,"playerCount":5,"lastSeq":10},
+        {"label":"step 1","stage":"locked","appliedRounds":0,"playerCount":5,"lastSeq":12},
+        {"label":"step 2","stage":"phase-1","appliedRounds":1,"playerCount":5,"lastSeq":15},
+        {"label":"joined Late Joiner","stage":"phase-1","appliedRounds":1,"playerCount":6,"lastSeq":16},
+        {"label":"step 3","stage":"phase-2","appliedRounds":1,"playerCount":6,"lastSeq":20},
+        {"label":"step 4","stage":"locked","appliedRounds":1,"playerCount":6,"lastSeq":22},
+        {"label":"step 5","stage":"phase-1","appliedRounds":2,"playerCount":6,"lastSeq":25},
+        {"label":"step 6","stage":"phase-2","appliedRounds":2,"playerCount":6,"lastSeq":29},
+        {"label":"step 7","stage":"locked","appliedRounds":2,"playerCount":6,"lastSeq":31},
+        {"label":"step 8","stage":"phase-1","appliedRounds":3,"playerCount":6,"lastSeq":34},
+        {"label":"step 9","stage":"phase-2","appliedRounds":3,"playerCount":6,"lastSeq":38},
+        {"label":"step 10","stage":"locked","appliedRounds":3,"playerCount":6,"lastSeq":40},
+        {"label":"step 11","stage":"finished","appliedRounds":4,"playerCount":6,"lastSeq":43}
+      ],
+      "phaseResults": {
+        "1/1": {
+          "round": 1,
+          "phase": 1,
+          "victim": 4,
+          "items": [
+            {"who":"Ana","name":"Ana","choice":4,"correct":true,"points":5},
+            {"who":"José","name":"José","choice":1,"correct":false,"points":0},
+            {"who":"Zoë-Ñ.9","name":"Zoë-Ñ.9","choice":4,"correct":true,"points":5},
+            {"who":"discord:p1","choice":1,"correct":false,"points":0},
+            {"who":"web:p1","choice":4,"correct":true,"points":5},
+            {"who":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","name":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","choice":1,"correct":false,"points":0}
+          ]
+        },
+        "1/2": {
+          "round": 1,
+          "phase": 2,
+          "record": {"round":1,"eliminated":4,"absorber":2,"transferred":[46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65]},
+          "items": [
+            {"who":"Ana","name":"Ana","choice":2,"correct":true,"points":2},
+            {"who":"José","name":"José","choice":3,"correct":false,"points":0},
+            {"who":"Zoë-Ñ.9","name":"Zoë-Ñ.9","choice":2,"correct":true,"points":2},
+            {"who":"web:p1","choice":2,"correct":true,"points":2},
+            {"who":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","name":"ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa","choice":3,"correct":false,"points":0}
+          ]
+        },
+        "2/1": {
+          "round": 2,
+          "phase": 1,
+          "victim": 2,
+          "items": [
+            {"who":"Ana","name":"Ana","choice":1,"correct":false,"points":0},
+            {"who":"José","name":"José","choice":2,"correct":true,"points":4},
+            {"who":"Late Joiner","name":"Late Joiner","choice":2,"correct":true,"points":4},
+            {"who":"Zoë-Ñ.9","name":"Zoë-Ñ.9","choice":2,"correct":true,"points":4}
+          ]
+        },
+        "2/2": {
+          "round": 2,
+          "phase": 2,
+          "record": {
+            "round": 2,
+            "eliminated": 2,
+            "absorber": 3,
+            "transferred": [17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65]
+          },
+          "items": [
+            {"who":"Ana","name":"Ana","choice":3,"correct":true,"points":2},
+            {"who":"Late Joiner","name":"Late Joiner","choice":3,"correct":true,"points":2},
+            {"who":"Zoë-Ñ.9","name":"Zoë-Ñ.9","choice":5,"correct":false,"points":0}
+          ]
+        },
+        "3/1": {
+          "round": 3,
+          "phase": 1,
+          "victim": 5,
+          "items": [
+            {"who":"Ana","name":"Ana","choice":5,"correct":true,"points":3},
+            {"who":"Late Joiner","name":"Late Joiner","choice":1,"correct":false,"points":0},
+            {"who":"web:p1","choice":5,"correct":true,"points":3}
+          ]
+        },
+        "3/2": {"round":3,"phase":2,"record":{"round":3,"eliminated":5,"absorber":3,"transferred":[66,67,68,69,70]},"items":[]},
+        "4/1": {
+          "round": 4,
+          "phase": 1,
+          "victim": 3,
+          "items": [
+            {"who":"Ana","name":"Ana","choice":3,"correct":true,"points":2},
+            {"who":"Late Joiner","name":"Late Joiner","choice":3,"correct":true,"points":2}
+          ]
+        },
+        "4/2": {
+          "round": 4,
+          "phase": 2,
+          "record": {
+            "round": 4,
+            "eliminated": 3,
+            "absorber": 1,
+            "transferred": [
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49,
+              50,
+              51,
+              52,
+              53,
+              54,
+              55,
+              56,
+              57,
+              58,
+              59,
+              60,
+              61,
+              62,
+              63,
+              64,
+              65,
+              66,
+              67,
+              68,
+              69,
+              70
+            ]
+          },
+          "items": []
+        }
+      },
+      "winners": {
+        "1/1": ["Ana","Zoë-Ñ.9"],
+        "1/2": ["Ana","Zoë-Ñ.9"],
+        "2/1": ["José","Late Joiner","Zoë-Ñ.9"],
+        "2/2": ["Ana","Late Joiner"],
+        "3/1": ["Ana"],
+        "3/2": [],
+        "4/1": ["Ana","Late Joiner"],
+        "4/2": []
+      },
+      "players": {
+        "Ana": {
+          "who": "Ana",
+          "name": "Ana",
+          "total": 19,
+          "items": [
+            {"kind":"winner","choice":1,"correct":true,"points":5},
+            {"kind":"absorber","round":1,"choice":2,"correct":true,"points":2},
+            {"kind":"victim","round":1,"choice":4,"correct":true,"points":5},
+            {"kind":"absorber","round":2,"choice":3,"correct":true,"points":2},
+            {"kind":"victim","round":2,"choice":1,"correct":false,"points":0},
+            {"kind":"victim","round":3,"choice":5,"correct":true,"points":3},
+            {"kind":"victim","round":4,"choice":3,"correct":true,"points":2}
+          ]
+        },
+        "José": {
+          "who": "José",
+          "name": "José",
+          "total": 8,
+          "items": [
+            {"kind":"winner","choice":1,"correct":true,"points":4},
+            {"kind":"absorber","round":1,"choice":3,"correct":false,"points":0},
+            {"kind":"victim","round":1,"choice":1,"correct":false,"points":0},
+            {"kind":"victim","round":2,"choice":2,"correct":true,"points":4}
+          ]
+        },
+        "Zoë-Ñ.9": {
+          "who": "Zoë-Ñ.9",
+          "name": "Zoë-Ñ.9",
+          "total": 11,
+          "items": [
+            {"kind":"absorber","round":1,"choice":2,"correct":true,"points":2},
+            {"kind":"victim","round":1,"choice":4,"correct":true,"points":5},
+            {"kind":"absorber","round":2,"choice":5,"correct":false,"points":0},
+            {"kind":"victim","round":2,"choice":2,"correct":true,"points":4}
+          ]
+        },
+        "ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa": {
+          "who": "ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa",
+          "name": "ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa",
+          "total": 0,
+          "items": [{"kind":"absorber","round":1,"choice":3,"correct":false,"points":0},{"kind":"victim","round":1,"choice":1,"correct":false,"points":0}]
+        },
+        "X": {"who":"X","name":"X","total":0,"items":[]},
+        "Late Joiner": {
+          "who": "Late Joiner",
+          "name": "Late Joiner",
+          "total": 10,
+          "items": [
+            {"kind":"winner","choice":1,"correct":true,"points":2},
+            {"kind":"absorber","round":2,"choice":3,"correct":true,"points":2},
+            {"kind":"victim","round":2,"choice":2,"correct":true,"points":4},
+            {"kind":"victim","round":3,"choice":1,"correct":false,"points":0},
+            {"kind":"victim","round":4,"choice":3,"correct":true,"points":2}
+          ]
+        },
+        "web:p1": {
+          "who": "web:p1",
+          "total": 10,
+          "items": [
+            {"kind":"winner","choice":2,"correct":false,"points":0},
+            {"kind":"absorber","round":1,"choice":2,"correct":true,"points":2},
+            {"kind":"victim","round":1,"choice":4,"correct":true,"points":5},
+            {"kind":"victim","round":3,"choice":5,"correct":true,"points":3}
+          ]
+        },
+        "discord:p1": {"who":"discord:p1","total":0,"items":[{"kind":"victim","round":1,"choice":1,"correct":false,"points":0}]},
+        "web:nobody": {"who":"web:nobody","total":0,"items":[]}
+      },
+      "leaderboard": [
+        {"rank":1,"who":"Ana","name":"Ana","total":19,"correctVictims":3,"correctAbsorbers":2,"correctWinner":1},
+        {"rank":2,"who":"Zoë-Ñ.9","name":"Zoë-Ñ.9","total":11,"correctVictims":2,"correctAbsorbers":1,"correctWinner":0},
+        {"rank":3,"who":"Late Joiner","name":"Late Joiner","total":10,"correctVictims":2,"correctAbsorbers":1,"correctWinner":1},
+        {"rank":3,"who":"web:p1","total":10,"correctVictims":2,"correctAbsorbers":1,"correctWinner":0},
+        {"rank":5,"who":"José","name":"José","total":8,"correctVictims":1,"correctAbsorbers":0,"correctWinner":1},
+        {"rank":6,"who":"discord:p1","total":0,"correctVictims":0,"correctAbsorbers":0,"correctWinner":0},
+        {
+          "rank": 6,
+          "who": "ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa",
+          "name": "ÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉaÉa",
+          "total": 0,
+          "correctVictims": 0,
+          "correctAbsorbers": 0,
+          "correctWinner": 0
+        }
+      ]
+    }
+  }
+}
