@@ -1,5 +1,5 @@
 # Progress 014 — Public match config read
-Branch: `feat/014-public-config`. Ledger (done / pending of 12): 2 / 10.
+Branch: `feat/014-public-config`. Ledger (done / pending of 12): 5 / 7.
 
 Entry format per task: what changed · tests run and results · mutation proofs (mutant -> test that failed) · untested · next step.
 
@@ -28,3 +28,10 @@ No re-pin expected (plan section 1). Record here any exception with its reason.
 - Tests: red first (module missing). Green: `npm test` 305 files / 4852 passed / 4 skipped; typecheck green; `CI=1 npm test` same.
 - Mutations (full `npm test` each, restored byte for byte): `enabled` as `length >= 0` -> 4 failures; `enabled: true` -> 4; `maxInterval` read from `minInterval` -> 6; `maxPlayers` omitted -> 8; maps `.sort()` -> 3 (order tests); snapshot of the config taken when the service is built -> 2 ("one object, no copy" test). Before the method lists were extended, the mutants also tripped the three pinned lists (that run is not counted).
 - Untested: the HTTP surface (T4). Next: T4 (route, FR-413 / FR-418 / FR-419).
+
+### T4 The route GET /config (ledger 5 / 7: FR-413, FR-418, FR-419)
+- Changed: `apps/server/src/http/server.ts` (one route entry in `productionRoutes`: `GET /config`, `body: 'none'`, `checkQuery: noQuery`, `decide` -> `replyOf(service.publicConfig(), 200, encodePublicConfig)`; header and doc comments name it), `apps/server/test/http-config.test.ts` (18 tests, real listener, fake clock), `traceability.test.ts` (FR-413, FR-418, FR-419 done). No route-list pin test exists, so none was extended. Router, limiter, CORS and status code untouched.
+- Findings: the request class follows the method (`classOf`: POST is a command), so "marked as a command" is the route method POST; CORS `*` holds for a GET without `Authorization` (a credentialed GET follows the allowed-origin rule as for every read; its body is identical, asserted).
+- Tests: red first (15 of 18 failed). Green: `npm test` 306 files / 4870 passed / 4 skipped; typecheck green; `CI=1 npm test` same.
+- Mutations (full `npm test` each, restored byte for byte): `body: 'object'` -> 9 failures; `checkQuery` removed -> 2 (query tests); method POST (command class) -> 16; CORS origin echoed instead of `*` (cors.ts) -> 11 (http-config plus the three older CORS files); status 201 -> 7.
+- Untested: secrecy scans and stability (T5), creation boundary (T6). Next: T5.

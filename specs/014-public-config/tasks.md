@@ -48,7 +48,7 @@ Spec: `spec.md`. Plan: `plan.md`. Branch: `feat/014-public-config`. One mileston
   - Done when: tests green; mutations caught; FR-414 moved (2 / 10).
   - Size: S (about 200).
 
-- [ ] **T4. The route: `GET /config` (CORS `*`, limit, 405/Allow, no query).** FR-413, FR-418, FR-419
+- [x] **T4. The route: `GET /config` (CORS `*`, limit, 405/Allow, no query).** FR-413, FR-418, FR-419
   - Depends on: T3.
   - Files: `apps/server/src/http/server.ts` (one route entry; update the header comment list of read routes), `apps/server/test/http-config.test.ts`, and the route-list pin test only if one exists (extend by this one entry).
   - Tests first (real listener, port 0, fake clock): 200, `application/json`, body byte-equal to `encodePublicConfig` of the settings, same header set as `GET /matches/:id/players`; `Access-Control-Allow-Origin: *`; `?a=1` is 400 `invalid-request ['a']`, with several, the first in sorted order; `POST`, `PUT`, `DELETE` are 405 `method-not-allowed` with `Allow: GET, OPTIONS`; `HEAD` and `OPTIONS` as the other reads (compare with `GET /matches`); limit - 1, limit, limit + 1 requests inside the window (mixed with another anonymous read) give 200 / 200 / 429 `rate-limited` with `Retry-After`; a GET with a body is answered, the body discarded, an oversized one `too-large` as other reads; client, operator, bad Bearer and player token give identical bytes (the limiter bucket follows the existing identity rule); `Content-Length` matches the bytes; trailing slash `/config/` and `/Config` are `unknown-path`.
