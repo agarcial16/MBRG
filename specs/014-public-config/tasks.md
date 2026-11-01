@@ -57,7 +57,7 @@ Spec: `spec.md`. Plan: `plan.md`. Branch: `feat/014-public-config`. One mileston
   - Done when: tests green; mutations caught; FR-413, FR-418, FR-419 moved (5 / 7).
   - Size: M (about 400).
 
-- [ ] **T5. Secrecy, stability and the mutation table.** FR-415, FR-417, NFR-81, NFR-83
+- [x] **T5. Secrecy, stability and the mutation table.** FR-415, FR-417, NFR-81, NFR-83
   - Depends on: T4.
   - Files: `apps/server/test/config-secrecy.test.ts`, `apps/server/test/config-mutants.test.ts` (new).
   - Tests first: settings with planted values for operator credential, client credentials and namespaces, allowed origins, host, port, database path, map folders, every limit value, lobby expiry, open-lobby and running caps, forced phase span, in decimal, hex, base64, base64url and raw: none appears in the body (over the real listener and the service); the decoded key set equals `PUBLIC_CONFIG_KEYS`; no key named like token, digest, namespace, origin, host, port, path, folder, count, limit, expiry; 50 reads across states (no match, open lobbies, running, finished, halted), clock jumps and callers are byte-identical; a store seam that throws on any access and a clock/random spy: the read answers 200 and the spy is never called (NFR-83); protected-files and dev-secrets pins pass in the same run. NFR-81 table: mutants of the output (field dropped, field added, leaked setting added, `enabled` flipped, map order reversed) each differ from the golden bytes and each is refused by the consistency check or the decoder.

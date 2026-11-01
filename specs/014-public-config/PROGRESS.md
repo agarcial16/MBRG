@@ -1,5 +1,5 @@
 # Progress 014 — Public match config read
-Branch: `feat/014-public-config`. Ledger (done / pending of 12): 5 / 7.
+Branch: `feat/014-public-config`. Ledger (done / pending of 12): 9 / 3.
 
 Entry format per task: what changed · tests run and results · mutation proofs (mutant -> test that failed) · untested · next step.
 
@@ -35,3 +35,9 @@ No re-pin expected (plan section 1). Record here any exception with its reason.
 - Tests: red first (15 of 18 failed). Green: `npm test` 306 files / 4870 passed / 4 skipped; typecheck green; `CI=1 npm test` same.
 - Mutations (full `npm test` each, restored byte for byte): `body: 'object'` -> 9 failures; `checkQuery` removed -> 2 (query tests); method POST (command class) -> 16; CORS origin echoed instead of `*` (cors.ts) -> 11 (http-config plus the three older CORS files); status 201 -> 7.
 - Untested: secrecy scans and stability (T5), creation boundary (T6). Next: T5.
+
+### T5 Secrecy, stability and the mutation table (ledger 9 / 3: FR-415, FR-417, NFR-81, NFR-83)
+- Changed: `apps/server/test/config-secrecy.test.ts` (8 tests), `apps/server/test/config-mutants.test.ts` (new, 18 tests), `traceability.test.ts` (4 ids done). No source touched. Planted values (operator and client credentials, namespace, origin, hidden map id and folder, host, port, database path, 11 limit values, running cap, open-lobby and running caps, lobby expiry, forced span) are scanned in raw, hex, base64, base64url (decimal and hex for numbers) over the real listener, the service, and settings read from the environment. 50 reads across no match, open lobbies with a join, running, finished (4 rounds), halted (map lost), clock jumps both ways and five callers are one byte string. NFR-83: a throwing store proxy with clock and random spies (service) and a store proxy armed during `GET /config` plus the draw count (listener); protected-files and dev-secrets/dev map hashes checked in the same file.
+- Tests: red first through the ledger (the pending ids were already traced); the new tests pass on the existing code, so their red proof is the mutants. Green: `npm test` 308 files / 4900 passed / 4 skipped; typecheck green.
+- Mutations (the five files of the area per mutant, restored byte for byte, full suite at the end): `lobbyExpiryHours` added to the encoder output -> 18 failures (secrecy, mutants, http-config, service, protocol); `host` added -> 20; match count added -> 18; time stamp added -> 18; `enabled` flipped in `publicConfigOf` -> 22.
+- Untested: creation boundary (T6). Next: T6 (FR-421).
