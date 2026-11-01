@@ -96,12 +96,10 @@ const DONE_010: readonly string[] = ['FR-356', 'FR-357', 'FR-358', 'FR-359', 'FR
  * M4 target (T10): 21 done / 8 pending. M4 T1 and T2 start at 15 / 14 and move none; T3 adds FR-379 (16 / 13); T4 adds FR-369, FR-370 (18 / 11); T5 adds FR-381 (19 / 10); T6 adds FR-385 (20 / 9); T7 moves none; T8 adds NFR-72 (21 / 8); T9 and T10 move none (T10 pins the closing state).
  * M5 target (T9): 29 done / 0 pending. M5 T1 and T2 start at 21 / 8 and move none; T3 adds FR-383 (22 / 7); T4 adds FR-386 (23 / 6); T5 adds FR-373 (24 / 5); T6 adds FR-390, FR-392 (26 / 3); T7 adds NFR-73, NFR-74 (28 / 1); T8 moves none; T9 adds NFR-75 (29 / 0).
  */
-const PENDING_011: readonly string[] = [
-  'NFR-75',
-];
+const PENDING_011: readonly string[] = [];
 
-/** Ids of spec 011 already closed (M1 T4: FR-387, a forced absorber is not predicted and does not score; M1 T5: FR-388, the shortened phase 2; M1 T6: FR-389, the victim and winner rules unchanged; M2 T4: FR-391, a database written by 008 opens unchanged; M2 T6: FR-371, a public creation starts in a lobby, FR-374, the host starts it, FR-375, a manual match is stepped by the host; M2 T7: FR-372, a lobby not started in time expires, NFR-76, time rules on the fake clock and scheduler; M3 T2: FR-384, names are untrusted text, and the join, joined-event and players-list shapes of the protocol; M3 T6: FR-377, a caller joins with a name and gets a token, FR-376, the joined event on the stream and its replay, FR-380, a join in a running match and the player cap; M3 T7: FR-378, a player authenticates by its match token; M3 T8: FR-382, no account, no recovery and no name change; M4 T3: FR-379, player tokens for predictions over HTTP; M4 T4: FR-369, public creation over HTTP, FR-370, its caps and rates over HTTP; M4 T5: FR-381, the join rates and the memo over HTTP; M4 T6: FR-385, the players list on the wire; M4 T8: NFR-72, the anonymous bounds driven to their edges; M5 T3: FR-383, the names next to the player ids in the results reads; M5 T4: FR-386, who guessed each scored phase right; M5 T5: FR-373, the lobby's public data; M5 T6: FR-390, players, names, token digests and the lobby stage stored with the event they cause, FR-392, the protocol additions and the 008 wire forms unchanged; M5 T7: NFR-73, tokens never in a read, an event, a log or an error, and only digests stored, NFR-74, nothing about a future round readable in the lobby or by the new reads). */
-const DONE_011: readonly string[] = ['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR-371', 'FR-374', 'FR-375', 'FR-372', 'NFR-76', 'FR-384', 'FR-377', 'FR-376', 'FR-380', 'FR-378', 'FR-382', 'FR-379', 'FR-369', 'FR-370', 'FR-381', 'FR-385', 'NFR-72', 'FR-383', 'FR-386', 'FR-373', 'FR-390', 'FR-392', 'NFR-73', 'NFR-74'];
+/** Ids of spec 011 already closed (M1 T4: FR-387, a forced absorber is not predicted and does not score; M1 T5: FR-388, the shortened phase 2; M1 T6: FR-389, the victim and winner rules unchanged; M2 T4: FR-391, a database written by 008 opens unchanged; M2 T6: FR-371, a public creation starts in a lobby, FR-374, the host starts it, FR-375, a manual match is stepped by the host; M2 T7: FR-372, a lobby not started in time expires, NFR-76, time rules on the fake clock and scheduler; M3 T2: FR-384, names are untrusted text, and the join, joined-event and players-list shapes of the protocol; M3 T6: FR-377, a caller joins with a name and gets a token, FR-376, the joined event on the stream and its replay, FR-380, a join in a running match and the player cap; M3 T7: FR-378, a player authenticates by its match token; M3 T8: FR-382, no account, no recovery and no name change; M4 T3: FR-379, player tokens for predictions over HTTP; M4 T4: FR-369, public creation over HTTP, FR-370, its caps and rates over HTTP; M4 T5: FR-381, the join rates and the memo over HTTP; M4 T6: FR-385, the players list on the wire; M4 T8: NFR-72, the anonymous bounds driven to their edges; M5 T3: FR-383, the names next to the player ids in the results reads; M5 T4: FR-386, who guessed each scored phase right; M5 T5: FR-373, the lobby's public data; M5 T6: FR-390, players, names, token digests and the lobby stage stored with the event they cause, FR-392, the protocol additions and the 008 wire forms unchanged; M5 T7: NFR-73, tokens never in a read, an event, a log or an error, and only digests stored, NFR-74, nothing about a future round readable in the lobby or by the new reads; M5 T9: NFR-75, the 008 and 009 suites pass and every changed test or golden is listed with its reason). */
+const DONE_011: readonly string[] = ['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR-371', 'FR-374', 'FR-375', 'FR-372', 'NFR-76', 'FR-384', 'FR-377', 'FR-376', 'FR-380', 'FR-378', 'FR-382', 'FR-379', 'FR-369', 'FR-370', 'FR-381', 'FR-385', 'NFR-72', 'FR-383', 'FR-386', 'FR-373', 'FR-390', 'FR-392', 'NFR-73', 'NFR-74', 'NFR-75'];
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -222,6 +220,7 @@ describe('traceability', () => {
       'NFR-41',
       'NFR-44',
       'NFR-55',
+      'NFR-75',
     ]);
   });
 
@@ -718,7 +717,7 @@ describe('traceability', () => {
     expect([...DONE_011.slice(0, 9)].sort()).toStrictEqual(doneByM2);
     expect([...PENDING_011, ...sinceM2].sort()).toStrictEqual(pendingAfterM2);
     for (const id of doneByM2) expect(tracedIds(testSources).has(id), id).toBe(true);
-    for (const id of pendingAfterM2) expect(tracedIds(testSources).has(id), id).toBe(sinceM2.includes(id));
+    for (const id of pendingAfterM2) expect(new Set([...tracedIds(testSources), ...TRACED_HERE]).has(id), id).toBe(sinceM2.includes(id));
   });
 
   it('NFR-13 NFR-19 spec 011 after the protocol names task: the name id is done and traced (10 done, 19 pending at this step; later tasks add to it)', () => {
@@ -767,7 +766,7 @@ describe('traceability', () => {
     expect([...DONE_011.slice(0, 15)].sort()).toStrictEqual(doneByM3);
     expect([...PENDING_011, ...sinceM3].sort()).toStrictEqual(pendingAfterM3);
     for (const id of doneByM3) expect(tracedIds(testSources).has(id), id).toBe(true);
-    for (const id of pendingAfterM3) expect(tracedIds(testSources).has(id), id).toBe(sinceM3.includes(id));
+    for (const id of pendingAfterM3) expect(new Set([...tracedIds(testSources), ...TRACED_HERE]).has(id), id).toBe(sinceM3.includes(id));
   });
 
   it('NFR-13 NFR-19 spec 011 after the player token routes task: the HTTP token id is done and traced (16 done, 13 pending at this step; later tasks add to it)', () => {
@@ -823,7 +822,7 @@ describe('traceability', () => {
     expect([...DONE_011.slice(0, 21)].sort()).toStrictEqual(doneByM4);
     expect([...PENDING_011, ...sinceM4].sort()).toStrictEqual(pendingAfterM4);
     for (const id of doneByM4) expect(tracedIds(testSources).has(id), id).toBe(true);
-    for (const id of pendingAfterM4) expect(tracedIds(testSources).has(id), id).toBe(sinceM4.includes(id));
+    for (const id of pendingAfterM4) expect(new Set([...tracedIds(testSources), ...TRACED_HERE]).has(id), id).toBe(sinceM4.includes(id));
   });
 
   it('NFR-13 NFR-19 spec 011 after the names in the results task: the names id is done and traced (22 done, 7 pending at this step; later tasks add to it)', () => {
@@ -863,6 +862,30 @@ describe('traceability', () => {
       expect(PENDING_011, id).not.toContain(id);
       expect(tracedIds(testSources).has(id), id).toBe(true);
     }
+  });
+
+  it('NFR-13 NFR-19 NFR-75 closing state of spec 011: 29 ids done and 0 pending, both as literal lists', () => {
+    // Literal list, independent of DONE_011 and PENDING_011: the 28 ids of M1 to M5 T7, in closing order, then NFR-75 (T9).
+    const doneByM5 = [
+      'FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR-371', 'FR-374', 'FR-375', 'FR-372', 'NFR-76', 'FR-384', 'FR-377', 'FR-376', 'FR-380', 'FR-378', 'FR-382',
+      'FR-379', 'FR-369', 'FR-370', 'FR-381', 'FR-385', 'NFR-72', 'FR-383', 'FR-386', 'FR-373', 'FR-390', 'FR-392', 'NFR-73', 'NFR-74', 'NFR-75',
+    ];
+    expect(doneByM5).toHaveLength(29);
+    expect(new Set(doneByM5).size).toBe(29);
+    expect(DONE_011).toStrictEqual(doneByM5);
+    expect(PENDING_011).toStrictEqual([]);
+    // NFR-75 (the list of changed tests) is traced by this test's own title; the other 28 by the titles of other files.
+    const used = tracedIds(testSources);
+    for (const id of TRACED_HERE) used.add(id);
+    for (const id of doneByM5) expect(used.has(id), id).toBe(true);
+    // The five milestones close 3, 6, 6, 6 and 8 ids (the ledger of plan section 11): the done count after each is 3, 9, 15, 21, 29.
+    expect([3, 6, 6, 6, 8].reduce((sum, n) => sum + n, 0)).toBe(29);
+    expect([doneByM5[2], doneByM5[8], doneByM5[14], doneByM5[20], doneByM5[28]]).toStrictEqual(['FR-389', 'NFR-76', 'FR-382', 'NFR-72', 'NFR-75']);
+  });
+
+  it('NFR-55 the pending set of spec 011 is empty: every id has a test title', () => {
+    expect(PENDING_011).toStrictEqual([]);
+    expect(DONE_011).toHaveLength(29);
   });
 
   it('NFR-55 no pending id of spec 011 is already traced by a test title', () => {

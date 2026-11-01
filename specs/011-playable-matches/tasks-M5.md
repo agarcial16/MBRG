@@ -75,7 +75,7 @@ Plan sections 4, 9, 11, 12 (M5 row), 13, 15 (Q12). Branch cut from `rewrite` aft
   - Done when: smoke test green; a hand run executed by the implementer and recorded; the user runs it for acceptance (done criterion 3).
   - Size: S (about 250).
 
-- [ ] **T9. Close M5 and spec 011: ledger, change list, PR.** NFR-75 (close)
+- [x] **T9. Close M5 and spec 011: ledger, change list, PR.** NFR-75 (close)
   - Depends on: T1 to T8.
   - Files: `packages/sim/test/traceability.test.ts` (closing-state test for M5: 29 done / 0 pending; `PENDING_011 = []`; the pending-id tests run over an empty set and a synthetic list, as 008 M5'), `specs/011-playable-matches/PROGRESS.md` (the complete list of existing tests and goldens changed, with the reason of each, per milestone: NFR-75), `plan.md` (closing summary and figures), `MEMORY.md` (local; proposal for AGENTS.md only if a rule became permanent).
   - Tests first: the ledger test pins 29 done and an empty pending list. The list of changed tests and goldens is checked by hand against `git diff --name-only rewrite -- "*.test.ts" "*/golden/*.json"` (not by a test).

@@ -175,3 +175,10 @@ M1 ~1,500 (golden JSON ~800); M2 ~2,400; M3 ~2,500; M4 ~2,600; M5 ~1,600 (golden
 - **Q11** CORS: public `POST` create/join carry no `Authorization`; plan applies the allowed-origins rule to them (a foreign page cannot create or join), while GET reads stay `*`. Confirm.
 - **Q13** FR-370 limits "running public matches". Is the cap checked at creation (counting lobbies that may start later), at `start` (refusing the start with `too-many-matches`, lobby kept), or both? Plan: open lobbies are capped at creation; the running-public cap is enforced at `start` only if the user says so (otherwise it is unreachable, since lobbies are what start).
 - **Q12** "Who guessed right" lists only players with a name (web players); client-credential players have none and are omitted. Confirm.
+
+## 16. Closing summary (M5 T9)
+All 29 ids are done and traced (ledger 29 / 0). Five milestones, five branches, as planned:
+- M1 forced absorber (3 ids; three 008 goldens re-pinned, verified by a comparison script), M2 lobby and public creation (6; schema v2), M3 players and identity (6), M4 HTTP surface and limits (6; 30 variables), M5 names in reads, who guessed right, goldens, scans, hand run and close (8).
+- Figures at the end of M5 (against 11c075e, the last commit before the spec): 174 files changed, 19,294 insertions and 661 deletions in total, of which 1,641 insertions and 381 deletions are golden JSON; 303 test files, 4,801 tests passed, 4 skipped; `npm run typecheck` and `CI=1 npm test` green. The 008 test run was 252 files at M1 and grew by about 50 files.
+- New settings: 15 (the list grew from 15 to 30 variables). New routes: `POST /matches` (anonymous), `POST /matches/:id/start`, `POST /matches/:id/players`, `GET /matches/:id/players`, `GET /matches/:id/results/:round/:phase/winners`; the submission route and the own-predictions read also accept a player token.
+- Deviations from the plan are listed per task in `PROGRESS.md` ("Decisions beyond the plan"); none changed a requirement. The hand run (done criterion 3) was executed by the implementer: see the M5 T8 entry; the user runs it for acceptance. The spec stays `approved` until the user accepts it.
