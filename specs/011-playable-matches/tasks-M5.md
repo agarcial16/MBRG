@@ -58,7 +58,7 @@ Plan sections 4, 9, 11, 12 (M5 row), 13, 15 (Q12). Branch cut from `rewrite` aft
   - Done when: tests green; mutations caught; FR-390 and FR-392 moved (26 / 3).
   - Size: L (about 650; golden JSON ~500 apart).
 
-- [ ] **T7. Secrecy and token scans over the whole feature.** NFR-73, NFR-74 (close)
+- [x] **T7. Secrecy and token scans over the whole feature.** NFR-73, NFR-74 (close)
   - Depends on: T6.
   - Files: `apps/server/test/{token-scan,lobby-secrecy}.test.ts`, `apps/server/test/helpers/db-scan.ts` (additions only).
   - Tests first: NFR-73: over a full scripted session (public create, joins, start, predictions, rate-limited and rejected requests, restart, expiry) with the planted tokens in every encoding (plain, hex, base64, base64url, bytes): no token appears in any read body, event frame, log line, error body or header; the database holds a token only as a digest, except the 24 h `memo` rows, which are gone 24 h + 1 ms later; tokens never appear in `request-failed` events or the closed log fields; names appear in logs only as length and hash. NFR-74: nothing about a future round is readable in the lobby or by the new reads (players, winners, names in results): the 008 storage check `storedFutureViolations` runs over every new scenario and finds nothing; twin matches for every new read; the 008 secrecy suites run unchanged in the same run (`git diff` shows none of them edited); the sim and shared sources are byte-equal to `rewrite`.

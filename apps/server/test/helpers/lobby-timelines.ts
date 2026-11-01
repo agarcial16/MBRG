@@ -97,6 +97,8 @@ export interface LobbyOptions {
   /** A database file: with `restart`, the server restarts on it after every join and every step. */
   readonly file?: string;
   readonly restart?: boolean;
+  /** Called with the database file while the store is closed after a restart point (a raw scan of the rows); `label` numbers the points. */
+  readonly whileClosed?: (file: string, label: string) => void;
 }
 export interface LobbyRun {
   readonly observed: Observed;
@@ -176,6 +178,7 @@ export function runLobbyTimeline(secretName: string, golden: LobbyGolden, option
     if (options.restart !== true) return;
     live.service.close();
     live.restarts += 1;
+    options.whileClosed?.(options.file!, `restart ${live.restarts}`);
     live.service = createMatchService({ store: openStore(options.file!), clock: h.clock, maps: createMapCatalog(h.settings.maps), settings: h.settings, random: fakeRandom(500 + live.restarts) });
     live.service.start();
   };
