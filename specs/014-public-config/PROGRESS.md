@@ -1,5 +1,5 @@
 # Progress 014 — Public match config read
-Branch: `feat/014-public-config`. Ledger (done / pending of 12): 9 / 3.
+Branch: `feat/014-public-config`. Ledger (done / pending of 12): 10 / 2.
 
 Entry format per task: what changed · tests run and results · mutation proofs (mutant -> test that failed) · untested · next step.
 
@@ -41,3 +41,9 @@ No re-pin expected (plan section 1). Record here any exception with its reason.
 - Tests: red first through the ledger (the pending ids were already traced); the new tests pass on the existing code, so their red proof is the mutants. Green: `npm test` 308 files / 4900 passed / 4 skipped; typecheck green.
 - Mutations (the five files of the area per mutant, restored byte for byte, full suite at the end): `lobbyExpiryHours` added to the encoder output -> 18 failures (secrecy, mutants, http-config, service, protocol); `host` added -> 20; match count added -> 18; time stamp added -> 18; `enabled` flipped in `publicConfigOf` -> 22.
 - Untested: creation boundary (T6). Next: T6 (FR-421).
+
+### T6 Creation boundary (ledger 10 / 2: FR-421)
+- Changed: `apps/server/test/config-creation-boundary.test.ts` (new, 25 tests), `traceability.test.ts` (FR-421 done). No source touched. The config is read first (service `publicConfig()` and `GET /config` decoded with `readPublicConfig`); every case derives from it, for the default bounds (map `dev`) and a non-default set (three maps in a fixed order, 61 / 7000 / 12 / 8, cap 6), each on the service (`createPublic`) and over HTTP (`POST /matches`): every listed map creates; interval = min and = max ok, min - 1 -> `invalid-timing` with `e`, max + 1 -> `h`; shortest L1 and L2 ok, each minus 1 -> `f` / `g`; a map not listed (also one the server holds, `hidden`) -> `unknown-map`; `maxPlayers` joins ok then `match-full` (service for both sets, HTTP for the cap-6 set; 200 joins over HTTP skipped for cost); disabled config (bounds kept) -> `unknown-map` for any map. Fresh source and request id per creation, limits raised.
+- Tests: red first through the ledger (FR-421 traced while pending); the boundary tests pass on the existing code (their red proof is the mutants). One fixture slip fixed: `Dev` is an invalid-shape id (`invalid-request`), replaced by `dev2`. Green: `npm test` 309 files / 4925 passed / 4 skipped; typecheck green.
+- Mutations (boundary file per mutant, on `publicConfigOf`, restored byte for byte, full suite at the end): `minInterval + 1` -> 6 failures; `maxInterval` read from `minInterval` -> 6; extra map `hidden` listed -> 18; `maxPlayers - 1` -> 9.
+- Untested: nothing new. Next: T7 (FR-420, NFR-82, close).

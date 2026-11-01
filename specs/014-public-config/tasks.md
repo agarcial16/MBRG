@@ -66,7 +66,7 @@ Spec: `spec.md`. Plan: `plan.md`. Branch: `feat/014-public-config`. One mileston
   - Done when: tests green; mutations caught; FR-415, FR-417, NFR-81, NFR-83 moved (9 / 3).
   - Size: M (about 400).
 
-- [ ] **T6. Creation boundary: a creation inside the config is never refused.** FR-421
+- [x] **T6. Creation boundary: a creation inside the config is never refused.** FR-421
   - Depends on: T4.
   - Files: `apps/server/test/config-creation-boundary.test.ts` (additions to helpers only if needed).
   - Tests first: read the config (service and over HTTP), then derive every case from it, for the default settings and for a non-default set (several maps, other bounds): each listed map creates ok; interval = min and = max ok; min - 1 and max + 1 give `invalid-timing`; L1 = min and L2 = min ok (other fields valid), each minus 1 refused; a map id not listed gives `unknown-map`; `maxPlayers` joins ok, the next is `match-full`; disabled config: creation is refused with `unknown-map` for any map. Fresh source and request id per creation so rate limits and memo do not interfere.
