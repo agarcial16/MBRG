@@ -67,7 +67,7 @@ Plan sections 4, 9, 11, 12 (M5 row), 13, 15 (Q12). Branch cut from `rewrite` aft
   - Done when: tests green; mutations caught; NFR-73 and NFR-74 moved (28 / 1).
   - Size: M (about 450).
 
-- [ ] **T8. Hand run with the fixture.** (no id; done criterion 3)
+- [x] **T8. Hand run with the fixture.** (no id; done criterion 3)
   - Depends on: T7.
   - Files: `apps/server/scripts/hand-run-playable.ts` (new; spawns the server on the dev map, drives HTTP with `node:http`, prints a transcript), `specs/011-playable-matches/PROGRESS.md` (transcript summary), `apps/server/test/hand-run-script.test.ts` (the pure parts of the script: the step list and the assertions, a smoke run on port 0 with the fake clock).
   - Steps: create a lobby anonymously, two joins with two tokens, start (manual timing), each player predicts with its own token, the host advances every step, the leaderboard shows both names; transcript with the figures and any failure; no secret printed (token prefixes only).
