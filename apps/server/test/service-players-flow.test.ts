@@ -139,14 +139,15 @@ describe('players from the lobby to the finished match', () => {
       expect(predicted).toBeGreaterThanOrEqual(3);
       expect(reopened).toBeGreaterThan(15);
 
-      // Both kinds of caller are on the leaderboard (ids only), the player who never predicted is not.
+      // Both kinds of caller are on the leaderboard (the web players with their names), the player who never predicted is not.
       const board = live.service.leaderboard(matchId, { limit: 500 });
       if (!board.ok) throw new Error('leaderboard failed');
       const ids = board.reply.items.map((r) => r.playerId);
       expect(ids.sort()).toStrictEqual([ana.playerId, bea.playerId, 'web:dan'].sort());
       expect(ids).not.toContain(cy.playerId);
       const text = JSON.stringify(board);
-      for (const secret of [...tokens, 'Ana', 'Bea', 'Cy']) expect(text.includes(secret)).toBe(false);
+      for (const secret of [...tokens, 'Cy']) expect(text.includes(secret)).toBe(false);
+      expect(board.reply.items.map((r) => [r.playerId, r.name]).sort()).toStrictEqual([[ana.playerId, 'Ana'], [bea.playerId, 'Bea'], ['web:dan', undefined]].sort());
       for (const p of [ana, bea]) {
         const mine = live.service.playerResults(matchId, p.playerId, { limit: 500 });
         expect(mine.ok && mine.reply.total).toBe(board.reply.items.find((r) => r.playerId === p.playerId)!.total);

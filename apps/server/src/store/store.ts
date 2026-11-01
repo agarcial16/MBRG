@@ -110,6 +110,12 @@ export interface StoredPhaseResult {
   readonly points: number;
 }
 
+/** One player who guessed a scored phase right, as the winners list it: the player id and the name it joined with. */
+export interface StoredWinner {
+  readonly playerId: string;
+  readonly name: string;
+}
+
 /** One stored result of one player: the winner has round 0. */
 export interface StoredPlayerResult {
   readonly kind: PredictionKind;
@@ -297,6 +303,13 @@ export interface Store {
    * phase results). Rows exist only for scored phases (the refusals of `putResults`), so nothing unscored can be listed.
    */
   phaseResultsAfter(matchId: string, kind: 'victim' | 'absorber', round: number, after: string | undefined, limit: number): StoredPhaseResult[];
+  /**
+   * The players who guessed right in one scored phase (spec 011 FR-386): rows with `correct = 1` of `kind` (`victim` for
+   * phase 1, `absorber` for phase 2) of `round`, joined to `players` by (match, player id), so only players who joined by name
+   * appear, after the player id `after` (exclusive), at most `limit`, ordered by player id. Selects nothing else of a row: no
+   * choice, no points, no wrong guess.
+   */
+  winnersAfter(matchId: string, kind: 'victim' | 'absorber', round: number, after: string | undefined, limit: number): StoredWinner[];
   /**
    * The result rows of one player id (as stored, namespace included) after the key `after` (exclusive), at most `limit`,
    * ordered by round (0 for the winner) then kind.

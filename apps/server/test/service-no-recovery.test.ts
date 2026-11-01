@@ -26,7 +26,7 @@ describe('no recovery, no name change', () => {
     try {
       expect(Object.keys(h.service).sort()).toStrictEqual([
         'advance', 'close', 'create', 'createPublic', 'eventsAfter', 'hostTokenMatches', 'join', 'leaderboard', 'listMatches', 'mapFile', 'ownPredictions', 'ownPredictionsPage',
-        'phaseResults', 'playerResults', 'playerTokenOf', 'players', 'publicMatch', 'purgeMemos', 'readPublicMatch', 'recordAt', 'records', 'start', 'startMatch', 'stateAt', 'submit', 'subscribe', 'tick',
+        'phaseResults', 'phaseWinners', 'playerResults', 'playerTokenOf', 'players', 'publicMatch', 'purgeMemos', 'readPublicMatch', 'recordAt', 'records', 'start', 'startMatch', 'stateAt', 'submit', 'subscribe', 'tick',
       ]);
       // The only methods that take a token: the lookup (answers a player id) and the host check (answers a boolean).
       const reply = h.service.playerTokenOf(lobbyOf(h), 'x'.repeat(43));

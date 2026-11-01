@@ -243,3 +243,15 @@ export const withRawDb = <T>(file: string, body: (db: DatabaseSync) => T): T => 
     db.close();
   }
 };
+
+/**
+ * Every form a player or host token can take in an output or a row (spec 011 NFR-73): the token text itself (base64url of its
+ * 32 random bytes), and the decimal, hexadecimal, base64 (with and without padding), base64url and raw-byte forms of the bytes.
+ */
+export const tokenNeedles = (token: string): (string | Uint8Array)[] => encodingsOf(Uint8Array.from(Buffer.from(token, 'base64url')));
+
+/** The needles (texts or bytes) a text holds, as readable names (the first 12 characters of a text needle); empty when it holds none. */
+export const needlesHeldBy = (text: string, needles: readonly (string | Uint8Array)[]): string[] => {
+  const bytes = Buffer.from(text, 'utf8');
+  return needles.filter((n) => (typeof n === 'string' ? n.length > 0 && text.includes(n) : n.length > 0 && bytes.includes(Buffer.from(n)))).map((n) => (typeof n === 'string' ? n.slice(0, 12) : `bytes:${Buffer.from(n).toString('hex').slice(0, 12)}`));
+};

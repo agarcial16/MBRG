@@ -28,6 +28,7 @@ import {
   type StoredRecord,
   type StoredState,
   type StoredStep,
+  type StoredWinner,
   type StoreErrorCode,
   type StoreErrorDetails,
   type StoreSettings,
@@ -181,6 +182,9 @@ export const READ_SQL = {
   // The results reads (M4'): a keyset on the primary key (match, round, kind, player id) for a phase; a player's rows and the
   // leaderboard scan the rows of one match (no index: the schema is unchanged).
   phaseResultsAfter: 'SELECT player_id, choice, correct, points FROM results WHERE match_id = ? AND round = ? AND kind = ? AND player_id > ? ORDER BY player_id LIMIT ?',
+  // Who guessed right (spec 011 FR-386): only the player id and the name; the inner join leaves out every id with no `players` row.
+  winnersAfter: `SELECT r.player_id AS player_id, p.name AS name FROM results r JOIN players p ON p.match_id = r.match_id AND p.player_id = r.player_id
+    WHERE r.match_id = ? AND r.round = ? AND r.kind = ? AND r.correct = 1 AND r.player_id > ? ORDER BY r.player_id LIMIT ?`,
   playerResultsAfter: 'SELECT kind, round, choice, correct, points FROM results WHERE match_id = ? AND player_id = ? AND (round, kind) > (?, ?) ORDER BY round, kind LIMIT ?',
   playerTotal: 'SELECT COALESCE(SUM(points), 0) AS total FROM results WHERE match_id = ? AND player_id = ?',
   leaderboardTotals: `SELECT player_id, SUM(points) AS total,
@@ -672,6 +676,13 @@ export const openStore = (path: string): Store => {
         correct: num(r, 'correct') === 1,
         points: num(r, 'points'),
       }));
+    },
+    winnersAfter(matchId: string, kind: 'victim' | 'absorber', round: number, after: string | undefined, limit: number): StoredWinner[] {
+      if (kind !== 'victim' && kind !== 'absorber') throw new RangeError('a winners list is the victim or the absorber phase');
+      if (!Number.isSafeInteger(round) || round < 1) throw new RangeError('a winners list is a round of at least 1');
+      if (after !== undefined && typeof after !== 'string') throw new RangeError('not a key of the winners list');
+      checkLimit(limit);
+      return all(READ_SQL.winnersAfter, matchId, round, kind, after ?? '', limit).map((r) => ({ playerId: str(r, 'player_id'), name: str(r, 'name') }));
     },
     playerResultsAfter(matchId: string, playerId: string, after: PlayerResultKey | undefined, limit: number): StoredPlayerResult[] {
       if (after !== undefined && (!Number.isSafeInteger(after[0]) || after[0] < 0 || !PREDICTION_KINDS.includes(after[1]))) throw new RangeError('not a key of the player results list');

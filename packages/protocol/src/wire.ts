@@ -329,6 +329,8 @@ export interface PhaseResult {
   readonly choice: number;
   readonly correct: boolean;
   readonly points: number;
+  /** The name of a player who joined by name; absent for a client-credential player. */
+  readonly name?: string;
 }
 
 /**
@@ -359,6 +361,8 @@ export interface PlayerResultsPage {
   readonly total: number;
   readonly items: readonly PlayerResult[];
   readonly next?: string;
+  /** The name of the player when it joined by name; absent otherwise. */
+  readonly name?: string;
 }
 
 /** One leaderboard row: competition rank (equal totals share it), totals and correct counts (`correctWinner` is 0 or 1). */
@@ -369,6 +373,22 @@ export interface LeaderboardRow {
   readonly correctVictims: number;
   readonly correctAbsorbers: number;
   readonly correctWinner: number;
+  /** The name of the player when it joined by name; absent otherwise. */
+  readonly name?: string;
+}
+
+/** One player who guessed a scored phase right: only the id and the name (no choice, no points). */
+export interface PhaseWinner {
+  readonly playerId: string;
+  readonly name: string;
+}
+
+/** One page of the named players who guessed right in a scored phase, ordered by player id; `next` exactly when more follow. */
+export interface PhaseWinnersPage {
+  readonly round: number;
+  readonly phase: 1 | 2;
+  readonly items: readonly PhaseWinner[];
+  readonly next?: string;
 }
 
 /** One page of a list read (FR-279 (a)): `next` is present exactly when the page is not the last. */
@@ -389,8 +409,10 @@ export const MATCH_SUMMARY_KEYS = ['matchId', 'mapId', 'stage', 'appliedRounds',
 export const STATE_REPLY_KEYS = ['round', 'owners', 'stateDigest', 'reportedTime'] as const;
 export const RECORD_REPLY_KEYS = ['round', 'eliminated', 'absorber', 'transferred'] as const;
 export const PAGE_KEYS = ['items', 'next'] as const;
-export const PHASE_RESULT_KEYS = ['playerId', 'choice', 'correct', 'points'] as const;
+export const PHASE_RESULT_KEYS = ['playerId', 'choice', 'correct', 'points', 'name'] as const;
 export const PHASE_RESULTS_PAGE_KEYS = ['round', 'phase', 'victim', 'record', 'items', 'next'] as const;
 export const PLAYER_RESULT_KEYS = ['kind', 'round', 'choice', 'correct', 'points'] as const;
-export const PLAYER_RESULTS_PAGE_KEYS = ['playerId', 'total', 'items', 'next'] as const;
-export const LEADERBOARD_ROW_KEYS = ['rank', 'playerId', 'total', 'correctVictims', 'correctAbsorbers', 'correctWinner'] as const;
+export const PLAYER_RESULTS_PAGE_KEYS = ['playerId', 'total', 'items', 'next', 'name'] as const;
+export const LEADERBOARD_ROW_KEYS = ['rank', 'playerId', 'total', 'correctVictims', 'correctAbsorbers', 'correctWinner', 'name'] as const;
+export const PHASE_WINNER_KEYS = ['playerId', 'name'] as const;
+export const PHASE_WINNERS_PAGE_KEYS = ['round', 'phase', 'items', 'next'] as const;

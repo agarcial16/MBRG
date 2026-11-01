@@ -100,6 +100,7 @@ export const withFaults = (store: Store, plan: FaultPlan): Store => {
     predictionsOfPhase: (matchId, kind, round) => store.predictionsOfPhase(matchId, kind, round),
     putResults: (matchId, rows) => (write(), store.putResults(matchId, rows)),
     phaseResultsAfter: (matchId, kind, round, after, limit) => store.phaseResultsAfter(matchId, kind, round, after, limit),
+    winnersAfter: (matchId, kind, round, after, limit) => store.winnersAfter(matchId, kind, round, after, limit),
     playerResultsAfter: (matchId, playerId, after, limit) => store.playerResultsAfter(matchId, playerId, after, limit),
     playerTotal: (matchId, playerId) => store.playerTotal(matchId, playerId),
     leaderboardTotals: (matchId) => store.leaderboardTotals(matchId),
