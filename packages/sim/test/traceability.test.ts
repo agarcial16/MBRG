@@ -110,11 +110,11 @@ const DONE_011: readonly string[] = ['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR
  * T5 adds FR-415, FR-417, NFR-81, NFR-83 (9 / 3); T6 adds FR-421 (10 / 2); T7 adds FR-420, NFR-82 (12 / 0).
  */
 const PENDING_014: readonly string[] = [
-  'FR-413', 'FR-414', 'FR-415', 'FR-416', 'FR-417', 'FR-418', 'FR-419', 'FR-420', 'FR-421', 'NFR-81', 'NFR-82', 'NFR-83',
+  'FR-413', 'FR-414', 'FR-415', 'FR-417', 'FR-418', 'FR-419', 'FR-420', 'FR-421', 'NFR-81', 'NFR-82', 'NFR-83',
 ];
 
-/** Ids of spec 014 already closed by the tasks that traced them (none yet). */
-const DONE_014: readonly string[] = [];
+/** Ids of spec 014 already closed by the tasks that traced them (T2: FR-416, the public config encoder, decoder and golden). */
+const DONE_014: readonly string[] = ['FR-416'];
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {

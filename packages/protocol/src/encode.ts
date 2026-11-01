@@ -21,6 +21,7 @@ import {
   PLAYER_RESULT_KEYS,
   PREDICTION_KINDS,
   PREDICTION_REPLY_KEYS,
+  PUBLIC_CONFIG_KEYS,
   RECORD_REPLY_KEYS,
   STAGES,
   STATE_REPLY_KEYS,
@@ -40,6 +41,7 @@ import {
   type PlayerListItem,
   type PlayerResultsPage,
   type PredictionReply,
+  type PublicConfig,
   type RecordReply,
   type StateReply,
 } from './wire';
@@ -407,6 +409,29 @@ export function encodePlayerListItem(item: PlayerListItem): string {
     playerId: joinedPlayerId('player.playerId'),
     name: nameText('player.name'),
     joinedSeq: int('player.joinedSeq', 1),
+  });
+}
+
+/**
+ * The public config (FR-416): flat, fixed key order, no whitespace, whole numbers. Written field by field, so a property
+ * outside the list is refused and never reaches the text. Maps are map ids without duplicates and `enabled` must agree with
+ * them (true exactly when the list is not empty), as the decoder demands.
+ */
+export function encodePublicConfig(config: PublicConfig): string {
+  const o = objectOf(config, 'config', PUBLIC_CONFIG_KEYS);
+  noInherited(o, 'config', PUBLIC_CONFIG_KEYS);
+  const maps = o.maps;
+  if (!Array.isArray(maps) || !maps.every((m) => isMapId(m))) bad('config.maps is not a list of map ids');
+  if (new Set(maps as string[]).size !== (maps as string[]).length) bad('config.maps has a duplicate');
+  if (o.enabled !== ((maps as string[]).length > 0)) bad('config.enabled disagrees with config.maps');
+  return write(o, 'config', PUBLIC_CONFIG_KEYS, {
+    maps: (v) => `[${(v as string[]).map((m) => JSON.stringify(m)).join(',')}]`,
+    minInterval: int('config.minInterval', 1),
+    maxInterval: int('config.maxInterval', 1),
+    minPhase1: int('config.minPhase1', 1),
+    minPhase2: int('config.minPhase2', 1),
+    maxPlayers: int('config.maxPlayers', 1),
+    enabled: (v) => (typeof v === 'boolean' ? String(v) : bad('config.enabled is not a boolean')),
   });
 }
 

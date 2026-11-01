@@ -30,7 +30,7 @@ Spec: `spec.md`. Plan: `plan.md`. Branch: `feat/014-public-config`. One mileston
   - Done when: suite, typecheck green; 0 / 12.
   - Size: S (about 40).
 
-- [ ] **T2. Protocol shape, encoder, decoder and SHA-256 golden.** FR-416
+- [x] **T2. Protocol shape, encoder, decoder and SHA-256 golden.** FR-416
   - Depends on: T1.
   - Files: `packages/protocol/src/{wire,encode,decode,index}.ts`, `packages/protocol/test/public-config.test.ts`, `packages/protocol/test/golden/config-014.json` (new), `packages/protocol/test/purity.test.ts` (only if it enumerates files).
   - Tests first: three fixed examples (one map and defaults; three maps, custom bounds; disabled: `[]`, bounds present) give exactly the canonical text of plan section 2 (key order, no whitespace, whole numbers); SHA-256 of each equals the golden hex; round trip; decoder refuses unknown field, each of the 7 missing fields, wrong types (float, negative, 0, numeric string, null, `maps` not an array), map ids of bad shape, duplicate map, `enabled` that disagrees with `maps` (D5); a property added to the input object never reaches the encoded text; purity scan passes.
