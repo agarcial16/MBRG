@@ -12,7 +12,7 @@
 //   (an event-stream route also takes a place in the open-stream gauge at stage 1 and hands it to the hub at stage 7)
 //   8 unexpected   any exception: ONE `request-failed` event (name and stage only), then 500 `{"kind":"unavailable"}`
 // The command and read routes are tables of `Route` (router.ts): `productionRoutes` holds the three command routes and the
-// read routes (list, match, states, records, own predictions, map files); `routes` is the injection point of the pipeline tests
+// read routes (list, match, states, records, own predictions, map files, and the public config of spec 014); `routes` is the injection point of the pipeline tests
 // (it cannot carry a seed source: PD18). A route's `decide` may be asynchronous (a map file is read once per request).
 // Connection hardening is the platform's own (PD21): the four server options below; no custom socket timers.
 
@@ -32,6 +32,7 @@ import {
   encodePlayerListItem,
   encodePlayerResults,
   encodePrediction,
+  encodePublicConfig,
   encodePublicMatch,
   encodeRecord,
   encodeState,
@@ -164,9 +165,17 @@ async function fileReply(file: MapFile): Promise<Reply> {
  * credential; the service compares the credential itself, in the FR-301 order forbidden, request-id-reused, unknown-match)
  * and submission (200; the client credential gives the namespace, the body only the local id). The reads (T3'): the match
  * list, a match, its states and records, the caller's own predictions (client credential) and the three map files; all
- * credential-free except the own predictions. A list read takes `limit` and `cursor` (and `playerId` for the own predictions).
+ * credential-free except the own predictions; and `GET /config` (spec 014), the public config. A list read takes `limit` and `cursor` (and `playerId` for the own predictions).
  */
 export const productionRoutes = (service: MatchService, settings: ServerSettings): readonly Route[] => [
+  {
+    // The public match config (spec 014 FR-413): credential-free, no query, no body; the service holds the rule (FR-421).
+    method: 'GET',
+    path: '/config',
+    body: 'none',
+    checkQuery: noQuery,
+    decide: () => replyOf(service.publicConfig(), 200, encodePublicConfig),
+  },
   {
     method: 'GET',
     path: '/matches',

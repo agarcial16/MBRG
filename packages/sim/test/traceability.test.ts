@@ -49,9 +49,10 @@ const TRACED_HERE = [...tracedIds({ 'x/own.test.ts': OWN_DECLARATIONS })];
 // spec 005 (FR-167..FR-194, NFR-32..NFR-37), spec 006 (FR-195..FR-216, NFR-38..NFR-42)
 // spec 007 (FR-217..FR-230, NFR-43..NFR-46), spec 008 (FR-231..FR-315, NFR-47..NFR-57)
 // spec 009 (FR-316..FR-355, NFR-58..NFR-64), spec 010 (FR-356..FR-368, NFR-65..NFR-71)
-// and spec 011 (FR-369..FR-392, NFR-72..NFR-76).
-const FR_RANGES: readonly (readonly [number, number])[] = [[1, 392]];
-const NFR_RANGES: readonly (readonly [number, number])[] = [[1, 76]];
+// spec 011 (FR-369..FR-392, NFR-72..NFR-76) and spec 014 (FR-413..FR-421, NFR-81..NFR-83;
+// 393..412 and 77..80 belong to specs 012 and 013 and are not ledgered here).
+const FR_RANGES: readonly (readonly [number, number])[] = [[1, 392], [413, 421]];
+const NFR_RANGES: readonly (readonly [number, number])[] = [[1, 76], [81, 83]];
 const idsOf = (prefix: string, ranges: readonly (readonly [number, number])[]): string[] =>
   ranges.flatMap(([from, to]) => Array.from({ length: to - from + 1 }, (_, i) => `${prefix}-${from + i}`));
 
@@ -101,6 +102,19 @@ const PENDING_011: readonly string[] = [];
 /** Ids of spec 011 already closed (M1 T4: FR-387, a forced absorber is not predicted and does not score; M1 T5: FR-388, the shortened phase 2; M1 T6: FR-389, the victim and winner rules unchanged; M2 T4: FR-391, a database written by 008 opens unchanged; M2 T6: FR-371, a public creation starts in a lobby, FR-374, the host starts it, FR-375, a manual match is stepped by the host; M2 T7: FR-372, a lobby not started in time expires, NFR-76, time rules on the fake clock and scheduler; M3 T2: FR-384, names are untrusted text, and the join, joined-event and players-list shapes of the protocol; M3 T6: FR-377, a caller joins with a name and gets a token, FR-376, the joined event on the stream and its replay, FR-380, a join in a running match and the player cap; M3 T7: FR-378, a player authenticates by its match token; M3 T8: FR-382, no account, no recovery and no name change; M4 T3: FR-379, player tokens for predictions over HTTP; M4 T4: FR-369, public creation over HTTP, FR-370, its caps and rates over HTTP; M4 T5: FR-381, the join rates and the memo over HTTP; M4 T6: FR-385, the players list on the wire; M4 T8: NFR-72, the anonymous bounds driven to their edges; M5 T3: FR-383, the names next to the player ids in the results reads; M5 T4: FR-386, who guessed each scored phase right; M5 T5: FR-373, the lobby's public data; M5 T6: FR-390, players, names, token digests and the lobby stage stored with the event they cause, FR-392, the protocol additions and the 008 wire forms unchanged; M5 T7: NFR-73, tokens never in a read, an event, a log or an error, and only digests stored, NFR-74, nothing about a future round readable in the lobby or by the new reads; M5 T9: NFR-75, the 008 and 009 suites pass and every changed test or golden is listed with its reason). */
 const DONE_011: readonly string[] = ['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR-371', 'FR-374', 'FR-375', 'FR-372', 'NFR-76', 'FR-384', 'FR-377', 'FR-376', 'FR-380', 'FR-378', 'FR-382', 'FR-379', 'FR-369', 'FR-370', 'FR-381', 'FR-385', 'NFR-72', 'FR-383', 'FR-386', 'FR-373', 'FR-390', 'FR-392', 'NFR-73', 'NFR-74', 'NFR-75'];
 
+/**
+ * Ids of spec 014 (public config read; FR-413..FR-421, NFR-81..NFR-83) whose tests are not written yet
+ * (pinned literal list of its 12 ids). Each task of spec 014 moves the ids it closes from here to DONE_014
+ * in its own commit; the last task leaves this list empty.
+ * Targets (done / pending): T1 0 / 12; T2 adds FR-416 (1 / 11); T3 adds FR-414 (2 / 10); T4 adds FR-413, FR-418, FR-419 (5 / 7);
+ * T5 adds FR-415, FR-417, NFR-81, NFR-83 (9 / 3); T6 adds FR-421 (10 / 2); T7 adds FR-420, NFR-82 (12 / 0).
+ */
+const PENDING_014: readonly string[] = [
+];
+
+/** Ids of spec 014 already closed by the tasks that traced them (T2: FR-416, the public config encoder, decoder and golden; T3: FR-414, the service reads the public config from the settings; T4: FR-413, FR-418, FR-419, the route GET /config; T5: FR-415, the public config holds no private value, FR-417, the same bytes for any state, NFR-81, the mutation table of the output, NFR-83, the read touches no storage, clock or random; T6: FR-421, a creation inside the published config is never refused; T7: FR-420, the existing wire unchanged, NFR-82, this ledger closed). */
+const DONE_014: readonly string[] = ['FR-416', 'FR-414', 'FR-413', 'FR-418', 'FR-419', 'FR-415', 'FR-417', 'NFR-81', 'NFR-83', 'FR-421', 'FR-420', 'NFR-82'];
+
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
     expect(Object.keys(testSources).length).toBeGreaterThanOrEqual(10);
@@ -132,13 +146,13 @@ describe('traceability', () => {
   });
 
   it('NFR-13 NFR-19 the expected list ends at the last spec ids and excludes retired ids', () => {
-    expect(FR_RANGES).toStrictEqual([[1, 392]]);
-    expect(NFR_RANGES).toStrictEqual([[1, 76]]);
+    expect(FR_RANGES).toStrictEqual([[1, 392], [413, 421]]);
+    expect(NFR_RANGES).toStrictEqual([[1, 76], [81, 83]]);
     const everything = new Set([...expected, ...RETIRED]);
     expect([...everything].sort()).toStrictEqual([...specIds].sort());
-    expect(everything.size).toBe(468);
-    expect(specIds.length - RETIRED.length).toBe(466);
-    expect(expected.length).toBe(466);
+    expect(everything.size).toBe(480);
+    expect(specIds.length - RETIRED.length).toBe(478);
+    expect(expected.length).toBe(478);
     expect(expected).toContain('NFR-31');
     for (const id of ['FR-110', 'NFR-22', 'FR-104']) expect(expected).toContain(id);
     for (const id of ['FR-105', 'FR-126', 'NFR-14', 'NFR-23', 'FR-131', 'NFR-21']) {
@@ -161,7 +175,11 @@ describe('traceability', () => {
       expect(specIds).toContain(id);
       expect(expected).toContain(id);
     }
-    for (const id of ['FR-393', 'NFR-77']) {
+    for (const id of ['FR-413', 'FR-421', 'NFR-81', 'NFR-83']) {
+      expect(specIds).toContain(id);
+      expect(expected).toContain(id);
+    }
+    for (const id of ['FR-393', 'FR-412', 'FR-422', 'NFR-77', 'NFR-80', 'NFR-84']) {
       expect(specIds).not.toContain(id);
       expect(expected).not.toContain(id);
     }
@@ -185,11 +203,13 @@ describe('traceability', () => {
     // Independent computation with literal bounds.
     const all = [
       ...Array.from({ length: 392 }, (_, i) => `FR-${i + 1}`),
+      ...Array.from({ length: 9 }, (_, i) => `FR-${413 + i}`),
       ...Array.from({ length: 76 }, (_, i) => `NFR-${i + 1}`),
+      ...Array.from({ length: 3 }, (_, i) => `NFR-${81 + i}`),
     ];
     expect(RETIRED).toStrictEqual(['FR-6', 'FR-25']);
-    expect(all.filter((id) => !RETIRED.includes(id))).toHaveLength(466);
-    expect(expected).toHaveLength(466);
+    expect(all.filter((id) => !RETIRED.includes(id))).toHaveLength(478);
+    expect(expected).toHaveLength(478);
     expect(expected).toStrictEqual(all.filter((id) => id !== 'FR-6' && id !== 'FR-25'));
     for (const id of ['FR-127', 'FR-131', 'NFR-16', 'NFR-17', 'NFR-21']) {
       expect(expected).toContain(id);
@@ -221,6 +241,7 @@ describe('traceability', () => {
       'NFR-44',
       'NFR-55',
       'NFR-75',
+      'NFR-82',
     ]);
   });
 
@@ -420,6 +441,7 @@ describe('traceability', () => {
         !PENDING_009.includes(id) &&
         !PENDING_010.includes(id) &&
         !PENDING_011.includes(id) &&
+        !PENDING_014.includes(id) &&
         !found.has(id),
     );
     expect(missing, `ids without a test name: ${missing.join(', ')}`).toStrictEqual([]);
@@ -899,5 +921,43 @@ describe('traceability', () => {
     const planted = tracedIds({ 'x/a.test.ts': "it('FR-902 a', () => {});" });
     expect(synthetic.filter((id) => planted.has(id))).toStrictEqual(['FR-902']);
     expect(synthetic.filter((id) => tracedIds({ 'x/a.test.ts': "it('FR-9020 a', () => {});" }).has(id))).toStrictEqual([]);
+  });
+
+  it('NFR-13 NFR-19 the 12 ids of spec 014 are pinned: pending plus done, as literal lists, every one a spec id with no overlap', () => {
+    // Independent computation with literal bounds: 9 FR from 413, 3 NFR from 81.
+    const literal = [
+      ...Array.from({ length: 9 }, (_, i) => `FR-${413 + i}`),
+      ...Array.from({ length: 3 }, (_, i) => `NFR-${81 + i}`),
+    ];
+    expect(literal).toHaveLength(12);
+    expect(PENDING_014.length + DONE_014.length).toBe(12);
+    expect(new Set([...PENDING_014, ...DONE_014]).size).toBe(12);
+    expect([...PENDING_014, ...DONE_014].sort()).toStrictEqual([...literal].sort());
+    for (const id of literal) {
+      expect(specIds, id).toContain(id);
+      expect(expected, id).toContain(id);
+    }
+    for (const id of DONE_014) expect(PENDING_014, id).not.toContain(id);
+  });
+
+  it('NFR-13 NFR-19 every closed id of spec 014 has a test title and no pending id of spec 014 is already traced', () => {
+    // NFR-82 is traced by the title of the closing-state test below (this file is skipped by the scan).
+    const used = tracedIds(testSources);
+    for (const id of TRACED_HERE) used.add(id);
+    for (const id of DONE_014) expect(used.has(id), id).toBe(true);
+    const traced = PENDING_014.filter((id) => used.has(id));
+    expect(traced, `move to DONE_014: ${traced.join(', ')}`).toStrictEqual([]);
+  });
+
+  it('NFR-82 the ledger of spec 014 is closed: twelve ids done, none pending, each listed once and each with a test title', () => {
+    expect(PENDING_014).toStrictEqual([]);
+    expect(DONE_014).toHaveLength(12);
+    expect(new Set(DONE_014).size).toBe(12);
+    const used = tracedIds(testSources);
+    for (const id of TRACED_HERE) used.add(id);
+    for (const id of DONE_014) expect(used.has(id), id).toBe(true);
+    // The tasks close 1, 1, 3, 4, 1 and 2 ids after T1 (done: 0, 1, 2, 5, 9, 10, 12).
+    expect([1, 1, 3, 4, 1, 2].reduce((sum, n) => sum + n, 0)).toBe(12);
+    expect(DONE_014.slice(0, 5)).toStrictEqual(['FR-416', 'FR-414', 'FR-413', 'FR-418', 'FR-419']);
   });
 });

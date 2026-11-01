@@ -15,6 +15,7 @@ import {
   PLAYER_RESULT_KEYS,
   PREDICTION_KINDS,
   PREDICTION_REPLY_KEYS,
+  PUBLIC_CONFIG_KEYS,
   PUBLIC_MATCH_KEYS,
   PUBLIC_VICTIM_KEYS,
   RECORD_REPLY_KEYS,
@@ -31,6 +32,7 @@ import {
   type PlayerResult,
   type PlayerResultsPage,
   type PredictionReply,
+  type PublicConfig,
   type PublicMatch,
   type PublicSchedule,
   type PublicState,
@@ -410,6 +412,28 @@ export function readJoinReply(input: unknown): Decoded<JoinReply> {
         return read.ok ? read.value : refuse(`${f}.${read.field}`);
       });
       return { playerId, name, playerToken, match };
+    }),
+  );
+}
+
+/**
+ * The public config (FR-416): exact key set, whole numbers >= 1, map ids of the map-id shape without duplicates, and an
+ * `enabled` that agrees with the list (true exactly when it is not empty).
+ */
+export function readPublicConfig(input: unknown): Decoded<PublicConfig> {
+  return run(() =>
+    object(input, '', PUBLIC_CONFIG_KEYS, (m) => {
+      const maps = m.get('maps', list(textWhere(isMapId)));
+      const dup = maps.findIndex((id, i) => maps.indexOf(id) !== i);
+      if (dup >= 0) refuse(`${m.path('maps')}[${dup}]`);
+      const minInterval = m.get('minInterval', int(1));
+      const maxInterval = m.get('maxInterval', int(1));
+      const minPhase1 = m.get('minPhase1', int(1));
+      const minPhase2 = m.get('minPhase2', int(1));
+      const maxPlayers = m.get('maxPlayers', int(1));
+      const enabled = m.get('enabled', bool);
+      if (enabled !== maps.length > 0) refuse(m.path('enabled'));
+      return { maps, minInterval, maxInterval, minPhase1, minPhase2, maxPlayers, enabled };
     }),
   );
 }
