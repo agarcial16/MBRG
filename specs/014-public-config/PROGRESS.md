@@ -1,5 +1,5 @@
 # Progress 014 — Public match config read
-Branch: `feat/014-public-config`. Ledger (done / pending of 12): 10 / 2.
+Branch: `feat/014-public-config`. Ledger (done / pending of 12): 12 / 0.
 
 Entry format per task: what changed · tests run and results · mutation proofs (mutant -> test that failed) · untested · next step.
 
@@ -47,3 +47,24 @@ No re-pin expected (plan section 1). Record here any exception with its reason.
 - Tests: red first through the ledger (FR-421 traced while pending); the boundary tests pass on the existing code (their red proof is the mutants). One fixture slip fixed: `Dev` is an invalid-shape id (`invalid-request`), replaced by `dev2`. Green: `npm test` 309 files / 4925 passed / 4 skipped; typecheck green.
 - Mutations (boundary file per mutant, on `publicConfigOf`, restored byte for byte, full suite at the end): `minInterval + 1` -> 6 failures; `maxInterval` read from `minInterval` -> 6; extra map `hidden` listed -> 18; `maxPlayers - 1` -> 9.
 - Untested: nothing new. Next: T7 (FR-420, NFR-82, close).
+
+### T7 Close: existing wire unchanged, ledger (ledger 12 / 0: FR-420, NFR-82)
+- Changed: `apps/server/test/config-unchanged.test.ts` (new, 4 tests), `packages/sim/test/traceability.test.ts` (FR-420 and NFR-82 done, `PENDING_014` empty, closing-state test `NFR-82 ...`, NFR-82 added to the self-traced list, the 014 title check also counts the ids traced by this file). No source touched. The test pins: the production route table = the 18 routes of the end of spec 011 plus exactly `GET /config`; the 27 error kinds and the 30 settings variables as literals; SHA-256 of `wire-008.json`, `core-timelines`, `dev-lobby`, `dev-results`, `dev-secrets`, `service-timelines` and `protected-files.json`, taken from `git show 831ba9e:<file>` (the end of spec 011); the pin lists neither protocol nor server sources.
+- No re-pin: the protected roots are `packages/sim/src`, `packages/shared/src`, `maps/dev`, the sim and web goldens; `protected-files.json` lists neither `packages/protocol` nor `apps/server/src`. `git diff --stat 831ba9e HEAD` over `apps/server/test/golden`, `apps/web`, `packages/sim/src`, `packages/shared/src` shows only `traceability.test.ts` (a test, not a golden).
+- Tests: red first through the ledger (FR-420 traced while pending); a second red: `NFR-82` in a ledger title changes the self-traced list (fixed). Green: `npm test` 310 files / 4930 passed / 4 skipped; `CI=1 npm test` same; typecheck green.
+- Mutations (`config-unchanged` per mutant, restored byte for byte): a second route (`GET /config2`) -> 1 failure (route table); a settings variable added -> 1 (variables); an error kind added -> 1 (error kinds).
+- Untested: the browser (no UI in this spec). Next: the user opens the PR and merges; then set the spec status to `implemented`; spec 013 reads `GET /config`.
+
+## Hand-off to spec 013
+The web create screen reads `GET /config` (anonymous, CORS `*`), decodes it with `readPublicConfig` from `@mbrg/protocol`, offers only the listed `maps` and timings inside the bounds, shows "creation off" when `enabled` is false, and still handles a server refusal (settings change at a server restart). It adds its own FR range to the ledger.
+
+## PR body
+**Summary.** Spec 014: one anonymous read, `GET /config`, publishes what public creation enforces: the public map ids (operator order), the timing bounds in seconds (shortest interval, longest interval, shortest L1, shortest L2), the player cap and `enabled` (true exactly when the map list is not empty). The values come from the same settings object `createPublic` reads, so a creation inside the config is never refused for map or timing. New protocol names: `PublicConfig`, `PUBLIC_CONFIG_KEYS`, `encodePublicConfig`, `readPublicConfig`. Decisions D1 to D7 (flat shape; one settings object; the service owns the read; field-by-field encoder; `enabled` derived and checked by the decoder; normal anonymous GET pipeline; hand-made SHA-256 golden `config-014.json`). The decoder also refuses a duplicate map and an `enabled` that disagrees with `maps` (D5, approved). No existing byte changed: wire-008, the 011 goldens and `protected-files.json` are byte-identical; no re-pin; the route table gains only `GET /config`.
+
+**Test results.** `npm test`: 310 files, 4930 passed, 4 skipped; `CI=1 npm test` the same; `npm run typecheck` green. Every task has mutation proofs in `PROGRESS.md`.
+
+**Ledger (12 ids, 12 done / 0 pending).** FR-413 route and body (T4); FR-414 `enabled` derivation (T3); FR-415 no private value (T5); FR-416 encoder, decoder, golden (T2); FR-417 identical bytes (T5); FR-418 anonymous GET pipeline (T4); FR-419 405 and `Allow` (T4); FR-420 existing wire unchanged (T7); FR-421 creation at each bound (T6); NFR-81 mutation table (T5); NFR-82 ledger (T7); NFR-83 no storage, clock or random (T5).
+
+**Out of scope.** The web create screen (spec 013), the Discord bot (012), any change to settings, limits, router, CORS, the map format or the simulation, and a config for operator creation.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)

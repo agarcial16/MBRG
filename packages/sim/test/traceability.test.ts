@@ -110,11 +110,10 @@ const DONE_011: readonly string[] = ['FR-387', 'FR-388', 'FR-389', 'FR-391', 'FR
  * T5 adds FR-415, FR-417, NFR-81, NFR-83 (9 / 3); T6 adds FR-421 (10 / 2); T7 adds FR-420, NFR-82 (12 / 0).
  */
 const PENDING_014: readonly string[] = [
-  'FR-420', 'NFR-82',
 ];
 
-/** Ids of spec 014 already closed by the tasks that traced them (T2: FR-416, the public config encoder, decoder and golden; T3: FR-414, the service reads the public config from the settings; T4: FR-413, FR-418, FR-419, the route GET /config; T5: FR-415, the public config holds no private value, FR-417, the same bytes for any state, NFR-81, the mutation table of the output, NFR-83, the read touches no storage, clock or random; T6: FR-421, a creation inside the published config is never refused). */
-const DONE_014: readonly string[] = ['FR-416', 'FR-414', 'FR-413', 'FR-418', 'FR-419', 'FR-415', 'FR-417', 'NFR-81', 'NFR-83', 'FR-421'];
+/** Ids of spec 014 already closed by the tasks that traced them (T2: FR-416, the public config encoder, decoder and golden; T3: FR-414, the service reads the public config from the settings; T4: FR-413, FR-418, FR-419, the route GET /config; T5: FR-415, the public config holds no private value, FR-417, the same bytes for any state, NFR-81, the mutation table of the output, NFR-83, the read touches no storage, clock or random; T6: FR-421, a creation inside the published config is never refused; T7: FR-420, the existing wire unchanged, NFR-82, this ledger closed). */
+const DONE_014: readonly string[] = ['FR-416', 'FR-414', 'FR-413', 'FR-418', 'FR-419', 'FR-415', 'FR-417', 'NFR-81', 'NFR-83', 'FR-421', 'FR-420', 'NFR-82'];
 
 describe('traceability', () => {
   it('the glob finds the test sources', () => {
@@ -242,6 +241,7 @@ describe('traceability', () => {
       'NFR-44',
       'NFR-55',
       'NFR-75',
+      'NFR-82',
     ]);
   });
 
@@ -941,9 +941,23 @@ describe('traceability', () => {
   });
 
   it('NFR-13 NFR-19 every closed id of spec 014 has a test title and no pending id of spec 014 is already traced', () => {
+    // NFR-82 is traced by the title of the closing-state test below (this file is skipped by the scan).
     const used = tracedIds(testSources);
+    for (const id of TRACED_HERE) used.add(id);
     for (const id of DONE_014) expect(used.has(id), id).toBe(true);
     const traced = PENDING_014.filter((id) => used.has(id));
     expect(traced, `move to DONE_014: ${traced.join(', ')}`).toStrictEqual([]);
+  });
+
+  it('NFR-82 the ledger of spec 014 is closed: twelve ids done, none pending, each listed once and each with a test title', () => {
+    expect(PENDING_014).toStrictEqual([]);
+    expect(DONE_014).toHaveLength(12);
+    expect(new Set(DONE_014).size).toBe(12);
+    const used = tracedIds(testSources);
+    for (const id of TRACED_HERE) used.add(id);
+    for (const id of DONE_014) expect(used.has(id), id).toBe(true);
+    // The tasks close 1, 1, 3, 4, 1 and 2 ids after T1 (done: 0, 1, 2, 5, 9, 10, 12).
+    expect([1, 1, 3, 4, 1, 2].reduce((sum, n) => sum + n, 0)).toBe(12);
+    expect(DONE_014.slice(0, 5)).toStrictEqual(['FR-416', 'FR-414', 'FR-413', 'FR-418', 'FR-419']);
   });
 });

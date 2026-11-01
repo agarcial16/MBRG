@@ -75,7 +75,7 @@ Spec: `spec.md`. Plan: `plan.md`. Branch: `feat/014-public-config`. One mileston
   - Done when: tests green; mutations caught; FR-421 moved (10 / 2).
   - Size: M (about 300).
 
-- [ ] **T7. Close: existing wire unchanged, ledger, PROGRESS, PR.** FR-420, NFR-82
+- [x] **T7. Close: existing wire unchanged, ledger, PROGRESS, PR.** FR-420, NFR-82
   - Depends on: T1 to T6.
   - Files: `apps/server/test/config-unchanged.test.ts` (new), `packages/sim/test/traceability.test.ts` (closing-state test: 12 done / 0 pending, ledger lists each of the 12 ids with a test), `specs/014-public-config/PROGRESS.md`, `MEMORY.md` (local, short), `specs/014-public-config/spec.md` status line to `implemented` only after the user merges.
   - Tests first: the production route table equals the previous list plus exactly `GET /config`; the existing error kinds and settings variable list (30) are unchanged; `wire-008.json`, the 011 goldens and `protected-files.json` are byte-identical to `main` (hash compare in test, or `git diff --stat` recorded in `PROGRESS.md`); no re-pin exists, so `PROGRESS.md` states "no re-pin" with the reason (the protected roots do not include protocol or server sources).
