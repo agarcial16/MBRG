@@ -22,7 +22,7 @@ Spec: `spec.md`. Plan: `plan.md`. Branch: `feat/014-public-config`. One mileston
 | T7 close | FR-420, NFR-82 | 12 / 0 |
 
 ## Tasks
-- [ ] **T1. Bookkeeping targets.** (no id moved)
+- [x] **T1. Bookkeeping targets.** (no id moved)
   - Files: `packages/sim/test/traceability.test.ts`, `specs/014-public-config/PROGRESS.md` (skeleton exists).
   - Tests first: extend the ledger: `FR_RANGES` `[[1,392],[413,421]]`, `NFR_RANGES` `[[1,76],[81,83]]`; new `PENDING_014` (12 literal ids) and empty `DONE_014`, with a comment of the targets of this table; the pinned totals 468 / 466 / 466 become 480 / 478 / 478; a test that `PENDING_014 + DONE_014` is the 12 literal ids with no overlap and that every `DONE_014` id has a test title.
   - Commit: `test: prepare the spec 014 bookkeeping`.
