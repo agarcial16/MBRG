@@ -1,5 +1,5 @@
 # Spec 013 — Playable interface (create, join, lobby, predict)
-Status: draft. Tier: Light SDD (UI, visual design, animation). Depends on 008, 009, 010 and 011 (implemented). Ids continue 011: FR-393 onwards, NFR-77 onwards. The Discord bot stays spec 012.
+Status: approved (by the user on 2026-11-01; OQ2 and OQ5 follow the proposals: tour 30 % longer, banner 3 s, deployment shape decided with the first deployment). Tier: Light SDD (UI, visual design, animation). Depends on 008, 009, 010 and 011 (implemented). Ids continue 011: FR-393 onwards, NFR-77 onwards. The Discord bot stays spec 012.
 
 ## Goal
 Let a person who is not the operator play in the browser, end to end: create a match, share the link, join with a name, wait in the lobby, predict the victim and the absorber from the HUD or by tapping the map, and read points, a named leaderboard and "who guessed right". It also closes the visual items deferred from 009 and 010 (round banner, camera, tour pacing, reveal overlay, phone zoom). The server, the protocol, the sim and the map format do not change; the anti-spoiler rule holds.
@@ -62,9 +62,9 @@ Server, protocol, sim and map format changes; Discord bot; accounts, recovery, n
 
 ## Open questions (answers: user 2026-11-01; OQ3 and OQ4 checked against the server code)
 - OQ1: decided: add a small public read (spec 014) with the allowed maps and the timing bounds. It is a server change, so it gets its own small Full-SDD spec (014), implemented before the create screen; the rest of 013 does not depend on it.
-- OQ2: open (deployment shape). For local development the viewer reads the server origin `http://127.0.0.1:8787` and the server allows only the configured origin; the production shape is decided with the first deployment.
+- OQ2: deferred (deployment shape). For local development the viewer reads the server origin `http://127.0.0.1:8787` and the server allows only the configured origin; the production shape is decided with the first deployment.
 - OQ3: answered by the code: `forced` is in the public victim data and in `victim-revealed`, available when phase 2 starts.
 - OQ4: answered by the code: `GET /matches/:id/predictions` with the player token returns the player's own predictions and `GET /matches/:id/players/:playerId/results` the scored ones.
-- OQ5: open (proposal: tour 30 % longer than now, banner 3 s).
+- OQ5: decided: tour 30 % longer than now, banner 3 s.
 - OQ6: decided: the host plays like anyone else (joins with a name); a match starts with at least one joined player.
 - OQ7: decided: the personal link carries the token in the URL fragment (`#`), which is never sent to the server or logged.
