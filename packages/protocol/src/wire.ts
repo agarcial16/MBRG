@@ -416,3 +416,20 @@ export const PLAYER_RESULTS_PAGE_KEYS = ['playerId', 'total', 'items', 'next', '
 export const LEADERBOARD_ROW_KEYS = ['rank', 'playerId', 'total', 'correctVictims', 'correctAbsorbers', 'correctWinner', 'name'] as const;
 export const PHASE_WINNER_KEYS = ['playerId', 'name'] as const;
 export const PHASE_WINNERS_PAGE_KEYS = ['round', 'phase', 'items', 'next'] as const;
+
+/**
+ * The public match config (spec 014, FR-413): the maps open to public creation in the operator's order, the timing bounds
+ * in seconds, the player cap and whether public creation is on. `enabled` is derived: true exactly when `maps` is not empty.
+ */
+export interface PublicConfig {
+  readonly maps: readonly string[];
+  readonly minInterval: number;
+  readonly maxInterval: number;
+  readonly minPhase1: number;
+  readonly minPhase2: number;
+  readonly maxPlayers: number;
+  readonly enabled: boolean;
+}
+
+/** Wire key order of the public config (FR-416): flat, fixed. */
+export const PUBLIC_CONFIG_KEYS = ['maps', 'minInterval', 'maxInterval', 'minPhase1', 'minPhase2', 'maxPlayers', 'enabled'] as const;
