@@ -347,6 +347,15 @@ describe('FR-303 the panel fields follow the events', () => {
     expect(d.model.lastSeq).toBe(lastSeqAt(2));
   });
 
+  it('FR-403 a victim-revealed with the forced mark keeps it on the victim (the panel reads it for the forced absorber)', async () => {
+    const s = await scripted();
+    const d = new Driver(s);
+    await d.load(1);
+    const events = eventsOfRound(s, 2).map((e) => ((e as { type: string }).type === 'victim-revealed' ? { ...(e as object), forced: true } : e));
+    await d.events(events.slice(0, 2));
+    expect(d.model.victim?.forced).toBe(true);
+  });
+
   it('FR-303 a victim-revealed of another round gives a resync', async () => {
     const s = await scripted();
     const d = new Driver(s);
