@@ -2,31 +2,42 @@
 // states, records and the map files, and the event stream (FR-307 transport, FR-289 (d) transport, FR-308). Every request is a
 // credential-free GET (`credentials: 'omit'`, no Authorization): a cross-origin read is a simple request answered `*`. The
 // stream reconnection adds only `Last-Event-ID`. Failures are classified for the retry policy of `core/live-retry.ts`.
+// The player interface calls (`createPlayNet`, spec 013) are the commands: create, join and start, and the public config and players reads.
 import {
   MAP_FILE_NAMES,
   isLocalId,
   isPlayerId,
   mapDigestBytes,
   readErrorReply,
+  readJoinReply,
   readLeaderboardPage,
   readOwnPredictionsPage,
   readPlayerResultsPage,
+  readPlayersPage,
   readPredictionReply,
+  readPublicConfig,
   readPublicMatch,
   readRecordReply,
   readStateReply,
+  type CreationBody,
+  type CreationReply,
   type Decoded,
+  type JoinBody,
+  type JoinReply,
   type LeaderboardRow,
   type MapFileName,
   type OwnPrediction,
   type Page,
+  type PlayerListItem,
   type PlayerResultsPage,
   type PredictionReply,
+  type PublicConfig,
   type PublicMatch,
   type RecordReply,
   type StateReply,
   type SubmissionBody,
 } from '@mbrg/protocol';
+import { readCreation } from '../core/play-forms';
 import { classifyReply, retryAfterMs } from '../core/live-retry';
 import { createSseParser } from '../core/live-sse';
 import { digestAvailable, sha256Hex } from './web-crypto';
@@ -250,5 +261,90 @@ export function createPredictionNet(deps: PredictionNetDeps): PredictionNet {
       return call(`/matches/${matchId}/players/${playerId}/results`, {}, readPlayerResultsPage);
     },
     leaderboard: (matchId) => call(`/matches/${matchId}/leaderboard`, {}, readLeaderboardPage),
+  };
+}
+
+/** A read or command of the player interface: the value, or the error code the server named (or `network`, `unreadable`, `invalid-match`). */
+export type PlayRead<T> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly outcome: string; readonly status: number | undefined; readonly retryAfter?: number };
+
+export interface PlayNetDeps {
+  readonly base: string;
+  readonly fetch: FetchLike;
+}
+
+/**
+ * The calls of the player interface (spec 013): the public config, creation, join, start and the players list. Creation and join
+ * carry no credential (the server decides by its own limits); start carries the host token as `Authorization: Bearer` and nothing
+ * else does. No token is ever put in a path or a query, and none is logged.
+ */
+export interface PlayNet {
+  config(): Promise<PlayRead<PublicConfig>>;
+  create(body: CreationBody): Promise<PlayRead<CreationReply>>;
+  join(matchId: string, body: JoinBody): Promise<PlayRead<JoinReply>>;
+  start(matchId: string, hostToken: string, requestId: string): Promise<PlayRead<PublicMatch>>;
+  /** Every player of the match, all pages. */
+  players(matchId: string): Promise<PlayRead<PlayerListItem[]>>;
+}
+
+const MATCH_ID_TEXT = /^[A-Za-z0-9_-]{16}$/;
+
+export function createPlayNet(deps: PlayNetDeps): PlayNet {
+  const base = deps.base.endsWith('/') ? deps.base.slice(0, -1) : deps.base;
+  const failed = (outcome: string, status?: number, retryAfter?: number): PlayRead<never> =>
+    retryAfter === undefined ? { ok: false, outcome, status } : { ok: false, outcome, status, retryAfter };
+  const json = (extra: HeadersInit = {}): HeadersInit => ({ 'Content-Type': 'application/json', ...extra });
+
+  async function call<T>(path: string, init: RequestInit, read: (input: unknown) => { readonly ok: boolean; readonly value?: T }): Promise<PlayRead<T>> {
+    try {
+      const response = await deps.fetch(`${base}${path}`, { ...init, credentials: 'omit' });
+      let body: unknown;
+      try {
+        body = JSON.parse(await response.text());
+      } catch {
+        body = undefined;
+      }
+      if (response.status < 200 || response.status > 299) {
+        const error = readErrorReply(body);
+        return error.ok ? failed(error.value.kind, response.status, error.value.retryAfter) : failed('unreadable', response.status);
+      }
+      const decoded = read(body);
+      return decoded.ok ? { ok: true, value: decoded.value as T } : failed('unreadable', response.status);
+    } catch {
+      return failed('network');
+    }
+  }
+
+  const post = (body: unknown, headers: HeadersInit = {}): RequestInit => ({ method: 'POST', headers: json(headers), body: JSON.stringify(body) });
+
+  async function pages(matchId: string): Promise<PlayRead<PlayerListItem[]>> {
+    const all: PlayerListItem[] = [];
+    let cursor: string | undefined;
+    for (;;) {
+      const query = cursor === undefined ? '?limit=500' : `?limit=500&cursor=${encodeURIComponent(cursor)}`;
+      const page = await call(`/matches/${matchId}/players${query}`, {}, readPlayersPage);
+      if (!page.ok) return page;
+      all.push(...page.value.items);
+      if (page.value.next === undefined) return { ok: true, value: all };
+      cursor = page.value.next;
+    }
+  }
+
+  return {
+    config: () => call('/config', {}, readPublicConfig),
+    create: (body) => call('/matches', post(body), readCreation),
+    async join(matchId, body) {
+      if (!MATCH_ID_TEXT.test(matchId)) return failed('invalid-match');
+      return call(`/matches/${matchId}/players`, post(body), readJoinReply);
+    },
+    async start(matchId, hostToken, requestId) {
+      if (!MATCH_ID_TEXT.test(matchId)) return failed('invalid-match');
+      return call(`/matches/${matchId}/start`, post({ requestId }, { Authorization: `Bearer ${hostToken}` }), readPublicMatch);
+    },
+    async players(matchId) {
+      if (!MATCH_ID_TEXT.test(matchId)) return failed('invalid-match');
+      return pages(matchId);
+    },
   };
 }
