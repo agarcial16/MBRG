@@ -173,6 +173,18 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-messages { color: var(--hud-ember); font-size: 13px; }
 .hud-messages:empty { display: none; }
 
+/* round banner (FR-408) and the overlay between close and reveal (FR-409) */
+.hud-banner { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.45); }
+.hud-banner[hidden] { display: none; }
+.hud-banner[data-fade="on"] { animation: hud-fade-in 0.3s ease-out; }
+.hud-banner-card { display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; min-width: 0; max-width: min(520px, calc(100vw - 24px)); padding: 18px 26px; min-height: 44px; font: inherit; color: var(--hud-text); cursor: pointer; }
+.hud-banner-card .hud-title { font-size: 26px; }
+.hud-banner-line { font-size: 17px; }
+.hud-overlay { position: absolute; left: 50%; top: 110px; transform: translateX(-50%); z-index: 4; padding: 10px 22px; font: 600 20px var(--hud-display, 'Cormorant SC', Georgia, serif); letter-spacing: 0.08em; color: var(--hud-gilt); pointer-events: none; text-align: center; }
+.hud-overlay[hidden] { display: none; }
+.hud[data-layout="phone"] .hud-overlay { top: 100px; font-size: 16px; }
+@keyframes hud-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
 @media (prefers-reduced-motion: reduce) {
   .hud *, .hud-error * { animation: none !important; transition: none !important; }
   .hud-bar i { width: 100%; }

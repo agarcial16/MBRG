@@ -271,6 +271,10 @@ export const STRINGS = {
   boardTitle: 'Clasificación',
   boardEmpty: 'Todavía no hay puntos.',
   boardPageOf: '{page} / {total}',
+  bannerRound: 'Ronda {round}',
+  bannerClose: 'Cerrar aviso de la ronda',
+  overlayFinalised: 'PREDICCIONES FINALIZADAS',
+  overlayRevealing: 'REVELANDO…',
 } as const;
 
 /** Fills {name} placeholders; a placeholder without a value is left as written. */

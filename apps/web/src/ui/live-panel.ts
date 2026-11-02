@@ -5,6 +5,7 @@
 // minimap. No seed, no pointer readout, no timings, no results.
 import type { Rgb } from '@mbrg/shared';
 import { wheelSteps } from '../core/camera';
+import { pinchDistance } from '../core/pinch';
 import { DOCK_TABS, layoutFor, type DockTab, type Layout } from '../core/hud-layout';
 import { cssVariables } from '../core/hud-tokens';
 import type { HudState, StateCard, TopBar } from '../core/live-hud';
@@ -17,6 +18,7 @@ import type { NavAction } from '../core/navigation';
 import type { PlayHud, PredictView, WinnersLine } from '../core/play-view';
 import type { BoardPage, ResultView } from '../core/results-model';
 import { STRINGS, fillTemplate } from '../core/strings';
+import type { BannerView } from '../core/round-banner';
 import { PANEL_CSS } from './live-panel-style';
 
 /** How many factions the list shows before "ver todas" (FR-361). */
@@ -33,6 +35,10 @@ export interface LivePanelHandlers {
   onMinimap(point: { x: number; y: number }): void;
   /** The wheel turned over the minimap: zoom the whole map by this many steps. */
   onMinimapZoom(steps: number): void;
+  /** FR-412: two fingers on the minimap moved apart (ratio above 1) or together; the new distance over the old. */
+  onMinimapPinch(ratio: number): void;
+  /** FR-408: a tap or a key on the round banner. */
+  onBannerDismiss(): void;
   /** The player's controls (spec 013); absent when the page has no player session. */
   readonly play?: PlayHandlers;
 }
@@ -59,6 +65,10 @@ export interface HudView {
   readonly track: RoundTrack;
   readonly rows: readonly FactionRow[];
   readonly chronicle: readonly ChronicleEntry[];
+  /** FR-408: the round banner on screen, or none. */
+  readonly banner?: BannerView;
+  /** FR-409: "PREDICCIONES FINALIZADAS" or "REVELANDO...", or none. */
+  readonly overlay?: string;
   /** What the player sees besides the spectator screen (spec 013); absent without a player session. */
   readonly play?: PlayHud;
 }
@@ -217,17 +227,32 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     return { x: (event.clientX - box.left) / box.width, y: (event.clientY - box.top) / box.height };
   };
   let dragging = false;
+  // FR-412: the touches on the minimap; two of them pinch the main camera instead of moving it.
+  const touches = new Map<number, { x: number; y: number }>();
+  const gap = (): number | undefined => {
+    const [a, b] = [...touches.values()];
+    return a === undefined || b === undefined || touches.size !== 2 ? undefined : pinchDistance(a, b);
+  };
   miniBox.addEventListener('pointerdown', (event) => {
-    dragging = true;
+    touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    dragging = touches.size === 1;
     miniBox.setPointerCapture(event.pointerId);
-    handlers.onMinimap(pointOf(event));
-  });
-  miniBox.addEventListener('pointermove', (event) => {
     if (dragging) handlers.onMinimap(pointOf(event));
   });
-  miniBox.addEventListener('pointerup', () => {
-    dragging = false;
+  miniBox.addEventListener('pointermove', (event) => {
+    if (!touches.has(event.pointerId)) return;
+    const before = gap();
+    touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const after = gap();
+    if (before !== undefined && after !== undefined && before > 0) handlers.onMinimapPinch(after / before);
+    else if (dragging) handlers.onMinimap(pointOf(event));
   });
+  const lift = (event: PointerEvent): void => {
+    touches.delete(event.pointerId);
+    dragging = false;
+  };
+  miniBox.addEventListener('pointerup', lift);
+  miniBox.addEventListener('pointercancel', lift);
   miniBox.addEventListener(
     'wheel',
     (event) => {
@@ -269,6 +294,18 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const cardTitle = el('div', 'hud-title', card);
   const cardText = el('p', '', card);
   card.hidden = true;
+
+  // FR-408: the round banner over a dimmed map; a button, so a tap, Enter or Space dismisses it.
+  const bannerBox = zone('round-banner', 'hud-banner', root);
+  bannerBox.hidden = true;
+  const bannerButton = button(bannerBox, '', handlers.onBannerDismiss, 'hud-banner-card hud-frame');
+  bannerButton.setAttribute('aria-label', STRINGS.bannerClose);
+  const bannerTitle = el('span', 'hud-title', bannerButton);
+  const bannerLine = el('span', 'hud-banner-line', bannerButton);
+  // FR-409: the overlay between the close of the predictions and the reveal.
+  const overlayBox = zone('round-overlay', 'hud-overlay hud-frame', root);
+  overlayBox.setAttribute('role', 'status');
+  overlayBox.hidden = true;
 
   // Phone dock: three tabs; the command panel and the legend live in the first one.
   const dock = zone('dock', 'hud-dock hud-frame', root);
@@ -524,6 +561,12 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       previous.disabled = controls === undefined || controls.previousDisabled;
       next.disabled = controls === undefined || controls.nextDisabled;
       lastButton.disabled = controls === undefined || controls.lastDisabled;
+      bannerBox.hidden = hud.banner === undefined;
+      bannerBox.dataset.fade = hud.banner?.fade === true ? 'on' : 'off';
+      bannerTitle.textContent = hud.banner?.title ?? '';
+      bannerLine.textContent = hud.banner?.line ?? '';
+      overlayBox.hidden = hud.overlay === undefined;
+      overlayBox.textContent = hud.overlay ?? '';
       renderChronicle(hud.chronicle, hud.play?.winners);
       const chip = hud.play?.chip;
       chipButton.hidden = chip === undefined;
