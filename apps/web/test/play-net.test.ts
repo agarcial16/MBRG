@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { encodeCreation, encodeError, encodeJoinReply, encodePage, encodePlayerListItem, encodePublicConfig, encodePublicMatch, errorReply, rateLimited } from '@mbrg/protocol';
-import type { PlayerListItem, PublicConfig } from '@mbrg/protocol';
+import {
+  encodeCreation, encodeError, encodeJoinReply, encodeLeaderboardRow, encodeOwnPrediction, encodePage, encodePhaseWinners, encodePlayerListItem,
+  encodePlayerResults, encodePrediction, encodePublicConfig, encodePublicMatch, errorReply, rateLimited,
+} from '@mbrg/protocol';
+import type { LeaderboardRow, OwnPrediction, PlayerListItem, PlayerResult, PublicConfig } from '@mbrg/protocol';
 import { createPlayNet } from '../src/ui/live-net';
 import type { FetchLike } from '../src/ui/live-net';
 import liveNetSource from '../src/ui/live-net.ts?raw';
@@ -149,6 +152,103 @@ describe('FR-396 FR-398 join, players and start', () => {
     expect(await net.join('bad', { name: 'Ana', requestId: REQUEST })).toMatchObject({ ok: false, outcome: 'invalid-match' });
     expect(await net.start('bad', HOST, REQUEST)).toMatchObject({ ok: false, outcome: 'invalid-match' });
     expect(seen).toStrictEqual([]);
+  });
+});
+
+describe('FR-401 FR-402 FR-404 submitting and reading the own predictions', () => {
+  const LOCAL = 'Ab3_x-9.Qz1k';
+  const body = { kind: 'victim', round: 2, faction: 7, playerId: LOCAL, requestId: REQUEST } as const;
+
+  it('FR-401 a submission posts the body with the player token as the only credential and reads the stored choice', async () => {
+    const { fetch, seen } = fake([ok(encodePrediction({ kind: 'victim', round: 2, choice: 7, version: 1 }))]);
+    const read = await createPlayNet({ base: BASE, fetch }).submit(MATCH_ID, TOKEN, body);
+    expect(read).toStrictEqual({ ok: true, value: { kind: 'victim', round: 2, choice: 7, version: 1 } });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.url).toBe(`${BASE}/matches/${MATCH_ID}/predictions`);
+    expect(seen[0]!.method).toBe('POST');
+    expect(seen[0]!.headers.Authorization).toBe(`Bearer ${TOKEN}`);
+    expect(JSON.parse(seen[0]!.body as string)).toStrictEqual(body);
+    expect(seen[0]!.url).not.toContain(TOKEN);
+    expect(seen[0]!.body).not.toContain(TOKEN);
+    expect(seen[0]!.credentials).toBe('omit');
+  });
+
+  it('FR-404 closed, forced and network failures keep their codes', async () => {
+    const { fetch } = fake([refused('prediction-closed', 409), refused('forced-absorber', 409), refused('forbidden', 403), 'network']);
+    const net = createPlayNet({ base: BASE, fetch });
+    const outcomes: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      const read = await net.submit(MATCH_ID, TOKEN, body);
+      outcomes.push(read.ok ? 'ok' : read.outcome);
+    }
+    expect(outcomes).toStrictEqual(['prediction-closed', 'forced-absorber', 'forbidden', 'network']);
+  });
+
+  it('FR-404 a token or a match outside the id rules is refused before any request', async () => {
+    const { fetch, seen } = fake([]);
+    const net = createPlayNet({ base: BASE, fetch });
+    expect(await net.submit(MATCH_ID, 'short', body)).toMatchObject({ ok: false, outcome: 'missing-credential' });
+    expect(await net.submit('bad', TOKEN, body)).toMatchObject({ ok: false, outcome: 'invalid-match' });
+    expect(await net.ownPredictions(MATCH_ID, '', LOCAL)).toMatchObject({ ok: false, outcome: 'missing-credential' });
+    expect(await net.ownPredictions(MATCH_ID, TOKEN, 'player:x')).toMatchObject({ ok: false, outcome: 'invalid-player-id' });
+    expect(seen).toStrictEqual([]);
+  });
+
+  it('FR-401 the own predictions read sends the player token as Bearer and the local id as the only query, over all pages', async () => {
+    const own = (round: number, choice: number): OwnPrediction => ({ playerId: LOCAL, kind: 'victim', round, choice, version: 1 });
+    const { fetch, seen } = fake([ok(encodePage({ items: [own(1, 3)], next: 'C1' }, encodeOwnPrediction)), ok(encodePage({ items: [own(2, 4)] }, encodeOwnPrediction))]);
+    const read = await createPlayNet({ base: BASE, fetch }).ownPredictions(MATCH_ID, TOKEN, LOCAL);
+    expect(read.ok && read.value.map((p) => p.choice)).toStrictEqual([3, 4]);
+    expect(seen.map((r) => r.url)).toStrictEqual([
+      `${BASE}/matches/${MATCH_ID}/predictions?limit=500&playerId=${LOCAL}`,
+      `${BASE}/matches/${MATCH_ID}/predictions?limit=500&playerId=${LOCAL}&cursor=C1`,
+    ]);
+    for (const r of seen) {
+      expect(r.method).toBe('GET');
+      expect(r.headers.Authorization).toBe(`Bearer ${TOKEN}`);
+      expect(r.url).not.toContain(TOKEN);
+    }
+  });
+});
+
+describe('FR-406 FR-407 results, leaderboard and winners reads', () => {
+  it('FR-406 the player results and the leaderboard are credential-free GETs over all pages', async () => {
+    const r = (round: number): PlayerResult => ({ kind: 'victim', round, choice: 2, correct: true, points: 10 });
+    const row = (rank: number, id: string): LeaderboardRow => ({ rank, playerId: id, total: 10, correctVictims: 1, correctAbsorbers: 0, correctWinner: 0, name: `N${rank}` });
+    const { fetch, seen } = fake([
+      ok(encodePlayerResults({ playerId: PLAYER, total: 20, items: [r(1)], next: 'P1', name: 'Ana' })),
+      ok(encodePlayerResults({ playerId: PLAYER, total: 25, items: [r(2)] })),
+      ok(encodePage({ items: [row(1, 'player:a'), row(2, 'player:b')] }, encodeLeaderboardRow)),
+    ]);
+    const net = createPlayNet({ base: BASE, fetch });
+    const scores = await net.playerResults(MATCH_ID, PLAYER);
+    expect(scores.ok && scores.value.total).toBe(20);
+    expect(scores.ok && scores.value.items.map((i) => i.round)).toStrictEqual([1, 2]);
+    expect(scores.ok && scores.value.name).toBe('Ana');
+    const board = await net.leaderboard(MATCH_ID);
+    expect(board.ok && board.value.map((x) => x.name)).toStrictEqual(['N1', 'N2']);
+    expect(seen.map((x) => x.url)).toStrictEqual([
+      `${BASE}/matches/${MATCH_ID}/players/${PLAYER}/results?limit=500`,
+      `${BASE}/matches/${MATCH_ID}/players/${PLAYER}/results?limit=500&cursor=P1`,
+      `${BASE}/matches/${MATCH_ID}/leaderboard?limit=500`,
+    ]);
+    for (const x of seen) expect(x.headers).toStrictEqual({});
+    expect(await net.playerResults(MATCH_ID, 'nope')).toMatchObject({ ok: false, outcome: 'invalid-player-id' });
+  });
+
+  it('FR-407 the winners read gives the names of a scored phase, credential-free, and an unscored phase is a failure', async () => {
+    const { fetch, seen } = fake([
+      ok(encodePhaseWinners({ round: 3, phase: 1, items: [{ playerId: 'player:a', name: 'Ana' }, { playerId: 'player:b', name: 'Beto' }] })),
+      refused('round-not-applied', 404),
+    ]);
+    const net = createPlayNet({ base: BASE, fetch });
+    const names = await net.winners(MATCH_ID, 3, 1);
+    expect(names.ok && names.value.map((w) => w.name)).toStrictEqual(['Ana', 'Beto']);
+    expect(seen[0]!.url).toBe(`${BASE}/matches/${MATCH_ID}/results/3/1/winners?limit=500`);
+    expect(seen[0]!.headers).toStrictEqual({});
+    expect(await net.winners(MATCH_ID, 4, 2)).toMatchObject({ ok: false, outcome: 'round-not-applied' });
+    expect(await net.winners(MATCH_ID, 0, 2)).toMatchObject({ ok: false, outcome: 'bad-round' });
+    expect(await net.winners('bad', 1, 2)).toMatchObject({ ok: false, outcome: 'invalid-match' });
   });
 });
 

@@ -2,7 +2,7 @@
 // states, records and the map files, and the event stream (FR-307 transport, FR-289 (d) transport, FR-308). Every request is a
 // credential-free GET (`credentials: 'omit'`, no Authorization): a cross-origin read is a simple request answered `*`. The
 // stream reconnection adds only `Last-Event-ID`. Failures are classified for the retry policy of `core/live-retry.ts`.
-// The player interface calls (`createPlayNet`, spec 013) are the commands: create, join and start, and the public config and players reads.
+// The player interface calls (`createPlayNet`, spec 013) are the commands (create, join, start, predict) and the reads of the player screens.
 import {
   MAP_FILE_NAMES,
   isLocalId,
@@ -10,8 +10,10 @@ import {
   mapDigestBytes,
   readErrorReply,
   readJoinReply,
+  isCredentialText,
   readLeaderboardPage,
   readOwnPredictionsPage,
+  readPhaseWinnersPage,
   readPlayerResultsPage,
   readPlayersPage,
   readPredictionReply,
@@ -28,7 +30,10 @@ import {
   type MapFileName,
   type OwnPrediction,
   type Page,
+  type PhaseWinner,
+  type PhaseWinnersPage,
   type PlayerListItem,
+  type PlayerResult,
   type PlayerResultsPage,
   type PredictionReply,
   type PublicConfig,
@@ -274,6 +279,13 @@ export interface PlayNetDeps {
   readonly fetch: FetchLike;
 }
 
+/** The scored rows of one player (all pages): the total and the items, and the name when the server gave one. */
+export interface PlayerScores {
+  readonly total: number;
+  readonly items: PlayerResult[];
+  readonly name: string | undefined;
+}
+
 /**
  * The calls of the player interface (spec 013): the public config, creation, join, start and the players list. Creation and join
  * carry no credential (the server decides by its own limits); start carries the host token as `Authorization: Bearer` and nothing
@@ -286,6 +298,16 @@ export interface PlayNet {
   start(matchId: string, hostToken: string, requestId: string): Promise<PlayRead<PublicMatch>>;
   /** Every player of the match, all pages. */
   players(matchId: string): Promise<PlayRead<PlayerListItem[]>>;
+  /** FR-401: a prediction; the player token is the only credential and travels as `Authorization: Bearer`. */
+  submit(matchId: string, playerToken: string, body: SubmissionBody): Promise<PlayRead<PredictionReply>>;
+  /** FR-401: the player's own predictions (all pages); `local` is the local part of the player id. */
+  ownPredictions(matchId: string, playerToken: string, local: string): Promise<PlayRead<OwnPrediction[]>>;
+  /** FR-406: the scored predictions of a player (all pages, credential-free). */
+  playerResults(matchId: string, playerId: string): Promise<PlayRead<PlayerScores>>;
+  /** FR-406: the leaderboard (all pages, credential-free). */
+  leaderboard(matchId: string): Promise<PlayRead<LeaderboardRow[]>>;
+  /** FR-407: the names of the players who guessed a scored phase right (all pages, credential-free). */
+  winners(matchId: string, round: number, phase: 1 | 2): Promise<PlayRead<PhaseWinner[]>>;
 }
 
 const MATCH_ID_TEXT = /^[A-Za-z0-9_-]{16}$/;
@@ -318,18 +340,33 @@ export function createPlayNet(deps: PlayNetDeps): PlayNet {
 
   const post = (body: unknown, headers: HeadersInit = {}): RequestInit => ({ method: 'POST', headers: json(headers), body: JSON.stringify(body) });
 
-  async function pages(matchId: string): Promise<PlayRead<PlayerListItem[]>> {
-    const all: PlayerListItem[] = [];
+  /** Every page of a list read: `path` plus the paging query (and `extra`, a query already written as `name=value`). */
+  async function allPages<P extends { readonly items: readonly I[]; readonly next?: string }, I>(
+    path: string,
+    extra: string,
+    init: RequestInit,
+    read: (input: unknown) => { readonly ok: boolean; readonly value?: P },
+  ): Promise<PlayRead<{ readonly first: P; readonly items: I[] }>> {
+    const items: I[] = [];
+    let first: P | undefined;
     let cursor: string | undefined;
     for (;;) {
-      const query = cursor === undefined ? '?limit=500' : `?limit=500&cursor=${encodeURIComponent(cursor)}`;
-      const page = await call(`/matches/${matchId}/players${query}`, {}, readPlayersPage);
+      const parts = ['limit=500', ...(extra === '' ? [] : [extra]), ...(cursor === undefined ? [] : [`cursor=${encodeURIComponent(cursor)}`])];
+      const page = await call<P>(`${path}?${parts.join('&')}`, init, read);
       if (!page.ok) return page;
-      all.push(...page.value.items);
-      if (page.value.next === undefined) return { ok: true, value: all };
+      first ??= page.value;
+      items.push(...page.value.items);
+      if (page.value.next === undefined) return { ok: true, value: { first, items } };
       cursor = page.value.next;
     }
   }
+
+  async function pages(matchId: string): Promise<PlayRead<PlayerListItem[]>> {
+    const all = await allPages<Page<PlayerListItem>, PlayerListItem>(`/matches/${matchId}/players`, '', {}, readPlayersPage);
+    return all.ok ? { ok: true, value: all.value.items } : all;
+  }
+
+  const bearer = (token: string): HeadersInit => ({ Authorization: `Bearer ${token}` });
 
   return {
     config: () => call('/config', {}, readPublicConfig),
@@ -345,6 +382,35 @@ export function createPlayNet(deps: PlayNetDeps): PlayNet {
     async players(matchId) {
       if (!MATCH_ID_TEXT.test(matchId)) return failed('invalid-match');
       return pages(matchId);
+    },
+    async submit(matchId, playerToken, body) {
+      if (!MATCH_ID_TEXT.test(matchId)) return failed('invalid-match');
+      if (!isCredentialText(playerToken)) return failed('missing-credential');
+      return call(`/matches/${matchId}/predictions`, post(body, bearer(playerToken)), readPredictionReply);
+    },
+    async ownPredictions(matchId, playerToken, local) {
+      if (!MATCH_ID_TEXT.test(matchId)) return failed('invalid-match');
+      if (!isCredentialText(playerToken)) return failed('missing-credential');
+      if (!isLocalId(local)) return failed('invalid-player-id');
+      const all = await allPages<Page<OwnPrediction>, OwnPrediction>(`/matches/${matchId}/predictions`, `playerId=${local}`, { headers: bearer(playerToken) }, readOwnPredictionsPage);
+      return all.ok ? { ok: true, value: all.value.items } : all;
+    },
+    async playerResults(matchId, playerId) {
+      if (!MATCH_ID_TEXT.test(matchId)) return failed('invalid-match');
+      if (!isPlayerId(playerId)) return failed('invalid-player-id');
+      const all = await allPages<PlayerResultsPage, PlayerResult>(`/matches/${matchId}/players/${playerId}/results`, '', {}, readPlayerResultsPage);
+      return all.ok ? { ok: true, value: { total: all.value.first.total, items: all.value.items, name: all.value.first.name } } : all;
+    },
+    async leaderboard(matchId) {
+      if (!MATCH_ID_TEXT.test(matchId)) return failed('invalid-match');
+      const all = await allPages<Page<LeaderboardRow>, LeaderboardRow>(`/matches/${matchId}/leaderboard`, '', {}, readLeaderboardPage);
+      return all.ok ? { ok: true, value: all.value.items } : all;
+    },
+    async winners(matchId, round, phase) {
+      if (!MATCH_ID_TEXT.test(matchId)) return failed('invalid-match');
+      if (!Number.isInteger(round) || round < 1) return failed('bad-round');
+      const all = await allPages<PhaseWinnersPage, PhaseWinner>(`/matches/${matchId}/results/${round}/${phase}/winners`, '', {}, readPhaseWinnersPage);
+      return all.ok ? { ok: true, value: all.value.items } : all;
     },
   };
 }
