@@ -142,6 +142,12 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud-count { font-size: 15px; margin-top: 8px; }
 .hud-players { list-style: none; margin: 8px 0 0; padding: 0; max-height: 30vh; overflow: auto; }
 .hud-players li { padding: 4px 0; border-bottom: 1px solid var(--hud-wood2); }
+.hud-btn { white-space: nowrap; }
+.hud-link .hud-input { min-width: 0; flex: 1 1 160px; }
+.hud-lobby { display: grid; gap: 4px 24px; }
+.hud-lobby > .hud-title { grid-column: 1 / -1; }
+.hud[data-layout="desk"] .hud-card.hud-lobby { width: min(760px, calc(100vw - 24px)); grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); }
+.hud[data-layout="phone"] .hud-input { min-height: 44px; }
 a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-card select.hud-input { min-width: 0; }
 

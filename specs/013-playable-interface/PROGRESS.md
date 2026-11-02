@@ -113,3 +113,8 @@ Reviewer pass, then the browser screenshots (done criterion 2) and the hand run 
 - Desk: `.hud-left` is now border-box and 280 px wide (its padding was added to the 262 px width and ran under the command panel, hiding the Conq. column); the command panel starts at 304 px; prediction and result sit side by side, track and buttons share a row, the title is hidden while a prediction is shown, max-height keeps it on screen. Expected height about 230 px instead of 400.
 - Tests: CSS scans in play-shell.test.ts (rules, ordering, renderer wiring). apps/web tests 1870 green, typecheck green. Full npm test is rerun at the end of the series.
 - NEEDS BROWSER RE-CHECK: phone-join, phone-lobby-guest, phone-* top bar (390x844, long names), phone Orden and Ranking tabs, desk-phase1/2-choice, desk-forced-round, desk-results (1280x720 and 1024 wide: the command panel wraps there).
+### 5. Create screen touch targets, button wrapping, lobby layout
+- Cause of the 36 px targets: `showStart` never set `data-layout` on its root, so the phone rules (44 px) did not apply. It now sets it; `.hud-input` has 44 px on the phone too. Buttons are `white-space: nowrap` and the link input shrinks, so "Compartir..." stays on one line.
+- Lobby: two columns on the desk (players list left; share, personal link and "Empezar" right), one column on the phone.
+- DEVIATION from the design: the lobby is not drawn over a dimmed map. The lobby has no map loaded (the map scene starts at the match), and loading it would mean a map read and a scene in the lobby, a bigger risk than this fix pass. It stays a centred card on the parchment.
+- NEEDS BROWSER RE-CHECK: phone-create, desk-create, desk-lobby-host(-2players), phone-lobby-guest.

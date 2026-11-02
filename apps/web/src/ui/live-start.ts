@@ -1,5 +1,6 @@
 // The start screen of the single entry page (spec 010 FR-366): a code or a link in, the match screen out. The debug scene and the
 // web test client are development tools: their links exist in a development build only.
+import { layoutFor } from '../core/hud-layout';
 import { STRINGS } from '../core/strings';
 import { matchAddress } from '../core/start-screen';
 import { showCard } from './live-panel';
@@ -17,6 +18,7 @@ export function showStart(): void {
   showCard(panel, { title: STRINGS.startTitle, text: STRINGS.startText }, false);
   const root = panel.firstElementChild as HTMLElement;
   root.dataset.state = 'start';
+  root.dataset.layout = layoutFor(window.innerWidth);
   const card = root.firstElementChild as HTMLElement;
   const form = document.createElement('form');
   form.className = 'hud-form';

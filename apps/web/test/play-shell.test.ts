@@ -201,3 +201,18 @@ describe('screenshot pass: top bar, dock and desk panels', () => {
     expect(rule('.hud[data-layout="desk"] .hud-command')).toContain('flex-wrap: wrap');
   });
 });
+
+describe('screenshot pass: create screen and lobby layout', () => {
+  it('the start screen takes the layout of the viewport, so the phone touch targets of 44 px apply to the create form', () => {
+    expect(start).toContain('root.dataset.layout = layoutFor(window.innerWidth)');
+    expect(css).toContain('.hud[data-layout="phone"] .hud-input { min-height: 44px; }');
+    expect(css).toContain('.hud[data-layout="phone"] .hud-btn { min-height: 44px; min-width: 44px; }');
+  });
+
+  it('buttons never wrap their label and the lobby is two columns on the desk (players left, share and start right)', () => {
+    expect(css).toContain('.hud-btn { white-space: nowrap; }');
+    expect(css).toMatch(/\.hud\[data-layout="desk"\] \.hud-card\.hud-lobby \{[^}]*grid-template-columns/);
+    expect(lobby).toContain("h('div', 'hud-lobby-players', card)");
+    expect(lobby).toContain("h('div', 'hud-lobby-share', card)");
+  });
+});

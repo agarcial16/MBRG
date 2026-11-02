@@ -33,17 +33,21 @@ const RETRY_MS = 3000;
 export function showLobby(deps: LobbyDeps): void {
   const card = openCard(STRINGS.lobbyTitle, '');
   card.querySelector('p')?.remove();
-  const count = h('div', 'hud-count', card);
-  const list = h('ul', 'hud-players', card);
+  card.classList.add('hud-lobby');
+  // Two columns on the desk (players left, share and start right), one on the phone.
+  const side = h('div', 'hud-lobby-players', card);
+  const main = h('div', 'hud-lobby-share', card);
+  const count = h('div', 'hud-count', side);
+  const list = h('ul', 'hud-players', side);
   list.setAttribute('aria-label', STRINGS.lobbyTitle);
-  const link = h('div', 'hud-share', card);
+  const link = h('div', 'hud-share', main);
   h('div', 'hud-title', link).textContent = STRINGS.shareTitle;
   linkRow(link, STRINGS.shareLabel, matchLink(deps.pageUrl, deps.matchId), STRINGS.shareCopy);
-  personalBlock(card, deps.pageUrl, deps.matchId, deps.player);
-  const action = h('div', 'hud-form', card);
-  const problem = h('div', 'hud-messages', card);
+  personalBlock(main, deps.pageUrl, deps.matchId, deps.player);
+  const action = h('div', 'hud-form', main);
+  const problem = h('div', 'hud-messages', main);
   problem.setAttribute('role', 'alert');
-  const notice = h('div', 'hud-note', card);
+  const notice = h('div', 'hud-note', main);
   notice.setAttribute('role', 'status');
 
   let model: LobbyModel = emptyLobby;
