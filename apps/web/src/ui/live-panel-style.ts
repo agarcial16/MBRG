@@ -160,7 +160,7 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-card select.hud-input { min-width: 0; }
 
 /* prediction and results (spec 013) */
-.hud-playerchip { display: inline-flex; margin-left: auto; align-self: center; min-height: 32px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 12px; border: 0; cursor: pointer; background: var(--hud-wax); color: var(--hud-on-wax); font: 600 13px var(--hud-body, Spectral, Georgia, serif); }
+.hud-playerchip { display: inline-flex; gap: 0.35em; align-items: center; margin-left: auto; align-self: center; min-height: 32px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 12px; border: 0; cursor: pointer; background: var(--hud-wax); color: var(--hud-on-wax); font: 600 13px var(--hud-body, Spectral, Georgia, serif); }
 .hud-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hud-chip-stats { flex: none; white-space: nowrap; }
 .hud-pop { position: absolute; right: 12px; top: 58px; width: min(340px, calc(100vw - 24px)); padding: 12px 16px; }
@@ -181,12 +181,25 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="desk"] .hud-command > * { flex: 1 1 100%; }
 .hud[data-layout="desk"] .hud-command > .hud-predict,
 .hud[data-layout="desk"] .hud-command > .hud-result { flex: 1 1 280px; min-width: 0; }
-.hud[data-layout="desk"] .hud-command > .hud-track { flex: 0 1 auto; }
-.hud[data-layout="desk"] .hud-command > .hud-nav { flex: 1 1 auto; justify-content: flex-end; }
+.hud[data-layout="desk"] .hud-command > .hud-track { flex: 0 1 auto; flex-wrap: nowrap; }
+.hud[data-layout="desk"] .hud-command > .hud-nav { flex: 1 1 auto; justify-content: flex-end; flex-wrap: nowrap; gap: 6px; }
+.hud[data-layout="desk"] .hud-command > .hud-predict,
+.hud[data-layout="desk"] .hud-command > .hud-result { flex: 1 1 100%; }
+/* the result is one line (it never grows the panel); the seal sits on the line row of the prediction instead of a row of its own */
+.hud-result { display: flex; align-items: baseline; gap: 4px 8px; white-space: nowrap; overflow: hidden; font-size: 13px; }
+.hud-result > * { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+.hud-result > .hud-title { flex: none; }
+.hud-predict { position: relative; }
+.hud-predict .hud-seal { position: absolute; right: 124px; top: 8px; }
+.hud[data-layout="phone"] .hud-predict .hud-seal { top: 0; right: 118px; }
+/* the total is already in the chip of the top bar and the title is implied by the first line: the result stays one line */
+.hud[data-layout="desk"] .hud-result > .hud-title,
+.hud[data-layout="desk"] .hud-result > p:nth-of-type(3) { display: none; }
 .hud[data-layout="desk"] .hud-command:has(.hud-predict:not([hidden])) > .hud-title { display: none; }
 .hud[data-layout="desk"] .hud-picks { max-height: 72px; }
 /* compact controls on the desk so the panel stays about 230 px tall even at 1024 px wide; the phase sentence is already in the top bar */
 .hud[data-layout="desk"] .hud-command .hud-btn { min-height: 30px; padding: 0 10px; }
+.hud[data-layout="desk"] .hud-command .hud-nav-btn { min-width: 32px; padding: 0 8px; }
 .hud[data-layout="desk"] .hud-command .hud-dot { min-width: 26px; min-height: 26px; }
 .hud[data-layout="desk"] .hud-command:has(.hud-predict:not([hidden])) > .hud-stage { display: none; }
 .hud-seal[data-empty="true"] { visibility: hidden; }
@@ -204,15 +217,27 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="phone"] .hud-playerchip { min-height: 44px; }
 /* phone dock: one stable height for every tab and state (about 37% of the screen); the Partida tab shows the prediction block (or the result when no phase is open) and the buttons */
 .hud[data-layout="phone"] .hud-pane { box-sizing: border-box; height: clamp(250px, calc(37vh - 50px), 330px); max-height: none; padding: 6px 12px; overflow: hidden auto; }
-.hud[data-layout="phone"] .hud-command { padding: 0; gap: 6px; }
+.hud[data-layout="phone"] .hud-command { padding: 0; gap: 6px; flex-direction: row; flex-wrap: wrap; align-content: flex-start; align-items: center; }
+.hud[data-layout="phone"] .hud-command > * { flex: 1 1 100%; min-width: 0; }
+/* the dots and the five controls share ONE row (targets 44 px high, narrower than that wide) */
+.hud[data-layout="phone"] .hud-command > .hud-track { flex: 0 1 auto; flex-wrap: nowrap; gap: 4px; }
+.hud[data-layout="phone"] .hud-command > .hud-nav { flex: 1 1 auto; flex-wrap: nowrap; justify-content: flex-end; gap: 4px; }
+.hud[data-layout="phone"] .hud-track .hud-dot { min-width: 32px; padding: 0; }
+.hud[data-layout="phone"] .hud-nav .hud-btn { min-width: 38px; padding: 0 6px; }
+/* the Partida pane itself never scrolls: the command block keeps its height and only the chronicle and factions list below it scrolls */
+.hud[data-layout="phone"] .hud-pane:not([hidden]):has(> .hud-command) { display: flex; flex-direction: column; overflow: hidden; }
+.hud[data-layout="phone"] .hud-pane > .hud-command { flex: none; }
+.hud[data-layout="phone"] .hud-pane > .hud-left { flex: 1 1 auto; min-height: 0; overflow: auto; margin-top: 8px; }
+/* while a phase is open the prediction has the whole pane: the chronicle list would only show as a clipped heading */
+.hud[data-layout="phone"] .hud-pane:has(> .hud-command[data-offer="open"]) > .hud-left { display: none; }
+.hud[data-layout="phone"] .hud-result { flex-direction: column; align-items: flex-start; white-space: normal; }
 .hud[data-layout="phone"] .hud-command > .hud-title { display: none; }
 .hud[data-layout="phone"] .hud-predict,
 .hud[data-layout="phone"] .hud-result { border-top: 0; padding-top: 0; gap: 4px; }
 .hud[data-layout="phone"] .hud-picks { max-height: 96px; }
 .hud[data-layout="phone"] .hud-command[data-offer="open"] > .hud-result { display: none; }
 .hud[data-layout="phone"] .hud-command:has(.hud-predict:not([hidden]), .hud-result:not([hidden])) > .hud-stage { display: none; }
-.hud[data-layout="phone"] .hud-command[data-offer="open"]:has(.hud-predict:not([hidden])) > .hud-victim,
-.hud[data-layout="phone"] .hud-command:has(.hud-result:not([hidden])) > .hud-victim { display: none; }
+.hud[data-layout="phone"] .hud-command[data-offer="closed"]:has(.hud-result:not([hidden])) > .hud-victim { display: none; }
 .hud[data-layout="phone"] .hud-command[data-offer="closed"]:has(.hud-result:not([hidden])) > .hud-predict { display: none; }
 .hud[data-layout="phone"] .hud-right { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
 .hud[data-layout="phone"] .hud-right .hud-board:not(.hud-board-mine) { flex: 1 1 auto; min-height: 0; overflow: auto; }

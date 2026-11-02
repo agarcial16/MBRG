@@ -112,6 +112,14 @@ function button(parent: HTMLElement, label: string, onClick: () => void, classNa
   return node;
 }
 
+/** A control with a short face that fits one row; the full words are its accessible name and its tooltip. */
+function navButton(parent: HTMLElement, full: string, short: string, onClick: () => void, className: string): HTMLButtonElement {
+  const node = button(parent, short, onClick, className);
+  node.setAttribute('aria-label', full);
+  node.title = full;
+  return node;
+}
+
 /** Writes the token variables and the stylesheet once per page. */
 function installStyle(): void {
   if (document.getElementById('hud-style') !== null) return;
@@ -285,11 +293,11 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const mismatch = el('div', 'hud-line hud-alert', command);
   const trackBox = el('div', 'hud-track', command);
   const nav = el('div', 'hud-nav', command);
-  const first = button(nav, STRINGS.controlFirst, () => handlers.onNavigate('first'), 'hud-btn hud-secondary');
-  const previous = button(nav, STRINGS.controlPrevious, () => handlers.onNavigate('previous'));
-  const next = button(nav, STRINGS.controlNext, () => handlers.onNavigate('next'), 'hud-btn primary');
-  const lastButton = button(nav, STRINGS.controlLast, () => handlers.onNavigate('last'), 'hud-btn hud-secondary');
-  button(nav, STRINGS.controlReset, handlers.onReset, 'hud-btn hud-secondary');
+  const first = navButton(nav, STRINGS.controlFirst, STRINGS.controlFirstShort, () => handlers.onNavigate('first'), 'hud-btn hud-secondary hud-nav-btn');
+  const previous = navButton(nav, STRINGS.controlPrevious, STRINGS.controlPreviousShort, () => handlers.onNavigate('previous'), 'hud-btn hud-nav-btn');
+  const next = navButton(nav, STRINGS.controlNext, STRINGS.controlNextShort, () => handlers.onNavigate('next'), 'hud-btn primary hud-nav-btn');
+  const lastButton = navButton(nav, STRINGS.controlLast, STRINGS.controlLastShort, () => handlers.onNavigate('last'), 'hud-btn hud-secondary hud-nav-btn');
+  navButton(nav, STRINGS.controlReset, STRINGS.controlResetShort, handlers.onReset, 'hud-btn hud-secondary hud-nav-btn');
   const skip = button(nav, skipLabel(), handlers.onSkip);
   skip.hidden = true;
 

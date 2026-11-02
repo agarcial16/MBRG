@@ -55,6 +55,12 @@ export const STRINGS = {
   controlNext: 'Siguiente',
   controlLast: 'Última',
   controlReset: 'Restablecer vista',
+  // The short faces of the five controls (one row on both layouts); the full words stay as the accessible name and the tooltip.
+  controlFirstShort: '«',
+  controlPreviousShort: '‹',
+  controlNextShort: '›',
+  controlLastShort: '»',
+  controlResetShort: 'Vista',
   controlGo: 'Ir',
   roundInputLabel: 'Ir a la ronda',
   // Live viewer (spec 008, M5). Error kinds stay English identifiers; only the sentences live here.

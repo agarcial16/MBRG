@@ -299,3 +299,26 @@ describe('second screenshot pass: small items', () => {
     expect(panel.slice(at, at + 80)).toContain('} catch {');
   });
 });
+
+describe('third screenshot pass: one control row, one-line result, stable panels', () => {
+  it('the five controls have a short face; the full words are the accessible name and the tooltip', () => {
+    expect(panel).toContain('function navButton(');
+    expect(panel).toMatch(/node\.setAttribute\('aria-label', full\)/);
+    expect(panel).toMatch(/node\.title = full/);
+    for (const key of ['controlFirstShort', 'controlPreviousShort', 'controlNextShort', 'controlLastShort', 'controlResetShort']) expect(panel, key).toContain(`STRINGS.${key}`);
+  });
+
+  it('the dots and the buttons never wrap: one row on the phone and on the desk, and the Partida pane does not scroll', () => {
+    expect(css).toContain('.hud[data-layout="phone"] .hud-command > .hud-nav { flex: 1 1 auto; flex-wrap: nowrap;');
+    expect(css).toContain('.hud[data-layout="phone"] .hud-command > .hud-track { flex: 0 1 auto; flex-wrap: nowrap;');
+    expect(css).toContain('.hud[data-layout="desk"] .hud-command > .hud-nav { flex: 1 1 auto; justify-content: flex-end; flex-wrap: nowrap;');
+    expect(css).toContain('.hud[data-layout="desk"] .hud-command > .hud-track { flex: 0 1 auto; flex-wrap: nowrap; }');
+    expect(css).toMatch(/\.hud\[data-layout="phone"\] \.hud-pane:not\(\[hidden\]\):has\(> \.hud-command\) \{ display: flex; flex-direction: column; overflow: hidden; \}/);
+  });
+
+  it('the result is one line and the seal sits on the head row, so a result never grows the desk panel', () => {
+    expect(css).toMatch(/\.hud-result \{ display: flex; align-items: baseline;[^}]*white-space: nowrap; overflow: hidden;/);
+    expect(css).toContain('.hud-predict .hud-seal { position: absolute;');
+    expect(css).toContain('.hud[data-layout="desk"] .hud-result > p:nth-of-type(3) { display: none; }');
+  });
+});
