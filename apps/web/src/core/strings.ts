@@ -187,6 +187,7 @@ export const STRINGS = {
   joinHalted: 'La partida está detenida.',
   joinUnknown: 'No existe ninguna partida con ese enlace.',
   joinFailed: 'No se ha podido entrar en la partida. Vuelve a intentarlo.',
+  joinLater: 'Predices desde la próxima fase.',
   lobbyStartForbidden: 'Solo el anfitrión puede empezar la partida.',
   lobbyStartStarted: 'La partida ya ha empezado.',
   lobbyStartFailed: 'No se ha podido empezar la partida. Vuelve a intentarlo.',
