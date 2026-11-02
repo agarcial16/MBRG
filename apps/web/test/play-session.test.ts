@@ -318,6 +318,26 @@ describe('FR-406 FR-407 results, leaderboard and winners', () => {
     expect(session.view(model, 0, idle).winners.get(1)![0]!.view.line).toBe('Acertaron el absorbente: Zed');
   });
 
+  it('FR-406 a forced round says the absorber was forced when its results arrive after the round was applied (real server order)', async () => {
+    // The server applies the round (clearing the revealed victim) and only then announces `results` of phase 2; a forced round has no row.
+    const { net } = fakeNet({ results: mine, rows });
+    const { session } = open(net);
+    const base = await liveModel(2);
+    const forcedModel: LiveModel = { ...base, victim: { ...base.victim!, candidates: [4], forced: true } };
+    session.view(forcedModel, 0, idle);
+    await tick();
+    await tick();
+    const afterApply = { ...forcedModel, victim: undefined };
+    const applied: LiveModel = afterApply;
+    session.view(applied, 0, idle);
+    session.onFrame(resultsFrame(1, 2));
+    await tick();
+    await tick();
+    const hud = session.view(applied, 0, idle);
+    expect(hud.result!.lines.join(' ')).toContain('forzado');
+    expect(hud.result!.lines.join(' ')).not.toContain('No predijiste');
+  });
+
   it('FR-409 nothing is read while a reveal is held, and it is read once the hold ends', async () => {
     const { net, calls } = fakeNet({ results: mine, rows });
     const { session } = open(net);

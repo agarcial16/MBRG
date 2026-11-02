@@ -63,6 +63,7 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
   let hold: TourHold = { revealing: false, absorbing: false };
   const due: Scored[] = [];
   const asked = new Set<string>();
+  const forcedRounds = new Set<number>();
   let offerKey = '';
   let started = false;
   let inFlight: InFlight | undefined;
@@ -144,6 +145,7 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
     view(next, at, tour) {
       model = next;
       hold = tour;
+      if (next.victim?.forced === true) forcedRounds.add(next.victim.round);
       if (!started && next.displayed !== undefined) {
         started = true;
         void start();
@@ -156,7 +158,7 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
         if (state.notice !== undefined) state = withNotice(state, undefined);
       }
       flush();
-      return playHud({ state, model: next, player: deps.player, factions: deps.factions, revealing: tour.revealing, at });
+      return playHud({ state, model: next, player: deps.player, factions: deps.factions, revealing: tour.revealing, at, forcedRounds });
     },
     onFrame(data) {
       const scored = scoredOf(data);

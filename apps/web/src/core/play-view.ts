@@ -58,7 +58,8 @@ export const withNotice = (state: PlayState, notice: string | undefined): PlaySt
 
 /** FR-406: the player's scored rows; the panel talks about `scored` when given, else about the latest scored phase of the rows. */
 export function withScores(state: PlayState, scores: NonNullable<PlayState['scores']>, scored?: Scored): PlayState {
-  return { ...state, scores, scored: scored ?? latestScored(scores.items) ?? state.scored };
+  // An earlier phase named by a `results` event wins over the rows' latest: a slow start read must not move the panel back.
+  return { ...state, scores, scored: scored ?? state.scored ?? latestScored(scores.items) };
 }
 export const withBoard = (state: PlayState, rows: readonly LeaderboardRow[]): PlayState => ({ ...state, rows });
 export const withWinners = (state: PlayState, scored: Scored, names: readonly string[]): PlayState => ({ ...state, winners: new Map(state.winners).set(scoredKey(scored), names) });
@@ -114,6 +115,8 @@ export interface PlayInput {
   /** A victim reveal tour is running (FR-409): no choice is offered for the absorber yet. */
   readonly revealing: boolean;
   readonly at: number;
+  /** The rounds whose absorber was forced, remembered by the session: the revealed victim is gone once the round is applied. */
+  readonly forcedRounds?: ReadonlySet<number>;
 }
 
 const localName = (playerId: string): string => playerId.slice(playerId.indexOf(':') + 1);
@@ -149,7 +152,7 @@ export function playHud(input: PlayInput): PlayHud {
   const result =
     player === undefined || state.scored === undefined || state.scores === undefined
       ? undefined
-      : resultView({ scored: state.scored, item: resultFor(state.scores.items, state.scored), total: state.scores.total, rank, nameOf, forced: model.victim?.round === state.scored.round && model.victim.forced === true });
+      : resultView({ scored: state.scored, item: resultFor(state.scores.items, state.scored), total: state.scores.total, rank, nameOf, forced: input.forcedRounds?.has(state.scored.round) === true || (model.victim?.round === state.scored.round && model.victim.forced === true) });
 
   const lines = new Map<number, WinnersLine[]>();
   for (const [key, names] of state.winners) {
