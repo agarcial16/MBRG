@@ -3,6 +3,9 @@
 import { STRINGS } from '../core/strings';
 import { matchAddress } from '../core/start-screen';
 import { showCard } from './live-panel';
+import { mountCreate } from './play-create';
+import { enterCreated, playNets } from './play-main';
+import { requestId } from './web-crypto';
 
 export function showStart(): void {
   const canvas = document.getElementById('map');
@@ -46,6 +49,8 @@ export function showStart(): void {
     // The form sends the match code alone: a pasted link is reduced to it first.
     input.value = address.id;
   });
+  // Spec 013 FR-393: create a match from the public config; the host token stays in this browser.
+  mountCreate(card, { net: playNets().net, storage: window.localStorage, makeId: requestId, onCreated: enterCreated });
   if (import.meta.env.DEV) {
     const tools = document.createElement('div');
     tools.className = 'hud-tools';

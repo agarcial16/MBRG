@@ -127,6 +127,21 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud-tab[aria-selected="true"] { color: var(--hud-gilt); border-top-color: var(--hud-gilt); }
 .hud-pane { max-height: 46vh; overflow: auto; padding: 4px 4px 8px; }
 
+/* create, join and lobby (spec 013) */
+.hud-create { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--hud-gilt-dim); }
+.hud-field { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.hud-field > span { color: var(--hud-muted); font-size: 12px; }
+.hud-choices { display: flex; gap: 8px; flex-wrap: wrap; }
+.hud-choice[aria-pressed="true"] { background: var(--hud-gilt); color: var(--hud-on-gilt); box-shadow: none; font-weight: 600; }
+.hud-note { color: var(--hud-muted); font-size: 12px; margin-top: 4px; }
+.hud-link { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.hud-personal, .hud-share { margin-top: 12px; }
+.hud-count { font-size: 15px; margin-top: 8px; }
+.hud-players { list-style: none; margin: 8px 0 0; padding: 0; max-height: 30vh; overflow: auto; }
+.hud-players li { padding: 4px 0; border-bottom: 1px solid var(--hud-wood2); }
+a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
+.hud-card select.hud-input { min-width: 0; }
+
 /* messages of the address */
 .hud-messages { color: var(--hud-ember); font-size: 13px; }
 .hud-messages:empty { display: none; }
