@@ -248,6 +248,23 @@ export const STRINGS = {
   predictClosed: 'Esa fase ya se cerró. Se conserva tu elección anterior.',
   predictForbidden: 'El servidor no te reconoce como jugador de esta partida.',
   predictFailed: 'No se ha podido enviar la predicción. Se conserva la anterior; vuelve a intentarlo.',
+  // Results (spec 013 FR-406, FR-407).
+  chipName: 'Tú: {name}',
+  chipLine: 'Tú: {name} · {total} pts · puesto {rank}',
+  resultTitle: 'Tu resultado',
+  resultVictim: 'Ronda {round}, víctima.',
+  resultAbsorber: 'Ronda {round}, absorbente.',
+  resultYourChoice: 'Elegiste {name}.',
+  resultNone: 'No predijiste en esta fase.',
+  resultRight: 'Acertaste.',
+  resultWrong: 'Fallaste.',
+  resultPoints: '{value} puntos.',
+  resultTotal: 'Total: {total} puntos.',
+  resultTotalRank: 'Total: {total} puntos · puesto {rank}.',
+  winnersVictim: 'Acertaron la víctima: {names}',
+  winnersAbsorber: 'Acertaron el absorbente: {names}',
+  winnersNobody: 'nadie',
+  winnersMore: ' y {count} más',
 } as const;
 
 /** Fills {name} placeholders; a placeholder without a value is left as written. */
