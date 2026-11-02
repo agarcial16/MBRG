@@ -9,6 +9,9 @@ export const PICK_GILT: Rgb = [192, 153, 79];
 /** The lines that make the perimeter of a faction: against another faction, against the sea, against the outside. */
 export const PICK_CLASSES: readonly BorderClass[] = ['faction', 'coast', 'outer'];
 
+/** How far inside the perimeter the gilt reaches, in screen (CSS) pixels: the band is much wider than the 1 to 2 px line under it. */
+export const PICK_REACH = 3;
+
 /** The colour of a pixel of the owner `unitOwner` on a line of class `border`, when faction index `picked` (0 = none) is chosen. */
 export function pickedColor(base: Rgb, border: BorderClass | null, unitOwner: number, picked: number): Rgb {
   if (picked === 0 || unitOwner !== picked || border === null || !PICK_CLASSES.includes(border)) return base;

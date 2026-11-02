@@ -256,3 +256,25 @@ describe('second screenshot pass: phone dock and chip', () => {
     expect(panel).toContain("'hud-board hud-board-mine'");
   });
 });
+
+describe('second screenshot pass: desk panel, outline, scrollbars and the round shown', () => {
+  it('the desk command panel is compact: small buttons and dots, no repeated phase sentence while a prediction shows', () => {
+    expect(css).toContain('.hud[data-layout="desk"] .hud-command .hud-btn { min-height: 30px; padding: 0 10px; }');
+    expect(css).toContain('.hud[data-layout="desk"] .hud-command .hud-dot { min-width: 26px; min-height: 26px; }');
+    expect(css).toContain('.hud[data-layout="desk"] .hud-command:has(.hud-predict:not([hidden])) > .hud-stage { display: none; }');
+    expect(css).toContain('.hud-predict .hud-line { margin: 0; }');
+  });
+
+  it('the seal row is reserved while there is something to choose, so the buttons do not jump when a choice is sent', () => {
+    expect(css).toContain('.hud-seal[data-empty="true"] { visibility: hidden; }');
+    expect(panel).toContain("view.seal !== undefined || view.choices.length > 0");
+  });
+
+  it('every scrollable area of the HUD uses the gilt tokens for its bar', () => {
+    expect(css).toContain('.hud * { scrollbar-width: thin; scrollbar-color: var(--hud-gilt-dim) var(--hud-umber); }');
+  });
+
+  it('on the desk the round banner rides high, away from the command panel', () => {
+    expect(css).toContain('.hud[data-layout="desk"] .hud-banner { align-items: flex-start; padding-top: max(90px, 18vh);');
+  });
+});

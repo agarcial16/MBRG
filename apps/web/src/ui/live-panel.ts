@@ -476,7 +476,15 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
           pick.prepend(swatch);
         }
       }
-      if (view.seal !== undefined) el('span', 'hud-seal', predictBox).textContent = view.seal;
+      // The seal's row is reserved while there is something to choose, so the buttons below do not jump when a choice is sent.
+      if (view.seal !== undefined || view.choices.length > 0) {
+        const seal = el('span', 'hud-seal', predictBox);
+        seal.textContent = view.seal ?? '\u00a0';
+        if (view.seal === undefined) {
+          seal.dataset.empty = 'true';
+          seal.setAttribute('aria-hidden', 'true');
+        }
+      }
       if (view.notice !== undefined) {
         const notice = el('div', 'hud-messages', predictBox);
         notice.setAttribute('role', 'alert');

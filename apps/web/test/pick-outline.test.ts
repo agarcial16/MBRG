@@ -5,7 +5,7 @@ import { createMapScene } from '../src/render/map-scene';
 import { DEV_MAP } from './helpers/dev-map';
 import { FRAGMENT_SHADER } from '../src/render/shader';
 import { TOKENS } from '../src/core/hud-tokens';
-import { PICK_CLASSES, PICK_GILT, pickedColor, pickedOf } from '../src/core/pick-outline';
+import { PICK_CLASSES, PICK_GILT, PICK_REACH, pickedColor, pickedOf } from '../src/core/pick-outline';
 
 const BASE = [10, 20, 30] as const;
 const smallIndex = (): ReturnType<typeof buildEntryIndex> => buildEntryIndex(DEV_MAP, 3, 2, [0, DEV_MAP.territories[0]!.id, DEV_MAP.territories[1]!.id, DEV_MAP.territories[2]!.id, DEV_MAP.territories[0]!.id, 0]);
@@ -35,6 +35,14 @@ describe('the chosen faction is outlined in gilt on the map (design of spec 013)
     expect(FRAGMENT_SHADER).toContain('uPickColor');
     for (const c of PICK_CLASSES) expect(FRAGMENT_SHADER).toContain(`border == C_${c.toUpperCase().replace('-', '_')}`);
     expect(FRAGMENT_SHADER).not.toContain('border == C_TERRITORY && unitOwner == uPick');
+  });
+
+  it('the outline is a band of PICK_REACH screen pixels inside the perimeter, wider than the 1 to 2 px line', () => {
+    expect(PICK_REACH).toBeGreaterThanOrEqual(3);
+    expect(FRAGMENT_SHADER).toContain(`${PICK_REACH.toFixed(1)} / uScale`);
+    expect(FRAGMENT_SHADER).toContain('int pc = borderClassOf(a, pb);');
+    for (const c of PICK_CLASSES) expect(FRAGMENT_SHADER).toContain(`pc == C_${c.toUpperCase().replace('-', '_')}`);
+    expect(FRAGMENT_SHADER).not.toContain('pc == C_TERRITORY');
   });
 
   it('the outlined faction is the one marked as sent among the choices, or none', () => {

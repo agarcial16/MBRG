@@ -13,6 +13,8 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud { position: fixed; inset: 0; pointer-events: none; color: var(--hud-text); font: 14px/1.45 var(--hud-body, Spectral, Georgia, serif); }
 .hud > * { pointer-events: auto; }
 .hud [hidden] { display: none !important; }
+/* every scrollable area of the HUD uses the HUD tokens (no bright default bar) */
+.hud * { scrollbar-width: thin; scrollbar-color: var(--hud-gilt-dim) var(--hud-umber); }
 .hud-frame { background: var(--hud-wood); box-shadow: inset 0 0 0 1px var(--hud-gilt-dim), inset 0 0 0 4px var(--hud-wood), inset 0 0 0 5px var(--hud-gilt-dim); }
 .hud-title { font: 600 17px var(--hud-display, 'Cormorant SC', Georgia, serif); letter-spacing: 0.03em; color: var(--hud-gilt); }
 .hud-muted { color: var(--hud-muted); font-style: italic; font-size: 12px; }
@@ -170,14 +172,19 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-result[data-right="true"] .hud-title { color: var(--hud-verdigris); }
 .hud-result[data-right="false"] .hud-title { color: var(--hud-ember); }
 /* desk: the command panel is compact (prediction and result side by side, track and buttons on one row) and never crosses the left column or the minimap */
-.hud[data-layout="desk"] .hud-command { flex-direction: row; flex-wrap: wrap; align-content: flex-start; gap: 8px 18px; min-height: 0; padding: 10px 16px; max-height: calc(100vh - 82px); overflow: auto; }
+.hud[data-layout="desk"] .hud-command { flex-direction: row; flex-wrap: wrap; align-content: flex-start; gap: 6px 16px; min-height: 0; padding: 8px 14px; max-height: calc(100vh - 82px); overflow: auto; }
 .hud[data-layout="desk"] .hud-command > * { flex: 1 1 100%; }
 .hud[data-layout="desk"] .hud-command > .hud-predict,
 .hud[data-layout="desk"] .hud-command > .hud-result { flex: 1 1 280px; min-width: 0; }
 .hud[data-layout="desk"] .hud-command > .hud-track { flex: 0 1 auto; }
 .hud[data-layout="desk"] .hud-command > .hud-nav { flex: 1 1 auto; justify-content: flex-end; }
 .hud[data-layout="desk"] .hud-command:has(.hud-predict:not([hidden])) > .hud-title { display: none; }
-.hud[data-layout="desk"] .hud-picks { max-height: 12vh; }
+.hud[data-layout="desk"] .hud-picks { max-height: 72px; }
+/* compact controls on the desk so the panel stays about 230 px tall even at 1024 px wide; the phase sentence is already in the top bar */
+.hud[data-layout="desk"] .hud-command .hud-btn { min-height: 30px; padding: 0 10px; }
+.hud[data-layout="desk"] .hud-command .hud-dot { min-width: 26px; min-height: 26px; }
+.hud[data-layout="desk"] .hud-command:has(.hud-predict:not([hidden])) > .hud-stage { display: none; }
+.hud-seal[data-empty="true"] { visibility: hidden; }
 .hud-right { position: absolute; right: 12px; top: 70px; width: 238px; box-sizing: border-box; max-height: calc(100vh - 340px); overflow: auto; padding: 12px 14px; }
 .hud-board { list-style: none; margin: 6px 0 0; padding: 0; }
 .hud-boardrow { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; padding: 3px 0; font-size: 13px; border-bottom: 1px solid var(--hud-wood2); }
@@ -214,6 +221,8 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 /* round banner (FR-408) and the overlay between close and reveal (FR-409) */
 .hud-banner { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.45); }
 .hud-banner[hidden] { display: none; }
+/* desk: the card rides high so it never sits over the command panel, whose title and timer stay readable */
+.hud[data-layout="desk"] .hud-banner { align-items: flex-start; padding-top: max(90px, 18vh); box-sizing: border-box; }
 .hud-banner[data-fade="on"] { animation: hud-fade-in 0.3s ease-out; }
 .hud-banner-card { display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; min-width: 0; max-width: min(520px, calc(100vw - 24px)); padding: 18px 26px; min-height: 44px; font: inherit; color: var(--hud-text); cursor: pointer; }
 .hud-banner-card .hud-title { font-size: 26px; }
