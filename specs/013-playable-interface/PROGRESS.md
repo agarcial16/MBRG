@@ -118,3 +118,8 @@ Reviewer pass, then the browser screenshots (done criterion 2) and the hand run 
 - Lobby: two columns on the desk (players list left; share, personal link and "Empezar" right), one column on the phone.
 - DEVIATION from the design: the lobby is not drawn over a dimmed map. The lobby has no map loaded (the map scene starts at the match), and loading it would mean a map read and a scene in the lobby, a bigger risk than this fix pass. It stays a centred card on the parchment.
 - NEEDS BROWSER RE-CHECK: phone-create, desk-create, desk-lobby-host(-2players), phone-lobby-guest.
+### 6. Small items
+- "1 viva de N" singular (`hudAliveOfOne`).
+- A phase-2 result with no row on a forced round says the forced absorber was applied (`resultForced`), not "No predijiste". The forced flag comes from the revealed victim of that round; if the victim was already cleared by the round being applied when the scores arrive, the old text still shows (best effort, not testable without the server order of `results` and `round-applied`: check in the hand run).
+- Phase timer: `scheduleOf` makes the countdown (top bar and prediction block) read C2 and A of the revealed victim in phase 2 and locked, so a forced round (phase 2 = min(L1, F)) never counts to a stale C2. Unit test added. The "Ronda 0 de 4" seen in desk-forced-round is the debug scene before any round is applied; not changed.
+- Full npm test (327 files / 5146 passed, 4 skipped) and typecheck green after this step.

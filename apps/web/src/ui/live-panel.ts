@@ -407,7 +407,8 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     if (last === undefined) return;
     const rows = last.hud.rows;
     const total = rows.length;
-    const aliveText = fillTemplate(STRINGS.hudAliveOf, { alive: rows.filter((r) => r.alive).length, total });
+    const alive = rows.filter((r) => r.alive).length;
+    const aliveText = fillTemplate(alive === 1 ? STRINGS.hudAliveOfOne : STRINGS.hudAliveOf, { alive, total });
     factionsHead.textContent = [STRINGS.legendTitle, aliveText].join(' - ');
     for (const [key, chip] of sortButtons) chip.setAttribute('aria-pressed', String(key === sortKey));
     const matched = sortRows(searchRows(rows, query), sortKey);

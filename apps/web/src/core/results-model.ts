@@ -59,12 +59,14 @@ export function resultView(input: {
   readonly total: number;
   readonly rank: number | undefined;
   readonly nameOf: (faction: number) => string;
+  /** The absorber of this round was forced (a single candidate): there was nothing to predict, and the server applied it. */
+  readonly forced?: boolean;
 }): ResultView {
   const { scored, item, total, rank } = input;
   const what = scored.phase === 1 ? STRINGS.resultVictim : STRINGS.resultAbsorber;
   const head = fillTemplate(what, { round: scored.round });
   const totals = rank === undefined ? fillTemplate(STRINGS.resultTotal, { total }) : fillTemplate(STRINGS.resultTotalRank, { total, rank });
-  if (item === undefined) return { title: STRINGS.resultTitle, lines: [head, STRINGS.resultNone, totals], right: undefined };
+  if (item === undefined) return { title: STRINGS.resultTitle, lines: [head, input.forced === true && scored.phase === 2 ? STRINGS.resultForced : STRINGS.resultNone, totals], right: undefined };
   const verdict = item.correct ? STRINGS.resultRight : STRINGS.resultWrong;
   const points = fillTemplate(STRINGS.resultPoints, { value: item.points });
   const chosen = fillTemplate(STRINGS.resultYourChoice, { name: input.nameOf(item.choice) });

@@ -216,3 +216,9 @@ describe('screenshot pass: create screen and lobby layout', () => {
     expect(lobby).toContain("h('div', 'hud-lobby-share', card)");
   });
 });
+
+describe('screenshot pass: small wording', () => {
+  it('one faction alive reads in the singular', () => {
+    expect(panel).toContain('alive === 1 ? STRINGS.hudAliveOfOne : STRINGS.hudAliveOf');
+  });
+});

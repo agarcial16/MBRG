@@ -82,6 +82,14 @@ describe('FR-406 the chip and the results panel', () => {
     expect(none.lines.join(' ')).toContain('puesto 7');
   });
 
+  it('FR-406 a forced absorber is said to be applied without a prediction, not as a missed prediction', () => {
+    const forced = resultView({ scored: { round: 3, phase: 2 }, item: undefined, total: 4, rank: 1, nameOf: names, forced: true });
+    expect(forced.lines.join(' ')).toContain('forzado');
+    expect(forced.lines.join(' ')).not.toContain('No predijiste');
+    const victimNone = resultView({ scored: { round: 3, phase: 1 }, item: undefined, total: 4, rank: 1, nameOf: names, forced: true });
+    expect(victimNone.lines.join(' ')).toContain('No predijiste');
+  });
+
   it('FR-406 the rank is the competition rank of the player row', () => {
     const rows = [row(1, 'player:a', 9, 'A'), row(2, 'player:b', 5, 'B'), row(2, 'player:c', 5, 'C')];
     expect(rankOf(rows, 'player:c')).toBe(2);

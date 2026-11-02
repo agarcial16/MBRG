@@ -3,7 +3,7 @@
 // the timers; every transition of the state and every sentence is here. No DOM, no network, no token.
 import type { LeaderboardRow, OwnPrediction, PlayerResult, PredictionReply } from '@mbrg/protocol';
 import { estimateAt, type LiveModel } from './live-model';
-import { countdownTime } from './live-text';
+import { countdownTime, scheduleOf } from './live-text';
 import type { FactionName } from './live-view';
 import { bookAfterReply, bookFromOwn, emptyBook, offerOf, offerText, sentFor, sentText, type Book, type Offer } from './predict-model';
 import {
@@ -142,14 +142,14 @@ export function playHud(input: PlayInput): PlayHud {
       seal: chosen === undefined ? undefined : sentText(nameOf(chosen)),
       notice: state.notice,
       sending: state.sending,
-      countdown: open ? countdownTime(model.stage, model.timing, model.schedule, estimateAt(model, input.at)) : undefined,
+      countdown: open ? countdownTime(model.stage, model.timing, scheduleOf(model.stage, model.schedule, model.victim), estimateAt(model, input.at)) : undefined,
     };
   }
 
   const result =
     player === undefined || state.scored === undefined || state.scores === undefined
       ? undefined
-      : resultView({ scored: state.scored, item: resultFor(state.scores.items, state.scored), total: state.scores.total, rank, nameOf });
+      : resultView({ scored: state.scored, item: resultFor(state.scores.items, state.scored), total: state.scores.total, rank, nameOf, forced: model.victim?.round === state.scored.round && model.victim.forced === true });
 
   const lines = new Map<number, WinnersLine[]>();
   for (const [key, names] of state.winners) {

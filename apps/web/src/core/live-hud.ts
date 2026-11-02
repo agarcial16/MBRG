@@ -2,7 +2,7 @@
 // live model and the existing panel view. No DOM; every sentence comes from the strings module.
 import type { Stage } from '@mbrg/protocol';
 import { estimateAt, type LiveModel } from './live-model';
-import { countdownTime, errorText, formatCountdown, haltText, type LiveErrorKind } from './live-text';
+import { countdownTime, scheduleOf, errorText, formatCountdown, haltText, type LiveErrorKind } from './live-text';
 import type { FactionName, LivePanelView } from './live-view';
 import { STRINGS, fillTemplate } from './strings';
 
@@ -49,7 +49,7 @@ export const topBar = (model: LiveModel, panel: LivePanelView, at: number): TopB
   round: panel.round,
   phase: PHASES[model.stage],
   alive: aliveCount(panel),
-  countdown: countdownTime(model.stage, model.timing, model.schedule, estimateAt(model, at)),
+  countdown: countdownTime(model.stage, model.timing, scheduleOf(model.stage, model.schedule, model.victim), estimateAt(model, at)),
   chip: undefined,
 });
 
