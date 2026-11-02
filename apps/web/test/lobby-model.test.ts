@@ -68,6 +68,23 @@ describe('FR-399 the first schedule event leaves the lobby', () => {
     expect(lobbyAfterFrame(emptyLobby, halted).outcome).toBe('ended');
   });
 
+  it('FR-399 the schedule event of a fresh lobby (stage lobby, seq 1, replayed from 0) does not close the lobby', () => {
+    const frames = [
+      JSON.parse(encodeEvent({ type: 'schedule', seq: 1, stage: 'lobby', reportedTime: 1000 })) as unknown,
+      joined(2, ANA, 'Ana'),
+    ];
+    let model = emptyLobby;
+    const outcomes: string[] = [];
+    for (const f of frames) {
+      const next = lobbyAfterFrame(model, f);
+      model = next.model;
+      outcomes.push(next.outcome);
+    }
+    expect(outcomes).toStrictEqual(['ignored', 'joined']);
+    expect(model.lastSeq).toBe(2);
+    expect(model.players).toHaveLength(1);
+  });
+
   it('FR-399 a public read decides the stage: lobby stays, a running match leaves, expired and ended say so', async () => {
     const s = await scripted();
     expect(lobbyStageOf(publicAt(s, 0, { stage: 'lobby', playerCount: 0 }))).toBe('lobby');

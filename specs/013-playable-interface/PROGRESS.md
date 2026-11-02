@@ -102,3 +102,7 @@ Reviewer pass, then the browser screenshots (done criterion 2) and the hand run 
 
 ### Double-tap guard (reviewer fix)
 `repeatsPick` (core/predict-model) blocks a tap that repeats an in-flight or already confirmed choice for the phase; `pick()` uses it. A different choice still goes through. Tests red then green; two mutants (in-flight, confirmed) killed. Full npm test and typecheck green (one earlier tour-pins-debug failure was a flake under load, green alone and on rerun).
+
+## Screenshot-pass fixes
+### 1. Lobby closed at once (blocker)
+`lobbyAfterFrame` ignores a `schedule` event whose stage is `lobby` (the server emits it at seq 1 on creation and the stream replays from 0); stage `expired` reports `ended`; other stages still report `started`. Regression test uses the real fresh-lobby sequence (schedule lobby seq 1, then player-joined). Full npm test (327 files / 5136) and typecheck green. Test written together with the fix (not seen red separately).

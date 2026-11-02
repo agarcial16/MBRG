@@ -44,7 +44,9 @@ export function lobbyAfterFrame(model: LobbyModel, data: unknown): { readonly mo
       return { model: next, outcome: next === seen ? 'ignored' : 'joined' };
     }
     case 'schedule':
-      return { model: seen, outcome: 'started' };
+      // A fresh lobby emits a schedule event with stage 'lobby' at seq 1: it is not the start.
+      if (e.stage === 'lobby') return { model: seen, outcome: 'ignored' };
+      return { model: seen, outcome: e.stage === 'expired' ? 'ended' : 'started' };
     case 'match-finished':
     case 'match-halted':
       return { model: seen, outcome: 'ended' };
