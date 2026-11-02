@@ -14,6 +14,7 @@ export {
   encodePlayerListItem,
   encodePlayerResults,
   encodePrediction,
+  encodePublicConfig,
   encodeRecord,
   encodeState,
 } from './encode';
@@ -45,6 +46,7 @@ export {
   PLAYER_RESULTS_PAGE_KEYS,
   PLAYER_RESULT_KEYS,
   PREDICTION_REPLY_KEYS,
+  PUBLIC_CONFIG_KEYS,
   RECORD_REPLY_KEYS,
   STATE_REPLY_KEYS,
   STEP_INFO_KEYS,
@@ -62,6 +64,7 @@ export type {
   PlayerListItem,
   PlayerResult,
   PlayerResultsPage,
+  PublicConfig,
   RecordReply,
   StateReply,
 } from './wire';
@@ -111,6 +114,7 @@ export {
   readPlayerResultsPage,
   readPlayersPage,
   readPredictionReply,
+  readPublicConfig,
   readPublicMatch,
   readRecordReply,
   readStateReply,

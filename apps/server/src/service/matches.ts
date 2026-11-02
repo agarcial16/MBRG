@@ -73,6 +73,7 @@ import type {
   PlayerListItem,
   PlayerResultsPage,
   PredictionReply,
+  PublicConfig,
   PublicMatch,
   RecordReply,
   StateReply,
@@ -102,6 +103,7 @@ import type { Store, StoredMatch, StoredRecord, StoredStep } from '../store/stor
 import { credentialDigest, newHostToken, newMatchId, newPlayerLocalId, newPlayerToken, sameDigest, sha256Ascii } from './ids';
 import { isMapFileName, mapForStep } from './maps';
 import type { MapCatalog, MapFile } from './maps';
+import { publicConfigOf } from './public-config';
 import { checkPublicCreation } from './publiccreate';
 import type { Scheduler, SchedulerHandle } from './scheduler';
 import type { Settings } from './settings';
@@ -422,6 +424,11 @@ export interface MatchService {
    * a storage failure. Writes nothing. An `after` that is not a whole number from 0 is a RangeError (the caller maps it).
    */
   eventsAfter(matchId: string, after: number | undefined): ReadOutcome<EventsRead>;
+  /**
+   * Spec 014 FR-413, FR-414, FR-421: the public config of the settings this service holds (the object creation enforces), as a
+   * fresh value on every call. Touches no storage, clock or random source, so it cannot fail.
+   */
+  publicConfig(): { readonly ok: true; readonly reply: PublicConfig };
   /** FR-281 (j): one of the three files of a listed map package; `unknown-map`, `unknown-path` (another name), `unavailable` (unreadable). */
   mapFile(mapId: string, name: string): ReadOutcome<MapFile>;
   /** Registers a subscriber of every event stored after this call (FR-290); returns the function that removes it. */
@@ -1616,6 +1623,10 @@ export function createMatchService(options: ServiceOptions): MatchService {
         const events = after === undefined || after >= lastSeq ? [] : store.eventsAfter(stored.match.matchId, after);
         return { ok: true, reply: { lastSeq, events } };
       });
+    },
+
+    publicConfig() {
+      return { ok: true, reply: publicConfigOf(settings) };
     },
 
     mapFile(mapId: string, name: string): ReadOutcome<MapFile> {
