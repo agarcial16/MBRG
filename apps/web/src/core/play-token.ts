@@ -96,3 +96,9 @@ export function readFragment(hash: string): PlayerCredentials | undefined {
     return undefined;
   }
 }
+
+/** A personal link opened here: its player is stored for the match. False (nothing stored) when the fragment is not one. */
+export function adoptFragment(storage: StorageLike, matchId: string, hash: string): boolean {
+  const player = readFragment(hash);
+  return player !== undefined && savePlayer(storage, matchId, player);
+}

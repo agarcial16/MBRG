@@ -33,20 +33,23 @@ export const lobbyAfterPlayers = (model: LobbyModel, items: readonly PlayerListI
  */
 export function lobbyAfterFrame(model: LobbyModel, data: unknown): { readonly model: LobbyModel; readonly outcome: LobbyOutcome } {
   const read = readEvent(data);
-  if (read.status !== 'known') return { model, outcome: 'ignored' };
+  if (read.status === 'invalid') return { model, outcome: 'ignored' };
+  const seq = read.status === 'unknown' ? read.seq : read.event.seq;
+  const seen: LobbyModel = seq > model.lastSeq ? { ...model, lastSeq: seq } : model;
+  if (read.status === 'unknown') return { model: seen, outcome: 'ignored' };
   const e = read.event;
   switch (e.type) {
     case 'player-joined': {
-      const next = withPlayer(model, { playerId: e.playerId, name: e.name, joinedSeq: e.seq });
-      return next === model ? { model, outcome: 'ignored' } : { model: { ...next, lastSeq: Math.max(next.lastSeq, e.seq) }, outcome: 'joined' };
+      const next = withPlayer(seen, { playerId: e.playerId, name: e.name, joinedSeq: e.seq });
+      return { model: next, outcome: next === seen ? 'ignored' : 'joined' };
     }
     case 'schedule':
-      return { model, outcome: 'started' };
+      return { model: seen, outcome: 'started' };
     case 'match-finished':
     case 'match-halted':
-      return { model, outcome: 'ended' };
+      return { model: seen, outcome: 'ended' };
     default:
-      return { model, outcome: 'ignored' };
+      return { model: seen, outcome: 'ignored' };
   }
 }
 

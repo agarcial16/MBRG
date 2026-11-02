@@ -47,6 +47,19 @@ describe('FR-400 a player-joined event adds the player and is never a fault', ()
   });
 });
 
+describe('FR-399 FR-400 the lobby remembers how far the stream has been read', () => {
+  it('FR-399 every known or unknown event moves the last number forward, and an old one never moves it back', () => {
+    let model = lobbyAfterFrame(emptyLobby, joined(4, ANA, 'Ana')).model;
+    expect(model.lastSeq).toBe(4);
+    model = lobbyAfterFrame(model, { type: 'phase-closed', seq: 6, round: 1, phase: 1, at: 5 }).model;
+    expect(model.lastSeq).toBe(6);
+    model = lobbyAfterFrame(model, { type: 'nope', seq: 9 }).model;
+    expect(model.lastSeq).toBe(9);
+    expect(lobbyAfterFrame(model, joined(2, BEA, 'Bea')).model.lastSeq).toBe(9);
+    expect(lobbyAfterFrame(model, 'garbage').model.lastSeq).toBe(9);
+  });
+});
+
 describe('FR-399 the first schedule event leaves the lobby', () => {
   it('FR-399 a schedule event reports started, and a halted or finished match reports ended', () => {
     const schedule = JSON.parse(encodeEvent({ type: 'schedule', seq: 3, stage: 'phase-1', reportedTime: 1000 })) as unknown;
