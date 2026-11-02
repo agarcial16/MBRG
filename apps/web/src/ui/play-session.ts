@@ -3,7 +3,7 @@
 // and `core/play-view`; this file runs the calls and keeps the state. The player token goes only to `PlayNet` (as `Authorization`) and is
 // never logged, put in an address or kept anywhere but the browser storage the door already filled.
 import type { LiveModel } from '../core/live-model';
-import { noOfferText, pickFor, submitFailure } from '../core/predict-model';
+import { noOfferText, pickFor, repeatsPick, submitFailure, type InFlight } from '../core/predict-model';
 import {
   initialPlay,
   offerFor,
@@ -65,6 +65,7 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
   const asked = new Set<string>();
   let offerKey = '';
   let started = false;
+  let inFlight: InFlight | undefined;
 
   const set = (next: PlayState): void => {
     state = next;
@@ -119,8 +120,13 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
     if (player === undefined) return set(withNotice(state, noOfferText('not-joined')));
     const choice = pickFor(offer, faction, player.playerId, deps.makeId());
     if (!choice.ok) return set(withNotice(state, choice.sentence));
+    if (repeatsPick(offer, faction, state.book, inFlight)) return;
+    if (offer.type !== 'victim' && offer.type !== 'absorber') return;
+    const sent: InFlight = { type: offer.type, round: offer.round, faction: choice.body.faction };
+    inFlight = sent;
     state = withSending(state, true);
     void deps.net.submit(deps.matchId, player.token, choice.body).then((read) => {
+      if (inFlight === sent) inFlight = undefined;
       set(read.ok ? withReply(state, read.value) : withNotice(state, submitFailure(read.outcome, read.retryAfter)));
     });
   }

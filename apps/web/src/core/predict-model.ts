@@ -93,6 +93,20 @@ export function sentFor(book: Book, offer: Offer): number | undefined {
   return undefined;
 }
 
+/** A submission on its way to the server. */
+export interface InFlight {
+  readonly type: 'victim' | 'absorber';
+  readonly round: number;
+  readonly faction: number;
+}
+
+/** True when a tap only repeats a submission already in flight or already confirmed for this phase (a different choice is never a repeat). */
+export function repeatsPick(offer: Offer, faction: number | undefined, book: Book, inFlight: InFlight | undefined): boolean {
+  if (faction === undefined || (offer.type !== 'victim' && offer.type !== 'absorber')) return false;
+  if (inFlight !== undefined && inFlight.type === offer.type && inFlight.round === offer.round && inFlight.faction === faction) return true;
+  return sentFor(book, offer) === faction;
+}
+
 /** The local part of a namespaced player id (`player:<local>`); the server derives the namespaced id from the credential. */
 export const localIdOf = (playerId: string): string => playerId.slice(playerId.indexOf(':') + 1);
 

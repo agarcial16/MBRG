@@ -99,3 +99,6 @@ A match with a joined player: either the local server (`apps/server`, two profil
 
 ### Next step
 Reviewer pass, then the browser screenshots (done criterion 2) and the hand run (criterion 3).
+
+### Double-tap guard (reviewer fix)
+`repeatsPick` (core/predict-model) blocks a tap that repeats an in-flight or already confirmed choice for the phase; `pick()` uses it. A different choice still goes through. Tests red then green; two mutants (in-flight, confirmed) killed. Full npm test and typecheck green (one earlier tour-pins-debug failure was a flake under load, green alone and on rerun).

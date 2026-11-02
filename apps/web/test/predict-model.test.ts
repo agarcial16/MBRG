@@ -12,6 +12,7 @@ import {
   offerText,
   orderByTerritories,
   pickFor,
+  repeatsPick,
   sentFor,
   sentText,
   submitFailure,
@@ -209,5 +210,28 @@ describe('FR-401 a tap on the map', () => {
     expect(isTap({ sx: 10, sy: 10, at: 0 }, { sx: 10, sy: 10, at: 700 })).toBe(false);
     expect(isTap({ sx: 0, sy: 0, at: 0 }, { sx: 6, sy: 0, at: 600 })).toBe(true);
     expect(isTap({ sx: 0, sy: 0, at: 0 }, { sx: 7, sy: 0, at: 600 })).toBe(false);
+  });
+});
+
+describe('repeatsPick (double tap guard)', () => {
+  const offer = { type: 'victim', round: 3, choices: [1, 2] } as const;
+  const book = bookAfterReply(emptyBook, { kind: 'victim', round: 3, choice: 1, version: 1 } as never);
+  it('is false with nothing sent or in flight', () => {
+    expect(repeatsPick(offer, 1, emptyBook, undefined)).toBe(false);
+  });
+  it('is true while the same choice is in flight', () => {
+    expect(repeatsPick(offer, 1, emptyBook, { type: 'victim', round: 3, faction: 1 })).toBe(true);
+  });
+  it('is false for a different choice in flight, other round or kind', () => {
+    expect(repeatsPick(offer, 2, emptyBook, { type: 'victim', round: 3, faction: 1 })).toBe(false);
+    expect(repeatsPick(offer, 1, emptyBook, { type: 'victim', round: 2, faction: 1 })).toBe(false);
+    expect(repeatsPick(offer, 1, emptyBook, { type: 'absorber', round: 3, faction: 1 })).toBe(false);
+  });
+  it('is true for the last confirmed choice of the phase, false for another', () => {
+    expect(repeatsPick(offer, 1, book, undefined)).toBe(true);
+    expect(repeatsPick(offer, 2, book, undefined)).toBe(false);
+  });
+  it('is false when there is no offer to repeat', () => {
+    expect(repeatsPick({ type: 'none', reason: 'closed' }, 1, book, undefined)).toBe(false);
   });
 });
