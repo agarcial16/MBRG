@@ -3,6 +3,7 @@
 // reduced-motion preference. Nothing here reads a clock; the caller passes the reported-time estimate.
 import { LABEL_PARAMS } from './label-params';
 import { nominalEnd } from './tour';
+import type { TourPace } from './tour';
 import type { TourKind } from './tour-key';
 import { TOUR_PARAMS } from './tour-params';
 
@@ -108,10 +109,11 @@ export function viewChoice(
   reduced: boolean,
   n: number,
   budget: number | undefined,
+  pace: TourPace = 'classic',
 ): { readonly play: true; readonly still?: true; readonly budget?: number } | { readonly play: false; readonly reason: SkipReason } {
   if (kind === 'absorber' && reduced) return { play: false, reason: 'reduced-motion' };
   const still = kind === 'victim' && reduced;
-  const scale = scaleFor(nominalEnd(kind, n, still), budget);
+  const scale = scaleFor(nominalEnd(kind, n, still, pace), budget);
   if (!scale.play) return { play: false, reason: 'too-short' };
   return { play: true, ...(still ? { still: true as const } : {}), ...(scale.budget === undefined ? {} : { budget: scale.budget }) };
 }

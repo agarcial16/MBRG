@@ -10,7 +10,7 @@ import { assignFactionColors, paletteMessage } from '../core/colors';
 import { liveProblemMessage, readLiveAddress } from '../core/live-address';
 import type { LiveAddress } from '../core/live-address';
 import { liveTitle } from '../core/live-text';
-import { absorberRequestOf, liveTourPanel, panelView, tourReportOf, victimRequestOf } from '../core/live-view';
+import { absorberRequestOf, liveTourPanel, pacedFor, panelView, tourReportOf, victimRequestOf } from '../core/live-view';
 import { hudState, stateCard, topBar } from '../core/live-hud';
 import { chronicle, factionRows } from '../core/live-stats';
 import { factionAt } from '../core/predict-model';
@@ -234,7 +234,7 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials): voi
       const forward = to > from;
       if (absorber !== undefined && forward) {
         // The absorber tour first, from the reading of the feed (D11); the step follows it (FR-345).
-        const request = absorberRequestOf(absorber, view.owners);
+        const request = pacedFor(absorberRequestOf(absorber, view.owners), player !== undefined);
         const planned = view.request(to, at);
         if (request !== undefined && planned.change === 'step' && view.beginTour([request], at, { target: to, owners: data.later, data })) {
           syncAddress(to, view.camera());
@@ -251,7 +251,7 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials): voi
 
     startVictimTour(effect, at) {
       if (view === undefined || runner === undefined) return;
-      const request = victimRequestOf(effect, runner.model(), view.owners);
+      const request = pacedFor(victimRequestOf(effect, runner.model(), view.owners), player !== undefined);
       if (request !== undefined) view.beginTour([request], at);
     },
 

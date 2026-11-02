@@ -148,3 +148,8 @@ export function absorberRequestOf(tour: AbsorberTour, index: ReadonlyMap<number,
   if (result === undefined || victim === undefined || set.some((i) => i === undefined)) return undefined;
   return { kind: ABSORBER_TOUR, result, victim, set: set as number[], sigma: tour.sigma, ...(tour.budget === undefined ? {} : { budget: tour.budget }) };
 }
+
+/** Spec 013 FR-411: a played match (a player is present) plays its tours at the bell pace; a spectator keeps the classic pace of spec 009. */
+export function pacedFor(request: TourRequest | undefined, player: boolean): TourRequest | undefined {
+  return request === undefined || !player ? request : { ...request, pace: 'bell' };
+}
