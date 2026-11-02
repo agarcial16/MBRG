@@ -70,3 +70,32 @@ Part B: prediction (FR-401..405) and results (FR-406, FR-407). Needs from A: `lo
 
 ### Next step (Part C)
 Banner, camera return, tour pacing, finalised overlay ("PREDICCIONES FINALIZADAS" / "REVELANDO…"), phone pinch. Hooks from B: `offerOf` returns the reason `closed`/`revealing` (the overlay can reuse it), `TourHold` in `play-session.ts` is the one place that knows the reveal state, `attachInput` already tells taps from drags (the pinch goes next to it).
+
+## Part C — banner, camera, tour, overlay, pinch, outline (FR-408..FR-412, NFR-77, NFR-79, NFR-80)
+
+Commits: `e729383` (tour pace), `26e60e0` (gilt outline), `a69f593` (banner, overlays, camera return, pinch). Tests written first and SEEN failing (module missing / assertions red) before each code step.
+
+- FR-411 pace: `core/tour.ts` gets `TourPace = 'classic' | 'bell'` (`spec.pace`, `nominalEnd(..., pace)`), `BELL_PARAMS` in `tour-params.ts`, `viewChoice(..., pace)`, `TourRequest.pace`, `pacedFor(request, player)` in `live-view.ts`. Bell dwell = dmin + (dmax - dmin) (2(i-1) - (H-2))^2 / (H-2)^2: slowest at both ends, fastest in the middle. Ends: 12 stops 7,168 ms (classic 5,349, +34 %), 6 stops 4,625 (3,487, +33 %), absorber 3,225 (2,411, +34 %). **No golden changed**: classic stays the default; the live scene uses the bell pace only when a player is present (spectators keep the 009 pace). `tours.json`, `tour-frame-pins.json` and the 009 tests pass untouched.
+- FR-408: `core/round-banner.ts` (state over the displayed round: starts only on +1 at the live edge, never on first sight, jump or replay; waits while the reveal/absorber tour runs; 3 s; dismiss) and the panel `round-banner` (one button: tap, Enter, Space; Escape also dismisses). One `after()` timer refreshes the panel when it ends. Reduced motion: `data-fade="off"`, no animation.
+- FR-409: `core/round-overlay.ts` reuses `offerOf` (`closed` while phase 2 has no victim, `revealing` during the reveal tour); it names nobody. Shown to spectators too.
+- FR-410: `core/camera-return.ts` + `live-main.ts`: `userMoved` is the one function for drag, wheel, minimap and pinch; `settleCamera` runs at the end of the absorber tour or of a step with no tour (never after the victim tour); a camera in the address counts as moved.
+- FR-412: `core/pinch.ts` (ratio -> `cameraZoomed`, clamped) and the minimap pointer handling in `live-panel.ts` (two touches pinch; one drags).
+- Outline (left from B): `core/pick-outline.ts` (`pickedColor` rule, `PICK_CLASSES` faction/coast/outer, gilt = token), `uPick`/`uPickColor` in `render/shader.ts` generated from the same class list, `MapScene.setPick`, `MapView.setPick`; `live-main` sets it from the sent choice (`pickedOf`). Not a pixel render test: rule + shader text + uniform are tested; the look is for the screenshots.
+- Existing scans amended in `live-scans.test.ts` (skip handler now also dismisses the banner; `userCamera(` count 4 -> 3 as `userMoved` is the single path). `round-shell.test.ts` adds the part C scans.
+- Mutants (affected files): 12 run, all killed after two extra tests (banner jump with a record, overlay stage guard).
+- Result: `npm test` 327 files / 5130 passed, 4 skipped; `npm run typecheck` clean.
+
+### Decisions the spec did not cover
+1. Bell pace only with a player present (the instruction to keep the old pace otherwise). The live model's `absorberTourDecision` still budgets with the classic end; the view re-checks with the bell end (`viewChoice`), so a tour too long for its window is compressed or dropped there.
+2. "Phase-2 window closed, before the reveal" read as stage `phase-2` with no victim yet (after the phase-1 close).
+3. The camera return at "round end" = end of the absorber tour or a step played with no tour; a move by the user during the round keeps the camera for that round.
+4. Outline covers only the perimeter lines (faction, coast, outer) on the chosen faction's side, off during a colour front.
+
+### Untested / for the browser pass (not mine)
+Banner look and 3 s timing, fade vs reduced motion, overlay position (desktop 110 px, phone 100 px), outline thickness/colour on the real map, bell pace feel, camera return, pinch on a real touch screen (multi-pointer capture), banner not blocking the minimap.
+
+### Debug scene needs (screenshots 1280 x 720 and 390 x 844)
+A match with a joined player: either the local server (`apps/server`, two profiles, fixed seed, host starts, a short pace such as Rápido) or a fake `PlayNet`/`fetch` serving `GET /config`, a lobby/running public match, the players read and the event stream with `schedule`, `victim-revealed`, `round-applied`, `results`. States to capture: phase 1 and 2 with a choice (outline), forced round, overlay "PREDICCIONES FINALIZADAS" (phase 2 before the reveal event) and "REVELANDO…" (during the victim tour), banner just after `round-applied` (and with `prefers-reduced-motion`), pinch on the phone minimap (emulated two-touch).
+
+### Next step
+Reviewer pass, then the browser screenshots (done criterion 2) and the hand run (criterion 3).
