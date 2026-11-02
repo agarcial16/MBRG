@@ -14,6 +14,8 @@ import { liveTitle, skipLabel } from '../core/live-text';
 import type { LivePanelView } from '../core/live-view';
 import type { UnitRect } from '../core/minimap';
 import type { NavAction } from '../core/navigation';
+import type { PlayHud, PredictView, WinnersLine } from '../core/play-view';
+import type { BoardPage, ResultView } from '../core/results-model';
 import { STRINGS, fillTemplate } from '../core/strings';
 import { PANEL_CSS } from './live-panel-style';
 
@@ -31,6 +33,19 @@ export interface LivePanelHandlers {
   onMinimap(point: { x: number; y: number }): void;
   /** The wheel turned over the minimap: zoom the whole map by this many steps. */
   onMinimapZoom(steps: number): void;
+  /** The player's controls (spec 013); absent when the page has no player session. */
+  readonly play?: PlayHandlers;
+}
+
+/** The player's controls on the match screen (spec 013 FR-401, FR-406, FR-407). */
+export interface PlayHandlers {
+  /** FR-401: a faction of the HUD bar was chosen; it is sent at once. */
+  onPick(faction: number): void;
+  onBoardPage(delta: number): void;
+  onWinnersToggle(key: string): void;
+  onWinnersPage(key: string, delta: number): void;
+  /** FR-397: fills the box of the personal link (once, when the player chip is first opened). */
+  fillPersonal(parent: HTMLElement): void;
 }
 
 /** What the HUD shows besides the panel view. */
@@ -44,6 +59,8 @@ export interface HudView {
   readonly track: RoundTrack;
   readonly rows: readonly FactionRow[];
   readonly chronicle: readonly ChronicleEntry[];
+  /** What the player sees besides the spectator screen (spec 013); absent without a player session. */
+  readonly play?: PlayHud;
 }
 
 /** The thumbnail of the minimap: pixels of `width` x `height`, or none to keep the one already drawn. */
@@ -121,6 +138,15 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const phase = el('span', 'hud-phase', top);
   const liveMark = el('span', 'hud-livemark', top);
   const count = el('span', 'hud-count hud-num', top);
+  // The player chip (FR-406) opens the personal link (FR-397).
+  const chipButton = button(top, '', () => {
+    personal.hidden = !personal.hidden;
+    if (!personal.hidden && !personalFilled) {
+      personalFilled = true;
+      handlers.play?.fillPersonal(personal);
+    }
+  }, 'hud-playerchip');
+  chipButton.hidden = true;
 
   // The band of a replay, under the top bar.
   const bandBox = zone('replay-band', 'hud-band hud-frame', root);
@@ -170,8 +196,12 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     renderFactions();
   }, 'hud-btn');
   more.hidden = true;
-  const rightColumn = zone('right-column', 'hud-right', root);
+  const rightColumn = zone('right-column', 'hud-right hud-frame', root);
   rightColumn.hidden = true;
+  const personal = zone('personal', 'hud-pop hud-frame', root);
+  personal.hidden = true;
+  let personalFilled = false;
+  let hasBoard = false;
 
   // Minimap: a thumbnail of the map in the colours of the owners, and the rectangle of the current view.
   const minimap = zone('minimap', 'hud-mini hud-frame', root);
@@ -213,6 +243,10 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   el('div', 'hud-title', command).textContent = liveTitle();
   const messages = el('div', 'hud-messages', command);
   messages.setAttribute('role', 'alert');
+  const predictBox = el('div', 'hud-predict', command);
+  predictBox.hidden = true;
+  const resultBox = el('div', 'hud-result', command);
+  resultBox.hidden = true;
   const stage = el('div', 'hud-line hud-stage', command);
   const victim = el('div', 'hud-line hud-victim', command);
   const winner = el('div', 'hud-line', command);
@@ -260,7 +294,7 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     const pane = el('div', 'hud-pane', dock);
     pane.setAttribute('role', 'tabpanel');
     panes.set(tab.id, pane);
-    if (tab.id !== 'match') pane.textContent = STRINGS.hudSoon;
+    if (tab.id === 'order') pane.textContent = STRINGS.hudSoon;
   }
   panes.get('order')!.hidden = true;
   panes.get('ranking')!.hidden = true;
@@ -270,9 +304,11 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const place = (): void => {
     if (layout === 'phone') {
       panes.get('match')?.append(command, left);
+      panes.get('ranking')?.append(rightColumn);
     } else {
-      root.append(left, command);
+      root.append(left, command, rightColumn);
     }
+    boardVisible();
   };
   place();
   window.addEventListener('resize', () => {
@@ -288,7 +324,24 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     node.hidden = text === undefined;
   };
 
-  const renderChronicle = (entries: readonly ChronicleEntry[]): void => {
+  let chronSig = '';
+  const winnersBlock = (parent: HTMLElement, line: WinnersLine): void => {
+    const box = el('div', 'hud-winners', parent);
+    el('span', '', box).textContent = line.view.line ?? '';
+    if (line.view.expandable) {
+      const expanded = line.view.names.length > 0;
+      button(box, expanded ? STRINGS.hudShowLess : STRINGS.winnersAll, () => handlers.play?.onWinnersToggle(line.key), 'hud-link-btn').setAttribute('aria-expanded', String(expanded));
+      if (expanded) {
+        const names = el('ul', 'hud-winners-list', box);
+        for (const name of line.view.names) el('li', '', names).textContent = name;
+        if (line.view.pages > 1) pager(box, line.view.page, line.view.pages, (delta) => handlers.play?.onWinnersPage(line.key, delta));
+      }
+    }
+  };
+  const renderChronicle = (entries: readonly ChronicleEntry[], winners?: ReadonlyMap<number, readonly WinnersLine[]>): void => {
+    const sig = JSON.stringify([entries, winners === undefined ? [] : [...winners]]);
+    if (sig === chronSig) return;
+    chronSig = sig;
     chron.replaceChildren(
       ...entries.map((entry) => {
         const item = document.createElement('li');
@@ -299,6 +352,7 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
           item.className = 'pending';
         } else {
           text.textContent = fillTemplate(STRINGS.hudChronicleApplied, { victim: entry.victim, absorber: entry.absorber, count: entry.taken });
+          for (const line of winners?.get(entry.round) ?? []) winnersBlock(text, line);
         }
         return item;
       }),
@@ -334,6 +388,94 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     more.hidden = hidden === 0 && !showAll;
     more.textContent = showAll ? STRINGS.hudShowLess : fillTemplate(STRINGS.hudShowAll, { count: hidden });
     more.setAttribute('aria-label', more.textContent);
+  };
+
+  /** Previous / next buttons with "page / pages" between them. */
+  function pager(parent: HTMLElement, page: number, pages: number, go: (delta: number) => void): void {
+    const row = el('div', 'hud-pager', parent);
+    button(row, STRINGS.controlPrevious, () => go(-1), 'hud-btn hud-secondary').disabled = page <= 0;
+    el('span', 'hud-num', row).textContent = fillTemplate(STRINGS.boardPageOf, { page: page + 1, total: pages });
+    button(row, STRINGS.controlNext, () => go(1), 'hud-btn hud-secondary').disabled = page >= pages - 1;
+  }
+
+  let predictSig = '';
+  let predictCount: HTMLElement = document.createElement('span');
+  const renderPredict = (view: PredictView | undefined): void => {
+    predictBox.hidden = view === undefined;
+    if (view === undefined) {
+      predictSig = '';
+      return;
+    }
+    // The choices are rebuilt only when they change: a rebuild every second would drop the keyboard focus.
+    const sig = JSON.stringify({ ...view, countdown: undefined });
+    if (sig !== predictSig) {
+      predictSig = sig;
+      predictBox.replaceChildren();
+      const head = el('div', 'hud-predict-head', predictBox);
+      el('span', 'hud-title', head).textContent = view.title;
+      predictCount = el('span', 'hud-num hud-predict-count', head);
+      el('p', 'hud-line', predictBox).textContent = view.line;
+      if (view.choices.length > 0) {
+        const picks = el('div', 'hud-picks', predictBox);
+        picks.setAttribute('role', 'group');
+        picks.setAttribute('aria-label', STRINGS.predictTitle);
+        for (const choice of view.choices) {
+          const pick = button(picks, choice.name, () => handlers.play?.onPick(choice.faction), 'hud-btn hud-pick');
+          pick.setAttribute('aria-pressed', String(choice.selected));
+          const swatch = document.createElement('span');
+          swatch.className = 'hud-swatch';
+          const rgb = colors.get(choice.faction);
+          if (rgb !== undefined) swatch.style.background = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+          pick.prepend(swatch);
+        }
+      }
+      if (view.seal !== undefined) el('span', 'hud-seal', predictBox).textContent = view.seal;
+      if (view.notice !== undefined) {
+        const notice = el('div', 'hud-messages', predictBox);
+        notice.setAttribute('role', 'alert');
+        notice.textContent = view.notice;
+      }
+    }
+    predictCount.textContent = view.countdown === undefined ? '' : fillTemplate(STRINGS.predictCloses, { time: view.countdown });
+  };
+
+  let resultSig = '';
+  const renderResult = (outcome: ResultView | undefined): void => {
+    resultBox.hidden = outcome === undefined;
+    const sig = JSON.stringify(outcome ?? null);
+    if (outcome === undefined || sig === resultSig) return;
+    resultSig = sig;
+    resultBox.replaceChildren();
+    el('div', 'hud-title', resultBox).textContent = outcome.title;
+    resultBox.dataset.right = outcome.right === undefined ? 'none' : String(outcome.right);
+    for (const line of outcome.lines) el('p', 'hud-line', resultBox).textContent = line;
+  };
+
+  let boardSig = '';
+  function boardVisible(): void {
+    rightColumn.hidden = layout === 'phone' ? false : !hasBoard;
+  }
+  const renderBoard = (board: BoardPage | undefined): void => {
+    hasBoard = board !== undefined && board.rows.length > 0;
+    boardVisible();
+    const sig = JSON.stringify(board ?? null);
+    if (sig === boardSig) return;
+    boardSig = sig;
+    rightColumn.replaceChildren();
+    el('div', 'hud-title', rightColumn).textContent = STRINGS.boardTitle;
+    if (board === undefined || board.rows.length === 0) {
+      el('p', 'hud-note', rightColumn).textContent = STRINGS.boardEmpty;
+      return;
+    }
+    const list = el('ol', 'hud-board', rightColumn);
+    for (const row of board.rows) {
+      const item = el('li', row.me ? 'hud-boardrow me' : 'hud-boardrow', list);
+      if (row.me) item.setAttribute('aria-current', 'true');
+      el('span', 'hud-num', item).textContent = String(row.rank);
+      el('span', 'hud-boardname', item).textContent = row.name;
+      el('span', 'hud-num', item).textContent = String(row.total);
+    }
+    if (board.pages > 1) pager(rightColumn, board.page, board.pages, (delta) => handlers.play?.onBoardPage(delta));
   };
 
   const renderTrack = (track: RoundTrack): void => {
@@ -382,7 +524,14 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       previous.disabled = controls === undefined || controls.previousDisabled;
       next.disabled = controls === undefined || controls.nextDisabled;
       lastButton.disabled = controls === undefined || controls.lastDisabled;
-      renderChronicle(hud.chronicle);
+      renderChronicle(hud.chronicle, hud.play?.winners);
+      const chip = hud.play?.chip;
+      chipButton.hidden = chip === undefined;
+      chipButton.textContent = chip ?? '';
+      chipButton.setAttribute('aria-label', chip === undefined ? '' : `${chip}. ${STRINGS.personalTitle}`);
+      renderPredict(hud.play?.predict);
+      renderResult(hud.play?.result);
+      renderBoard(hud.play?.board);
       renderFactions();
       renderTrack(hud.track);
     },

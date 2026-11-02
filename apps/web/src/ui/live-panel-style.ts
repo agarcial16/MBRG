@@ -142,6 +142,33 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-card select.hud-input { min-width: 0; }
 
+/* prediction and results (spec 013) */
+.hud-playerchip { margin-left: auto; align-self: center; min-height: 32px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 12px; border: 0; cursor: pointer; background: var(--hud-wax); color: var(--hud-on-wax); font: 600 13px var(--hud-body, Spectral, Georgia, serif); }
+.hud-pop { position: absolute; right: 12px; top: 58px; width: min(340px, calc(100vw - 24px)); padding: 12px 16px; }
+.hud-predict { border-top: 1px solid var(--hud-gilt-dim); padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.hud-predict-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.hud-predict-count { color: var(--hud-gilt); font-size: 18px; }
+.hud-picks { display: flex; flex-wrap: wrap; gap: 6px; max-height: 18vh; overflow: auto; }
+.hud-pick { display: inline-flex; align-items: center; gap: 7px; }
+.hud-pick[aria-pressed="true"] { background: var(--hud-gilt); color: var(--hud-on-gilt); box-shadow: none; font-weight: 600; }
+.hud-seal { align-self: flex-start; padding: 2px 12px; background: var(--hud-wax); color: var(--hud-on-wax); font: 600 13px var(--hud-body, Spectral, Georgia, serif); }
+.hud-result { border-top: 1px solid var(--hud-gilt-dim); padding-top: 8px; }
+.hud-result p { margin: 2px 0; }
+.hud-result[data-right="true"] .hud-title { color: var(--hud-verdigris); }
+.hud-result[data-right="false"] .hud-title { color: var(--hud-ember); }
+.hud-right { position: absolute; right: 12px; top: 70px; width: 238px; box-sizing: border-box; max-height: calc(100vh - 340px); overflow: auto; padding: 12px 14px; }
+.hud-board { list-style: none; margin: 6px 0 0; padding: 0; }
+.hud-boardrow { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; padding: 3px 0; font-size: 13px; border-bottom: 1px solid var(--hud-wood2); }
+.hud-boardrow.me { color: var(--hud-gilt); font-weight: 600; }
+.hud-boardname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hud-pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.hud-winners { margin-top: 3px; font-size: 12px; color: var(--hud-muted); }
+.hud-winners-list { margin: 2px 0 0; padding-left: 16px; }
+.hud-link-btn { min-height: 24px; padding: 0 4px; border: 0; background: none; color: var(--hud-gilt); font: 500 12px var(--hud-body, Spectral, Georgia, serif); text-decoration: underline; cursor: pointer; }
+.hud[data-layout="phone"] .hud-right { position: static; max-height: none; width: auto; }
+.hud[data-layout="phone"] .hud-pop { top: 52px; right: 8px; }
+.hud[data-layout="phone"] .hud-playerchip { min-height: 44px; }
+
 /* messages of the address */
 .hud-messages { color: var(--hud-ember); font-size: 13px; }
 .hud-messages:empty { display: none; }

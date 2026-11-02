@@ -4,6 +4,7 @@ import { panTo, screenToMap, wheelSteps, zoomAt } from '../core/camera';
 import type { Camera, ImageSize, MapPoint, ScreenPoint, Viewport } from '../core/camera';
 import { keyAction, shortcutApplies } from '../core/navigation';
 import type { NavAction } from '../core/navigation';
+import { isTap } from '../core/predict-model';
 
 export interface InputTarget {
   image: ImageSize;
@@ -15,6 +16,8 @@ export interface InputTarget {
   navigate(action: NavAction): void;
   /** The skip key of the reveal tours (spec 009 FR-341): Escape. */
   onSkip?(): void;
+  /** A press and release that did not drag (spec 013 FR-401): the point over the drawing area in CSS pixels. */
+  onTap?(point: ScreenPoint): void;
 }
 
 /** Wires drag, wheel, pointer readout and shortcuts to a target. */
@@ -24,11 +27,13 @@ export function attachInput(canvas: HTMLCanvasElement, target: InputTarget): voi
     return { sx: e.clientX - rect.left, sy: e.clientY - rect.top };
   };
   let grabbed: MapPoint | undefined;
+  let pressed: { sx: number; sy: number; at: number } | undefined;
 
   canvas.style.touchAction = 'none';
   canvas.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     grabbed = screenToMap(target.camera(), local(e), target.viewport());
+    pressed = { ...local(e), at: e.timeStamp };
     canvas.setPointerCapture(e.pointerId);
   });
   canvas.addEventListener('pointermove', (e) => {
@@ -42,8 +47,16 @@ export function attachInput(canvas: HTMLCanvasElement, target: InputTarget): voi
     grabbed = undefined;
     if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
   };
-  canvas.addEventListener('pointerup', release);
-  canvas.addEventListener('pointercancel', release);
+  canvas.addEventListener('pointerup', (e) => {
+    const down = pressed;
+    pressed = undefined;
+    if (down !== undefined && e.button === 0 && isTap(down, { ...local(e), at: e.timeStamp })) target.onTap?.(local(e));
+    release(e);
+  });
+  canvas.addEventListener('pointercancel', (e) => {
+    pressed = undefined;
+    release(e);
+  });
   canvas.addEventListener('pointerleave', () => {
     if (grabbed === undefined) target.pointerMoved(undefined);
   });

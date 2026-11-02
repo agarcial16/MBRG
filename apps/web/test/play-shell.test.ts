@@ -8,11 +8,15 @@ import dom from '../src/ui/play-dom.ts?raw';
 import join from '../src/ui/play-join.ts?raw';
 import lobby from '../src/ui/play-lobby.ts?raw';
 import main from '../src/ui/play-main.ts?raw';
+import session from '../src/ui/play-session.ts?raw';
+import panel from '../src/ui/live-panel.ts?raw';
+import input from '../src/ui/input.ts?raw';
+import liveMain from '../src/ui/live-main.ts?raw';
 import entry from '../src/ui/entry.ts?raw';
 import start from '../src/ui/live-start.ts?raw';
 import { codeOnly, languageViolations } from './helpers/scan';
 
-const shells = { 'play-create': create, 'play-dom': dom, 'play-join': join, 'play-lobby': lobby, 'play-main': main } as const;
+const shells = { 'play-create': create, 'play-dom': dom, 'play-join': join, 'play-lobby': lobby, 'play-main': main, 'play-session': session } as const;
 const code = (src: string): string => codeOnly(src.replace(/\/\/.*$/gm, ''));
 
 describe('NFR-77 the player screens speak Spanish through the strings module', () => {
@@ -110,5 +114,48 @@ describe('FR-393 FR-396 FR-398 the shells hand their decisions to the pure modul
   it('FR-393 the entry page opens the match door, and the start screen mounts the create section', () => {
     expect(entry).toMatch(/live:\s*startMatchEntry/);
     expect(start).toMatch(/mountCreate\(/);
+  });
+});
+
+describe('FR-401 to FR-407 the prediction shells hand their decisions to the pure modules', () => {
+  it('FR-401 the HUD bar choices are real buttons that report their selection and call the pick handler at once', () => {
+    expect(panel).toContain("'hud-btn hud-pick'");
+    expect(panel).toContain("'aria-pressed', String(choice.selected)");
+    expect(panel).toContain('handlers.play?.onPick(choice.faction)');
+    expect(code(panel)).not.toMatch(/\bconfirm\s*\(/);
+    expect(css).toContain('.hud-pick');
+  });
+
+  it('FR-401 a tap on the map goes through the tap rule and the faction lookup, then to the session', () => {
+    expect(input).toContain('isTap(');
+    expect(input).toContain('target.onTap?.(');
+    expect(liveMain).toContain('onTap:');
+    expect(liveMain).toContain('factionAt(');
+    expect(liveMain).toContain('session?.tap(');
+  });
+
+  it('FR-401 the submission is made by the pure pick rule and sent with the player token to the play net only', () => {
+    expect(session).toContain('pickFor(');
+    expect(session).toContain('deps.net.submit(deps.matchId, player.token, choice.body)');
+    expect(session).toContain('submitFailure(read.outcome, read.retryAfter)');
+  });
+
+  it('FR-406 FR-407 the scores wait for the end of a reveal tour, then the chip, the panel and the board come from the pure view', () => {
+    expect(session).toContain('hold.revealing || hold.absorbing');
+    expect(session).toContain('playHud(');
+    expect(liveMain).toContain('session.view(model, at, { revealing: shown.revealing, absorbing: shown.absorbing })');
+    expect(liveMain).toContain('onFrame: (data) => session?.onFrame(data)');
+  });
+
+  it('FR-397 the player chip opens the personal link and the door passes the player to the match scene', () => {
+    expect(panel).toContain('handlers.play?.fillPersonal(personal)');
+    expect(session).toContain('personalBlock(parent, deps.pageUrl, deps.matchId, deps.player)');
+    expect(main).toContain('startLiveScene(matchId, who)');
+  });
+
+  it('NFR-77 the rebuilt parts of the panel are rebuilt only when they change, so a countdown does not drop the keyboard focus', () => {
+    expect(panel).toContain('predictSig');
+    expect(panel).toContain('boardSig');
+    expect(panel).toContain('chronSig');
   });
 });

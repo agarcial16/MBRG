@@ -244,6 +244,7 @@ export const STRINGS = {
   predictNoneBehind: 'Estás viendo una ronda anterior: no se puede predecir.',
   predictNoneRevealing: 'Se está revelando la facción caída.',
   predictNoneClosed: 'Ahora no hay ninguna fase abierta.',
+  predictTapNothing: 'Toca una facción viva del mapa para elegirla.',
   predictNotChoosable: 'Esa facción no se puede elegir ahora.',
   predictClosed: 'Esa fase ya se cerró. Se conserva tu elección anterior.',
   predictForbidden: 'El servidor no te reconoce como jugador de esta partida.',
@@ -265,6 +266,11 @@ export const STRINGS = {
   winnersAbsorber: 'Acertaron el absorbente: {names}',
   winnersNobody: 'nadie',
   winnersMore: ' y {count} más',
+  winnersAll: 'Ver todos',
+  predictCloses: 'Cierra en {time}',
+  boardTitle: 'Clasificación',
+  boardEmpty: 'Todavía no hay puntos.',
+  boardPageOf: '{page} / {total}',
 } as const;
 
 /** Fills {name} placeholders; a placeholder without a value is left as written. */

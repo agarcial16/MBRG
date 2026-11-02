@@ -3,7 +3,7 @@
 // to the displayed round and camera (D31). Any failure shows one Spanish message and draws no map.
 import type { PublicMatch } from '@mbrg/protocol';
 import type { MapData, PresentationData, Rgb } from '@mbrg/shared';
-import { initialCamera } from '../core/camera';
+import { initialCamera, screenToMap } from '../core/camera';
 import type { Camera, Viewport } from '../core/camera';
 import { capabilityMessage, checkCapabilities } from '../core/capabilities';
 import { assignFactionColors, paletteMessage } from '../core/colors';
@@ -13,6 +13,8 @@ import { liveTitle } from '../core/live-text';
 import { absorberRequestOf, liveTourPanel, panelView, tourReportOf, victimRequestOf } from '../core/live-view';
 import { hudState, stateCard, topBar } from '../core/live-hud';
 import { chronicle, factionRows } from '../core/live-stats';
+import { factionAt } from '../core/predict-model';
+import type { PlayerCredentials } from '../core/play-token';
 import { liveMark, replayBand, roundTrack } from '../core/live-track';
 import { cameraAtPoint, cameraZoomed, minimapPixels, minimapSize, viewRect } from '../core/minimap';
 import type { Owners } from '../core/live-rounds';
@@ -25,7 +27,7 @@ import { probeCapabilities } from '../render/renderer';
 import { now } from './clock';
 import { attachInput } from './input';
 import { pageServerOrigin } from './live-config';
-import { createLiveNet } from './live-net';
+import { createLiveNet, createPlayNet } from './live-net';
 import type { MapFiles } from './live-net';
 import { createLivePanel, showCard } from './live-panel';
 import type { LivePanel } from './live-panel';
@@ -36,6 +38,9 @@ import { syncLiveAddress } from './live-url';
 import { createTerra } from './live-terra';
 import type { Terra } from './live-terra';
 import { createMapView } from './map-view';
+import { createPlaySession } from './play-session';
+import type { PlaySession } from './play-session';
+import { requestId } from './web-crypto';
 import type { MapView } from './map-view';
 import { showMessage } from './message';
 
@@ -56,8 +61,11 @@ interface Built {
   readonly panel: LivePanel;
 }
 
-/** Starts the live scene for a match id: the runner does the rest. */
-export function startLiveScene(matchId: string): void {
+/**
+ * Starts the live scene for a match id: the runner does the rest. `player` is the joined player of this browser (spec 013); without
+ * one the screen is the spectator's, with the leaderboard and the who-guessed-right lines but no prediction.
+ */
+export function startLiveScene(matchId: string, player?: PlayerCredentials): void {
   const canvas = document.getElementById('map') as HTMLCanvasElement;
   const labelCanvas = document.getElementById('labels') as HTMLCanvasElement;
   const panelContainer = document.getElementById('panel') as HTMLElement;
@@ -68,6 +76,7 @@ export function startLiveScene(matchId: string): void {
   let built: Built | undefined;
   let view: MapView | undefined;
   let runner: LiveRunner | undefined;
+  let session: PlaySession | undefined;
   let lastRound = 0;
   // The tour on screen, as the map view reported it (FR-330): the panel hides the victim and keeps the old legend by it.
   let tour: TourReport | undefined;
@@ -109,7 +118,19 @@ export function startLiveScene(matchId: string): void {
       const image = { w: pkg.width, h: pkg.height };
       const viewport: Viewport = { width: canvas.clientWidth, height: canvas.clientHeight };
       const address = readLiveAddress(window.location.search, match.appliedRounds, image, viewport);
+      const names = presentation.factions.map((f) => ({ id: f.id, name: f.name }));
+      const origin = pageServerOrigin();
+      session = createPlaySession({
+        matchId,
+        net: createPlayNet({ base: origin, fetch: fetch.bind(globalThis) }),
+        player,
+        factions: names,
+        pageUrl: `${window.location.origin}${window.location.pathname}`,
+        makeId: requestId,
+        changed: () => runner?.refreshPanel(),
+      });
       const panel = createLivePanel(panelContainer, colors.value, {
+        play: session.handlers,
         onNavigate: (action) => runner?.navigate(action),
         onSkip: () => view?.completeTour(now()),
         onReset: () => {
@@ -185,6 +206,12 @@ export function startLiveScene(matchId: string): void {
             drawMinimap();
           },
           pointerMoved: () => undefined,
+          onTap: (point) => {
+            const live = runner?.model();
+            if (live === undefined || live.displayed === undefined) return;
+            const at = screenToMap(created.camera(), point, created.viewport());
+            session?.tap(factionAt(at, created.index, live.held.get(live.displayed)));
+          },
           navigate: (action) => runner?.navigate(action),
           onSkip: () => created.completeTour(now()),
         });
@@ -248,6 +275,7 @@ export function startLiveScene(matchId: string): void {
         track: roundTrack(model.totalRounds, model.displayed ?? 0, model.applied),
         rows: factionRows(model, built.factions, upTo),
         chronicle: chronicle(model, built.factions, upTo, { revealing: shown.revealing, absorbing: shown.absorbing }),
+        ...(session === undefined ? {} : { play: session.view(model, at, { revealing: shown.revealing, absorbing: shown.absorbing }) }),
       });
       drawMinimap(model.held.get(upTo));
     },
@@ -263,5 +291,6 @@ export function startLiveScene(matchId: string): void {
     port,
     now,
     after,
+    onFrame: (data) => session?.onFrame(data),
   });
 }

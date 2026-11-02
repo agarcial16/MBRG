@@ -34,15 +34,15 @@ export function startMatchEntry(matchId: string): void {
   adoptFragment(storage, matchId, window.location.hash);
   if (window.location.hash !== '') window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
   const { net, live } = playNets();
-  const watch = (): void => {
+  const watch = (who?: PlayerCredentials): void => {
     showMap();
-    startLiveScene(matchId);
+    startLiveScene(matchId, who);
   };
   void (async () => {
     const read = await live.readPublic(matchId);
     if (!read.ok) {
       // A transport failure or a missing digest function: the match scene has its own retry and messages for these.
-      if (read.outcome === 'fatal' || read.outcome === 'retry') return watch();
+      if (read.outcome === 'fatal' || read.outcome === 'retry') return watch(loadPlayer(storage, matchId));
       return showMessage(errorText('unknown-match'));
     }
     const player = loadPlayer(storage, matchId);
@@ -52,20 +52,20 @@ export function startMatchEntry(matchId: string): void {
     const toLobby = (who: PlayerCredentials): void =>
       showLobby({
         matchId, net, live, after, player: who, hostToken: host, pageUrl: pageUrl(), makeId: requestId,
-        onStarted: watch,
+        onStarted: () => watch(who),
         onExpired: () => showClosed(STRINGS.joinExpired, undefined),
       });
     switch (screen) {
       case 'match':
-        return watch();
+        return watch(player);
       case 'lobby':
         return toLobby(player as PlayerCredentials);
       case 'closed-ended':
-        return showClosed(STRINGS.joinFinished, watch);
+        return showClosed(STRINGS.joinFinished, () => watch(player));
       case 'closed-expired':
         return showClosed(STRINGS.joinExpired, undefined);
       case 'join':
-        return showJoin({ matchId, net, storage, pageUrl: pageUrl(), makeId: requestId, host: host !== undefined, onLobby: toLobby, onMatch: () => watch() });
+        return showJoin({ matchId, net, storage, pageUrl: pageUrl(), makeId: requestId, host: host !== undefined, onLobby: toLobby, onMatch: (who) => watch(who) });
     }
   })();
 }
