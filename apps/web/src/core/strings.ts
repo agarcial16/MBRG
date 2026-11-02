@@ -232,6 +232,22 @@ export const STRINGS = {
   lobbyStartForbidden: 'Solo el anfitrión puede empezar la partida.',
   lobbyStartStarted: 'La partida ya ha empezado.',
   lobbyStartFailed: 'No se ha podido empezar la partida. Vuelve a intentarlo.',
+  // Prediction (spec 013 FR-401 to FR-405).
+  predictTitle: 'Tu predicción',
+  predictVictimPrompt: 'Ronda {round}: elige la facción que caerá.',
+  predictAbsorberPrompt: 'Ronda {round}: elige quién absorberá a la facción caída.',
+  predictForced: 'Absorbente forzado: {name}.',
+  predictForcedNote: 'El absorbente está forzado: no se elige y no da puntos.',
+  predictSent: 'Enviada: {name}',
+  predictNoneNotJoined: 'Solo estás mirando: únete a una partida para predecir.',
+  predictNoneLoading: 'Cargando la partida.',
+  predictNoneBehind: 'Estás viendo una ronda anterior: no se puede predecir.',
+  predictNoneRevealing: 'Se está revelando la facción caída.',
+  predictNoneClosed: 'Ahora no hay ninguna fase abierta.',
+  predictNotChoosable: 'Esa facción no se puede elegir ahora.',
+  predictClosed: 'Esa fase ya se cerró. Se conserva tu elección anterior.',
+  predictForbidden: 'El servidor no te reconoce como jugador de esta partida.',
+  predictFailed: 'No se ha podido enviar la predicción. Se conserva la anterior; vuelve a intentarlo.',
 } as const;
 
 /** Fills {name} placeholders; a placeholder without a value is left as written. */
