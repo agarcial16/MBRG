@@ -51,7 +51,7 @@ export function showJoin(deps: JoinDeps): void {
   submit.textContent = STRINGS.joinButton;
   const problem = h('div', 'hud-messages', card);
   problem.setAttribute('role', 'alert');
-  button(card, STRINGS.joinWatch, () => deps.onMatch(undefined));
+  button(card, STRINGS.joinWatch, () => deps.onMatch(undefined), 'hud-btn hud-watch');
 
   // The same name is the same request while it is retried (the server answers a repeat from its memo, FR-296).
   let draft: { readonly name: string; readonly requestId: string } | undefined;

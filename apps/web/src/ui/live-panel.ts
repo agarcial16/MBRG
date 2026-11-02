@@ -238,7 +238,11 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   miniBox.addEventListener('pointerdown', (event) => {
     touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
     dragging = touches.size === 1;
-    miniBox.setPointerCapture(event.pointerId);
+    try {
+      miniBox.setPointerCapture(event.pointerId);
+    } catch {
+      // A pointer that is no longer active (a synthetic or just-lifted one) cannot be captured; the drag still works from the box.
+    }
     if (dragging) handlers.onMinimap(pointOf(event));
   });
   miniBox.addEventListener('pointermove', (event) => {

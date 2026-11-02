@@ -70,7 +70,8 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud-form { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .hud-input { flex: 1; min-width: 200px; min-height: 40px; padding: 0 10px; background: var(--hud-umber); color: var(--hud-text); border: 0; box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); font: 14px var(--hud-body, Spectral, Georgia, serif); }
 .hud-tools { margin-top: 14px; display: flex; gap: 14px; font-size: 12px; }
-.hud-tools a { color: var(--hud-muted); }
+.hud-tools a { display: inline-flex; align-items: center; min-height: 32px; color: var(--hud-muted); }
+.hud[data-layout="phone"] .hud-tools a { min-height: 44px; min-width: 44px; }
 
 /* minimap */
 .hud-mini { position: absolute; right: 12px; bottom: 12px; width: 238px; box-sizing: border-box; padding: 8px 12px 12px; }
@@ -147,6 +148,10 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud-players li { padding: 4px 0; border-bottom: 1px solid var(--hud-wood2); }
 .hud-btn { white-space: nowrap; }
 .hud-link .hud-input { min-width: 0; flex: 1 1 160px; }
+.hud-link .hud-btn { flex: none; }
+.hud[data-layout="desk"] .hud-link { flex-wrap: nowrap; }
+.hud-card .hud-messages:not(:empty) { margin-top: 8px; }
+.hud-watch { margin-top: 12px; }
 .hud-lobby { display: grid; gap: 4px 24px; }
 .hud-lobby > .hud-title { grid-column: 1 / -1; }
 .hud[data-layout="desk"] .hud-card.hud-lobby { width: min(760px, calc(100vw - 24px)); grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); }

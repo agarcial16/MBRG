@@ -278,3 +278,24 @@ describe('second screenshot pass: desk panel, outline, scrollbars and the round 
     expect(css).toContain('.hud[data-layout="desk"] .hud-banner { align-items: flex-start; padding-top: max(90px, 18vh);');
   });
 });
+
+describe('second screenshot pass: small items', () => {
+  it('the watch button and an error line have room above them; the share row stays on one line on the desk', () => {
+    expect(join).toContain("'hud-btn hud-watch'");
+    expect(css).toContain('.hud-watch { margin-top: 12px; }');
+    expect(css).toContain('.hud-card .hud-messages:not(:empty) { margin-top: 8px; }');
+    expect(css).toContain('.hud[data-layout="desk"] .hud-link { flex-wrap: nowrap; }');
+    expect(css).toContain('.hud-link .hud-btn { flex: none; }');
+  });
+
+  it('the footer links are touch targets on the phone', () => {
+    expect(css).toContain('.hud[data-layout="phone"] .hud-tools a { min-height: 44px; min-width: 44px; }');
+  });
+
+  it('capturing the pointer on the minimap cannot throw for a pointer that is gone', () => {
+    const at = panel.indexOf('miniBox.setPointerCapture(event.pointerId);');
+    expect(at).toBeGreaterThan(-1);
+    expect(panel.slice(Math.max(0, at - 20), at)).toContain('try {');
+    expect(panel.slice(at, at + 80)).toContain('} catch {');
+  });
+});

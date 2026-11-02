@@ -123,3 +123,26 @@ Reviewer pass, then the browser screenshots (done criterion 2) and the hand run 
 - A phase-2 result with no row on a forced round says the forced absorber was applied (`resultForced`), not "No predijiste". The forced flag comes from the revealed victim of that round; if the victim was already cleared by the round being applied when the scores arrive, the old text still shows (best effort, not testable without the server order of `results` and `round-applied`: check in the hand run).
 - Phase timer: `scheduleOf` makes the countdown (top bar and prediction block) read C2 and A of the revealed victim in phase 2 and locked, so a forced round (phase 2 = min(L1, F)) never counts to a stale C2. Unit test added. The "Ronda 0 de 4" seen in desk-forced-round is the debug scene before any round is applied; not changed.
 - Full npm test (327 files / 5146 passed, 4 skipped) and typecheck green after this step.
+
+## Second screenshot pass fixes
+Final state: full `npm test` 327 files / 5162 passed, 4 skipped; `npm run typecheck` clean. One commit per group.
+### 1. Forced-round result text (2193ab2)
+- Cause (real server order): `round-applied` clears the revealed victim in the model, THEN `results` phase 2 is announced; a forced round has no absorber row. `forced` was read from `model.victim`, already gone, so "No predijiste" showed. The session now remembers forced rounds (`forcedRounds`, filled from every view of a forced victim) and `playHud` takes them. Failing test first (play-session.test.ts, real order: forced view, applied model without victim, `results` 2).
+- Also: `withScores` keeps an already named scored phase over the rows' latest (a slow start read could move the panel back to the victim row). The victim row says "No predijiste" only when the player really has no victim row; if the debug scene player did predict, that was this race.
+### 2. Phone dock, chip, ranking (bd0fa4c)
+- Dock pane: one fixed height `clamp(250px, 37vh - 50px, 330px)` for every tab and state (about 37% of 844), tabs margin removed, `<p>` margins of the prediction block zeroed (these were most of the old height), no scrollbar when content fits. Open phase: prediction block + track + buttons (result and "Partida en directo" title hidden); no open phase: the result replaces the empty "Ahora no hay ninguna fase abierta" prediction (`data-offer` on the command panel).
+- Chip: name and score are two spans; only the name ellipsizes (`chipParts`).
+- State card on the phone starts at 168 px (under the minimap).
+- Ranking: list scrolls inside the fixed pane; own row sticky, and pinned under the list (`mine`) when it is not on the page or not listed (name + total from the own scores, rank "-"). Tests in results-model, play-shell.
+- NOT FIXED: the parchment band above the map is the camera framing a northern faction (FR-147 allows the centre on the map edge); removing it means changing the camera clamp, a spec 004/009 behaviour with tests. Needs a decision.
+### 3. Desk panel (9e14d87)
+- Compact controls (30 px buttons, 26 px dots), phase sentence hidden while a prediction shows, tighter paddings; estimated 1024 wide: about 230 px, 1280: about 190 px (CSS reasoning, not measured).
+- Seal row reserved (hidden placeholder) while there is something to choose: no 30 px jump.
+- Pick outline: extra shader band of `PICK_REACH` = 3 screen px inside the faction perimeter (4 probes, only for the picked faction), same gilt token. Shader not compiled here (no browser): check it compiles and reads well.
+- Scrollbars: `.hud *` uses `scrollbar-color` with gilt-dim / umber tokens.
+- Banner on the desk rides at max(90px, 18vh) so it never sits over the panel.
+- Round mismatch: the top bar showed the drawn round (applied), the prediction block, results and chronicle the round in play (applied + 1). The bar now names the round in play at the live edge (phase-1, phase-2, locked; displayed = applied), else the drawn one. `panelView.round` (spec 009 FR-330/345, "round line already says k") is untouched; only `topBar` changed, and its 010 test was updated. Seen red? The new topBar test was written with the code (not run red first).
+### 4. Small items
+- Error line and "Solo mirar" have margins; share row no-wrap on the desk (buttons `flex: none`); dev footer links 32 px (44 px on the phone); `setPointerCapture` in try/catch.
+### Needs a browser re-check
+Phone dock heights (390x844, long name chip, 5+ factions in picks which scroll after 2 rows), ranking pane with a pinned row, desk 1024 panel height and button rows, shader outline compile and look, Crónica scrollbar colour, banner position, dev footer links, desk lobby "Compartir…" on one line.
