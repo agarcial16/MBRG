@@ -39,3 +39,34 @@ The create screen needs a config reply (fake `GET /config`), the join screen a l
 
 ### Next step
 Part B: prediction (FR-401..405) and results (FR-406, FR-407). Needs from A: `loadPlayer` credentials, `createPlayNet` pattern (add submit/own-predictions with the player token as Bearer), the door passes the player to the match scene (`watch()` in `play-main.ts` currently starts the unchanged live scene), and `STRINGS` keys are only added with the code that uses them.
+
+## Part B — prediction and results (FR-401..FR-407, NFR-77, NFR-78)
+
+### B1. Prediction rules (commit `ad36f6d`)
+- `core/predict-model.ts`: `offerOf` (phase 1 = living factions, phase 2 = candidates, forced, none with a reason; ordered by territories, ties by id), the sent book (highest version wins), `pickFor` (body with the LOCAL player id), `submitFailure`/`noOfferText` sentences, `factionAt` (map tap -> owner) and `isTap`. `test/predict-model.test.ts`. Mutants: 7 run, 5 killed, 1 equivalent (entry 0), 1 killed after adding a same-version test.
+### B2. Results rules (commit `c6d2f7a`)
+- `core/results-model.ts`: `scoredOf` (a `results` event), `latestScored`, `resultView`, `chipText`, `boardPage` (names, paged, player highlighted), `winnersView` (3 names + count, "ver todos" paged). `test/results-model.test.ts`; 6 mutants, all killed (one needed a 3-name line test).
+### B3. Network (commit `1eefa40`)
+- `createPlayNet` gained `submit`, `ownPredictions` (player token as Bearer; local id as the only query), `playerResults`, `leaderboard`, `winners` (all pages, credential-free). The token is checked with `isCredentialText` before any request. `test/play-net.test.ts`; 5 mutants killed.
+### B4. View model (commit `ae3e524`) and shells (commit `ceed0f2`)
+- `core/play-view.ts`: the immutable session state with its transitions and `playHud` (chip, "Tu predicción" block with countdown from the server clock offset, results panel, board, winners lines).
+- `ui/play-session.ts` (thin): runs the calls, holds the state. Scores, leaderboard and winners reads wait while a victim reveal or an absorber tour runs (`hold`), so a right guess cannot give the victim away before the tour (FR-409/FR-322). `ui/live-panel.ts`: chip (opens the personal link), prediction block, results block, board in the right column (Ranking tab on a phone), winners lines under the chronicle. The parts that hold buttons are rebuilt only when their data change (a per-second refresh would drop the keyboard focus). `ui/input.ts`: `onTap` (drag-safe). `ui/live-main.ts`/`play-main.ts`: the joined player reaches the scene; `runner.onFrame` feeds `results` events.
+- Tests: `test/play-view.test.ts` (9 mutants, all killed after one extra case), `test/play-session.test.ts` (fake PlayNet, 19 tests; 10 mutants, all killed after two extra cases), `test/play-shell.test.ts` (thin scans).
+- Result: `npm test` 320 files / 5082 passed, 4 skipped; `npm run typecheck` clean.
+
+### Decisions the spec did not cover
+1. Tests were written after the first version of the pure modules (the modules and tests went in together); red was proven afterwards by mutants, not by a failing first run.
+2. The bottom panel does not "switch" to Tu predicción: the block is added at the top of the command panel and the replay navigation stays (hiding it during an open phase would stop the user browsing rounds).
+3. NOT done: the chosen faction outlined in gilt on the map (design note). It needs a render/shader change in the map scene; left for Part C or the user's call.
+4. Winners lines are fetched for the round on display (both phases) and when a `results` event arrives; a refused read (unscored, forced) simply shows no line. Rounds never displayed since the page opened get no line.
+5. The chip shows the name from the player results read, else the leaderboard row, else the local id; total and rank appear after the first scored phase.
+6. Failure outcome for a bad round in `winners` is `bad-round` (the word `invalid-round` is a debug marker the production build scan forbids).
+7. A tap on the map does nothing for a spectator but shows "Solo estás mirando"; the spectator also sees the leaderboard and the winners lines.
+
+### Untested
+- No DOM: the panel, the pick buttons, the chip popover, the pager, focus order and touch targets are scanned, not run. The tap rule is tested; the pointer events are not. A hand run (done criterion 3) must check: tap on the map sends, the chip opens the personal link, the board pages, the right column does not overlap the minimap at 1280 x 720, the dock Ranking tab at 390 x 844.
+- The real server: reads of `GET .../winners` after a real `results` event; the exact moment of the `results` events relative to the tours.
+- Screenshots for done criterion 2 (phase 1 and 2 choice, forced round, results, leaderboard, who guessed right) are not produced: needs a browser and a fake or local server with a joined player.
+
+### Next step (Part C)
+Banner, camera return, tour pacing, finalised overlay ("PREDICCIONES FINALIZADAS" / "REVELANDO…"), phone pinch. Hooks from B: `offerOf` returns the reason `closed`/`revealing` (the overlay can reuse it), `TourHold` in `play-session.ts` is the one place that knows the reveal state, `attachInput` already tells taps from drags (the pinch goes next to it).
