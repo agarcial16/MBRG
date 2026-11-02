@@ -138,6 +138,8 @@ export interface MapView {
   completeTour(nowMs: number): void;
   /** The user's camera (pan, zoom, reset): changes the camera and takes it from a running tour (FR-333). */
   userCamera(next: Camera): void;
+  /** Outlines the faction with this view index in gilt, or none (spec 013): the player's choice. */
+  setPick(faction: number | undefined): void;
   /** The tour frame of the last drawing, or undefined when it was not a tour frame (the debug panel shows its digest). */
   tourFrame(): TourFrame | undefined;
   /** Label layouts computed since the last tour began (0 for a victim tour, 1 for an absorber tour: the round-k layout). */
@@ -414,6 +416,10 @@ export function createMapView(input: MapViewInput): MapView {
     },
     tourFrame: () => lastFrame,
     tourLayouts: () => tourLayouts,
+    setPick: (faction) => {
+      mapScene.setPick(faction);
+      loop.request();
+    },
     userCamera: (next) => {
       session = takeCamera(session);
       camera = next;
