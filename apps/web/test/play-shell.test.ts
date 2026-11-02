@@ -159,3 +159,45 @@ describe('FR-401 to FR-407 the prediction shells hand their decisions to the pur
     expect(panel).toContain('chronSig');
   });
 });
+
+describe('screenshot pass: layout rules of the state card', () => {
+  it('a centred card (start, loading, error) keeps its centre on the phone and scrolls when it is taller than the screen', () => {
+    expect(css).toContain('.hud[data-layout="phone"][data-state="start"] .hud-card');
+    expect(css).toMatch(/\.hud-card \{[^}]*max-height: calc\(100vh - 24px\)[^}]*overflow-y: auto/);
+    const phoneTop = css.indexOf('.hud[data-layout="phone"] .hud-card { top: 58px; }');
+    const phoneCentred = css.indexOf('.hud[data-layout="phone"][data-state="start"] .hud-card');
+    expect(phoneTop).toBeGreaterThan(-1);
+    expect(phoneCentred).toBeGreaterThan(phoneTop);
+  });
+});
+
+describe('screenshot pass: top bar, dock and desk panels', () => {
+  const rule = (selector: string): string => {
+    const start = css.indexOf(`${selector} {`);
+    expect(start, selector).toBeGreaterThan(-1);
+    return css.slice(start, css.indexOf('}', start));
+  };
+
+  it('the phone top bar keeps the round on one line, shows the phase under it and lets the chip shrink', () => {
+    expect(rule('.hud[data-layout="phone"] .hud-top .hud-round')).toContain('white-space: nowrap');
+    expect(css).not.toContain('.hud-top .hud-phase { display: none; }');
+    expect(rule('.hud[data-layout="phone"] .hud-top .hud-phase')).toContain('grid-area: phase');
+    expect(rule('.hud[data-layout="phone"] .hud-top .hud-playerchip')).toContain('min-width: 0');
+  });
+
+  it('the dock panes have room on every side', () => {
+    expect(rule('.hud-pane')).toMatch(/padding: \d+px 1[0-9]px \d+px/);
+  });
+
+  it('the Orden tab renders the prediction offer for a player and keeps the plain note for a page without a player', () => {
+    expect(panel).toContain('renderOrderPredict(hud.play?.predict)');
+    expect(panel).toContain('orderNote.hidden = hud.play !== undefined');
+  });
+
+  it('the desk command panel starts after the left column and the left column counts its padding in its width', () => {
+    expect(rule('.hud-left')).toContain('box-sizing: border-box');
+    const px = (text: string, property: string): number => Number(new RegExp(`[ ;{]${property}: ([0-9]+)px`).exec(text)![1]);
+    expect(px(rule('.hud-command'), 'left')).toBeGreaterThanOrEqual(px(rule('.hud-left'), 'left') + px(rule('.hud-left'), 'width') + 8);
+    expect(rule('.hud[data-layout="desk"] .hud-command')).toContain('flex-wrap: wrap');
+  });
+});

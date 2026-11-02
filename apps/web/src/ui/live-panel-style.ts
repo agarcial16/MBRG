@@ -30,7 +30,7 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud-band .hud-btn { min-height: 30px; }
 
 /* left column: factions */
-.hud-left { position: absolute; left: 12px; top: 70px; width: 262px; max-height: calc(100vh - 82px); overflow: auto; padding: 14px 16px; }
+.hud-left { position: absolute; left: 12px; top: 70px; width: 280px; box-sizing: border-box; max-height: calc(100vh - 82px); overflow: auto; padding: 14px 16px; }
 
 .hud-chron { list-style: none; margin: 8px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 30vh; overflow: auto; }
 .hud-chron li { display: grid; grid-template-columns: 26px 1fr; gap: 8px; font-size: 13px; line-height: 1.3; }
@@ -54,7 +54,7 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud-swatch { width: 12px; height: 12px; border-radius: 2px; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4); }
 
 /* command panel */
-.hud-command { position: absolute; left: 286px; right: 262px; bottom: 12px; min-height: 120px; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+.hud-command { position: absolute; left: 304px; right: 262px; bottom: 12px; min-height: 120px; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
 .hud-line { font-size: 14px; }
 .hud-line:empty { display: none; }
 .hud-alert { color: var(--hud-ember); }
@@ -86,7 +86,7 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud-slider { width: 100%; accent-color: var(--hud-gilt); }
 
 /* state card */
-.hud-card { position: absolute; left: 50%; top: 70px; transform: translateX(-50%); width: min(460px, calc(100vw - 24px)); padding: 14px 18px; }
+.hud-card { position: absolute; left: 50%; top: 70px; transform: translateX(-50%); width: min(460px, calc(100vw - 24px)); max-height: calc(100vh - 24px); box-sizing: border-box; overflow-y: auto; padding: 14px 18px; }
 .hud-card .hud-title { font-size: 19px; }
 .hud-card p { margin: 4px 0 0; }
 .hud[data-state="loading"] .hud-card,
@@ -102,11 +102,11 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud[data-layout="phone"] .hud-left,
 .hud[data-layout="phone"] .hud-right { position: static; width: auto; max-height: none; box-shadow: none; background: none; padding: 0; }
 .hud[data-layout="phone"] .hud-command { position: static; min-height: 0; padding: 10px 16px; box-shadow: none; background: none; }
-.hud[data-layout="phone"] .hud-top { height: 50px; gap: 10px; padding: 8px 10px 0; }
-.hud[data-layout="phone"] .hud-top .hud-count { position: static; transform: none; margin-left: auto; }
-.hud[data-layout="phone"] .hud-top .hud-round { font-size: 22px; }
-.hud[data-layout="phone"] .hud-top .hud-count { font-size: 30px; }
-.hud[data-layout="phone"] .hud-top .hud-phase { display: none; }
+.hud[data-layout="phone"] .hud-top { height: 50px; display: grid; grid-template-columns: auto auto minmax(0, 1fr); grid-template-areas: "round count chip" "phase count chip"; align-items: center; column-gap: 10px; row-gap: 0; padding: 4px 10px 0; }
+.hud[data-layout="phone"] .hud-top .hud-count { position: static; transform: none; grid-area: count; font-size: 26px; white-space: nowrap; }
+.hud[data-layout="phone"] .hud-top .hud-round { grid-area: round; font-size: 20px; line-height: 1.1; white-space: nowrap; }
+.hud[data-layout="phone"] .hud-top .hud-phase { grid-area: phase; font-size: 11px; line-height: 1.1; font-style: italic; color: var(--hud-muted); white-space: nowrap; }
+.hud[data-layout="phone"] .hud-top .hud-playerchip { grid-area: chip; justify-self: end; min-width: 0; max-width: 100%; font-size: 12px; padding: 0 8px; }
 .hud[data-layout="phone"] .hud-btn { min-height: 44px; min-width: 44px; }
 .hud[data-layout="phone"] .hud-chip,
 .hud[data-layout="phone"] .hud-dot,
@@ -117,6 +117,9 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud[data-layout="phone"] .hud-livemark { display: none; }
 .hud[data-layout="phone"] .hud-legend li { min-height: 44px; }
 .hud[data-layout="phone"] .hud-card { top: 58px; }
+.hud[data-layout="phone"][data-state="loading"] .hud-card,
+.hud[data-layout="phone"][data-state="start"] .hud-card,
+.hud[data-layout="phone"][data-state="error"] .hud-card { top: 50%; }
 .hud[data-layout="phone"][data-dock="folded"] .hud-left,
 .hud[data-layout="phone"][data-dock="folded"] .hud-stage,
 .hud[data-layout="phone"][data-dock="folded"] .hud-track,
@@ -125,7 +128,7 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud-tabs { display: flex; margin-top: 6px; }
 .hud-tab { flex: 1; min-height: 50px; border: 0; border-top: 3px solid transparent; background: none; color: var(--hud-muted); font: 600 16px var(--hud-display, 'Cormorant SC', Georgia, serif); cursor: pointer; }
 .hud-tab[aria-selected="true"] { color: var(--hud-gilt); border-top-color: var(--hud-gilt); }
-.hud-pane { max-height: 46vh; overflow: auto; padding: 4px 4px 8px; }
+.hud-pane { max-height: 46vh; overflow: auto; padding: 10px 16px 18px; }
 
 /* create, join and lobby (spec 013) */
 .hud-create { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--hud-gilt-dim); }
@@ -156,6 +159,15 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-result p { margin: 2px 0; }
 .hud-result[data-right="true"] .hud-title { color: var(--hud-verdigris); }
 .hud-result[data-right="false"] .hud-title { color: var(--hud-ember); }
+/* desk: the command panel is compact (prediction and result side by side, track and buttons on one row) and never crosses the left column or the minimap */
+.hud[data-layout="desk"] .hud-command { flex-direction: row; flex-wrap: wrap; align-content: flex-start; gap: 8px 18px; min-height: 0; padding: 10px 16px; max-height: calc(100vh - 82px); overflow: auto; }
+.hud[data-layout="desk"] .hud-command > * { flex: 1 1 100%; }
+.hud[data-layout="desk"] .hud-command > .hud-predict,
+.hud[data-layout="desk"] .hud-command > .hud-result { flex: 1 1 280px; min-width: 0; }
+.hud[data-layout="desk"] .hud-command > .hud-track { flex: 0 1 auto; }
+.hud[data-layout="desk"] .hud-command > .hud-nav { flex: 1 1 auto; justify-content: flex-end; }
+.hud[data-layout="desk"] .hud-command:has(.hud-predict:not([hidden])) > .hud-title { display: none; }
+.hud[data-layout="desk"] .hud-picks { max-height: 12vh; }
 .hud-right { position: absolute; right: 12px; top: 70px; width: 238px; box-sizing: border-box; max-height: calc(100vh - 340px); overflow: auto; padding: 12px 14px; }
 .hud-board { list-style: none; margin: 6px 0 0; padding: 0; }
 .hud-boardrow { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; padding: 3px 0; font-size: 13px; border-bottom: 1px solid var(--hud-wood2); }

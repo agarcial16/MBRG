@@ -331,8 +331,13 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     const pane = el('div', 'hud-pane', dock);
     pane.setAttribute('role', 'tabpanel');
     panes.set(tab.id, pane);
-    if (tab.id === 'order') pane.textContent = STRINGS.hudSoon;
   }
+  // "Orden": the prediction offer for a player; the plain note only on a page that has no player session.
+  const orderPane = panes.get('order')!;
+  const orderNote = el('p', 'hud-note', orderPane);
+  orderNote.textContent = STRINGS.hudSoon;
+  const orderPredict = el('div', 'hud-predict', orderPane);
+  orderPredict.hidden = true;
   panes.get('order')!.hidden = true;
   panes.get('ranking')!.hidden = true;
   tabButtons.get('match')!.setAttribute('aria-selected', 'true');
@@ -435,9 +440,11 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     button(row, STRINGS.controlNext, () => go(1), 'hud-btn hud-secondary').disabled = page >= pages - 1;
   }
 
+  /** One prediction block (the command panel has one, the "Orden" tab of the phone dock another); each keeps its own signature. */
+  const predictRenderer = (predictBox: HTMLElement): ((view: PredictView | undefined) => void) => {
   let predictSig = '';
   let predictCount: HTMLElement = document.createElement('span');
-  const renderPredict = (view: PredictView | undefined): void => {
+  return (view: PredictView | undefined): void => {
     predictBox.hidden = view === undefined;
     if (view === undefined) {
       predictSig = '';
@@ -475,6 +482,9 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     }
     predictCount.textContent = view.countdown === undefined ? '' : fillTemplate(STRINGS.predictCloses, { time: view.countdown });
   };
+  };
+  const renderPredict = predictRenderer(predictBox);
+  const renderOrderPredict = predictRenderer(orderPredict);
 
   let resultSig = '';
   const renderResult = (outcome: ResultView | undefined): void => {
@@ -573,6 +583,8 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       chipButton.textContent = chip ?? '';
       chipButton.setAttribute('aria-label', chip === undefined ? '' : `${chip}. ${STRINGS.personalTitle}`);
       renderPredict(hud.play?.predict);
+      renderOrderPredict(hud.play?.predict);
+      orderNote.hidden = hud.play !== undefined;
       renderResult(hud.play?.result);
       renderBoard(hud.play?.board);
       renderFactions();
