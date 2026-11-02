@@ -157,6 +157,8 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     }
   }, 'hud-playerchip');
   chipButton.hidden = true;
+  const chipName = el('span', 'hud-chip-name', chipButton);
+  const chipStats = el('span', 'hud-chip-stats', chipButton);
 
   // The band of a replay, under the top bar.
   const bandBox = zone('replay-band', 'hud-band hud-frame', root);
@@ -504,25 +506,27 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     rightColumn.hidden = layout === 'phone' ? false : !hasBoard;
   }
   const renderBoard = (board: BoardPage | undefined): void => {
-    hasBoard = board !== undefined && board.rows.length > 0;
+    hasBoard = board !== undefined && (board.rows.length > 0 || board.mine !== undefined);
     boardVisible();
     const sig = JSON.stringify(board ?? null);
     if (sig === boardSig) return;
     boardSig = sig;
     rightColumn.replaceChildren();
     el('div', 'hud-title', rightColumn).textContent = STRINGS.boardTitle;
-    if (board === undefined || board.rows.length === 0) {
+    if (board === undefined || (board.rows.length === 0 && board.mine === undefined)) {
       el('p', 'hud-note', rightColumn).textContent = STRINGS.boardEmpty;
       return;
     }
     const list = el('ol', 'hud-board', rightColumn);
-    for (const row of board.rows) {
-      const item = el('li', row.me ? 'hud-boardrow me' : 'hud-boardrow', list);
-      if (row.me) item.setAttribute('aria-current', 'true');
-      el('span', 'hud-num', item).textContent = String(row.rank);
-      el('span', 'hud-boardname', item).textContent = row.name;
-      el('span', 'hud-num', item).textContent = String(row.total);
-    }
+    const rowOf = (parent: HTMLElement, rank: number | undefined, name: string, total: number, me: boolean): void => {
+      const item = el('li', me ? 'hud-boardrow me' : 'hud-boardrow', parent);
+      if (me) item.setAttribute('aria-current', 'true');
+      el('span', 'hud-num', item).textContent = rank === undefined ? STRINGS.boardNoRank : String(rank);
+      el('span', 'hud-boardname', item).textContent = me ? fillTemplate(STRINGS.boardYou, { name }) : name;
+      el('span', 'hud-num', item).textContent = String(total);
+    };
+    for (const row of board.rows) rowOf(list, row.rank, row.name, row.total, row.me);
+    if (board.mine !== undefined) rowOf(el('ol', 'hud-board hud-board-mine', rightColumn), board.mine.rank, board.mine.name, board.mine.total, true);
     if (board.pages > 1) pager(rightColumn, board.page, board.pages, (delta) => handlers.play?.onBoardPage(delta));
   };
 
@@ -581,8 +585,10 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       renderChronicle(hud.chronicle, hud.play?.winners);
       const chip = hud.play?.chip;
       chipButton.hidden = chip === undefined;
-      chipButton.textContent = chip ?? '';
+      chipName.textContent = hud.play?.chipParts?.name ?? '';
+      chipStats.textContent = hud.play?.chipParts?.stats ?? '';
       chipButton.setAttribute('aria-label', chip === undefined ? '' : `${chip}. ${STRINGS.personalTitle}`);
+      command.dataset.offer = hud.play?.predict?.countdown !== undefined ? 'open' : 'closed';
       renderPredict(hud.play?.predict);
       renderOrderPredict(hud.play?.predict);
       orderNote.hidden = hud.play !== undefined;

@@ -252,7 +252,7 @@ export const STRINGS = {
   predictFailed: 'No se ha podido enviar la predicción. Se conserva la anterior; vuelve a intentarlo.',
   // Results (spec 013 FR-406, FR-407).
   chipName: 'Tú: {name}',
-  chipLine: 'Tú: {name} · {total} pts · puesto {rank}',
+  chipStats: ' · {total} pts · puesto {rank}',
   resultTitle: 'Tu resultado',
   resultVictim: 'Ronda {round}, víctima.',
   resultAbsorber: 'Ronda {round}, absorbente.',
@@ -272,6 +272,8 @@ export const STRINGS = {
   predictCloses: 'Cierra en {time}',
   boardTitle: 'Clasificación',
   boardEmpty: 'Todavía no hay puntos.',
+  boardYou: '{name} (tú)',
+  boardNoRank: '-',
   boardPageOf: '{page} / {total}',
   bannerRound: 'Ronda {round}',
   bannerClose: 'Cerrar aviso de la ronda',

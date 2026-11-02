@@ -5,6 +5,7 @@ import {
   WINNERS_HEAD,
   WINNERS_PAGE,
   boardPage,
+  chipParts,
   chipText,
   latestScored,
   rankOf,
@@ -59,6 +60,12 @@ describe('FR-406 the chip and the results panel', () => {
     expect(chipText('Ana', 0, 1)).toBe('Tú: Ana · 0 pts · puesto 1');
   });
 
+  it('FR-406 the chip splits into the name and the score so the screen can shorten the name only', () => {
+    expect(chipParts('Ana', undefined, undefined)).toStrictEqual({ name: 'Tú: Ana', stats: '' });
+    expect(chipParts('Ana', 20, 3)).toStrictEqual({ name: 'Tú: Ana', stats: ' · 20 pts · puesto 3' });
+    expect(chipParts('Ana', 20, 3).name + chipParts('Ana', 20, 3).stats).toBe(chipText('Ana', 20, 3));
+  });
+
   it('FR-406 a right guess says right with its points, the total and the rank', () => {
     const view = resultView({ scored: { round: 2, phase: 1 }, item: { kind: 'victim', round: 2, choice: 4, correct: true, points: 10 }, total: 30, rank: 2, nameOf: names });
     expect(view.right).toBe(true);
@@ -107,6 +114,15 @@ describe('FR-406 the leaderboard', () => {
     expect(first.rows[0]).toStrictEqual({ rank: 1, name: 'N0', total: 100, me: false });
     expect(first.rows[4]).toStrictEqual({ rank: 5, name: 'p4', total: 96, me: true });
     expect(boardPage(rows, 'x', 2).rows).toHaveLength(3);
+  });
+
+  it('FR-406 the own row is pinned when it is not on the shown page, or not listed at all', () => {
+    expect(boardPage(rows, 'player:p4', 0).mine).toBeUndefined();
+    expect(boardPage(rows, 'x', 0).mine).toBeUndefined();
+    expect(boardPage(rows, 'player:p15', 0).mine).toStrictEqual({ rank: 16, name: 'N15', total: 85, me: true });
+    expect(boardPage(rows, 'player:me', 0, 10, { name: 'Ana', total: 7 }).mine).toStrictEqual({ rank: undefined, name: 'Ana', total: 7, me: true });
+    expect(boardPage(rows, '', 0, 10, { name: 'Ana', total: 7 }).mine).toBeUndefined();
+    expect(boardPage([], 'player:me', 0, 10, { name: 'Ana', total: 0 }).mine?.name).toBe('Ana');
   });
 
   it('FR-406 a page outside the range is clamped and an empty board has one empty page', () => {

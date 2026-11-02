@@ -164,7 +164,7 @@ describe('screenshot pass: layout rules of the state card', () => {
   it('a centred card (start, loading, error) keeps its centre on the phone and scrolls when it is taller than the screen', () => {
     expect(css).toContain('.hud[data-layout="phone"][data-state="start"] .hud-card');
     expect(css).toMatch(/\.hud-card \{[^}]*max-height: calc\(100vh - 24px\)[^}]*overflow-y: auto/);
-    const phoneTop = css.indexOf('.hud[data-layout="phone"] .hud-card { top: 58px; }');
+    const phoneTop = css.indexOf('.hud[data-layout="phone"] .hud-card { top: 168px;');
     const phoneCentred = css.indexOf('.hud[data-layout="phone"][data-state="start"] .hud-card');
     expect(phoneTop).toBeGreaterThan(-1);
     expect(phoneCentred).toBeGreaterThan(phoneTop);
@@ -220,5 +220,39 @@ describe('screenshot pass: create screen and lobby layout', () => {
 describe('screenshot pass: small wording', () => {
   it('one faction alive reads in the singular', () => {
     expect(panel).toContain('alive === 1 ? STRINGS.hudAliveOfOne : STRINGS.hudAliveOf');
+  });
+});
+
+describe('second screenshot pass: phone dock and chip', () => {
+  const rule = (selector: string): string => {
+    const start = css.indexOf(`${selector} {`);
+    expect(start, selector).toBeGreaterThan(-1);
+    return css.slice(start, css.indexOf('}', start));
+  };
+
+  it('the dock pane has one fixed height of about a third of the screen for every tab, with no gap above it', () => {
+    const pane = rule('.hud[data-layout="phone"] .hud-pane');
+    expect(pane).toContain('height: clamp(250px, calc(37vh - 50px), 330px)');
+    expect(pane).toContain('max-height: none');
+    expect(rule('.hud-tabs')).not.toContain('margin-top');
+  });
+
+  it('an open phase shows the prediction and the buttons only; no open phase shows the result instead of the empty prediction', () => {
+    expect(css).toContain('.hud[data-layout="phone"] .hud-command > .hud-title { display: none; }');
+    expect(css).toContain('.hud[data-layout="phone"] .hud-command[data-offer="open"] > .hud-result { display: none; }');
+    expect(css).toContain('.hud[data-layout="phone"] .hud-command[data-offer="closed"]:has(.hud-result:not([hidden])) > .hud-predict { display: none; }');
+    expect(panel).toContain("command.dataset.offer = hud.play?.predict?.countdown !== undefined ? 'open' : 'closed'");
+  });
+
+  it('the chip shortens the name and never the score', () => {
+    expect(rule('.hud-chip-name')).toContain('text-overflow: ellipsis');
+    expect(rule('.hud-chip-stats')).toContain('flex: none');
+    expect(panel).toContain("el('span', 'hud-chip-stats', chipButton)");
+  });
+
+  it('the ranking list scrolls inside the dock and the own row stays pinned', () => {
+    expect(css).toContain('.hud[data-layout="phone"] .hud-right .hud-board:not(.hud-board-mine) { flex: 1 1 auto; min-height: 0; overflow: auto; }');
+    expect(rule('.hud-boardrow.me')).toContain('position: sticky');
+    expect(panel).toContain("'hud-board hud-board-mine'");
   });
 });

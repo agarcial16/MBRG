@@ -39,10 +39,15 @@ export function latestScored(items: readonly PlayerResult[]): Scored | undefined
 /** FR-406: the competition rank of a player on the leaderboard rows read, or undefined when the player is not listed. */
 export const rankOf = (rows: readonly LeaderboardRow[], playerId: string): number | undefined => rows.find((row) => row.playerId === playerId)?.rank;
 
+/** The chip in two parts: the name (the screen may shorten it) and the score (always whole); `stats` is empty before a phase is scored. */
+export function chipParts(name: string, total: number | undefined, rank: number | undefined): { readonly name: string; readonly stats: string } {
+  return { name: fillTemplate(STRINGS.chipName, { name }), stats: total === undefined || rank === undefined ? '' : fillTemplate(STRINGS.chipStats, { total, rank }) };
+}
+
 /** The player chip: the name, and the total and rank once a phase has been scored. */
 export function chipText(name: string, total: number | undefined, rank: number | undefined): string {
-  if (total === undefined || rank === undefined) return fillTemplate(STRINGS.chipName, { name });
-  return fillTemplate(STRINGS.chipLine, { name, total, rank });
+  const parts = chipParts(name, total, rank);
+  return parts.name + parts.stats;
 }
 
 export interface ResultView {
@@ -80,21 +85,34 @@ export interface BoardRow {
   readonly me: boolean;
 }
 
+export interface PinnedRow {
+  /** Undefined when the leaderboard does not list the player yet. */
+  readonly rank: number | undefined;
+  readonly name: string;
+  readonly total: number;
+  readonly me: true;
+}
+
 export interface BoardPage {
   readonly rows: readonly BoardRow[];
   readonly page: number;
   readonly pages: number;
+  /** The own row, pinned under the list when the shown page does not hold it. */
+  readonly mine?: PinnedRow;
 }
 
 /** The local part of a namespaced player id: what shows for a player the server gave no name. */
 const localName = (playerId: string): string => playerId.slice(playerId.indexOf(':') + 1);
 
 /** FR-406: the leaderboard with names, paged, the player highlighted. A page outside the range is clamped. */
-export function boardPage(rows: readonly LeaderboardRow[], myId: string, page: number, size = 10): BoardPage {
+export function boardPage(rows: readonly LeaderboardRow[], myId: string, page: number, size = 10, own?: { readonly name: string; readonly total: number }): BoardPage {
   const pages = Math.max(1, Math.ceil(rows.length / size));
   const at = Math.min(Math.max(0, Math.floor(page)), pages - 1);
   const shown = rows.slice(at * size, at * size + size).map((row) => ({ rank: row.rank, name: row.name ?? localName(row.playerId), total: row.total, me: row.playerId === myId }));
-  return { rows: shown, page: at, pages };
+  if (myId === '' || shown.some((row) => row.me)) return { rows: shown, page: at, pages };
+  const listed = rows.find((row) => row.playerId === myId);
+  if (listed !== undefined) return { rows: shown, page: at, pages, mine: { rank: listed.rank, name: listed.name ?? localName(listed.playerId), total: listed.total, me: true } };
+  return own === undefined ? { rows: shown, page: at, pages } : { rows: shown, page: at, pages, mine: { rank: undefined, name: own.name, total: own.total, me: true } };
 }
 
 /** The names shown before "ver todos" (FR-407). */

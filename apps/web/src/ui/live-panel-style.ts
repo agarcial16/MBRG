@@ -116,16 +116,17 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud[data-layout="phone"] .hud-band { top: 58px; }
 .hud[data-layout="phone"] .hud-livemark { display: none; }
 .hud[data-layout="phone"] .hud-legend li { min-height: 44px; }
-.hud[data-layout="phone"] .hud-card { top: 58px; }
+/* a state card (winner, halt) sits under the minimap, never over it (58 px bar + about 100 px minimap) */
+.hud[data-layout="phone"] .hud-card { top: 168px; max-height: calc(100vh - 180px); }
 .hud[data-layout="phone"][data-state="loading"] .hud-card,
 .hud[data-layout="phone"][data-state="start"] .hud-card,
-.hud[data-layout="phone"][data-state="error"] .hud-card { top: 50%; }
+.hud[data-layout="phone"][data-state="error"] .hud-card { top: 50%; max-height: calc(100vh - 24px); }
 .hud[data-layout="phone"][data-dock="folded"] .hud-left,
 .hud[data-layout="phone"][data-dock="folded"] .hud-stage,
 .hud[data-layout="phone"][data-dock="folded"] .hud-track,
 .hud[data-layout="phone"][data-dock="folded"] .hud-secondary,
 .hud[data-layout="phone"][data-dock="folded"] .hud-command > .hud-title { display: none; }
-.hud-tabs { display: flex; margin-top: 6px; }
+.hud-tabs { display: flex; }
 .hud-tab { flex: 1; min-height: 50px; border: 0; border-top: 3px solid transparent; background: none; color: var(--hud-muted); font: 600 16px var(--hud-display, 'Cormorant SC', Georgia, serif); cursor: pointer; }
 .hud-tab[aria-selected="true"] { color: var(--hud-gilt); border-top-color: var(--hud-gilt); }
 .hud-pane { max-height: 46vh; overflow: auto; padding: 10px 16px 18px; }
@@ -152,7 +153,9 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-card select.hud-input { min-width: 0; }
 
 /* prediction and results (spec 013) */
-.hud-playerchip { margin-left: auto; align-self: center; min-height: 32px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 12px; border: 0; cursor: pointer; background: var(--hud-wax); color: var(--hud-on-wax); font: 600 13px var(--hud-body, Spectral, Georgia, serif); }
+.hud-playerchip { display: inline-flex; margin-left: auto; align-self: center; min-height: 32px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 12px; border: 0; cursor: pointer; background: var(--hud-wax); color: var(--hud-on-wax); font: 600 13px var(--hud-body, Spectral, Georgia, serif); }
+.hud-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hud-chip-stats { flex: none; white-space: nowrap; }
 .hud-pop { position: absolute; right: 12px; top: 58px; width: min(340px, calc(100vw - 24px)); padding: 12px 16px; }
 .hud-predict { border-top: 1px solid var(--hud-gilt-dim); padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 .hud-predict-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
@@ -163,6 +166,7 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-seal { align-self: flex-start; padding: 2px 12px; background: var(--hud-wax); color: var(--hud-on-wax); font: 600 13px var(--hud-body, Spectral, Georgia, serif); }
 .hud-result { border-top: 1px solid var(--hud-gilt-dim); padding-top: 8px; }
 .hud-result p { margin: 2px 0; }
+.hud-predict .hud-line { margin: 0; }
 .hud-result[data-right="true"] .hud-title { color: var(--hud-verdigris); }
 .hud-result[data-right="false"] .hud-title { color: var(--hud-ember); }
 /* desk: the command panel is compact (prediction and result side by side, track and buttons on one row) and never crosses the left column or the minimap */
@@ -177,7 +181,7 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-right { position: absolute; right: 12px; top: 70px; width: 238px; box-sizing: border-box; max-height: calc(100vh - 340px); overflow: auto; padding: 12px 14px; }
 .hud-board { list-style: none; margin: 6px 0 0; padding: 0; }
 .hud-boardrow { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; padding: 3px 0; font-size: 13px; border-bottom: 1px solid var(--hud-wood2); }
-.hud-boardrow.me { color: var(--hud-gilt); font-weight: 600; }
+.hud-boardrow.me { color: var(--hud-gilt); font-weight: 600; position: sticky; top: 0; bottom: 0; background: var(--hud-wood); }
 .hud-boardname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hud-pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
 .hud-winners { margin-top: 3px; font-size: 12px; color: var(--hud-muted); }
@@ -186,6 +190,22 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="phone"] .hud-right { position: static; max-height: none; width: auto; }
 .hud[data-layout="phone"] .hud-pop { top: 52px; right: 8px; }
 .hud[data-layout="phone"] .hud-playerchip { min-height: 44px; }
+/* phone dock: one stable height for every tab and state (about 37% of the screen); the Partida tab shows the prediction block (or the result when no phase is open) and the buttons */
+.hud[data-layout="phone"] .hud-pane { box-sizing: border-box; height: clamp(250px, calc(37vh - 50px), 330px); max-height: none; padding: 6px 12px; overflow: hidden auto; }
+.hud[data-layout="phone"] .hud-command { padding: 0; gap: 6px; }
+.hud[data-layout="phone"] .hud-command > .hud-title { display: none; }
+.hud[data-layout="phone"] .hud-predict,
+.hud[data-layout="phone"] .hud-result { border-top: 0; padding-top: 0; gap: 4px; }
+.hud[data-layout="phone"] .hud-picks { max-height: 96px; }
+.hud[data-layout="phone"] .hud-command[data-offer="open"] > .hud-result { display: none; }
+.hud[data-layout="phone"] .hud-command:has(.hud-predict:not([hidden]), .hud-result:not([hidden])) > .hud-stage { display: none; }
+.hud[data-layout="phone"] .hud-command[data-offer="open"]:has(.hud-predict:not([hidden])) > .hud-victim,
+.hud[data-layout="phone"] .hud-command:has(.hud-result:not([hidden])) > .hud-victim { display: none; }
+.hud[data-layout="phone"] .hud-command[data-offer="closed"]:has(.hud-result:not([hidden])) > .hud-predict { display: none; }
+.hud[data-layout="phone"] .hud-right { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
+.hud[data-layout="phone"] .hud-right .hud-board:not(.hud-board-mine) { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.hud[data-layout="phone"] .hud-pane:has(> .hud-right) { overflow: hidden; }
+.hud-board-mine { margin-top: 0; border-top: 1px solid var(--hud-gilt-dim); }
 
 /* messages of the address */
 .hud-messages { color: var(--hud-ember); font-size: 13px; }

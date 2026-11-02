@@ -8,6 +8,7 @@ import type { FactionName } from './live-view';
 import { bookAfterReply, bookFromOwn, emptyBook, offerOf, offerText, sentFor, sentText, type Book, type Offer } from './predict-model';
 import {
   boardPage,
+  chipParts,
   chipText,
   latestScored,
   rankOf,
@@ -99,6 +100,8 @@ export interface WinnersLine {
 export interface PlayHud {
   /** The player chip of the top bar; undefined for a viewer who did not join. */
   readonly chip: string | undefined;
+  /** The chip in two parts: the screen shortens the name only, never the score. */
+  readonly chipParts: { readonly name: string; readonly stats: string } | undefined;
   readonly predict: PredictView | undefined;
   readonly result: ResultView | undefined;
   readonly board: BoardPage | undefined;
@@ -129,7 +132,9 @@ export function playHud(input: PlayInput): PlayHud {
   const nameOf = (faction: number): string => factions.find((f) => f.id === faction)?.name ?? String(faction);
   const rank = player === undefined || state.rows === undefined ? undefined : rankOf(state.rows, player.playerId);
   const myName = player === undefined ? undefined : (state.scores?.name ?? state.rows?.find((r) => r.playerId === player.playerId)?.name ?? localName(player.playerId));
-  const chip = player === undefined || myName === undefined ? undefined : chipText(myName, state.scored === undefined ? undefined : state.scores?.total, rank);
+  const chipTotal = state.scored === undefined ? undefined : state.scores?.total;
+  const chip = player === undefined || myName === undefined ? undefined : chipText(myName, chipTotal, rank);
+  const parts = player === undefined || myName === undefined ? undefined : chipParts(myName, chipTotal, rank);
 
   const offer = offerFor(model, player !== undefined, input.revealing);
   let predict: PredictView | undefined;
@@ -160,7 +165,7 @@ export function playHud(input: PlayInput): PlayHud {
     const view = winnersView(phase, names, state.expanded.has(key), state.winnersPage.get(key) ?? 0);
     lines.set(round, [...(lines.get(round) ?? []), { key, phase, view }].sort((a, b) => a.phase - b.phase));
   }
-  const board = state.rows === undefined ? undefined : boardPage(state.rows, player?.playerId ?? '', state.boardPage);
-  return { chip, predict, result, board, winners: lines };
+  const board = state.rows === undefined ? undefined : boardPage(state.rows, player?.playerId ?? '', state.boardPage, 10, myName === undefined ? undefined : { name: myName, total: state.scores?.total ?? 0 });
+  return { chip, chipParts: parts, predict, result, board, winners: lines };
 }
 
