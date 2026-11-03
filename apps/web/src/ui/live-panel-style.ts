@@ -181,8 +181,10 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="desk"] .hud-command > * { flex: 1 1 100%; }
 .hud[data-layout="desk"] .hud-command > .hud-predict,
 .hud[data-layout="desk"] .hud-command > .hud-result { flex: 1 1 280px; min-width: 0; }
-.hud[data-layout="desk"] .hud-command > .hud-track { flex: 0 1 auto; flex-wrap: nowrap; }
-.hud[data-layout="desk"] .hud-command > .hud-nav { flex: 1 1 auto; justify-content: flex-end; flex-wrap: nowrap; gap: 6px; }
+/* the dots and the five controls: ONE row, pinned to the bottom of the panel (the panel is anchored at the bottom, so the buttons never move between states) */
+.hud-controls { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px 16px; margin-top: auto; }
+.hud-controls > .hud-track { flex: 0 1 auto; flex-wrap: nowrap; }
+.hud-controls > .hud-nav { flex: 1 1 auto; justify-content: flex-end; flex-wrap: nowrap; gap: 6px; }
 .hud[data-layout="desk"] .hud-command > .hud-predict,
 .hud[data-layout="desk"] .hud-command > .hud-result { flex: 1 1 100%; }
 /* the result is one line (it never grows the panel); the seal sits on the line row of the prediction instead of a row of its own */
@@ -193,6 +195,10 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-predict .hud-seal { position: absolute; right: 124px; top: 8px; }
 .hud[data-layout="phone"] .hud-predict .hud-seal { top: 0; right: 118px; }
 /* the total is already in the chip of the top bar and the title is implied by the first line: the result stays one line */
+/* no phase open: the result takes the place of the empty prediction block and may use two lines (the forced note is long) */
+.hud[data-layout="desk"] .hud-command[data-offer="closed"]:has(.hud-result:not([hidden])) > .hud-predict { display: none; }
+.hud[data-layout="desk"] .hud-command[data-offer="closed"] .hud-result { flex-wrap: wrap; white-space: normal; }
+.hud[data-layout="desk"] .hud-command[data-offer="closed"] .hud-result > * { overflow: visible; text-overflow: clip; }
 .hud[data-layout="desk"] .hud-result > .hud-title,
 .hud[data-layout="desk"] .hud-result > p:nth-of-type(3) { display: none; }
 .hud[data-layout="desk"] .hud-command:has(.hud-predict:not([hidden])) > .hud-title { display: none; }
@@ -217,11 +223,11 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="phone"] .hud-playerchip { min-height: 44px; }
 /* phone dock: one stable height for every tab and state (about 37% of the screen); the Partida tab shows the prediction block (or the result when no phase is open) and the buttons */
 .hud[data-layout="phone"] .hud-pane { box-sizing: border-box; height: clamp(250px, calc(37vh - 50px), 330px); max-height: none; padding: 6px 12px; overflow: hidden auto; }
-.hud[data-layout="phone"] .hud-command { padding: 0; gap: 6px; flex-direction: row; flex-wrap: wrap; align-content: flex-start; align-items: center; }
-.hud[data-layout="phone"] .hud-command > * { flex: 1 1 100%; min-width: 0; }
+.hud[data-layout="phone"] .hud-command { padding: 0; gap: 6px; min-height: 212px; }
 /* the dots and the five controls share ONE row (targets 44 px high, narrower than that wide) */
-.hud[data-layout="phone"] .hud-command > .hud-track { flex: 0 1 auto; flex-wrap: nowrap; gap: 4px; }
-.hud[data-layout="phone"] .hud-command > .hud-nav { flex: 1 1 auto; flex-wrap: nowrap; justify-content: flex-end; gap: 4px; }
+.hud[data-layout="phone"] .hud-controls { gap: 4px; }
+.hud[data-layout="phone"] .hud-controls > .hud-track { gap: 4px; }
+.hud[data-layout="phone"] .hud-controls > .hud-nav { gap: 4px; }
 .hud[data-layout="phone"] .hud-track .hud-dot { min-width: 32px; padding: 0; }
 .hud[data-layout="phone"] .hud-nav .hud-btn { min-width: 38px; padding: 0 6px; }
 /* the Partida pane itself never scrolls: the command block keeps its height and only the chronicle and factions list below it scrolls */
@@ -252,7 +258,7 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-banner { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.45); }
 .hud-banner[hidden] { display: none; }
 /* desk: the card rides high so it never sits over the command panel, whose title and timer stay readable */
-.hud[data-layout="desk"] .hud-banner { align-items: flex-start; padding-top: max(90px, 18vh); box-sizing: border-box; }
+.hud[data-layout="desk"] .hud-banner { align-items: flex-start; padding-top: max(150px, 22vh); box-sizing: border-box; }
 .hud-banner[data-fade="on"] { animation: hud-fade-in 0.3s ease-out; }
 .hud-banner-card { display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; min-width: 0; max-width: min(520px, calc(100vw - 24px)); padding: 18px 26px; min-height: 44px; font: inherit; color: var(--hud-text); cursor: pointer; }
 .hud-banner-card .hud-title { font-size: 26px; }

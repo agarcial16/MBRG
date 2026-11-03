@@ -146,3 +146,17 @@ Final state: full `npm test` 327 files / 5162 passed, 4 skipped; `npm run typech
 - Error line and "Solo mirar" have margins; share row no-wrap on the desk (buttons `flex: none`); dev footer links 32 px (44 px on the phone); `setPointerCapture` in try/catch.
 ### Needs a browser re-check
 Phone dock heights (390x844, long name chip, 5+ factions in picks which scroll after 2 rows), ranking pane with a pinned row, desk 1024 panel height and button rows, shader outline compile and look, Crónica scrollbar colour, banner position, dev footer links, desk lobby "Compartir…" on one line.
+
+## Third screenshot pass (browser loop, real server, Rápido/Lento public matches)
+Verified in a real browser (chrome-devtools) against `apps/server/src/main.ts` with public creation, 6 bot players predicting, 390x844, 1024x720 and 1280x720.
+### 1. Forced-round result (74fdf59)
+- Real cause (logged the events the session received): the `victim-revealed` event HAS `forced: true`, but the live model built `PublicVictim` without it, so `model.victim.forced` was never true: the forced offer, `forcedRounds` and `resultForced` all depended on a field that never arrived. 2193ab2 fixed the wrong thing (order of `results` vs `round-applied`). Test written first and seen red (live-model.test.ts: the victim keeps `forced`). Verified: rounds 1/2/4 forced in real matches show "El absorbente estaba forzado..." on phone and desk, also after the round was applied.
+### 2. Phone control row (0459bbd + follow-up)
+- The five controls have short faces (`« ‹ › » Vista`, strings in core/strings.ts; the full words are the aria-label and tooltip). Dots and buttons are one row (`.hud-controls`, 44 px high, pinned to the bottom of the command block, command block min-height 212 so they do not move between states). The Partida pane no longer scrolls (262/262 in open, closed, results and finished); the chronicle list is hidden while a phase is open. The seal sits on the head row; the victim line is shown in phase 2.
+### 3. Desk panel
+- Measured at 1024x720: 135-215 px in every state (was 271-381), 5-6 controls in one row of 30 px at a fixed y (the Saltar button no longer wraps). The result is one line (title and totals line hidden on the desk: the chip already shows the total); when no phase is open it replaces the prediction block and may use two lines. 1280x720: 112-215 px.
+- Also: chip gap ("Ana · 0 pts"), desk banner clears the winner card.
+### Not done / notes
+- After a layout change at run time (viewport resize) the result block was empty until the next update (seen once; not investigated).
+- phone-phase1-choice, phone-phase1-picked, phone-phase2-* and desk-1024-phase2-* were captured just before the controls were wrapped in `.hud-controls` (pinned to the bottom): the rest is identical. The other images are from the final CSS.
+- Screens whose names say "forced-round", "finished", "ranking" and (1024) "results" are the end-of-match state of a real forced round 4 (7 players ranked, own row pinned).

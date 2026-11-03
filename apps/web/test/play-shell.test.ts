@@ -275,7 +275,7 @@ describe('second screenshot pass: desk panel, outline, scrollbars and the round 
   });
 
   it('on the desk the round banner rides high, away from the command panel', () => {
-    expect(css).toContain('.hud[data-layout="desk"] .hud-banner { align-items: flex-start; padding-top: max(90px, 18vh);');
+    expect(css).toContain('.hud[data-layout="desk"] .hud-banner { align-items: flex-start; padding-top: max(150px, 22vh);');
   });
 });
 
@@ -309,10 +309,14 @@ describe('third screenshot pass: one control row, one-line result, stable panels
   });
 
   it('the dots and the buttons never wrap: one row on the phone and on the desk, and the Partida pane does not scroll', () => {
-    expect(css).toContain('.hud[data-layout="phone"] .hud-command > .hud-nav { flex: 1 1 auto; flex-wrap: nowrap;');
-    expect(css).toContain('.hud[data-layout="phone"] .hud-command > .hud-track { flex: 0 1 auto; flex-wrap: nowrap;');
-    expect(css).toContain('.hud[data-layout="desk"] .hud-command > .hud-nav { flex: 1 1 auto; justify-content: flex-end; flex-wrap: nowrap;');
-    expect(css).toContain('.hud[data-layout="desk"] .hud-command > .hud-track { flex: 0 1 auto; flex-wrap: nowrap; }');
+    expect(panel).toMatch(/el\('div', 'hud-controls', command\)/);
+    expect(panel).toMatch(/el\('div', 'hud-track', controls\)/);
+    expect(panel).toMatch(/el\('div', 'hud-nav', controls\)/);
+    expect(css).toContain('.hud-controls { display: flex; align-items: center; flex-wrap: nowrap;');
+    expect(css).toContain('margin-top: auto; }');
+    expect(css).toContain('.hud-controls > .hud-nav { flex: 1 1 auto; justify-content: flex-end; flex-wrap: nowrap;');
+    expect(css).toContain('.hud-controls > .hud-track { flex: 0 1 auto; flex-wrap: nowrap; }');
+    expect(css).toContain('.hud[data-layout="phone"] .hud-command { padding: 0; gap: 6px; min-height: 212px; }');
     expect(css).toMatch(/\.hud\[data-layout="phone"\] \.hud-pane:not\(\[hidden\]\):has\(> \.hud-command\) \{ display: flex; flex-direction: column; overflow: hidden; \}/);
   });
 

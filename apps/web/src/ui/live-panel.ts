@@ -291,8 +291,10 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const winner = el('div', 'hud-line', command);
   const halt = el('div', 'hud-line hud-alert', command);
   const mismatch = el('div', 'hud-line hud-alert', command);
-  const trackBox = el('div', 'hud-track', command);
-  const nav = el('div', 'hud-nav', command);
+  // The dots and the five controls share one row, pinned to the bottom of the panel in every state.
+  const controls = el('div', 'hud-controls', command);
+  const trackBox = el('div', 'hud-track', controls);
+  const nav = el('div', 'hud-nav', controls);
   const first = navButton(nav, STRINGS.controlFirst, STRINGS.controlFirstShort, () => handlers.onNavigate('first'), 'hud-btn hud-secondary hud-nav-btn');
   const previous = navButton(nav, STRINGS.controlPrevious, STRINGS.controlPreviousShort, () => handlers.onNavigate('previous'), 'hud-btn hud-nav-btn');
   const next = navButton(nav, STRINGS.controlNext, STRINGS.controlNextShort, () => handlers.onNavigate('next'), 'hud-btn primary hud-nav-btn');
