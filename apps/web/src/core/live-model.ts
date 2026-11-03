@@ -501,6 +501,8 @@ function consume(model: LiveModel, frame: Frame, at: number): LiveResult {
       if (e.round !== m.applied + 1) return resync(model, at);
       const victim: PublicVictim = {
         round: e.round, victim: e.victim, candidates: e.candidates, living: e.living, revealedAt: e.revealedAt, c2: e.c2, a: e.a, seq: e.seq,
+        // The forced mark must survive: the offer and the result text of a forced round read it (it was dropped here before).
+        ...(e.forced === true ? { forced: true as const } : {}),
       };
       // The estimate of the decision includes the event's own reported time (plan 4.7).
       return victimTour(raise({ ...m, victim }, e.reportedTime, at), e, at);

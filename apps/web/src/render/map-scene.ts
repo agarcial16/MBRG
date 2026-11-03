@@ -27,6 +27,7 @@ import type { Camera, Viewport } from '../core/camera';
 import type { EntryIndex } from '../core/entries';
 import type { FrontField } from '../core/front';
 import { territoryOpacity } from '../core/lines';
+import { PICK_GILT } from '../core/pick-outline';
 import type { MapTheme } from '../core/theme';
 import { FRAGMENT_SHADER, VERTEX_SHADER } from './shader';
 
@@ -84,6 +85,8 @@ export interface MapScene {
    * uniforms and uploads nothing; it is given lit indices and a dim, never a result (FR-353).
    */
   setTour(tour: MapTour | undefined): void;
+  /** Outlines the faction with this index in gilt (spec 013); 0 or undefined for none. It changes one uniform. */
+  setPick(faction: number | undefined): void;
 }
 
 /** What the drawing gets of a reveal tour frame: the lit faction indices and the dim in 0..1. */
@@ -161,6 +164,8 @@ export function createMapScene(index: EntryIndex, factionColors: readonly Rgb[],
       uProgress: { value: 0 },
       uDim: { value: 0 },
       uLit: { value: new Vector2() },
+      uPick: { value: 0 },
+      uPickColor: { value: rgb01(PICK_GILT) },
       uImage: { value: new Vector2(index.width, index.height) },
       uCenterCell: { value: new Vector2() },
       uCenterFrac: { value: new Vector2() },
@@ -243,6 +248,11 @@ export function createMapScene(index: EntryIndex, factionColors: readonly Rgb[],
       }
       u.uProgress!.value = forward;
       u.uFrontOn!.value = 1;
+    },
+    setPick(faction: number | undefined): void {
+      const index = faction ?? 0;
+      if (!Number.isInteger(index) || index < 0 || index > 255) throw new RangeError(`picked faction index ${index} is not a byte`);
+      u.uPick!.value = index;
     },
     setTour(tour: MapTour | undefined): void {
       if (tour === undefined) {

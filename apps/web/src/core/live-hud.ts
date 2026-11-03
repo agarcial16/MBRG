@@ -2,7 +2,7 @@
 // live model and the existing panel view. No DOM; every sentence comes from the strings module.
 import type { Stage } from '@mbrg/protocol';
 import { estimateAt, type LiveModel } from './live-model';
-import { countdownTime, errorText, formatCountdown, haltText, type LiveErrorKind } from './live-text';
+import { countdownTime, scheduleOf, errorText, formatCountdown, haltText, roundLine, type LiveErrorKind } from './live-text';
 import type { FactionName, LivePanelView } from './live-view';
 import { STRINGS, fillTemplate } from './strings';
 
@@ -44,12 +44,18 @@ const PHASES: Readonly<Record<Stage, string>> = {
 export const aliveCount = (panel: LivePanelView): number | undefined =>
   panel.round === undefined ? undefined : panel.legend.filter((l) => l.alive).length;
 
+const IN_PLAY: readonly Stage[] = ['phase-1', 'phase-2', 'locked'];
+
+/** The round the bar names: at the live edge of a running match the round being played (the one the prediction block and the chronicle name), else the drawn round. */
+const barRound = (model: LiveModel, panel: LivePanelView): string | undefined =>
+  panel.round !== undefined && model.displayed === model.applied && IN_PLAY.includes(model.stage) && model.applied < model.totalRounds ? roundLine(model.applied + 1, model.totalRounds) : panel.round;
+
 /** The top bar: round, phase, factions alive, countdown. It never names the victim or the winner (the command panel does). */
 export const topBar = (model: LiveModel, panel: LivePanelView, at: number): TopBar => ({
-  round: panel.round,
+  round: barRound(model, panel),
   phase: PHASES[model.stage],
   alive: aliveCount(panel),
-  countdown: countdownTime(model.stage, model.timing, model.schedule, estimateAt(model, at)),
+  countdown: countdownTime(model.stage, model.timing, scheduleOf(model.stage, model.schedule, model.victim), estimateAt(model, at)),
   chip: undefined,
 });
 

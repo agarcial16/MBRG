@@ -347,6 +347,15 @@ describe('FR-303 the panel fields follow the events', () => {
     expect(d.model.lastSeq).toBe(lastSeqAt(2));
   });
 
+  it('FR-403 a victim-revealed with the forced mark keeps it on the victim (the panel reads it for the forced absorber)', async () => {
+    const s = await scripted();
+    const d = new Driver(s);
+    await d.load(1);
+    const events = eventsOfRound(s, 2).map((e) => ((e as { type: string }).type === 'victim-revealed' ? { ...(e as object), forced: true } : e));
+    await d.events(events.slice(0, 2));
+    expect(d.model.victim?.forced).toBe(true);
+  });
+
   it('FR-303 a victim-revealed of another round gives a resync', async () => {
     const s = await scripted();
     const d = new Driver(s);
@@ -381,6 +390,18 @@ describe('FR-303 the panel fields follow the events', () => {
     const frozen = d.model;
     await d.events([json({ type: 'results', seq: lastSeqAt(s.total) + 1, round: 1, phase: 1 })]);
     expect(d.model).toBe(frozen);
+  });
+
+  it('FR-400 a player-joined event is an accepted frame: no protocol fault, no resync, the failure count stays zero', async () => {
+    const s = await scripted();
+    const d = new Driver(s);
+    await d.load(1);
+    d.log.length = 0;
+    await d.events([json({ type: 'player-joined', seq: d.model.lastSeq + 1, playerId: 'player:Ab3_x-9.Qz1k', name: 'Ana' })]);
+    expect(d.model.fault).toBe(false);
+    expect(d.model.failures).toBe(0);
+    expect(d.model.phase).toBe('live');
+    expect(d.effects).toStrictEqual([]);
   });
 
   it('FR-303 a player-joined event is consumed by number and changes nothing the scene shows', async () => {

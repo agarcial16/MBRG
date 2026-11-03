@@ -39,6 +39,15 @@ export interface TourParams {
   readonly minScale: number;
 }
 
+/**
+ * Spec 013 FR-411: the bell pace of a played match, about 30 to 40 % longer than the classic one. `dwellMax` is the slowest
+ * dwell (the first and the last stop), `dwellMin` the fastest (the middle of the tour); hold and fade as in the classic tour.
+ */
+export const BELL_PARAMS: { readonly victim: TourTiming & { readonly pairStops: number }; readonly absorber: TourTiming } = {
+  victim: { stops: 12, pairStops: 6, dwellMin: 180, dwellMax: 950, hold: 1500, fade: 300 },
+  absorber: { stops: 6, dwellMin: 150, dwellMax: 700, hold: 800, fade: 300 },
+};
+
 export const TOUR_PARAMS: TourParams = {
   victim: { stops: 12, pairStops: 6, dwellMin: 120, dwellMax: 700, hold: 1500, fade: 300 },
   absorber: { stops: 6, dwellMin: 120, dwellMax: 500, hold: 800, fade: 300 },

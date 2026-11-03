@@ -4,7 +4,7 @@
 // either a run (a clock reading starts it, t = 0 at the handling reading) or a frozen tour (a fixed t, no clock).
 import type { Camera, ImageSize, Viewport } from './camera';
 import { buildTour } from './tour';
-import type { Tour, TourSpec } from './tour';
+import type { Tour, TourPace, TourSpec } from './tour';
 import { cameraAt, framing, overview } from './tour-camera';
 import type { Box } from './tour-camera';
 import { tourFrame } from './tour-frame';
@@ -26,6 +26,8 @@ export interface TourRequest {
   readonly budget?: number;
   /** A victim tour of the last round with no absorber tour after it: the camera returns to the overview at its end (D20). */
   readonly overviewAfter?: true;
+  /** The speed profile (spec 013 FR-411); absent = classic. */
+  readonly pace?: TourPace;
 }
 
 /** Framing box of every faction asked for that has land, from the label sets of the drawn round (PD6). */
@@ -45,7 +47,7 @@ export function planTours(requests: readonly TourRequest[], reduced: boolean, bo
   const tours: Tour[] = [];
   const stills: boolean[] = [];
   for (const r of requests) {
-    const choice = viewChoice(r.kind, reduced, r.set.length, r.budget);
+    const choice = viewChoice(r.kind, reduced, r.set.length, r.budget, r.pace);
     if (!choice.play) continue;
     const framed = r.kind === 'absorber' && r.victim !== undefined ? [r.victim, ...r.set] : r.set;
     const spec: TourSpec = {
@@ -57,6 +59,7 @@ export function planTours(requests: readonly TourRequest[], reduced: boolean, bo
       ...(choice.budget === undefined ? {} : { budget: choice.budget }),
       ...(choice.still === true ? { still: true as const } : {}),
       ...(r.overviewAfter === true && r.kind === 'victim' ? { overviewAfter: true as const } : {}),
+      ...(r.pace === undefined ? {} : { pace: r.pace }),
       boxes: boxesOf(framed),
     };
     tours.push(buildTour(spec));

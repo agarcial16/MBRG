@@ -5,6 +5,7 @@
 // minimap. No seed, no pointer readout, no timings, no results.
 import type { Rgb } from '@mbrg/shared';
 import { wheelSteps } from '../core/camera';
+import { pinchDistance } from '../core/pinch';
 import { DOCK_TABS, layoutFor, type DockTab, type Layout } from '../core/hud-layout';
 import { cssVariables } from '../core/hud-tokens';
 import type { HudState, StateCard, TopBar } from '../core/live-hud';
@@ -14,7 +15,10 @@ import { liveTitle, skipLabel } from '../core/live-text';
 import type { LivePanelView } from '../core/live-view';
 import type { UnitRect } from '../core/minimap';
 import type { NavAction } from '../core/navigation';
+import type { PlayHud, PredictView, WinnersLine } from '../core/play-view';
+import type { BoardPage, ResultView } from '../core/results-model';
 import { STRINGS, fillTemplate } from '../core/strings';
+import type { BannerView } from '../core/round-banner';
 import { PANEL_CSS } from './live-panel-style';
 
 /** How many factions the list shows before "ver todas" (FR-361). */
@@ -31,6 +35,23 @@ export interface LivePanelHandlers {
   onMinimap(point: { x: number; y: number }): void;
   /** The wheel turned over the minimap: zoom the whole map by this many steps. */
   onMinimapZoom(steps: number): void;
+  /** FR-412: two fingers on the minimap moved apart (ratio above 1) or together; the new distance over the old. */
+  onMinimapPinch(ratio: number): void;
+  /** FR-408: a tap or a key on the round banner. */
+  onBannerDismiss(): void;
+  /** The player's controls (spec 013); absent when the page has no player session. */
+  readonly play?: PlayHandlers;
+}
+
+/** The player's controls on the match screen (spec 013 FR-401, FR-406, FR-407). */
+export interface PlayHandlers {
+  /** FR-401: a faction of the HUD bar was chosen; it is sent at once. */
+  onPick(faction: number): void;
+  onBoardPage(delta: number): void;
+  onWinnersToggle(key: string): void;
+  onWinnersPage(key: string, delta: number): void;
+  /** FR-397: fills the box of the personal link (once, when the player chip is first opened). */
+  fillPersonal(parent: HTMLElement): void;
 }
 
 /** What the HUD shows besides the panel view. */
@@ -44,6 +65,12 @@ export interface HudView {
   readonly track: RoundTrack;
   readonly rows: readonly FactionRow[];
   readonly chronicle: readonly ChronicleEntry[];
+  /** FR-408: the round banner on screen, or none. */
+  readonly banner?: BannerView;
+  /** FR-409: "PREDICCIONES FINALIZADAS" or "REVELANDO...", or none. */
+  readonly overlay?: string;
+  /** What the player sees besides the spectator screen (spec 013); absent without a player session. */
+  readonly play?: PlayHud;
 }
 
 /** The thumbnail of the minimap: pixels of `width` x `height`, or none to keep the one already drawn. */
@@ -85,6 +112,14 @@ function button(parent: HTMLElement, label: string, onClick: () => void, classNa
   return node;
 }
 
+/** A control with a short face that fits one row; the full words are its accessible name and its tooltip. */
+function navButton(parent: HTMLElement, full: string, short: string, onClick: () => void, className: string): HTMLButtonElement {
+  const node = button(parent, short, onClick, className);
+  node.setAttribute('aria-label', full);
+  node.title = full;
+  return node;
+}
+
 /** Writes the token variables and the stylesheet once per page. */
 function installStyle(): void {
   if (document.getElementById('hud-style') !== null) return;
@@ -121,6 +156,17 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const phase = el('span', 'hud-phase', top);
   const liveMark = el('span', 'hud-livemark', top);
   const count = el('span', 'hud-count hud-num', top);
+  // The player chip (FR-406) opens the personal link (FR-397).
+  const chipButton = button(top, '', () => {
+    personal.hidden = !personal.hidden;
+    if (!personal.hidden && !personalFilled) {
+      personalFilled = true;
+      handlers.play?.fillPersonal(personal);
+    }
+  }, 'hud-playerchip');
+  chipButton.hidden = true;
+  const chipName = el('span', 'hud-chip-name', chipButton);
+  const chipStats = el('span', 'hud-chip-stats', chipButton);
 
   // The band of a replay, under the top bar.
   const bandBox = zone('replay-band', 'hud-band hud-frame', root);
@@ -170,8 +216,12 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     renderFactions();
   }, 'hud-btn');
   more.hidden = true;
-  const rightColumn = zone('right-column', 'hud-right', root);
+  const rightColumn = zone('right-column', 'hud-right hud-frame', root);
   rightColumn.hidden = true;
+  const personal = zone('personal', 'hud-pop hud-frame', root);
+  personal.hidden = true;
+  let personalFilled = false;
+  let hasBoard = false;
 
   // Minimap: a thumbnail of the map in the colours of the owners, and the rectangle of the current view.
   const minimap = zone('minimap', 'hud-mini hud-frame', root);
@@ -187,17 +237,36 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     return { x: (event.clientX - box.left) / box.width, y: (event.clientY - box.top) / box.height };
   };
   let dragging = false;
+  // FR-412: the touches on the minimap; two of them pinch the main camera instead of moving it.
+  const touches = new Map<number, { x: number; y: number }>();
+  const gap = (): number | undefined => {
+    const [a, b] = [...touches.values()];
+    return a === undefined || b === undefined || touches.size !== 2 ? undefined : pinchDistance(a, b);
+  };
   miniBox.addEventListener('pointerdown', (event) => {
-    dragging = true;
-    miniBox.setPointerCapture(event.pointerId);
-    handlers.onMinimap(pointOf(event));
-  });
-  miniBox.addEventListener('pointermove', (event) => {
+    touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    dragging = touches.size === 1;
+    try {
+      miniBox.setPointerCapture(event.pointerId);
+    } catch {
+      // A pointer that is no longer active (a synthetic or just-lifted one) cannot be captured; the drag still works from the box.
+    }
     if (dragging) handlers.onMinimap(pointOf(event));
   });
-  miniBox.addEventListener('pointerup', () => {
-    dragging = false;
+  miniBox.addEventListener('pointermove', (event) => {
+    if (!touches.has(event.pointerId)) return;
+    const before = gap();
+    touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const after = gap();
+    if (before !== undefined && after !== undefined && before > 0) handlers.onMinimapPinch(after / before);
+    else if (dragging) handlers.onMinimap(pointOf(event));
   });
+  const lift = (event: PointerEvent): void => {
+    touches.delete(event.pointerId);
+    dragging = false;
+  };
+  miniBox.addEventListener('pointerup', lift);
+  miniBox.addEventListener('pointercancel', lift);
   miniBox.addEventListener(
     'wheel',
     (event) => {
@@ -213,18 +282,24 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   el('div', 'hud-title', command).textContent = liveTitle();
   const messages = el('div', 'hud-messages', command);
   messages.setAttribute('role', 'alert');
+  const predictBox = el('div', 'hud-predict', command);
+  predictBox.hidden = true;
+  const resultBox = el('div', 'hud-result', command);
+  resultBox.hidden = true;
   const stage = el('div', 'hud-line hud-stage', command);
   const victim = el('div', 'hud-line hud-victim', command);
   const winner = el('div', 'hud-line', command);
   const halt = el('div', 'hud-line hud-alert', command);
   const mismatch = el('div', 'hud-line hud-alert', command);
-  const trackBox = el('div', 'hud-track', command);
-  const nav = el('div', 'hud-nav', command);
-  const first = button(nav, STRINGS.controlFirst, () => handlers.onNavigate('first'), 'hud-btn hud-secondary');
-  const previous = button(nav, STRINGS.controlPrevious, () => handlers.onNavigate('previous'));
-  const next = button(nav, STRINGS.controlNext, () => handlers.onNavigate('next'), 'hud-btn primary');
-  const lastButton = button(nav, STRINGS.controlLast, () => handlers.onNavigate('last'), 'hud-btn hud-secondary');
-  button(nav, STRINGS.controlReset, handlers.onReset, 'hud-btn hud-secondary');
+  // The dots and the five controls share one row, pinned to the bottom of the panel in every state.
+  const controls = el('div', 'hud-controls', command);
+  const trackBox = el('div', 'hud-track', controls);
+  const nav = el('div', 'hud-nav', controls);
+  const first = navButton(nav, STRINGS.controlFirst, STRINGS.controlFirstShort, () => handlers.onNavigate('first'), 'hud-btn hud-secondary hud-nav-btn');
+  const previous = navButton(nav, STRINGS.controlPrevious, STRINGS.controlPreviousShort, () => handlers.onNavigate('previous'), 'hud-btn hud-nav-btn');
+  const next = navButton(nav, STRINGS.controlNext, STRINGS.controlNextShort, () => handlers.onNavigate('next'), 'hud-btn primary hud-nav-btn');
+  const lastButton = navButton(nav, STRINGS.controlLast, STRINGS.controlLastShort, () => handlers.onNavigate('last'), 'hud-btn hud-secondary hud-nav-btn');
+  navButton(nav, STRINGS.controlReset, STRINGS.controlResetShort, handlers.onReset, 'hud-btn hud-secondary hud-nav-btn');
   const skip = button(nav, skipLabel(), handlers.onSkip);
   skip.hidden = true;
 
@@ -235,6 +310,18 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const cardTitle = el('div', 'hud-title', card);
   const cardText = el('p', '', card);
   card.hidden = true;
+
+  // FR-408: the round banner over a dimmed map; a button, so a tap, Enter or Space dismisses it.
+  const bannerBox = zone('round-banner', 'hud-banner', root);
+  bannerBox.hidden = true;
+  const bannerButton = button(bannerBox, '', handlers.onBannerDismiss, 'hud-banner-card hud-frame');
+  bannerButton.setAttribute('aria-label', STRINGS.bannerClose);
+  const bannerTitle = el('span', 'hud-title', bannerButton);
+  const bannerLine = el('span', 'hud-banner-line', bannerButton);
+  // FR-409: the overlay between the close of the predictions and the reveal.
+  const overlayBox = zone('round-overlay', 'hud-overlay hud-frame', root);
+  overlayBox.setAttribute('role', 'status');
+  overlayBox.hidden = true;
 
   // Phone dock: three tabs; the command panel and the legend live in the first one.
   const dock = zone('dock', 'hud-dock hud-frame', root);
@@ -260,8 +347,13 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     const pane = el('div', 'hud-pane', dock);
     pane.setAttribute('role', 'tabpanel');
     panes.set(tab.id, pane);
-    if (tab.id !== 'match') pane.textContent = STRINGS.hudSoon;
   }
+  // "Orden": the prediction offer for a player; the plain note only on a page that has no player session.
+  const orderPane = panes.get('order')!;
+  const orderNote = el('p', 'hud-note', orderPane);
+  orderNote.textContent = STRINGS.hudSoon;
+  const orderPredict = el('div', 'hud-predict', orderPane);
+  orderPredict.hidden = true;
   panes.get('order')!.hidden = true;
   panes.get('ranking')!.hidden = true;
   tabButtons.get('match')!.setAttribute('aria-selected', 'true');
@@ -270,9 +362,11 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const place = (): void => {
     if (layout === 'phone') {
       panes.get('match')?.append(command, left);
+      panes.get('ranking')?.append(rightColumn);
     } else {
-      root.append(left, command);
+      root.append(left, command, rightColumn);
     }
+    boardVisible();
   };
   place();
   window.addEventListener('resize', () => {
@@ -288,7 +382,24 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     node.hidden = text === undefined;
   };
 
-  const renderChronicle = (entries: readonly ChronicleEntry[]): void => {
+  let chronSig = '';
+  const winnersBlock = (parent: HTMLElement, line: WinnersLine): void => {
+    const box = el('div', 'hud-winners', parent);
+    el('span', '', box).textContent = line.view.line ?? '';
+    if (line.view.expandable) {
+      const expanded = line.view.names.length > 0;
+      button(box, expanded ? STRINGS.hudShowLess : STRINGS.winnersAll, () => handlers.play?.onWinnersToggle(line.key), 'hud-link-btn').setAttribute('aria-expanded', String(expanded));
+      if (expanded) {
+        const names = el('ul', 'hud-winners-list', box);
+        for (const name of line.view.names) el('li', '', names).textContent = name;
+        if (line.view.pages > 1) pager(box, line.view.page, line.view.pages, (delta) => handlers.play?.onWinnersPage(line.key, delta));
+      }
+    }
+  };
+  const renderChronicle = (entries: readonly ChronicleEntry[], winners?: ReadonlyMap<number, readonly WinnersLine[]>): void => {
+    const sig = JSON.stringify([entries, winners === undefined ? [] : [...winners]]);
+    if (sig === chronSig) return;
+    chronSig = sig;
     chron.replaceChildren(
       ...entries.map((entry) => {
         const item = document.createElement('li');
@@ -299,6 +410,7 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
           item.className = 'pending';
         } else {
           text.textContent = fillTemplate(STRINGS.hudChronicleApplied, { victim: entry.victim, absorber: entry.absorber, count: entry.taken });
+          for (const line of winners?.get(entry.round) ?? []) winnersBlock(text, line);
         }
         return item;
       }),
@@ -311,7 +423,8 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     if (last === undefined) return;
     const rows = last.hud.rows;
     const total = rows.length;
-    const aliveText = fillTemplate(STRINGS.hudAliveOf, { alive: rows.filter((r) => r.alive).length, total });
+    const alive = rows.filter((r) => r.alive).length;
+    const aliveText = fillTemplate(alive === 1 ? STRINGS.hudAliveOfOne : STRINGS.hudAliveOf, { alive, total });
     factionsHead.textContent = [STRINGS.legendTitle, aliveText].join(' - ');
     for (const [key, chip] of sortButtons) chip.setAttribute('aria-pressed', String(key === sortKey));
     const matched = sortRows(searchRows(rows, query), sortKey);
@@ -334,6 +447,109 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     more.hidden = hidden === 0 && !showAll;
     more.textContent = showAll ? STRINGS.hudShowLess : fillTemplate(STRINGS.hudShowAll, { count: hidden });
     more.setAttribute('aria-label', more.textContent);
+  };
+
+  /** Previous / next buttons with "page / pages" between them. */
+  function pager(parent: HTMLElement, page: number, pages: number, go: (delta: number) => void): void {
+    const row = el('div', 'hud-pager', parent);
+    button(row, STRINGS.controlPrevious, () => go(-1), 'hud-btn hud-secondary').disabled = page <= 0;
+    el('span', 'hud-num', row).textContent = fillTemplate(STRINGS.boardPageOf, { page: page + 1, total: pages });
+    button(row, STRINGS.controlNext, () => go(1), 'hud-btn hud-secondary').disabled = page >= pages - 1;
+  }
+
+  /** One prediction block (the command panel has one, the "Orden" tab of the phone dock another); each keeps its own signature. */
+  const predictRenderer = (predictBox: HTMLElement): ((view: PredictView | undefined) => void) => {
+  let predictSig = '';
+  let predictCount: HTMLElement = document.createElement('span');
+  return (view: PredictView | undefined): void => {
+    predictBox.hidden = view === undefined;
+    if (view === undefined) {
+      predictSig = '';
+      return;
+    }
+    // The choices are rebuilt only when they change: a rebuild every second would drop the keyboard focus.
+    const sig = JSON.stringify({ ...view, countdown: undefined });
+    if (sig !== predictSig) {
+      predictSig = sig;
+      predictBox.replaceChildren();
+      const head = el('div', 'hud-predict-head', predictBox);
+      el('span', 'hud-title', head).textContent = view.title;
+      predictCount = el('span', 'hud-num hud-predict-count', head);
+      el('p', 'hud-line', predictBox).textContent = view.line;
+      if (view.choices.length > 0) {
+        const picks = el('div', 'hud-picks', predictBox);
+        picks.setAttribute('role', 'group');
+        picks.setAttribute('aria-label', STRINGS.predictTitle);
+        for (const choice of view.choices) {
+          const pick = button(picks, choice.name, () => handlers.play?.onPick(choice.faction), 'hud-btn hud-pick');
+          pick.setAttribute('aria-pressed', String(choice.selected));
+          const swatch = document.createElement('span');
+          swatch.className = 'hud-swatch';
+          const rgb = colors.get(choice.faction);
+          if (rgb !== undefined) swatch.style.background = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+          pick.prepend(swatch);
+        }
+      }
+      // The seal's row is reserved while there is something to choose, so the buttons below do not jump when a choice is sent.
+      if (view.seal !== undefined || view.choices.length > 0) {
+        const seal = el('span', 'hud-seal', predictBox);
+        seal.textContent = view.seal ?? '\u00a0';
+        if (view.seal === undefined) {
+          seal.dataset.empty = 'true';
+          seal.setAttribute('aria-hidden', 'true');
+        }
+      }
+      if (view.notice !== undefined) {
+        const notice = el('div', 'hud-messages', predictBox);
+        notice.setAttribute('role', 'alert');
+        notice.textContent = view.notice;
+      }
+    }
+    predictCount.textContent = view.countdown === undefined ? '' : fillTemplate(STRINGS.predictCloses, { time: view.countdown });
+  };
+  };
+  const renderPredict = predictRenderer(predictBox);
+  const renderOrderPredict = predictRenderer(orderPredict);
+
+  let resultSig = '';
+  const renderResult = (outcome: ResultView | undefined): void => {
+    resultBox.hidden = outcome === undefined;
+    const sig = JSON.stringify(outcome ?? null);
+    if (outcome === undefined || sig === resultSig) return;
+    resultSig = sig;
+    resultBox.replaceChildren();
+    el('div', 'hud-title', resultBox).textContent = outcome.title;
+    resultBox.dataset.right = outcome.right === undefined ? 'none' : String(outcome.right);
+    for (const line of outcome.lines) el('p', 'hud-line', resultBox).textContent = line;
+  };
+
+  let boardSig = '';
+  function boardVisible(): void {
+    rightColumn.hidden = layout === 'phone' ? false : !hasBoard;
+  }
+  const renderBoard = (board: BoardPage | undefined): void => {
+    hasBoard = board !== undefined && (board.rows.length > 0 || board.mine !== undefined);
+    boardVisible();
+    const sig = JSON.stringify(board ?? null);
+    if (sig === boardSig) return;
+    boardSig = sig;
+    rightColumn.replaceChildren();
+    el('div', 'hud-title', rightColumn).textContent = STRINGS.boardTitle;
+    if (board === undefined || (board.rows.length === 0 && board.mine === undefined)) {
+      el('p', 'hud-note', rightColumn).textContent = STRINGS.boardEmpty;
+      return;
+    }
+    const list = el('ol', 'hud-board', rightColumn);
+    const rowOf = (parent: HTMLElement, rank: number | undefined, name: string, total: number, me: boolean): void => {
+      const item = el('li', me ? 'hud-boardrow me' : 'hud-boardrow', parent);
+      if (me) item.setAttribute('aria-current', 'true');
+      el('span', 'hud-num', item).textContent = rank === undefined ? STRINGS.boardNoRank : String(rank);
+      el('span', 'hud-boardname', item).textContent = me ? fillTemplate(STRINGS.boardYou, { name }) : name;
+      el('span', 'hud-num', item).textContent = String(total);
+    };
+    for (const row of board.rows) rowOf(list, row.rank, row.name, row.total, row.me);
+    if (board.mine !== undefined) rowOf(el('ol', 'hud-board hud-board-mine', rightColumn), board.mine.rank, board.mine.name, board.mine.total, true);
+    if (board.pages > 1) pager(rightColumn, board.page, board.pages, (delta) => handlers.play?.onBoardPage(delta));
   };
 
   const renderTrack = (track: RoundTrack): void => {
@@ -382,7 +598,24 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       previous.disabled = controls === undefined || controls.previousDisabled;
       next.disabled = controls === undefined || controls.nextDisabled;
       lastButton.disabled = controls === undefined || controls.lastDisabled;
-      renderChronicle(hud.chronicle);
+      bannerBox.hidden = hud.banner === undefined;
+      bannerBox.dataset.fade = hud.banner?.fade === true ? 'on' : 'off';
+      bannerTitle.textContent = hud.banner?.title ?? '';
+      bannerLine.textContent = hud.banner?.line ?? '';
+      overlayBox.hidden = hud.overlay === undefined;
+      overlayBox.textContent = hud.overlay ?? '';
+      renderChronicle(hud.chronicle, hud.play?.winners);
+      const chip = hud.play?.chip;
+      chipButton.hidden = chip === undefined;
+      chipName.textContent = hud.play?.chipParts?.name ?? '';
+      chipStats.textContent = hud.play?.chipParts?.stats ?? '';
+      chipButton.setAttribute('aria-label', chip === undefined ? '' : `${chip}. ${STRINGS.personalTitle}`);
+      command.dataset.offer = hud.play?.predict?.countdown !== undefined ? 'open' : 'closed';
+      renderPredict(hud.play?.predict);
+      renderOrderPredict(hud.play?.predict);
+      orderNote.hidden = hud.play !== undefined;
+      renderResult(hud.play?.result);
+      renderBoard(hud.play?.board);
       renderFactions();
       renderTrack(hud.track);
     },

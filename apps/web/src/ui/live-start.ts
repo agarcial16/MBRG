@@ -1,8 +1,12 @@
 // The start screen of the single entry page (spec 010 FR-366): a code or a link in, the match screen out. The debug scene and the
 // web test client are development tools: their links exist in a development build only.
+import { layoutFor } from '../core/hud-layout';
 import { STRINGS } from '../core/strings';
 import { matchAddress } from '../core/start-screen';
 import { showCard } from './live-panel';
+import { mountCreate } from './play-create';
+import { enterCreated, playNets } from './play-main';
+import { requestId } from './web-crypto';
 
 export function showStart(): void {
   const canvas = document.getElementById('map');
@@ -14,6 +18,7 @@ export function showStart(): void {
   showCard(panel, { title: STRINGS.startTitle, text: STRINGS.startText }, false);
   const root = panel.firstElementChild as HTMLElement;
   root.dataset.state = 'start';
+  root.dataset.layout = layoutFor(window.innerWidth);
   const card = root.firstElementChild as HTMLElement;
   const form = document.createElement('form');
   form.className = 'hud-form';
@@ -46,6 +51,8 @@ export function showStart(): void {
     // The form sends the match code alone: a pasted link is reduced to it first.
     input.value = address.id;
   });
+  // Spec 013 FR-393: create a match from the public config; the host token stays in this browser.
+  mountCreate(card, { net: playNets().net, storage: window.localStorage, makeId: requestId, onCreated: enterCreated });
   if (import.meta.env.DEV) {
     const tools = document.createElement('div');
     tools.className = 'hud-tools';
