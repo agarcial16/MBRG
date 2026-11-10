@@ -37,9 +37,9 @@ describe('NFR-65 the contrast of the visual tokens', () => {
     }
   });
 
-  it('NFR-65 the table lists the pairs the screen really uses: body, muted, accent, button and wax seal on their grounds', () => {
+  it('NFR-65 the table lists the pairs the screen really uses: body, muted, accent, button and gilt seal on their grounds', () => {
     const names = PAIRS.map((p) => p.name);
-    for (const wanted of ['body text', 'muted text', 'accent text', 'primary button', 'wax seal', 'vellum text', 'vellum muted text', 'timer warning', 'frame outline']) {
+    for (const wanted of ['body text', 'muted text', 'accent text', 'primary button', 'gilt seal on the translucent panel', 'vellum text', 'vellum muted text', 'timer warning', 'frame outline']) {
       expect(names, wanted).toContain(wanted);
     }
   });

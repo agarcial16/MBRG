@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { ZONES } from '../src/core/hud-layout';
 import { PANEL_CSS as css } from '../src/ui/live-panel-style';
+import { pageCss } from '../src/core/table';
 import shell from '../src/ui/live-panel.ts?raw';
 import main from '../src/ui/live-main.ts?raw';
 import startShell from '../src/ui/live-start.ts?raw';
@@ -59,8 +60,10 @@ describe('FR-357 the dock folds', () => {
 
 describe('FR-367 the stylesheet uses the tokens only', () => {
   it('FR-367 no colour literal in the stylesheet except black shadows: every colour is a --hud-* variable', () => {
-    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
-    for (const m of css.matchAll(/rgba?\([^)]*\)/g)) expect(m[0], m[0]).toMatch(/^rgba\(0, 0, 0, /);
+    // the page wood and the panel variable come from core/table.ts (spec 015), the one place of those tones
+    const sheet = css.replace(pageCss(), '');
+    expect(sheet).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    for (const m of sheet.matchAll(/rgba?\([^)]*\)/g)) expect(m[0], m[0]).toMatch(/^rgba\(0, 0, 0, /);
     expect(css).toMatch(/var\(--hud-wood\)/);
     expect(css).toMatch(/var\(--hud-gilt\)/);
   });
@@ -194,7 +197,7 @@ describe('FR-359 to FR-364 the shell of the left column, the band, the track and
   });
 });
 
-describe('FR-368 terra incognita: the asset and the layer', () => {
+describe('FR-368 / FR-422 terra incognita: the asset (kept, no longer drawn) and the layer', () => {
   const file = readFileSync(new URL('../public/terra.webp', import.meta.url));
 
   it('FR-368 the texture is one WebP tile of at most 150 KB, in public/', () => {
@@ -206,9 +209,10 @@ describe('FR-368 terra incognita: the asset and the layer', () => {
 
   it('FR-368 the layer is made of the bands of the pure module, above the map canvas and below the labels, and never takes the pointer', () => {
     expect(terraShell).toMatch(/terraBands\(/);
-    expect(terraShell).toMatch(/terraOffset\(/);
+    expect(terraShell).toMatch(/tableFade\(/);
     expect(terraShell).toMatch(/pointerEvents\s*=\s*'none'/);
-    expect(terraShell).toContain('TERRA_TILE');
+    expect(terraShell).toContain('TABLE.ground');
+    expect(terraShell).not.toContain('terra.webp');
     expect(main).toMatch(/createTerra\(/);
     expect(main).toMatch(/terra\??\.place\(/);
     expect(main.match(/terra\??\.place\(/g)!.length).toBeGreaterThanOrEqual(3);
@@ -262,8 +266,8 @@ describe('FR-356 the zones of the desk layout do not overlap', () => {
     expect(px(command!, 'right')).toBeGreaterThanOrEqual(px(mini!, 'right') + px(mini!, 'width') + 8);
   });
 
-  it('FR-356 the top bar puts its texts on one baseline, the countdown is in the middle and the factions alive are not repeated there', () => {
-    expect(rules('.hud-top').join(';')).toMatch(/align-items:\s*baseline/);
+  it('FR-356 the top bar centres its texts (015 FR-428 replaced the baseline), the countdown is in the middle and the factions alive are not repeated there', () => {
+    expect(rules('.hud-top').join(';')).toMatch(/align-items:\s*center/);
     const count = rules('.hud-top .hud-count').join(';');
     expect(count).toMatch(/position:\s*absolute/);
     expect(count).toMatch(/left:\s*50%/);

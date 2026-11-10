@@ -1,6 +1,8 @@
+import { TABLE, pageCss } from '../core/table';
 // The stylesheet of the match screen HUD (spec 010), as a string so the shell injects it and the tests scan it. Colours are the
 // token variables of core/hud-tokens.ts; the layout is chosen by data-layout, never by a media query.
-export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licences are in public/fonts). Latin subset: it covers Spanish. */
+export const PANEL_CSS = `${pageCss()}
+/* Self-hosted fonts (SIL Open Font License; the licences are in public/fonts). Latin subset: it covers Spanish. */
 @font-face { font-family: 'Cormorant SC'; font-weight: 500; font-style: normal; font-display: swap; src: url('/fonts/cormorant-sc-500.woff2') format('woff2'); }
 @font-face { font-family: 'Cormorant SC'; font-weight: 600; font-style: normal; font-display: swap; src: url('/fonts/cormorant-sc-600.woff2') format('woff2'); }
 @font-face { font-family: 'Cormorant SC'; font-weight: 700; font-style: normal; font-display: swap; src: url('/fonts/cormorant-sc-700.woff2') format('woff2'); }
@@ -15,15 +17,18 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud [hidden] { display: none !important; }
 /* every scrollable area of the HUD uses the HUD tokens (no bright default bar) */
 .hud * { scrollbar-width: thin; scrollbar-color: var(--hud-gilt-dim) var(--hud-umber); }
-.hud-frame { background: var(--hud-wood); box-shadow: inset 0 0 0 1px var(--hud-gilt-dim), inset 0 0 0 4px var(--hud-wood), inset 0 0 0 5px var(--hud-gilt-dim); }
+.hud-frame { background: var(--hud-wood); box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); outline: 1px solid var(--hud-gilt-dim); outline-offset: -5px; }
+/* spec 015 FR-425: on the desk the panels are a darker, slightly translucent wood with a blur of the map behind; the double gilt frame is two lines, so the panel colour shows between them */
+.hud[data-layout="desk"] .hud-frame { background: var(--hud-panel); backdrop-filter: blur(${TABLE.panel.blur}px); }
 .hud-title { font: 600 17px var(--hud-display, 'Cormorant SC', Georgia, serif); letter-spacing: 0.03em; color: var(--hud-gilt); }
 .hud-muted { color: var(--hud-muted); font-style: italic; font-size: 12px; }
 .hud-num { font-variant-numeric: lining-nums tabular-nums; }
 
 /* top bar */
-.hud-top { position: absolute; left: 0; right: 0; top: 0; height: 58px; display: flex; align-items: baseline; padding-top: 12px; box-sizing: border-box; gap: 24px; padding-left: 20px; padding-right: 20px; }
+.hud-top { position: absolute; left: 0; right: 0; top: 0; height: 58px; display: flex; align-items: center; box-sizing: border-box; gap: 24px; padding: 0 20px; }
 .hud-top .hud-round { font: 600 26px var(--hud-display, 'Cormorant SC', Georgia, serif); }
-.hud-top .hud-count { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); font: 600 34px var(--hud-display, 'Cormorant SC', Georgia, serif); }
+.hud-top .hud-count { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 600 34px/1 var(--hud-display, 'Cormorant SC', Georgia, serif); }
+.hud-top .hud-count { margin: 0; }
 .hud-top .hud-count:empty { display: none; }
 
 /* live mark and replay band */
@@ -103,13 +108,16 @@ export const PANEL_CSS = `/* Self-hosted fonts (SIL Open Font License; the licen
 .hud-dock { position: absolute; left: 0; right: 0; bottom: 0; display: none; }
 .hud[data-layout="phone"] .hud-dock { display: block; }
 .hud[data-layout="phone"] .hud-left,
-.hud[data-layout="phone"] .hud-right { position: static; width: auto; max-height: none; box-shadow: none; background: none; padding: 0; }
-.hud[data-layout="phone"] .hud-command { position: static; min-height: 0; padding: 10px 16px; box-shadow: none; background: none; }
-.hud[data-layout="phone"] .hud-top { height: 50px; display: grid; grid-template-columns: auto auto minmax(0, 1fr); grid-template-areas: "round count chip" "phase count chip"; align-items: center; column-gap: 10px; row-gap: 0; padding: 4px 10px 0; }
-.hud[data-layout="phone"] .hud-top .hud-count { position: static; transform: none; grid-area: count; font-size: 26px; white-space: nowrap; }
-.hud[data-layout="phone"] .hud-top .hud-round { grid-area: round; font-size: 20px; line-height: 1.1; white-space: nowrap; }
-.hud[data-layout="phone"] .hud-top .hud-phase { grid-area: phase; font-size: 11px; line-height: 1.1; font-style: italic; color: var(--hud-muted); white-space: nowrap; }
-.hud[data-layout="phone"] .hud-top .hud-playerchip { grid-area: chip; justify-self: end; min-width: 0; max-width: 100%; font-size: 12px; padding: 0 8px; }
+.hud[data-layout="phone"] .hud-right { position: static; width: auto; max-height: none; box-shadow: none; outline-width: 0; background: none; backdrop-filter: none; padding: 0; }
+.hud[data-layout="phone"] .hud-command { position: static; min-height: 0; padding: 10px 16px; box-shadow: none; outline-width: 0; background: none; backdrop-filter: none; }
+.hud[data-layout="phone"] .hud-dock,
+.hud[data-layout="phone"] .hud-top,
+.hud[data-layout="phone"] .hud-mini { background: var(--hud-dock); backdrop-filter: none; }
+.hud[data-layout="phone"] .hud-top { height: 50px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-areas: "round count chip" "phase count chip"; align-items: center; column-gap: 10px; row-gap: 0; padding: 0 10px; }
+.hud[data-layout="phone"] .hud-top .hud-count { position: static; transform: none; grid-area: count; font-size: 26px; white-space: nowrap; justify-self: center; align-self: center; }
+.hud[data-layout="phone"] .hud-top .hud-round { grid-area: round; font-size: 20px; line-height: 1.1; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; align-self: end; }
+.hud[data-layout="phone"] .hud-top .hud-phase { grid-area: phase; font-size: 11px; line-height: 1.1; font-style: italic; color: var(--hud-muted); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; align-self: start; }
+.hud[data-layout="phone"] .hud-top .hud-playerchip { grid-area: chip; justify-self: end; align-self: center; min-width: 0; max-width: 100%; font-size: 12px; }
 .hud[data-layout="phone"] .hud-btn { min-height: 44px; min-width: 44px; }
 .hud[data-layout="phone"] .hud-chip,
 .hud[data-layout="phone"] .hud-dot,
@@ -160,7 +168,10 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-card select.hud-input { min-width: 0; }
 
 /* prediction and results (spec 013) */
-.hud-playerchip { display: inline-flex; gap: 0.35em; align-items: center; margin-left: auto; align-self: center; min-height: 32px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 12px; border: 0; cursor: pointer; background: var(--hud-wax); color: var(--hud-on-wax); font: 600 13px var(--hud-body, Spectral, Georgia, serif); }
+.hud-playerchip { position: relative; display: inline-flex; gap: 0.35em; align-items: center; margin-left: auto; align-self: center; min-width: 0; max-width: min(46vw, calc(50% - 90px)); padding: 2px 12px; border: 0; cursor: pointer; background: none; color: var(--hud-gilt); box-shadow: inset 0 0 0 1px var(--hud-gilt); font: 600 13px/1.25 var(--hud-body, Spectral, Georgia, serif); }
+/* the box is as tall as its text; the touch area is the box plus an invisible margin (44 px on the phone, FR-429) */
+.hud-playerchip::after { content: ''; position: absolute; left: -6px; right: -6px; top: -8px; bottom: -8px; }
+.hud[data-layout="phone"] .hud-playerchip::after { top: -13px; bottom: -13px; }
 .hud-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hud-chip-stats { flex: none; white-space: nowrap; }
 .hud-pop { position: absolute; right: 12px; top: 58px; width: min(340px, calc(100vw - 24px)); padding: 12px 16px; }
@@ -170,8 +181,10 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-picks { display: flex; flex-wrap: wrap; gap: 6px; max-height: 18vh; overflow: auto; }
 .hud-pick { display: inline-flex; align-items: center; gap: 7px; }
 .hud-pick[aria-pressed="true"] { background: var(--hud-gilt); color: var(--hud-on-gilt); box-shadow: none; font-weight: 600; }
-.hud-seal { align-self: flex-start; padding: 2px 12px; background: var(--hud-wax); color: var(--hud-on-wax); font: 600 13px var(--hud-body, Spectral, Georgia, serif); }
-.hud-result { border-top: 1px solid var(--hud-gilt-dim); padding-top: 8px; }
+.hud-seal { align-self: flex-start; padding: 2px 12px; background: none; color: var(--hud-gilt); box-shadow: inset 0 0 0 1px var(--hud-gilt); font: 600 13px var(--hud-body, Spectral, Georgia, serif); }
+/* the rule above the result only separates it from a prediction block shown above it; at the top of the panel the frame already draws the two lines (spec 015 FR-430) */
+.hud-result { padding-top: 0; }
+.hud-predict:not([hidden]) ~ .hud-result { border-top: 1px solid var(--hud-gilt-dim); padding-top: 8px; }
 .hud-result p { margin: 2px 0; }
 .hud-predict .hud-line { margin: 0; }
 .hud-result[data-right="true"] .hud-title { color: var(--hud-verdigris); }
@@ -220,7 +233,6 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-link-btn { min-height: 24px; padding: 0 4px; border: 0; background: none; color: var(--hud-gilt); font: 500 12px var(--hud-body, Spectral, Georgia, serif); text-decoration: underline; cursor: pointer; }
 .hud[data-layout="phone"] .hud-right { position: static; max-height: none; width: auto; }
 .hud[data-layout="phone"] .hud-pop { top: 52px; right: 8px; }
-.hud[data-layout="phone"] .hud-playerchip { min-height: 44px; }
 /* phone dock: one stable height for every tab and state (about 37% of the screen); the Partida tab shows the prediction block (or the result when no phase is open) and the buttons */
 .hud[data-layout="phone"] .hud-pane { box-sizing: border-box; height: clamp(250px, calc(37vh - 50px), 330px); max-height: none; padding: 6px 12px; overflow: hidden auto; }
 .hud[data-layout="phone"] .hud-command { padding: 0; gap: 6px; min-height: 212px; }
