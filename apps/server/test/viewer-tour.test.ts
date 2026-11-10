@@ -130,14 +130,14 @@ describe('the reveal tours against the real server: the victim tour', () => {
 });
 
 describe('the reveal tours against the real server: the absorber tour and the halt', () => {
-  it('FR-345 (real server) a clock match with L2 = 2 s and one with L2 = 0 give an absorber tour with the application of each round with two candidates, after the C2 close', async () => {
+  it('FR-345 (real server) a clock match with L2 = 2 s and one with L2 = 0 give an absorber tour with the application of each round with a candidate (spec 013 FR-436 includes a single one), after the C2 close', async () => {
     for (const l2 of [2, 0]) {
       const h = await startReads({ service: { scheduler: true } });
       const { id } = makeMatch(h, `t-a${l2}`, { timing: { i: 60, l1: 20, l2 } });
       const v = startViewer({ port: h.port, matchId: id });
       await playToEnd(h, id, v, () => nextClockStep(h));
       const reveals = revealsOf(h, id);
-      const wanted = reveals.filter((e) => e.candidates.length >= 2).map((e) => e.round);
+      const wanted = reveals.filter((e) => e.candidates.length >= 1).map((e) => e.round);
       // The dev match has rounds with two or more candidates (otherwise this test would prove nothing).
       expect(wanted.length).toBeGreaterThan(0);
       expect(v.scene.absorberTours.map((x) => x.to)).toStrictEqual(wanted);
@@ -174,7 +174,7 @@ describe('the reveal tours against the real server: the absorber tour and the ha
     const reveals = revealsOf(h, id);
     expect(v.scene.victimTours.map((x) => x.effect.round)).toStrictEqual(reveals.map((e) => e.round));
     for (const { effect } of v.scene.victimTours) expect(effect.budget).toBeUndefined();
-    expect(v.scene.absorberTours.map((x) => x.to)).toStrictEqual(reveals.filter((e) => e.candidates.length >= 2).map((e) => e.round));
+    expect(v.scene.absorberTours.map((x) => x.to)).toStrictEqual(reveals.filter((e) => e.candidates.length >= 1).map((e) => e.round));
     for (const { tour } of v.scene.absorberTours) expect(tour.budget).toBeUndefined();
     expectNoRequestAboveN(v);
   }, timeoutOf);
