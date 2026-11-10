@@ -17,11 +17,13 @@ describe('FR-409 the overlays between the close of the predictions and the revea
     expect(overlayOf(model, false)).toBeUndefined();
   });
 
-  it('FR-409 phase 1 closed and the victim not revealed yet: PREDICCIONES FINALIZADAS', async () => {
+  it('FR-409 the beat after the close of a window: PREDICCIONES FINALIZADAS, also while the victim is not on the model', async () => {
     const { d } = await phase1();
+    d.beats = true;
     await d.events(eventsOfRound(d.s, 1).slice(0, 3));
-    const closed: LiveModel = { ...d.model, victim: undefined };
-    expect(overlayOf(closed, false)).toBe(STRINGS.overlayFinalised);
+    expect(d.model.beat).toBeDefined();
+    expect(d.model.victim).toBeUndefined();
+    expect(overlayOf(d.model, false)).toBe(STRINGS.overlayFinalised);
     expect(STRINGS.overlayFinalised).toBe('PREDICCIONES FINALIZADAS');
   });
 

@@ -315,7 +315,7 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials): voi
         bannerTimer = timerKey;
         after(left + 20, () => runner?.refreshPanel());
       }
-      const play = session === undefined ? undefined : session.view(model, at, { revealing: shown.revealing, absorbing: shown.absorbing });
+      const play = session === undefined ? undefined : session.view(model, at, { revealing: shown.revealing, absorbing: shown.absorbing, finalised: model.beat !== undefined });
       const picked = pickedOf(play?.predict?.choices);
       if (view !== undefined && picked !== pickedNow) {
         pickedNow = picked;

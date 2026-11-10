@@ -80,7 +80,8 @@ describe('the reveal tours against the real server: the victim tour', () => {
     expect(effect.budget).toBeGreaterThanOrEqual(end);
     expect(effect.budget).toBeLessThanOrEqual(29_000);
     expect(scaleFor(end, effect.budget)).toStrictEqual({ play: true });
-    expect(at).toBe(v.clock.now());
+    // FR-409: the reveal is read at the end of the finalised beat, exactly one beat after the frozen clock.
+    expect(at).toBe(v.clock.now() + 2000);
     // The rest of the round (phase-2 close and the application) starts no second victim tour.
     await step(h, id, v, () => nextClockStep(h));
     await step(h, id, v, () => nextClockStep(h));
@@ -146,7 +147,9 @@ describe('the reveal tours against the real server: the absorber tour and the ha
         expect(tour.victim).toBe(reveal.victim);
         expect([...tour.candidates].sort((a, b) => a - b)).toStrictEqual([...reveal.candidates].sort((a, b) => a - b));
         expect(tour.absorber).toBe(record.absorber);
-        expect(at).toBe(v.clock.now());
+        // FR-409: the application waited for the finalised beat of the phase-2 close, so the tour starts at most one beat after the frozen clock.
+        expect(at).toBeGreaterThanOrEqual(v.clock.now());
+        expect(at - v.clock.now()).toBeLessThanOrEqual(2000);
         // The budget is the time to the next C1 (I - L1 - L2) less the margin and the label step, from the application instant; none for the last round.
         const gap = (60 - 20 - l2) * 1000;
         if (to < v.model().totalRounds) {

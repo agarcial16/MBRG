@@ -357,6 +357,28 @@ describe('FR-406 FR-407 results, leaderboard and winners', () => {
     expect(calls.slice(startCount).map((c) => c.name)).toContain('playerResults');
   });
 
+  it('FR-409 the finalised beat holds the reads too: scores that could name the victim wait for the end of the reveal tour, not just the beat', async () => {
+    const { net, calls } = fakeNet({ results: mine, rows });
+    const { session } = open(net);
+    const model = await liveModel(1);
+    session.view(model, 0, { revealing: false, absorbing: false, finalised: true });
+    await tick();
+    await tick();
+    const startCount = calls.length;
+    session.onFrame(resultsFrame(1, 1));
+    await tick();
+    await tick();
+    expect(calls.length).toBe(startCount);
+    // The beat ends and the tour starts in the same feed: still held.
+    session.view(model, 0, { revealing: true, absorbing: false, finalised: false });
+    await tick();
+    expect(calls.length).toBe(startCount);
+    session.view(model, 0, idle);
+    await tick();
+    await tick();
+    expect(calls.slice(startCount).map((c) => c.name)).toContain('leaderboard');
+  });
+
   it('FR-409 an absorber tour holds the reads too', async () => {
     const { net, calls } = fakeNet({ results: mine, rows });
     const { session } = open(net);

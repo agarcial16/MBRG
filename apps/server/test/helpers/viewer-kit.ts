@@ -23,6 +23,13 @@ export class ManualClock {
   active(): number {
     return this.timers.filter((t) => t.live).length;
   }
+  /** Fires, at once and without waiting, the timers due at the current time. */
+  fireDue(): void {
+    for (const due of this.timers.filter((t) => t.live && t.at <= this.time).sort((a, b) => a.at - b.at)) {
+      due.live = false;
+      due.fn();
+    }
+  }
   /** Fires every timer due within `ms`, in order. */
   async advance(ms: number): Promise<void> {
     const target = this.time + ms;
@@ -116,5 +123,17 @@ export function startViewer(options: ViewerOptions): Viewer {
   const net = createLiveNet({ base: `http://127.0.0.1:${options.port}`, fetch: options.wrap === undefined ? recording : options.wrap(recording) });
   runner = startRunner({ matchId: options.matchId, net, port: scene, now: clock.now, after: clock.after });
   const started = runner;
+  // Spec 013 FR-409: a close holds the rest of the stream for a beat. The kit lets each beat run out at once on its manual clock
+  // (the time only moves forward to the end of the beat), so these tests still see the whole stream.
+  const timer = setInterval(() => {
+    const beat = started.model().beat;
+    if (beat === undefined || clock.time >= beat.until) return;
+    // The tick is read at the end of the beat, in one synchronous step; the clock then goes back, so the timeline of the test is not moved.
+    const back = clock.time;
+    clock.time = beat.until;
+    clock.fireDue();
+    clock.time = back;
+  }, 5);
+  timer.unref();
   return { runner: started, scene, clock, requests, model: () => started.model() };
 }
