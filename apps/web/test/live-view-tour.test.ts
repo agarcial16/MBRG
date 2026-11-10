@@ -170,7 +170,7 @@ describe('FR-330 (shell) the live tour requests and the panel state the shell bu
   const index = new Map(factions.map((f, i) => [f.id, i]));
   const idx = (id: number): number => index.get(id) as number;
 
-  it('FR-330 (shell) the victim request maps ids to view indices and carries sigma and the budget; the last round without two candidates returns to the overview (D20)', async () => {
+  it('FR-330 (shell) the victim request maps ids to view indices and carries sigma and the budget; the last round with no candidates held returns to the overview (D20); a single candidate has its own absorption (FR-436)', async () => {
     const s = await scripted();
     const model = await revealed(s, s.total);
     const victim = s.records[s.total - 1]?.eliminated as number;
@@ -182,8 +182,18 @@ describe('FR-330 (shell) the live tour requests and the panel state the shell bu
       set: effect.living.map(idx),
       sigma: 123_456,
       budget: 4_321,
+    });
+    const nothingHeld = { ...model, victim: undefined };
+    expect(victimRequestOf(effect, nothingHeld, index)).toStrictEqual({
+      kind: 'victim',
+      result: idx(victim),
+      set: effect.living.map(idx),
+      sigma: 123_456,
+      budget: 4_321,
       overviewAfter: true,
     });
+    // FR-435: the forced mark rides on the request.
+    expect(victimRequestOf({ ...effect, forced: true }, model, index)).toMatchObject({ forced: true });
     const earlier = await revealed(s, 1);
     const first = victimRequestOf({ ...effect, round: 1, budget: undefined } as never, earlier, index);
     expect(first).toBeDefined();

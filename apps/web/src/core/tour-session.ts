@@ -24,6 +24,8 @@ export interface TourRequest {
   readonly sigma: number;
   /** The raw time available (FR-336): the view decides scaling and skipping with it. */
   readonly budget?: number;
+  /** Spec 013 FR-435: a forced round; the victim tour is compressed, not skipped. */
+  readonly forced?: true;
   /** A victim tour of the last round with no absorber tour after it: the camera returns to the overview at its end (D20). */
   readonly overviewAfter?: true;
   /** The speed profile (spec 013 FR-411); absent = classic. */
@@ -47,7 +49,7 @@ export function planTours(requests: readonly TourRequest[], reduced: boolean, bo
   const tours: Tour[] = [];
   const stills: boolean[] = [];
   for (const r of requests) {
-    const choice = viewChoice(r.kind, reduced, r.set.length, r.budget, r.pace);
+    const choice = viewChoice(r.kind, reduced, r.set.length, r.budget, r.pace, r.forced === true);
     if (!choice.play) continue;
     const framed = r.kind === 'absorber' && r.victim !== undefined ? [r.victim, ...r.set] : r.set;
     const spec: TourSpec = {
@@ -58,6 +60,7 @@ export function planTours(requests: readonly TourRequest[], reduced: boolean, bo
       ...(r.victim === undefined ? {} : { victim: r.victim }),
       ...(choice.budget === undefined ? {} : { budget: choice.budget }),
       ...(choice.still === true ? { still: true as const } : {}),
+      ...(choice.squeeze === true ? { squeeze: true as const } : {}),
       ...(r.overviewAfter === true && r.kind === 'victim' ? { overviewAfter: true as const } : {}),
       ...(r.pace === undefined ? {} : { pace: r.pace }),
       boxes: boxesOf(framed),
