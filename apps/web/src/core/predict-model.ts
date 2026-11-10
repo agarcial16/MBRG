@@ -7,7 +7,7 @@ import type { Owners } from './live-rounds';
 import { STRINGS, fillTemplate } from './strings';
 
 /** Why nothing can be chosen now. */
-export type NoOffer = 'not-joined' | 'loading' | 'behind' | 'closed' | 'revealing';
+export type NoOffer = 'not-joined' | 'loading' | 'behind' | 'closed' | 'revealing' | 'finalised';
 
 /** What the player may choose: the victim among the living, the absorber among the candidates, nothing, or a forced absorber. */
 export type Offer =
@@ -37,6 +37,8 @@ export function offerOf(model: LiveModel, input: { readonly joined: boolean; rea
   if (!input.joined) return { type: 'none', reason: 'not-joined' };
   if (model.displayed === undefined) return { type: 'none', reason: 'loading' };
   if (model.displayed < model.applied) return { type: 'none', reason: 'behind' };
+  // FR-409: the window has closed on the server; during the beat nothing can be chosen and nothing of the reveal is known.
+  if (model.beat !== undefined) return { type: 'none', reason: 'finalised' };
   const held = model.held.get(model.applied);
   if (held === undefined) return { type: 'none', reason: 'loading' };
   const counts = territoryCounts(held);
@@ -133,6 +135,8 @@ export function noOfferText(reason: NoOffer): string {
       return STRINGS.predictNoneRevealing;
     case 'closed':
       return STRINGS.predictNoneClosed;
+    case 'finalised':
+      return STRINGS.predictNoneFinalised;
   }
 }
 

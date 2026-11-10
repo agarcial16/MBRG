@@ -47,6 +47,8 @@ export interface PlaySessionDeps {
 export interface TourHold {
   readonly revealing: boolean;
   readonly absorbing: boolean;
+  /** FR-409: the finalised beat runs, so the reveal has not started on screen and a read that could name it waits. */
+  readonly finalised?: boolean;
 }
 
 export interface PlaySession {
@@ -62,7 +64,7 @@ export interface PlaySession {
 export function createPlaySession(deps: PlaySessionDeps): PlaySession {
   let state: PlayState = initialPlay;
   let model: LiveModel | undefined;
-  let hold: TourHold = { revealing: false, absorbing: false };
+  let hold: TourHold = { revealing: false, absorbing: false, finalised: false };
   const due: Scored[] = [];
   const asked = new Set<string>();
   const forcedRounds = new Set<number>();
@@ -96,9 +98,9 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
     if (read.ok) set(withWinners(state, scored, read.value.map((w) => w.name)));
   }
 
-  /** Reads that are due and allowed: nothing runs while the victim or the absorber is still being revealed (FR-409, FR-322). */
+  /** Reads that are due and allowed: nothing runs while the victim or the absorber is still being revealed (FR-409, FR-322), nor during the finalised beat. */
   function flush(): void {
-    if (hold.revealing || hold.absorbing) return;
+    if (hold.revealing || hold.absorbing || hold.finalised === true) return;
     const latest = due.splice(0);
     for (const scored of latest) void readWinners(scored, true);
     if (latest.length > 0) void readScores(latest[latest.length - 1]);

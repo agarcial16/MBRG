@@ -4,21 +4,19 @@ import { THEME, toMapTheme } from '../src/core/theme';
 import { createMapScene } from '../src/render/map-scene';
 import { DEV_MAP } from './helpers/dev-map';
 import { FRAGMENT_SHADER } from '../src/render/shader';
-import { TOKENS } from '../src/core/hud-tokens';
-import { PICK_CLASSES, PICK_GILT, PICK_REACH, pickedColor, pickedOf } from '../src/core/pick-outline';
+import { PICK_CLASSES, PICK_REACH, PICK_WHITE, pickedColor, pickedOf } from '../src/core/pick-outline';
 
 const BASE = [10, 20, 30] as const;
 const smallIndex = (): ReturnType<typeof buildEntryIndex> => buildEntryIndex(DEV_MAP, 3, 2, [0, DEV_MAP.territories[0]!.id, DEV_MAP.territories[1]!.id, DEV_MAP.territories[2]!.id, DEV_MAP.territories[0]!.id, 0]);
 
-describe('the chosen faction is outlined in gilt on the map (design of spec 013)', () => {
-  it('the gilt is the gilt of the HUD tokens', () => {
-    const hex = TOKENS.gilt;
-    const rgb = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-    expect([...PICK_GILT]).toStrictEqual(rgb);
+describe('the chosen faction is outlined in white on the map (design of spec 013, amended 2026-11-10)', () => {
+  it('the outline is pure white, not the gilt of the HUD (gilt looked like the ochre and yellow factions)', () => {
+    expect([...PICK_WHITE]).toStrictEqual([255, 255, 255]);
+    expect([...PICK_WHITE]).not.toStrictEqual([192, 153, 79]);
   });
 
-  it('a border pixel on the chosen faction side takes the gilt', () => {
-    for (const border of PICK_CLASSES) expect(pickedColor([...BASE], border, 7, 7)).toStrictEqual([...PICK_GILT]);
+  it('a border pixel on the chosen faction side takes the white', () => {
+    for (const border of PICK_CLASSES) expect(pickedColor([...BASE], border, 7, 7)).toStrictEqual([...PICK_WHITE]);
   });
 
   it('the other side of the border, other factions, inner territory lines and no choice keep the colour', () => {

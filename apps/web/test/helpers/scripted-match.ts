@@ -157,6 +157,9 @@ export class Driver {
   publicN: number | undefined;
   /** Scripted failures: each read or stream opening takes the next one (first in, first out) instead of succeeding. */
   readonly failures: { outcome: 'retry' | 'unknown-match'; retryAfterMs?: number }[] = [];
+  /** When false (the default) a finalised beat (FR-409) ends at once by its own timer; the beat tests set it to hold the frames. */
+  beats = false;
+  private ticking = 0;
   /** The `until` of the last `arm-timer` effect. */
   armed: number | undefined;
   /** When true, `read-state` and `read-record` are held back until `release()` (a read still in flight). */
@@ -179,8 +182,18 @@ export class Driver {
     const out = reduce(this.model, input);
     this.model = out.model;
     for (const effect of out.effects) {
+      // A timer for the finalised beat is the helper's own business unless the test holds the beats (it is not part of what other tests pin).
+      if (!this.beats && effect.type === 'arm-timer' && (out.model.beat !== undefined || input.type === 'tick' && this.ticking > 0)) {
+        this.armed = effect.until;
+        continue;
+      }
       this.log.push({ effect, applied: out.model.applied });
       await this.answer(effect);
+    }
+    if (!this.beats && this.model.beat !== undefined) {
+      this.ticking++;
+      await this.feed({ type: 'tick', at: this.model.beat.until });
+      this.ticking--;
     }
   }
 

@@ -282,7 +282,7 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-banner-line { font-size: 17px; }
 .hud-overlay { position: absolute; left: 50%; top: 110px; transform: translateX(-50%); z-index: 4; padding: 10px 22px; font: 600 20px var(--hud-display, 'Cormorant SC', Georgia, serif); letter-spacing: 0.08em; color: var(--hud-gilt); pointer-events: none; text-align: center; }
 .hud-overlay[hidden] { display: none; }
-.hud[data-layout="phone"] .hud-overlay { top: 100px; font-size: 16px; }
+.hud[data-layout="phone"] .hud-overlay { top: 100px; left: 8px; transform: none; box-sizing: border-box; max-width: calc(100vw - 130px); font-size: 16px; }
 @keyframes hud-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {

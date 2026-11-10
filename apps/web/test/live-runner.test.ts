@@ -139,8 +139,20 @@ async function launch(options: Options = {}): Promise<Harness> {
 async function playRounds(h: Harness, from: number, to: number): Promise<void> {
   for (let k = from; k <= to; k++) {
     h.server.n = k;
-    for (const event of eventsOfRound(h.s, k)) h.server.push(frameText(event));
-    await settle();
+    for (const event of eventsOfRound(h.s, k)) {
+      h.server.push(frameText(event));
+      await settle();
+      await releaseBeats(h);
+    }
+  }
+}
+
+/** FR-409: lets the finalised beat of a close run out (the manual clock moves to its end), as the two seconds pass on screen. */
+async function releaseBeats(h: Harness): Promise<void> {
+  for (let i = 0; i < 4; i++) {
+    const beat = h.runner.model().beat;
+    if (beat === undefined) return;
+    await h.clock.advance(Math.max(0, beat.until - h.clock.now()));
   }
 }
 
@@ -194,8 +206,7 @@ describe('FR-303 (shell) the runner shows a whole match', () => {
       },
     });
     broken.server.n = 1;
-    for (const event of eventsOfRound(broken.s, 1)) broken.server.push(frameText(event));
-    await settle();
+    await playRounds(broken, 1, 1);
     // The announced round is read from the server and drawn at once (no step on an unverified state).
     expect(broken.server.requests.some((r) => r.path.endsWith('/states/1'))).toBe(true);
     expect(broken.port.steps).toStrictEqual([]);
@@ -508,6 +519,7 @@ async function pushEach(h: Harness, events: readonly unknown[]): Promise<string[
     const before = h.port.calls.length;
     h.server.push(frameText(event));
     await settle();
+    await releaseBeats(h);
     per.push(h.port.calls.slice(before));
   }
   return per;
@@ -543,7 +555,14 @@ describe('FR-316 (shell) the runner routes the tour effects to the port in the o
     // Round 2: the reveal completes the running tour (it may still run), then starts the next one, before the panel.
     await pushEach(h, frames.slice(6));
     h.server.n = 2;
-    const second = await pushEach(h, twoCandidates(h.s, 2).slice(0, 2));
+    // The scripted instants of round 2 are moved on by the two beats that round 1 took on the manual clock.
+    const later = (list: unknown[]): unknown[] =>
+      list.map((e) => {
+        const x = { ...(e as Record<string, number>) };
+        for (const key of ['at', 'revealedAt', 'reportedTime', 'appliedAt'] as const) if (typeof x[key] === 'number') x[key] += 4500;
+        return x;
+      });
+    const second = await pushEach(h, later(twoCandidates(h.s, 2)).slice(0, 2));
     expect(second[1]?.slice(-3)).toStrictEqual(['complete-tour', 'victim-tour', 'show']);
     // The map view's result hook: one panel refresh at the reading of the call, with the current model.
     const before = h.port.shows.length;

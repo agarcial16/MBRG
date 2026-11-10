@@ -141,9 +141,9 @@ describe('FR-401 to FR-407 the prediction shells hand their decisions to the pur
   });
 
   it('FR-406 FR-407 the scores wait for the end of a reveal tour, then the chip, the panel and the board come from the pure view', () => {
-    expect(session).toContain('hold.revealing || hold.absorbing');
+    expect(session).toContain('hold.revealing || hold.absorbing || hold.finalised === true');
     expect(session).toContain('playHud(');
-    expect(liveMain).toContain('session.view(model, at, { revealing: shown.revealing, absorbing: shown.absorbing })');
+    expect(liveMain).toContain('session.view(model, at, { revealing: shown.revealing, absorbing: shown.absorbing, finalised: model.beat !== undefined })');
     expect(liveMain).toContain('onFrame: (data) => session?.onFrame(data)');
   });
 

@@ -27,7 +27,7 @@ import type { Camera, Viewport } from '../core/camera';
 import type { EntryIndex } from '../core/entries';
 import type { FrontField } from '../core/front';
 import { territoryOpacity } from '../core/lines';
-import { PICK_GILT } from '../core/pick-outline';
+import { PICK_WHITE } from '../core/pick-outline';
 import type { MapTheme } from '../core/theme';
 import { FRAGMENT_SHADER, VERTEX_SHADER } from './shader';
 
@@ -165,7 +165,7 @@ export function createMapScene(index: EntryIndex, factionColors: readonly Rgb[],
       uDim: { value: 0 },
       uLit: { value: new Vector2() },
       uPick: { value: 0 },
-      uPickColor: { value: rgb01(PICK_GILT) },
+      uPickColor: { value: rgb01(PICK_WHITE) },
       uImage: { value: new Vector2(index.width, index.height) },
       uCenterCell: { value: new Vector2() },
       uCenterFrac: { value: new Vector2() },

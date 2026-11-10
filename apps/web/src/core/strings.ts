@@ -251,6 +251,7 @@ export const STRINGS = {
   predictNoneBehind: 'Estás viendo una ronda anterior: no se puede predecir.',
   predictNoneRevealing: 'Se está revelando la facción caída.',
   predictNoneClosed: 'Ahora no hay ninguna fase abierta.',
+  predictNoneFinalised: 'Predicciones finalizadas.',
   predictTapNothing: 'Toca una facción viva del mapa para elegirla.',
   predictNotChoosable: 'Esa facción no se puede elegir ahora.',
   predictClosed: 'Esa fase ya se cerró. Se conserva tu elección anterior.',
