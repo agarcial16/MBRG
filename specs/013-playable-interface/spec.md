@@ -1,5 +1,5 @@
 # Spec 013 — Playable interface (create, join, lobby, predict)
-Status: approved (by the user on 2026-11-01; OQ2 and OQ5 follow the proposals: tour 30 % longer, banner 3 s, deployment shape decided with the first deployment). Tier: Light SDD (UI, visual design, animation). Depends on 008, 009, 010 and 011 (implemented). Ids continue 011: FR-393 onwards, NFR-77 onwards. The Discord bot stays spec 012.
+Status: approved (by the user on 2026-11-01; amended 2026-11-10 (FR-409, outline) and 2026-11-11 (FR-434..436) at the user's request; OQ2 and OQ5 follow the proposals: tour 30 % longer, banner 3 s, deployment shape decided with the first deployment). Tier: Light SDD (UI, visual design, animation). Depends on 008, 009, 010 and 011 (implemented). Ids continue 011: FR-393 onwards, NFR-77 onwards. The Discord bot stays spec 012.
 
 ## Goal
 Let a person who is not the operator play in the browser, end to end: create a match, share the link, join with a name, wait in the lobby, predict the victim and the absorber from the HUD or by tapping the map, and read points, a named leaderboard and "who guessed right". It also closes the visual items deferred from 009 and 010 (round banner, camera, tour pacing, reveal overlay, phone zoom). The server, the protocol, the sim and the map format do not change; the anti-spoiler rule holds.
@@ -38,6 +38,9 @@ Let a person who is not the operator play in the browser, end to end: create a m
 - FR-410: WHEN a round ends and the user has not moved the camera since the round began, THE SYSTEM SHALL return to the default view; a camera moved by the user (drag, wheel, pinch, minimap) is left where it is.
 - FR-411: THE SYSTEM SHALL play the tour with a slow-fast-slow (bell-shaped) speed profile and a total duration longer than today's (the exact figure is OQ5), keeping the 009 reveal-timing rules and goldens or amending them in this spec.
 - FR-412: WHEN the phone minimap is shown, THE SYSTEM SHALL zoom the main camera with a two-finger pinch on it, clamped to the camera limits.
+- FR-434 (added 2026-11-11 after the user's test on a real phone): WHEN two fingers touch the map, THE SYSTEM SHALL zoom the camera around the midpoint of the fingers as they spread or close, and pan with the midpoint, clamped to the camera limits, with no jump when a finger lifts or lands (a single finger still pans), and the browser's own page zoom and scroll never take the gesture. The pinch on the minimap of FR-412 stays.
+- FR-435 (added 2026-11-11): WHEN a round is forced (a short phase-2 window), THE SYSTEM SHALL still show the victim reveal animation: if the full tour does not fit the time left, it plays compressed down to the length of the still tour (1,800 ms) instead of being skipped as too short.
+- FR-436 (added 2026-11-11): WHEN the victim has a single candidate absorber (forced absorber), THE SYSTEM SHALL play a short absorption animation (the victim's territory taken by its only neighbour, about 2 s, no candidate roulette) when the round is applied, instead of skipping it; with reduced motion it shows the result at once.
 
 ## Non-functional requirements
 - NFR-77: Every new text lives in the strings module, in Spanish; touch targets, focus, contrast and reduced motion follow NFR-65 to NFR-67 of 010.
