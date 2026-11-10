@@ -186,3 +186,14 @@ describe('FR-409 the wiring of the beat', () => {
     expect(STRINGS.predictNoneFinalised).toBe('Predicciones finalizadas.');
   });
 });
+
+import { PANEL_CSS } from '../src/ui/live-panel-style';
+describe('FR-409 the overlay on the phone keeps clear of the minimap', () => {
+  it('FR-409 on the phone the overlay sits at the left of the parchment and is narrower than the space left of the minimap', () => {
+    const rule = /\.hud\[data-layout="phone"\] \.hud-overlay \{([^}]*)\}/.exec(PANEL_CSS)?.[1] ?? '';
+    expect(rule).toContain('left: 8px');
+    expect(rule).toContain('transform: none');
+    expect(rule).toContain('box-sizing: border-box');
+    expect(rule).toContain('max-width: calc(100vw - 130px)');
+  });
+});
