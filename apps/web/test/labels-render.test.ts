@@ -339,6 +339,9 @@ function fakeLayer() {
     restore() {
       m = stack.pop()!;
     },
+    rotate() {
+      // The angle does not change what this test records.
+    },
     translate(x: number, y: number) {
       m = { ...m, tx: m.tx + m.sx * x, ty: m.ty + m.sy * y };
     },
@@ -444,6 +447,53 @@ describe('FR-175 the label layer draws horizontal text in its exact box at the d
     expect(drawn[0]!.lineWidth).toBeCloseTo(2, 1);
     expect(drawn[1]!.style).toBe('rgb(255, 255, 255)');
     expect(drawn[0]!.text).toBe('Francia');
+  });
+
+  it('FR-438 the view detail factor moves the label fade: names appear earlier at a smaller scale, detail 1 is unchanged', () => {
+    const territory = label({ role: 'territory', box: { x0: 100, y0: 200, h: 40, w: 160 } });
+    const at = (scale: number, detail?: number) => {
+      const { canvas, drawn } = fakeLayer();
+      const layer = attachLabelLayer(canvas);
+      layer.resize(VP, 1);
+      layer.draw([territory], { ...view(scale), ...(detail === undefined ? {} : { detail }) });
+      return drawn.filter((d) => d.op === 'fill').map((d) => d.alpha);
+    };
+    expect(at(0.9)).toStrictEqual([]);
+    expect(at(0.9, 1)).toStrictEqual([]);
+    const early = at(0.9, 0.5);
+    expect(early).toHaveLength(1);
+    expect(early[0]).toBeGreaterThan(0);
+    expect(at(0.7, 0.5)).toStrictEqual([]);
+    expect(at(1.8, 1)[0]).toBeCloseTo(labelAlpha(territory, 1.8, LABEL_PARAMS), 12);
+  });
+
+  it('FR-437 the glyph advances of an arc text are measured again once the font epoch moves', () => {
+    const { canvas, drawn } = fakeLayer();
+    const layer = attachLabelLayer(canvas);
+    layer.resize(VP, 1);
+    const arc: AnyLabelDraw = {
+      text: 'Roma',
+      role: 'faction',
+      frame: { shape: 'arc', cx: 200, cy: 150, angle: 0, h: 20, w: 120, bend: 30, radius: 200 },
+      factor: 1,
+      ink: [0, 0, 0],
+      halo: [255, 255, 255],
+    };
+    const ctx = canvas.getContext('2d') as unknown as { measureText: (t: string) => { width: number }; font: string };
+    const original = ctx.measureText.bind(ctx);
+    let reference = 0;
+    ctx.measureText = (t: string) => {
+      if (ctx.font.includes('100px')) reference++;
+      return original(t);
+    };
+    const v = { ...view(1, 1, 200, 150), fonts: 1 };
+    layer.draw([arc], v);
+    expect(reference).toBe(4);
+    layer.draw([arc], v);
+    expect(reference).toBe(4);
+    layer.draw([arc], { ...v, fonts: 2 });
+    expect(reference).toBe(8);
+    expect(drawn.filter((d) => d.op === 'fill')).toHaveLength(12);
   });
 
   it('FR-172 the label opacity is the opacity of the scale times the factor, and fully faded labels are not drawn', () => {

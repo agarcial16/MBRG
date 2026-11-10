@@ -186,3 +186,18 @@ Verified in a real browser (chrome-devtools) against `apps/server/src/main.ts` w
 ### Not done / notes
 - The applied round of a forced match reaches the viewer about 3 s after the phase-2 close (the next round's phase 1 starts as it plays): server timeline, untouched.
 - Contact sheets come from a recorder with `preserveDrawingBuffer`; plain screenshots were too slow for a 2 s animation.
+
+## Map name font and earlier provinces on phones (FR-437, FR-438, 2026-11-11)
+### 1. Bundled font (FR-437)
+- Noto Sans weight 600, latin + latin-ext woff2 in `public/fonts` (13 KB + 60 KB). Source: Google Fonts CSS API (Chrome user agent), files `https://fonts.gstatic.com/s/notosans/v42/o-0mIpQlx3QUlC5A4PNB6Ryti20_6n1iPHjcz6L1SoM-jCpoiyAjBO9a6VI.woff2` (latin) and `...BO9U6VLKzA.woff2` (latin-ext). Licence: SIL OFL 1.1, text from `https://raw.githubusercontent.com/notofonts/latin-greek-cyrillic/main/OFL.txt` saved as `OFL-NotoSans.txt`.
+- `LABEL_PARAMS.font.families` is now `['"Noto Sans"', 'sans-serif']` (the generic family is only the failure fallback). `render`-independent `ui/map-font.ts` declares the @font-face (not in the HUD CSS, so the debug scene loads it) and `ensureMapFont()` awaits `document.fonts.load` for both subsets (no timer: the timer scan allows `setTimeout` only in live-timer; a failed load resolves and the generic fallback is used). Awaited in `main.ts` (debug) and in `live-main.ts` `open` before any view exists, so aspects (map-view) and advances are measured with the real font.
+- `fontEpoch()` moves when fonts settle; map-view puts it in the view (`MapView.fonts`) and the label layer drops its glyph-advance cache when it changes.
+- Pins changed ONLY for the family string: `label-centre.test.ts` and `label-review-set.test.ts` (LABEL_PARAMS pins). No golden changed.
+### 2. Detail scale (FR-438)
+- `core/detail-scale.ts`: `detailFactor(image, vp) = min(1, fit/fit_ref)` (ref 1280x720; 1 for a degenerate input) and `scaledFade(params, k)`. Used by the label layer (`MapView.detail`) and by the shader uniform in `map-scene.setView` (territory lines), so names and lines fade in together. Desk and larger: factor exactly 1, same numbers (no golden or pin moved). The reference CPU renderers (`borders.ts`, `transition-shade.ts`) are not used by the page and were left on the base thresholds.
+- minPx (9) stays: a name is still not drawn below 9 px even when its fade has started, so on a phone the small provinces appear a little after the big ones, never unreadable. `tour-camera` still bounds the framing by the base `fadeStart`; at phone fit this is above the scaled value only for large framings: not changed.
+### Browser (chrome-devtools, debug scene seed 1 round 0; 390x844 dpr 2.75 mobile+touch Android UA, and 1280x720)
+- Image 2048 px: phone fit 0.19, desk fit 0.352, factor 0.54: provinces fade in at 0.81..1.08 on the phone. Before: phone at zoom 0.9 shows no province line or name; after: lines and names visible with the faction names fading. Desk at 1.7 shows provinces both before and after. Phone and desk names now use the same Noto Sans (`document.fonts` reports both faces loaded).
+- Note: the emulated Chrome still has Segoe UI on this Windows PC, so the Android fallback itself was not reproduced; the fix removes the dependency. NOT tested on a physical phone.
+- Screens (specs/013-playable-interface/screens): labels-phone-before/after, labels-desk-before/after, provinces-phone-before-z0.9, provinces-phone-after-z0.9, provinces-desk-z1.7 (before) and -after.
+- Tests: new detail-scale.test.ts, map-font.test.ts, two in labels-render.test.ts (seen red first); full `npm test` 5224 passed, typecheck green.

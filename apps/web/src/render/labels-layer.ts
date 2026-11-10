@@ -6,6 +6,7 @@
 // as 005 did, a straight label along its reading direction, an arc label glyph by glyph.
 import type { Camera, Viewport } from '../core/camera';
 import { GLYPH_REFERENCE_PX, arcGlyphs, glyphOffsets, straightMatrix } from '../core/glyph-layout';
+import { scaledFade } from '../core/detail-scale';
 import { drawable, frameOf, labelAlpha, screenBox } from '../core/label-frame';
 import type { AnyLabelDraw, LabelDraw, ShapedDraw } from '../core/label-frame';
 import { LABEL_PARAMS, fontString } from '../core/label-params';
@@ -52,9 +53,12 @@ const toScreen = (cam: Camera, vp: Viewport, x: number, y: number): [number, num
 export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
   const ctx = canvas.getContext('2d');
   if (ctx === null) throw new Error('no 2D context for the label layer');
-  const params = LABEL_PARAMS;
+  const base = LABEL_PARAMS;
+  /** The fade thresholds of the drawing in progress (scaled by the view's detail factor). */
+  let params = base;
   /** Glyph advances of each arc text at the reference size, measured once per text. */
   const advances = new Map<string, readonly number[]>();
+  let measuredAt: number | undefined;
   const advancesOf = (text: string): readonly number[] => {
     let a = advances.get(text);
     if (a === undefined) {
@@ -189,6 +193,12 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
     },
     draw(labels: readonly AnyLabelDraw[], view: MapView, overlay?: TourOverlay): void {
       const { camera, viewport, dpr } = view;
+      params = scaledFade(base, view.detail ?? 1);
+      // The font may arrive after a first measurement (fallback glyphs): measure again then (FR-437).
+      if (view.fonts !== measuredAt) {
+        advances.clear();
+        measuredAt = view.fonts;
+      }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, viewport.width, viewport.height);
       ctx.lineCap = 'butt';

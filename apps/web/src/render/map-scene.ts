@@ -26,6 +26,7 @@ import { BORDER_PRIORITY } from '../core/borders';
 import type { Camera, Viewport } from '../core/camera';
 import type { EntryIndex } from '../core/entries';
 import type { FrontField } from '../core/front';
+import { scaledFade } from '../core/detail-scale';
 import { territoryOpacity } from '../core/lines';
 import { PICK_WHITE } from '../core/pick-outline';
 import type { MapTheme } from '../core/theme';
@@ -36,6 +37,10 @@ export interface MapView {
   camera: Camera;
   viewport: Viewport;
   dpr: number;
+  /** Detail factor of core/detail-scale (1 when absent): scales where the territory lines fade in. */
+  detail?: number;
+  /** Epoch of the loaded fonts (ui/map-font): when it changes the label layer measures its text again. */
+  fonts?: number;
 }
 
 export interface MapTextures {
@@ -212,7 +217,7 @@ export function createMapScene(index: EntryIndex, factionColors: readonly Rgb[],
       (u.uDevice!.value as Vector2).set(device.width, device.height);
       u.uScale!.value = cam.scale;
       u.uDpr!.value = view.dpr;
-      u.uTerritoryOpacity!.value = territoryOpacity(cam.scale, theme.territoryLine);
+      u.uTerritoryOpacity!.value = territoryOpacity(cam.scale, scaledFade(theme.territoryLine, view.detail ?? 1));
     },
     setFront(front: MapFront | undefined): void {
       if (front === undefined) {
