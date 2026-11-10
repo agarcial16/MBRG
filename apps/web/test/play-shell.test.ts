@@ -265,6 +265,12 @@ describe('second screenshot pass: desk panel, outline, scrollbars and the round 
     expect(css).toContain('.hud-predict .hud-line { margin: 0; }');
   });
 
+  it('FR-430 the prediction block has no rule above it: the frame already draws the two lines', () => {
+    const block = css.split('\n').find((line) => line.startsWith('.hud-predict {'));
+    expect(block).toBeDefined();
+    expect(block).not.toContain('border');
+  });
+
   it('the seal row is reserved while there is something to choose, so the buttons do not jump when a choice is sent', () => {
     expect(css).toContain('.hud-seal[data-empty="true"] { visibility: hidden; }');
     expect(panel).toContain("view.seal !== undefined || view.choices.length > 0");

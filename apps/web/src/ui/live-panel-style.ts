@@ -164,7 +164,7 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hud-chip-stats { flex: none; white-space: nowrap; }
 .hud-pop { position: absolute; right: 12px; top: 58px; width: min(340px, calc(100vw - 24px)); padding: 12px 16px; }
-.hud-predict { border-top: 1px solid var(--hud-gilt-dim); padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.hud-predict { padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 .hud-predict-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .hud-predict-count { color: var(--hud-gilt); font-size: 18px; }
 .hud-picks { display: flex; flex-wrap: wrap; gap: 6px; max-height: 18vh; overflow: auto; }
