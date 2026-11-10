@@ -19,6 +19,8 @@ export interface TourParams {
   readonly absorber: TourTiming;
   /** Still tour of the reduced-motion preference: one stop, no camera, hold and fades only. */
   readonly still: { readonly hold: number; readonly fade: number };
+  /** Spec 013 FR-436: the absorption of a single candidate (a forced absorber): one stop, the camera legs, about 2 s, no roulette. */
+  readonly single: { readonly hold: number; readonly fade: number };
   /** delta max: the largest fraction by which the rest of the map is darkened (35 % brightness). */
   readonly dimMax: number;
   /** Camera easings, in milliseconds. */
@@ -52,6 +54,7 @@ export const TOUR_PARAMS: TourParams = {
   victim: { stops: 12, pairStops: 6, dwellMin: 120, dwellMax: 700, hold: 1500, fade: 300 },
   absorber: { stops: 6, dwellMin: 120, dwellMax: 500, hold: 800, fade: 300 },
   still: { hold: 1500, fade: 300 },
+  single: { hold: 1700, fade: 300 },
   dimMax: 0.65,
   cameraIn: 800,
   cameraOut: 1200,

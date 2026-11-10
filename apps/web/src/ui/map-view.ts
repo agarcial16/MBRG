@@ -8,6 +8,7 @@
 import type { FactionId, MapData, PresentationData, Rgb, TerritoryId } from '@mbrg/shared';
 import { initialCamera, resizeCamera } from '../core/camera';
 import type { Camera, Viewport } from '../core/camera';
+import { detailFactor } from '../core/detail-scale';
 import { factionColorList, buildEntryIndex, factionIndexOf, ownerTable } from '../core/entries';
 import type { EntryIndex } from '../core/entries';
 import { frontField } from '../core/front';
@@ -45,6 +46,7 @@ import {
 import type { SessionPaint, SessionView, TourRequest, TourSession, TourStatus } from '../core/tour-session';
 import { attachLabelLayer } from '../render/labels-layer';
 import type { TourOverlay } from '../render/labels-layer';
+import { fontEpoch } from './map-font';
 import { createMapScene } from '../render/map-scene';
 import { attachRenderer } from '../render/renderer';
 import { createFrameLoop } from './frame-loop';
@@ -256,7 +258,7 @@ export function createMapView(input: MapViewInput): MapView {
       renderer.resize(viewport, ratio);
       labelLayer.resize(viewport, ratio);
     }
-    const view = { camera, viewport, dpr: ratio };
+    const view = { camera, viewport, dpr: ratio, detail: detailFactor(image, viewport), fonts: fontEpoch() };
     mapScene.setView(view);
     renderer.draw();
     labelLayer.draw(drawn, view, overlay);

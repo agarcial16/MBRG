@@ -165,7 +165,7 @@ export type LiveEffect =
    * of `<match id>:<round>` and, with a running clock, the milliseconds available (before the view's own scaling). There
    * is no field for an absorber, a record, a state of the round or a round seed.
    */
-  | { readonly type: 'victim-tour'; readonly round: number; readonly victim: number; readonly living: readonly number[]; readonly sigma: number; readonly budget?: number }
+  | { readonly type: 'victim-tour'; readonly round: number; readonly victim: number; readonly living: readonly number[]; readonly sigma: number; readonly budget?: number; readonly forced?: true }
   /** FR-339: complete the running tour at once (its final state). */
   | { readonly type: 'complete-tour' };
 
@@ -454,6 +454,7 @@ function victimTour(model: LiveModel, e: Extract<MatchEvent, { type: 'victim-rev
     victim: e.victim,
     timing: model.timing,
     c2: e.c2,
+    forced: e.forced === true,
   });
   const complete = completeIfTouring(model);
   const skipped = !decision.play && decision.reason === 'mismatch';
@@ -465,6 +466,7 @@ function victimTour(model: LiveModel, e: Extract<MatchEvent, { type: 'victim-rev
     living: e.living,
     sigma: fnv1a32(keyText(model.matchId, e.round, 'victim')),
     ...(decision.budget === undefined ? {} : { budget: decision.budget }),
+    ...(decision.forced === true ? { forced: true as const } : {}),
   };
   return result({ ...model, touring: true, skipped: false }, [...complete, start]);
 }

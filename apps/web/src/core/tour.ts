@@ -19,6 +19,8 @@ export interface StopsInput {
 
 /** H: 12 stops for a victim tour with 3 or more participants, 6 with two, 6 for an absorber tour. */
 export function stopCount(kind: TourKind, setSize: number): number {
+  // FR-436: an absorber tour of one candidate (a forced absorber) has one stop, the absorber itself.
+  if (kind === 'absorber' && setSize === 1) return 1;
   if (setSize < 2) throw new RangeError('a tour needs at least two factions');
   if (kind === 'absorber') return TOUR_PARAMS.absorber.stops;
   return setSize >= 3 ? TOUR_PARAMS.victim.stops : TOUR_PARAMS.victim.pairStops;
@@ -55,6 +57,8 @@ export interface TourSpec extends StopsInput {
   readonly budget?: number;
   /** The reduced-motion still tour: one stop, the result, hold and fades only (FR-343). */
   readonly still?: true;
+  /** Spec 013 FR-435: a forced round compresses below the half of the tour that every other round needs (the caller keeps the floor). */
+  readonly squeeze?: true;
   /** The victim of an absorber tour: its framing is part of the camera leg (FR-348). */
   readonly victim?: number;
   /** Framing box of every faction the camera may frame (the victim and the set); absent = no camera legs. */
@@ -107,6 +111,7 @@ const dwellFor = (pace: TourPace) => (pace === 'bell' ? bellDwellOf : dwellOf);
  * (or hold plus fade for the still tour). The decisions of `tour-plan.ts` compare their budget with it.
  */
 export function nominalEnd(kind: TourKind, setSize: number, still = false, pace: TourPace = 'classic'): number {
+  if (kind === 'absorber' && setSize === 1) return TOUR_PARAMS.single.hold + TOUR_PARAMS.single.fade;
   if (setSize < 2) throw new RangeError('a tour needs at least two factions');
   if (still) return TOUR_PARAMS.still.hold + TOUR_PARAMS.still.fade;
   const timing = timingOf(kind, pace);
@@ -156,14 +161,16 @@ export function buildTour(spec: TourSpec): Tour {
   } else {
     stops = drawStops(spec);
     dwells = Array.from({ length: stops.length - 1 }, (_, k) => dwellFor(pace)(k + 1, stops.length, timing));
-    hold = timing.hold;
-    fade = timing.fade;
+    // A single candidate has no dwell: the hold and fade of the short absorption.
+    const single = spec.kind === 'absorber' && stops.length === 1;
+    hold = single ? TOUR_PARAMS.single.hold : timing.hold;
+    fade = single ? TOUR_PARAMS.single.fade : timing.fade;
   }
   const nominal = dwells.reduce((sum, d) => sum + d, 0) + hold + fade;
   const budget = spec.budget;
   let scale = (x: number): number => x;
   if (budget !== undefined) {
-    if (!(budget * 2 >= nominal)) throw new RangeError('a budget below half of the tour is skipped, not scaled');
+    if (!(budget * 2 >= nominal) && spec.squeeze !== true) throw new RangeError('a budget below half of the tour is skipped, not scaled');
     if (budget < nominal) {
       scale = (x: number): number => Math.floor((x * budget) / nominal);
       dwells = dwells.map(scale);

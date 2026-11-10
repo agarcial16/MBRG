@@ -82,7 +82,7 @@ function inView(box: LabelBox, cam: { x: number; y: number; zoom: number }): boo
 describe('NFR-34 FR-169 FR-172 FR-182 the label parameters approved by the user in T9 (2026-10-16)', () => {
   it('NFR-34 the chosen literals are pinned (L0 / L1 follow the territory lines of 004: 1.5 / 2)', () => {
     expect(P).toStrictEqual({
-      font: { weight: 600, families: ['"Segoe UI"', '"Helvetica Neue"', 'Arial', 'sans-serif'] },
+      font: { weight: 600, families: ['"Noto Sans"', 'sans-serif'] },
       margin: 2,
       maxHeight: 120,
       minPx: 9,

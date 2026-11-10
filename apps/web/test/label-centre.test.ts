@@ -77,7 +77,7 @@ describe('centre parameters (spec 007)', () => {
 
   it('FR-219 the 005 and 006 parameters keep their pinned values', () => {
     expect(LABEL_PARAMS).toStrictEqual({
-      font: { weight: 600, families: ['"Segoe UI"', '"Helvetica Neue"', 'Arial', 'sans-serif'] },
+      font: { weight: 600, families: ['"Noto Sans"', 'sans-serif'] },
       margin: 2,
       maxHeight: 120,
       minPx: 9,

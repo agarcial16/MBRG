@@ -33,6 +33,7 @@ import { probeCapabilities } from '../render/renderer';
 import { now } from './clock';
 import { attachInput } from './input';
 import { loadPackage } from './load';
+import { ensureMapFont } from './map-font';
 import { createMapView } from './map-view';
 import { createPanel } from './panel';
 import { syncAddress } from './url';
@@ -58,6 +59,8 @@ function showError(message: string): void {
 }
 
 async function start(): Promise<void> {
+  // The map names are measured with the bundled font (FR-437): load it while the package downloads.
+  const font = ensureMapFont();
   const loaded = await loadPackage();
   if (!loaded.ok) return showError(packageErrorMessage(loaded.errors));
   const pkg = loaded.value;
@@ -71,6 +74,7 @@ async function start(): Promise<void> {
   const problems = checkCapabilities(probeCapabilities(), pkg.width, pkg.height, entryCount + 1);
   if (problems.length > 0) return showError(capabilityMessage(problems[0]!));
 
+  await font;
   const colors = assignFactionColors(map, presentation, THEME);
   if (!colors.ok) return showError(paletteMessage(colors.errors[0]!, presentation));
 

@@ -1,9 +1,11 @@
 // Pointer, wheel and keyboard input (FR-145, FR-146, FR-154). Thin: the maths lives in core/camera and
 // core/navigation; this file only turns DOM events into calls.
-import { panTo, screenToMap, wheelSteps, zoomAt } from '../core/camera';
-import type { Camera, ImageSize, MapPoint, ScreenPoint, Viewport } from '../core/camera';
+import { wheelSteps, zoomAt } from '../core/camera';
+import type { Camera, ImageSize, ScreenPoint, Viewport } from '../core/camera';
 import { keyAction, shortcutApplies } from '../core/navigation';
 import type { NavAction } from '../core/navigation';
+import { gestureDown, gestureMove, gestureUp, idleGesture } from '../core/pointer-gesture';
+import type { Gesture } from '../core/pointer-gesture';
 import { isTap } from '../core/predict-model';
 
 export interface InputTarget {
@@ -26,31 +28,39 @@ export function attachInput(canvas: HTMLCanvasElement, target: InputTarget): voi
     const rect = canvas.getBoundingClientRect();
     return { sx: e.clientX - rect.left, sy: e.clientY - rect.top };
   };
-  let grabbed: MapPoint | undefined;
+  // FR-434: every pointer that is down; one pans, two pinch (core/pointer-gesture).
+  let gesture: Gesture = idleGesture;
   let pressed: { sx: number; sy: number; at: number } | undefined;
 
   canvas.style.touchAction = 'none';
+  // Safari has its own two-finger page zoom (gesture events): the map takes the gesture.
+  for (const name of ['gesturestart', 'gesturechange']) canvas.addEventListener(name, (e) => e.preventDefault());
   canvas.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
-    grabbed = screenToMap(target.camera(), local(e), target.viewport());
-    pressed = { ...local(e), at: e.timeStamp };
-    canvas.setPointerCapture(e.pointerId);
+    gesture = gestureDown(gesture, e.pointerId, local(e), target.camera(), target.viewport());
+    // A second finger turns the press into a gesture: it is no tap.
+    pressed = gesture.multi ? undefined : { ...local(e), at: e.timeStamp };
+    try {
+      canvas.setPointerCapture(e.pointerId);
+    } catch {
+      // A pointer that is already gone cannot be captured: the gesture simply ends with its release.
+    }
   });
   canvas.addEventListener('pointermove', (e) => {
     const point = local(e);
     target.pointerMoved(point);
-    if (grabbed !== undefined) {
-      target.setCamera(panTo(target.camera(), grabbed, point, target.image, target.viewport()));
-    }
+    const moved = gestureMove(gesture, e.pointerId, point, target.camera(), target.image, target.viewport());
+    gesture = moved.gesture;
+    if (moved.camera !== undefined) target.setCamera(moved.camera);
   });
   const release = (e: PointerEvent): void => {
-    grabbed = undefined;
+    gesture = gestureUp(gesture, e.pointerId, target.camera(), target.viewport());
     if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
   };
   canvas.addEventListener('pointerup', (e) => {
     const down = pressed;
     pressed = undefined;
-    if (down !== undefined && e.button === 0 && isTap(down, { ...local(e), at: e.timeStamp })) target.onTap?.(local(e));
+    if (down !== undefined && !gesture.multi && e.button === 0 && isTap(down, { ...local(e), at: e.timeStamp })) target.onTap?.(local(e));
     release(e);
   });
   canvas.addEventListener('pointercancel', (e) => {
@@ -58,7 +68,7 @@ export function attachInput(canvas: HTMLCanvasElement, target: InputTarget): voi
     release(e);
   });
   canvas.addEventListener('pointerleave', () => {
-    if (grabbed === undefined) target.pointerMoved(undefined);
+    if (gesture.fingers.size === 0) target.pointerMoved(undefined);
   });
   canvas.addEventListener(
     'wheel',
