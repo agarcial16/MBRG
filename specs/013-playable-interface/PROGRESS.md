@@ -172,3 +172,17 @@ Verified in a real browser (chrome-devtools) against `apps/server/src/main.ts` w
 - Phone: the overlay used to overlap the minimap; now left-aligned, `max-width: calc(100vw - 130px)` (right edge 268 px < minimap 278 px). CSS changed before its test was written (test pins the rule).
 ### Not done
 - The phase-1 countdown reads 0:01 during the beat (the clock offset), not 0:00. Controls row on the phone dock shows only two arrows in the Orden-less open-phase state (seen in captures, not touched).
+
+## Real-phone fixes (FR-434..436, 2026-11-11)
+### 1. Pinch (4898b1f)
+- `core/pointer-gesture.ts` (pure): fingers map + anchor re-taken whenever a finger lands or lifts (no jump); one finger pans (`panTo`), two zoom about the midpoint and pan with it, inside `clampCamera`/`scaleLimits`; `multi` flag keeps a pinch from ending in a tap. `ui/input.ts` uses it (mouse and wheel unchanged), `setPointerCapture` in try/catch, Safari `gesturestart/gesturechange` prevented on the canvas, `overscroll-behavior: none` on the page body. HUD panels keep their own scrolling (touch-action only on the canvas). Tests: test/pointer-gesture.test.ts (seen red: missing module).
+- Browser (390x844 mobile+touch emulation, synthetic two-pointer PointerEvents): debug scene zoom 0.461 -> 4.151 on spread and back to the fit scale on close; live match zoom 0.190 -> 0.476. Screens: pinch-zoomed-in, pinch-live-phone. NOT tested on a physical phone; no tap-after-pinch run in the browser (covered by unit test only).
+### 2. Forced rounds (d5d102f, 6e16ae3)
+- Cause: phase 2 of a forced round is 5 s; the 2 s finalised beat leaves a budget of C2 - estimate - 1000 = 2000 ms; classic (5,349) and bell victim tours need >= half of their length, so the tour was skipped as too short; the absorber tour was skipped for d = 1 (`no-candidates`).
+- Victim: `VictimInput.forced` (from `victim-revealed.forced`) -> decision/effect/`TourRequest` carry `forced`; `viewChoice(..., forced)` never skips: it plays in the time left, at least 1,800 ms (`squeeze`: `buildTour` accepts a budget below half). Non-forced rounds unchanged.
+- Absorber: one candidate plays a short absorption (`TOUR_PARAMS.single`, hold 1,700 + fade 300 = 2,000 ms, one stop, camera frames victim + absorber then returns to the overview); reduced motion shows the result at once; `overviewAfter` of the last victim tour only when no candidates are held.
+- Test changes by the new rule: tour-plan (`[13]` plays), live-model-tour (a d = 1 round has a tour, so complete-tour appears where it did not), live-view-tour, and OUTSIDE apps/web `apps/server/test/viewer-tour.test.ts` (two filters `>= 2` -> `>= 1`). Needs the user's OK.
+- Browser (real server, Rápido, rounds 2-4 forced): victim reveal on the canvas: dimmed map, highlight changes between factions over about 1.4 s, camera eases onto the victim; absorption: dim with victim and candidate lit, camera back to overview in about 1.7 s, then the colour front. Screens: forced-sheet-round2/3 (200-300 ms contact sheets), forced-absorb-sheet-round3/3b.
+### Not done / notes
+- The applied round of a forced match reaches the viewer about 3 s after the phase-2 close (the next round's phase 1 starts as it plays): server timeline, untouched.
+- Contact sheets come from a recorder with `preserveDrawingBuffer`; plain screenshots were too slow for a 2 s animation.
