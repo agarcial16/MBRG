@@ -45,6 +45,7 @@ import { after } from './live-timer';
 import { syncLiveAddress } from './live-url';
 import { createTerra } from './live-terra';
 import type { Terra } from './live-terra';
+import { ensureMapFont } from './map-font';
 import { createMapView } from './map-view';
 import { createPlaySession } from './play-session';
 import type { PlaySession } from './play-session';
@@ -132,6 +133,8 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials): voi
 
   const port: LivePort = {
     async open(match: PublicMatch, files: MapFiles) {
+      // The names are measured with the bundled font (FR-437): it is loaded before the first view exists.
+      const font = ensureMapFont();
       const decoder = new TextDecoder('utf-8');
       const parsed = await parsePackage(
         { map: decoder.decode(files['map.json']), presentation: decoder.decode(files['presentation.json']), image: files['ids.png'] },
@@ -145,6 +148,7 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials): voi
       const presentation = pkg.presentation as PresentationData;
       const problems = checkCapabilities(probeCapabilities(), pkg.width, pkg.height, map.territories.length + 1);
       if (problems.length > 0) return { ok: false, message: capabilityMessage(problems[0]!) };
+      await font;
       const colors = assignFactionColors(map, presentation, THEME);
       if (!colors.ok) return { ok: false, message: paletteMessage(colors.errors[0]!, presentation) };
       const image = { w: pkg.width, h: pkg.height };
