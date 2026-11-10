@@ -12,8 +12,10 @@ import {
   playHud,
   toggleWinners,
   withBoard,
+  withJoined,
   withNotice,
   withOwn,
+  withPlayers,
   withReply,
   withScores,
   withSending,
@@ -111,6 +113,9 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
       const own = await deps.net.ownPredictions(deps.matchId, deps.player.token, deps.player.playerId.slice(deps.player.playerId.indexOf(':') + 1));
       if (own.ok) state = withOwn(state, own.value);
     }
+    // FR-432: the players list, once; later joins arrive as `player-joined` frames (see `onFrame`), with no further read.
+    const roster = await deps.net.players(deps.matchId);
+    if (roster.ok) state = withPlayers(state, roster.value);
     await readScores(undefined);
   }
 
@@ -161,6 +166,8 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
       return playHud({ state, model: next, player: deps.player, factions: deps.factions, revealing: tour.revealing, at, forcedRounds });
     },
     onFrame(data) {
+      const joined = withJoined(state, data);
+      if (joined !== state) set(joined);
       const scored = scoredOf(data);
       if (scored === undefined) return;
       due.push(scored);

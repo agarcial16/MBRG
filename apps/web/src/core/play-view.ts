@@ -1,8 +1,9 @@
 // What the match screen shows for the player (spec 013 FR-401 to FR-407, FR-397): one immutable state of the player's session and one
 // pure function from that state and the live model to the data the panel draws. The shell (`ui/play-session.ts`) owns the calls and
 // the timers; every transition of the state and every sentence is here. No DOM, no network, no token.
-import type { LeaderboardRow, OwnPrediction, PlayerResult, PredictionReply } from '@mbrg/protocol';
+import type { LeaderboardRow, OwnPrediction, PlayerListItem, PlayerResult, PredictionReply } from '@mbrg/protocol';
 import { estimateAt, type LiveModel } from './live-model';
+import { emptyLobby, lobbyAfterFrame, lobbyAfterPlayers, type LobbyModel } from './lobby-model';
 import { countdownTime, scheduleOf } from './live-text';
 import type { FactionName } from './live-view';
 import { bookAfterReply, bookFromOwn, emptyBook, offerOf, offerText, sentFor, sentText, type Book, type Offer } from './predict-model';
@@ -10,6 +11,7 @@ import {
   boardPage,
   chipParts,
   chipText,
+  completeBoard,
   latestScored,
   rankOf,
   resultFor,
@@ -31,6 +33,8 @@ export interface PlayState {
   /** The scored phase the results panel talks about. */
   readonly scored: Scored | undefined;
   readonly rows: readonly LeaderboardRow[] | undefined;
+  /** FR-432: every player who joined (players read plus `player-joined` events). */
+  readonly lobby: LobbyModel;
   readonly boardPage: number;
   /** The names that guessed a scored phase right, by `round:phase`. */
   readonly winners: ReadonlyMap<string, readonly string[]>;
@@ -45,6 +49,7 @@ export const initialPlay: PlayState = {
   scores: undefined,
   scored: undefined,
   rows: undefined,
+  lobby: emptyLobby,
   boardPage: 0,
   winners: new Map(),
   expanded: new Set(),
@@ -63,6 +68,13 @@ export function withScores(state: PlayState, scores: NonNullable<PlayState['scor
   return { ...state, scores, scored: scored ?? state.scored ?? latestScored(scores.items) };
 }
 export const withBoard = (state: PlayState, rows: readonly LeaderboardRow[]): PlayState => ({ ...state, rows });
+/** FR-432: the players list as read (the same read the lobby makes). */
+export const withPlayers = (state: PlayState, items: readonly PlayerListItem[]): PlayState => ({ ...state, lobby: lobbyAfterPlayers(state.lobby, items) });
+/** FR-432: an event frame; a `player-joined` adds the player at once, any other frame returns the same state. */
+export function withJoined(state: PlayState, data: unknown): PlayState {
+  const next = lobbyAfterFrame(state.lobby, data);
+  return next.outcome === 'joined' ? { ...state, lobby: next.model } : state;
+}
 export const withWinners = (state: PlayState, scored: Scored, names: readonly string[]): PlayState => ({ ...state, winners: new Map(state.winners).set(scoredKey(scored), names) });
 export function toggleWinners(state: PlayState, key: string): PlayState {
   const expanded = new Set(state.expanded);
@@ -130,11 +142,13 @@ export const offerFor = (model: LiveModel, joined: boolean, revealing: boolean):
 export function playHud(input: PlayInput): PlayHud {
   const { state, model, player, factions } = input;
   const nameOf = (faction: number): string => factions.find((f) => f.id === faction)?.name ?? String(faction);
-  const rank = player === undefined || state.rows === undefined ? undefined : rankOf(state.rows, player.playerId);
-  const myName = player === undefined ? undefined : (state.scores?.name ?? state.rows?.find((r) => r.playerId === player.playerId)?.name ?? localName(player.playerId));
+  // FR-432: the server's rows plus every joined player (0 points); nothing to show until a read or a join gave something.
+  const rows = state.rows === undefined && state.lobby.players.length === 0 ? undefined : completeBoard(state.rows ?? [], state.lobby.players);
+  const rank = player === undefined || rows === undefined ? undefined : rankOf(rows, player.playerId);
+  const myName = player === undefined ? undefined : (state.scores?.name ?? rows?.find((r) => r.playerId === player.playerId)?.name ?? localName(player.playerId));
   const chipTotal = state.scored === undefined ? undefined : state.scores?.total;
   const chip = player === undefined || myName === undefined ? undefined : chipText(myName, chipTotal, rank);
-  const parts = player === undefined || myName === undefined ? undefined : chipParts(myName, chipTotal, rank);
+  const parts = player === undefined || myName === undefined ? undefined : chipParts(myName, chipTotal);
 
   const offer = offerFor(model, player !== undefined, input.revealing);
   let predict: PredictView | undefined;
@@ -165,7 +179,7 @@ export function playHud(input: PlayInput): PlayHud {
     const view = winnersView(phase, names, state.expanded.has(key), state.winnersPage.get(key) ?? 0);
     lines.set(round, [...(lines.get(round) ?? []), { key, phase, view }].sort((a, b) => a.phase - b.phase));
   }
-  const board = state.rows === undefined ? undefined : boardPage(state.rows, player?.playerId ?? '', state.boardPage, 10, myName === undefined ? undefined : { name: myName, total: state.scores?.total ?? 0 });
+  const board = rows === undefined ? undefined : boardPage(rows,player?.playerId ?? '', state.boardPage, 10, myName === undefined ? undefined : { name: myName, total: state.scores?.total ?? 0 });
   return { chip, chipParts: parts, predict, result, board, winners: lines };
 }
 

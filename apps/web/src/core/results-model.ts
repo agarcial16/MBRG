@@ -2,7 +2,7 @@
 // A `results` event only says that a phase was scored; the numbers come from the reads, and a wrong guess of another player is never
 // part of any input (the winners read carries names of right guesses only).
 import { readEvent } from '@mbrg/protocol';
-import type { LeaderboardRow, PlayerResult } from '@mbrg/protocol';
+import type { LeaderboardRow, PlayerListItem, PlayerResult } from '@mbrg/protocol';
 import { STRINGS, fillTemplate } from './strings';
 
 /** A scored phase: round k, phase 1 (victim) or 2 (absorber). */
@@ -39,15 +39,15 @@ export function latestScored(items: readonly PlayerResult[]): Scored | undefined
 /** FR-406: the competition rank of a player on the leaderboard rows read, or undefined when the player is not listed. */
 export const rankOf = (rows: readonly LeaderboardRow[], playerId: string): number | undefined => rows.find((row) => row.playerId === playerId)?.rank;
 
-/** The chip in two parts: the name (the screen may shorten it) and the score (always whole); `stats` is empty before a phase is scored. */
-export function chipParts(name: string, total: number | undefined, rank: number | undefined): { readonly name: string; readonly stats: string } {
-  return { name: fillTemplate(STRINGS.chipName, { name }), stats: total === undefined || rank === undefined ? '' : fillTemplate(STRINGS.chipStats, { total, rank }) };
+/** FR-427: the chip in two parts: the name (the screen may shorten it) and the points (always whole, 0 before any score); no rank. */
+export function chipParts(name: string, total: number | undefined): { readonly name: string; readonly stats: string } {
+  return { name: fillTemplate(STRINGS.chipName, { name }), stats: fillTemplate(STRINGS.chipStats, { total: total ?? 0 }) };
 }
 
-/** The player chip: the name, and the total and rank once a phase has been scored. */
+/** The accessible label of the chip: the visible text plus the rank when the leaderboard lists the player. */
 export function chipText(name: string, total: number | undefined, rank: number | undefined): string {
-  const parts = chipParts(name, total, rank);
-  return parts.name + parts.stats;
+  const parts = chipParts(name, total);
+  return parts.name + parts.stats + (rank === undefined ? '' : fillTemplate(STRINGS.chipRank, { rank }));
 }
 
 export interface ResultView {
@@ -99,6 +99,25 @@ export interface BoardPage {
   readonly pages: number;
   /** The own row, pinned under the list when the shown page does not hold it. */
   readonly mine?: PinnedRow;
+}
+
+/**
+ * FR-432: the server's leaderboard lists only players with scores. Every joined player missing from it is added with 0 points; rows are
+ * ordered by points (the server order kept for ties, the newcomers after) and ranked as 1 + the players with more points.
+ */
+export function completeBoard(rows: readonly LeaderboardRow[], roster: readonly PlayerListItem[]): LeaderboardRow[] {
+  const listed = new Set(rows.map((row) => row.playerId));
+  const added: LeaderboardRow[] = roster
+    .filter((p) => !listed.has(p.playerId))
+    .map((p) => ({ rank: 0, playerId: p.playerId, total: 0, correctVictims: 0, correctAbsorbers: 0, correctWinner: 0, name: p.name }));
+  const ordered = [...rows, ...added].sort((a, b) => b.total - a.total);
+  // Sorted by points, so a row's rank is its index unless the row before it has the same points.
+  const out: LeaderboardRow[] = [];
+  ordered.forEach((row, i) => {
+    const before = out[i - 1];
+    out.push({ ...row, rank: before !== undefined && before.total === row.total ? before.rank : i + 1 });
+  });
+  return out;
 }
 
 /** The local part of a namespaced player id: what shows for a player the server gave no name. */

@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { encodeEvent } from '@mbrg/protocol';
-import type { LeaderboardRow, PlayerResult } from '@mbrg/protocol';
+import type { LeaderboardRow, PlayerListItem, PlayerResult } from '@mbrg/protocol';
+import { STRINGS } from '../src/core/strings';
 import {
   WINNERS_HEAD,
   WINNERS_PAGE,
   boardPage,
   chipParts,
   chipText,
+  completeBoard,
   latestScored,
   rankOf,
   resultFor,
@@ -53,17 +55,20 @@ describe('FR-406 the scored phase', () => {
 });
 
 describe('FR-406 the chip and the results panel', () => {
-  it('FR-406 the chip shows the name, and the total and rank once scored', () => {
-    expect(chipText('Ana', undefined, undefined)).toBe('Tú: Ana');
-    expect(chipText('Ana', 20, undefined)).toBe('Tú: Ana');
-    expect(chipText('Ana', 20, 3)).toBe('Tú: Ana · 20 pts · puesto 3');
-    expect(chipText('Ana', 0, 1)).toBe('Tú: Ana · 0 pts · puesto 1');
+  it('FR-427 the accessible label has the name, the points (0 before any score) and the rank when known', () => {
+    expect(chipText('Ana', undefined, undefined)).toBe('Ana · 0 pts');
+    expect(chipText('Ana', 20, undefined)).toBe('Ana · 20 pts');
+    expect(chipText('Ana', 20, 3)).toBe('Ana · 20 pts · puesto 3');
+    expect(chipText('Ana', 0, 1)).toBe('Ana · 0 pts · puesto 1');
   });
 
-  it('FR-406 the chip splits into the name and the score so the screen can shorten the name only', () => {
-    expect(chipParts('Ana', undefined, undefined)).toStrictEqual({ name: 'Tú: Ana', stats: '' });
-    expect(chipParts('Ana', 20, 3)).toStrictEqual({ name: 'Tú: Ana', stats: ' · 20 pts · puesto 3' });
-    expect(chipParts('Ana', 20, 3).name + chipParts('Ana', 20, 3).stats).toBe(chipText('Ana', 20, 3));
+  it('FR-427 the visible chip is the name and the points, without "Tú:" and without the rank', () => {
+    expect(chipParts('Ana', undefined)).toStrictEqual({ name: 'Ana', stats: ' · 0 pts' });
+    expect(chipParts('Ana', 20)).toStrictEqual({ name: 'Ana', stats: ' · 20 pts' });
+    const parts = chipParts('Ana', 0);
+    expect(parts.name + parts.stats).toBe('Ana · 0 pts');
+    expect(parts.name + parts.stats).not.toContain('Tú');
+    expect(parts.name + parts.stats).not.toContain('puesto');
   });
 
   it('FR-406 a right guess says right with its points, the total and the rank', () => {
@@ -104,6 +109,36 @@ describe('FR-406 the chip and the results panel', () => {
   });
 });
 
+describe('FR-432 the leaderboard lists every joined player', () => {
+  const who = (playerId: string, name: string, joinedSeq: number): PlayerListItem => ({ playerId, name, joinedSeq });
+
+  it('FR-432 a joined player without a row appears with 0 points, below the scored ones', () => {
+    const rows = [row(1, 'player:a', 9, 'A'), row(2, 'player:b', 5, 'B')];
+    const out = completeBoard(rows, [who('player:a', 'A', 1), who('player:c', 'Cleo', 2)]);
+    expect(out.map((r) => [r.rank, r.playerId, r.total, r.name])).toStrictEqual([[1, 'player:a', 9, 'A'], [2, 'player:b', 5, 'B'], [3, 'player:c', 0, 'Cleo']]);
+  });
+
+  it('FR-432 equal points share the rank and the next rank skips (1 + players with more points)', () => {
+    const rows = [row(1, 'player:a', 9, 'A'), row(2, 'player:b', 5, 'B')];
+    const out = completeBoard(rows, [who('player:c', 'C', 3), who('player:d', 'D', 4), who('player:e', 'E', 5)]);
+    expect(out.map((r) => r.rank)).toStrictEqual([1, 2, 3, 3, 3]);
+    const zeros = completeBoard([], [who('player:x', 'X', 1), who('player:y', 'Y', 2)]);
+    expect(zeros.map((r) => [r.rank, r.name])).toStrictEqual([[1, 'X'], [1, 'Y']]);
+  });
+
+  it('FR-432 the server rows are kept as they are when nobody is missing, and no roster changes nothing', () => {
+    const rows = [row(1, 'player:a', 9, 'A'), row(2, 'player:b', 5)];
+    expect(completeBoard(rows, [who('player:a', 'A', 1), who('player:b', 'B', 2)])).toStrictEqual(rows);
+    expect(completeBoard(rows, [])).toStrictEqual(rows);
+  });
+
+  it('FR-432 a server row with points ranks above the zero players even if listed late', () => {
+    const out = completeBoard([row(1, 'player:a', 3, 'A')], [who('player:z', 'Z', 1)]);
+    expect(out.map((r) => r.playerId)).toStrictEqual(['player:a', 'player:z']);
+    expect(out[1]).toMatchObject({ rank: 2, total: 0, correctVictims: 0, correctAbsorbers: 0, correctWinner: 0 });
+  });
+});
+
 describe('FR-406 the leaderboard', () => {
   const rows = Array.from({ length: 23 }, (_, i) => row(i + 1, `player:p${i}`, 100 - i, i === 4 ? undefined : `N${i}`));
 
@@ -123,6 +158,15 @@ describe('FR-406 the leaderboard', () => {
     expect(boardPage(rows, 'player:me', 0, 10, { name: 'Ana', total: 7 }).mine).toStrictEqual({ rank: undefined, name: 'Ana', total: 7, me: true });
     expect(boardPage(rows, '', 0, 10, { name: 'Ana', total: 7 }).mine).toBeUndefined();
     expect(boardPage([], 'player:me', 0, 10, { name: 'Ana', total: 0 }).mine?.name).toBe('Ana');
+  });
+
+  it('FR-433 only the own row carries the (tú) mark; the others show the name only', () => {
+    const board = boardPage(rows, 'player:p15', 0);
+    expect(board.rows.map((r) => r.me)).toStrictEqual(Array(10).fill(false));
+    expect(board.mine).toMatchObject({ name: 'N15', me: true });
+    const unlisted = boardPage([], 'player:me', 0, 10, { name: 'Ana', total: 0 });
+    expect(unlisted.mine).toStrictEqual({ rank: undefined, name: 'Ana', total: 0, me: true });
+    expect(STRINGS.boardYou.replace('{name}', 'Ana')).toBe('Ana (tú)');
   });
 
   it('FR-406 a page outside the range is clamped and an empty board has one empty page', () => {

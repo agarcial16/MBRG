@@ -257,8 +257,9 @@ export const STRINGS = {
   predictForbidden: 'El servidor no te reconoce como jugador de esta partida.',
   predictFailed: 'No se ha podido enviar la predicción. Se conserva la anterior; vuelve a intentarlo.',
   // Results (spec 013 FR-406, FR-407).
-  chipName: 'Tú: {name}',
-  chipStats: ' · {total} pts · puesto {rank}',
+  chipName: '{name}',
+  chipStats: ' · {total} pts',
+  chipRank: ' · puesto {rank}',
   resultTitle: 'Tu resultado',
   resultVictim: 'Ronda {round}, víctima.',
   resultAbsorber: 'Ronda {round}, absorbente.',
