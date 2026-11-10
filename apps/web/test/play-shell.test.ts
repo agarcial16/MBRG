@@ -232,7 +232,8 @@ describe('second screenshot pass: phone dock and chip', () => {
 
   it('the dock pane has one fixed height of about a third of the screen for every tab, with no gap above it', () => {
     const pane = rule('.hud[data-layout="phone"] .hud-pane');
-    expect(pane).toContain('height: clamp(250px, calc(37vh - 50px), 330px)');
+    expect(pane).toContain('height: var(--hud-pane-h)');
+    expect(css).toContain('.hud[data-layout="phone"] { --hud-pane-h: clamp(250px, calc(37vh - 50px), 330px); }');
     expect(pane).toContain('max-height: none');
     expect(rule('.hud-tabs')).not.toContain('margin-top');
   });
@@ -330,5 +331,18 @@ describe('third screenshot pass: one control row, one-line result, stable panels
     expect(css).toMatch(/\.hud-result \{ display: flex; align-items: baseline;[^}]*white-space: nowrap; overflow: hidden;/);
     expect(css).toContain('.hud-predict .hud-seal { position: absolute;');
     expect(css).toContain('.hud[data-layout="desk"] .hud-result > p:nth-of-type(3) { display: none; }');
+  });
+});
+
+describe('015 fix: floating cards never hide behind the minimap or the dock on the phone', () => {
+  it('the minimap canvas is capped, so a tall map cannot grow it over the card placed under it', () => {
+    expect(css).toMatch(/\.hud\[data-layout="phone"\] \.hud-minicanvas \{[^}]*max-height: 92px/);
+    expect(css).toMatch(/\.hud\[data-layout="phone"\] \.hud-minicanvas \{[^}]*width: auto/);
+  });
+  it('the state card stops above the dock, whatever the screen height', () => {
+    expect(css).toContain('.hud[data-layout="phone"] .hud-card { top: 168px; max-height: calc(100vh - 168px - var(--hud-pane-h) - 58px); }');
+  });
+  it('the banner centres in the map area above the dock', () => {
+    expect(css).toMatch(/\.hud\[data-layout="phone"\] \.hud-banner \{[^}]*padding-bottom: calc\(var\(--hud-pane-h\) \+ 58px\)/);
   });
 });

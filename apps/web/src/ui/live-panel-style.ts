@@ -124,11 +124,13 @@ export const PANEL_CSS = `${pageCss()}
 .hud[data-layout="phone"] .hud-search { min-height: 44px; min-width: 44px; }
 .hud[data-layout="phone"] .hud-mini { top: 58px; right: 8px; bottom: auto; width: 104px; padding: 4px 6px 6px; }
 .hud[data-layout="phone"] .hud-mini .hud-title { display: none; }
+/* a tall map never makes the minimap taller than the room the cards below it were placed for */
+.hud[data-layout="phone"] .hud-minicanvas { width: auto; height: auto; max-width: 100%; max-height: 92px; margin: 0 auto; }
 .hud[data-layout="phone"] .hud-band { top: 58px; }
 .hud[data-layout="phone"] .hud-livemark { display: none; }
 .hud[data-layout="phone"] .hud-legend li { min-height: 44px; }
 /* a state card (winner, halt) sits under the minimap, never over it (58 px bar + about 100 px minimap) */
-.hud[data-layout="phone"] .hud-card { top: 168px; max-height: calc(100vh - 180px); }
+.hud[data-layout="phone"] .hud-card { top: 168px; max-height: calc(100vh - 168px - var(--hud-pane-h) - 58px); }
 .hud[data-layout="phone"][data-state="loading"] .hud-card,
 .hud[data-layout="phone"][data-state="start"] .hud-card,
 .hud[data-layout="phone"][data-state="error"] .hud-card { top: 50%; max-height: calc(100vh - 24px); }
@@ -234,7 +236,8 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="phone"] .hud-right { position: static; max-height: none; width: auto; }
 .hud[data-layout="phone"] .hud-pop { top: 52px; right: 8px; }
 /* phone dock: one stable height for every tab and state (about 37% of the screen); the Partida tab shows the prediction block (or the result when no phase is open) and the buttons */
-.hud[data-layout="phone"] .hud-pane { box-sizing: border-box; height: clamp(250px, calc(37vh - 50px), 330px); max-height: none; padding: 6px 12px; overflow: hidden auto; }
+.hud[data-layout="phone"] { --hud-pane-h: clamp(250px, calc(37vh - 50px), 330px); }
+.hud[data-layout="phone"] .hud-pane { box-sizing: border-box; height: var(--hud-pane-h); max-height: none; padding: 6px 12px; overflow: hidden auto; }
 .hud[data-layout="phone"] .hud-command { padding: 0; gap: 6px; min-height: 212px; }
 /* the dots and the five controls share ONE row (targets 44 px high, narrower than that wide) */
 .hud[data-layout="phone"] .hud-controls { gap: 4px; }
@@ -271,6 +274,8 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-banner[hidden] { display: none; }
 /* desk: the card rides high so it never sits over the command panel, whose title and timer stay readable */
 .hud[data-layout="desk"] .hud-banner { align-items: flex-start; padding-top: max(150px, 22vh); box-sizing: border-box; }
+/* phone: the banner centres in the map area, above the dock, so a short screen never hides it behind the dock */
+.hud[data-layout="phone"] .hud-banner { box-sizing: border-box; padding-bottom: calc(var(--hud-pane-h) + 58px); }
 .hud-banner[data-fade="on"] { animation: hud-fade-in 0.3s ease-out; }
 .hud-banner-card { display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; min-width: 0; max-width: min(520px, calc(100vw - 24px)); padding: 18px 26px; min-height: 44px; font: inherit; color: var(--hud-text); cursor: pointer; }
 .hud-banner-card .hud-title { font-size: 26px; }
