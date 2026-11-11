@@ -40,6 +40,8 @@ export interface LivePanelHandlers {
   onMinimapPinch(ratio: number): void;
   /** FR-408: a tap or a key on the round banner. */
   onBannerDismiss(): void;
+  /** FR-443: the phone dock folded or unfolded (called with every repaint of the dock, also at the start); the map area follows it. */
+  onDock?(folded: boolean): void;
   /** The player's controls (spec 013); absent when the page has no player session. */
   readonly play?: PlayHandlers;
 }
@@ -365,6 +367,7 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     for (const [tab, node] of tabButtons) node.setAttribute('aria-selected', String(tab === dockNow.tab));
     for (const [tab, node] of panes) node.hidden = dockNow.folded || tab !== dockNow.tab;
     if (!dockNow.folded) centreTrack();
+    handlers.onDock?.(dockNow.folded);
   };
   const dockSet = (next: DockState): void => {
     dockNow = next;

@@ -71,10 +71,13 @@ export function overview(image: ImageSize, area: Viewport): Camera {
 export function framing(box: Box, image: ImageSize, area: Viewport): Camera {
   const fit = fitScale(image, area);
   const share = TOUR_PARAMS.framingShare;
-  const wanted = Math.min((share * area.width) / (box.x1 - box.x0), (share * area.height) / (box.y1 - box.y0));
+  const height = Math.max(1, area.height - (area.top ?? 0) - (area.bottom ?? 0));
+  const wanted = Math.min((share * area.width) / (box.x1 - box.x0), (share * height) / (box.y1 - box.y0));
   const upper = Math.max(fit, Math.min(TOUR_PARAMS.framingMaxFit * fit, LABEL_PARAMS.fadeStart));
   const scale = Math.min(Math.max(wanted, fit), upper);
-  return clampCamera({ x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2, scale }, image, area);
+  // FR-443: the box is centred in the visible area, so the camera (the point under the canvas middle) sits off by half the margins.
+  const shift = ((area.top ?? 0) - (area.bottom ?? 0)) / 2 / scale;
+  return clampCamera({ x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2 - shift, scale }, image, area);
 }
 
 /**
