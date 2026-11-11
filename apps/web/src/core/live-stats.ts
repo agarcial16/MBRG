@@ -28,6 +28,9 @@ export function missingRecords(model: LiveModel, upTo: number): number[] {
   return missing;
 }
 
+/** Whether the chronicle at the drawn round `upTo` lacks records and the archive was not asked for yet (a match opened after some rounds holds none). */
+export const chronicleNeedsArchive = (model: LiveModel, upTo: number): boolean => !model.archive && missingRecords(model, upTo).length > 0;
+
 /** The factions of the presentation with their facts at the round `upTo` (empty when that state is not held). */
 export function factionRows(model: LiveModel, factions: readonly FactionName[], upTo: number): FactionRow[] {
   const owners = model.held.get(upTo);

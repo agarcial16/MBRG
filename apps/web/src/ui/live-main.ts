@@ -13,7 +13,7 @@ import type { LiveAddress } from '../core/live-address';
 import { liveTitle } from '../core/live-text';
 import { absorberRequestOf, liveTourPanel, pacedFor, panelView, tourReportOf, victimRequestOf } from '../core/live-view';
 import { hudState, inPlayStage, stateCard, topBar } from '../core/live-hud';
-import { chronicle, factionRows } from '../core/live-stats';
+import { chronicle, chronicleNeedsArchive, factionRows, missingRecords } from '../core/live-stats';
 import { factionAt } from '../core/predict-model';
 import type { PlayerCredentials } from '../core/play-token';
 import { liveMark, replayBand, roundTrack } from '../core/live-track';
@@ -322,6 +322,8 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials): voi
       const state = hudState(model);
       // The facts follow the drawn round: while the absorber tour runs, the round before it (the legend rule, D12).
       const upTo = model.displayed === undefined ? 0 : shown.absorbing ? model.displayed - 1 : model.displayed;
+      // A match opened after some rounds holds no records: read them (newest first) so the chronicle lists what was played.
+      if (chronicleNeedsArchive(model, upTo)) after(0, () => runner?.requestArchive());
       banner = bannerNext(banner, { displayed: model.displayed, applied: model.applied, absorbing: shown.absorbing, revealing: shown.revealing }, at);
       const bannerNow = bannerView(banner, model, built.factions, at, motion.reduced());
       const left = bannerExpiresIn(banner, at);
@@ -347,6 +349,7 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials): voi
         hold: shown.revealing || shown.absorbing || overlay !== undefined,
         rows: factionRows(model, built.factions, upTo),
         chronicle: chronicle(model, built.factions, upTo, { revealing: shown.revealing, absorbing: shown.absorbing }),
+        chronicleLoading: missingRecords(model, upTo).length > 0,
         ...(bannerNow === undefined ? {} : { banner: bannerNow }),
         ...(overlay === undefined ? {} : { overlay }),
         ...(play === undefined ? {} : { play }),

@@ -167,6 +167,7 @@ export const STRINGS = {
   hudMinimap: 'Carta general',
   hudMinimapHint: 'Mapa en miniatura: toca o arrastra para mover la vista',
   hudChronicleEmpty: 'Aún no ha caído ninguna facción.',
+  hudChronicleLoading: 'Cargando la crónica…',
   hudTabOrder: 'Orden',
   hudTabRanking: 'Ranking',
   hudLoadingTitle: 'Preparando el mapa',

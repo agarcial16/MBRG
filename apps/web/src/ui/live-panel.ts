@@ -70,6 +70,8 @@ export interface HudView {
   readonly hold?: boolean;
   readonly rows: readonly FactionRow[];
   readonly chronicle: readonly ChronicleEntry[];
+  /** The records of played rounds are still being read (a match opened late): the empty chronicle says so instead of "none has fallen". */
+  readonly chronicleLoading?: boolean;
   /** FR-408: the round banner on screen, or none. */
   readonly banner?: BannerView;
   /** FR-409: "PREDICCIONES FINALIZADAS" or "REVELANDO...", or none. */
@@ -428,10 +430,11 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       }
     }
   };
-  const renderChronicle = (entries: readonly ChronicleEntry[], winners?: ReadonlyMap<number, readonly WinnersLine[]>): void => {
-    const sig = JSON.stringify([entries, winners === undefined ? [] : [...winners]]);
+  const renderChronicle = (entries: readonly ChronicleEntry[], winners?: ReadonlyMap<number, readonly WinnersLine[]>, loading = false): void => {
+    const sig = JSON.stringify([entries, winners === undefined ? [] : [...winners], loading]);
     if (sig === chronSig) return;
     chronSig = sig;
+    chronEmpty.textContent = loading ? STRINGS.hudChronicleLoading : STRINGS.hudChronicleEmpty;
     chronEmpty.hidden = entries.length > 0;
     chron.replaceChildren(
       ...entries.map((entry) => {
@@ -641,7 +644,7 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       bannerLine.textContent = hud.banner?.line ?? '';
       overlayBox.hidden = hud.overlay === undefined;
       overlayBox.textContent = hud.overlay ?? '';
-      renderChronicle(hud.chronicle, hud.play?.winners);
+      renderChronicle(hud.chronicle, hud.play?.winners, hud.chronicleLoading === true);
       const chip = hud.play?.chip;
       chipButton.hidden = chip === undefined;
       chipName.textContent = hud.play?.chipParts?.name ?? '';
