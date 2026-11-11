@@ -32,29 +32,23 @@ describe('FR-356 FR-357 the shell places the zones the layout module names', () 
     expect(css).not.toMatch(/@media[^{]*(?:min|max)-width/);
   });
 
-  it('FR-357 the dock has the three tabs of the layout module and they are real tabs (roles and selection)', () => {
+  it('FR-357 the dock has the tabs of the layout module and they are real tabs (roles and selection)', () => {
     expect(shell).toMatch(/DOCK_TABS/);
     expect(shell).toMatch(/role['"]?\s*,\s*['"]tab['"]/);
     expect(shell).toMatch(/aria-selected/);
   });
 });
 
-describe('FR-357 the dock folds', () => {
-  it('FR-357 the dock starts folded: a folded dock hides the legend, the title and the stage line, and keeps the victim line and the controls', () => {
-    expect(shell).toMatch(/dataset\.dock\s*=\s*['"]folded['"]/);
-    const folded = rules('[data-dock="folded"]').join(';');
-    expect(folded).toMatch(/display:\s*none/);
-    expect(css).toMatch(/\[data-dock="folded"\][^{]*\.hud-left/);
-    expect(css).toMatch(/\[data-dock="folded"\][^{]*\.hud-stage/);
-    expect(css).toMatch(/\[data-dock="folded"\][^{]*\.hud-track/);
-    expect(css).toMatch(/\[data-dock="folded"\][^{]*\.hud-secondary/);
-    expect(css).not.toMatch(/\[data-dock="folded"\][^{]*\.hud-nav/);
-    expect(css).not.toMatch(/\[data-dock="folded"\][^{]*\.hud-victim/);
-  });
-
-  it('FR-357 a tab opens the dock; the selected tab folds it again (the second click)', () => {
-    expect(shell).toMatch(/dataset\.dock\s*=\s*open\s*\?/);
-    expect(shell).toMatch(/id\s*===\s*current\s*&&\s*open/);
+describe('FR-357 FR-439 the dock folds', () => {
+  it('FR-439 the dock state is the pure module one: folded by an animation, a tab press or the handle; folded it keeps handle and tabs and only the skip button of the strip', () => {
+    expect(shell).toMatch(/dataset\.dock\s*=\s*dockNow\.folded\s*\?\s*'folded'\s*:\s*'open'/);
+    expect(shell).toMatch(/dockStep\(dockNow,/);
+    expect(shell).toMatch(/dockHandle\(dockNow\)/);
+    expect(shell).toMatch(/dockPress\(dockNow, tab\.id\)/);
+    expect(shell).toMatch(/held: hud\.hold === true/);
+    expect(main).toMatch(/hold: shown\.revealing \|\| shown\.absorbing \|\| overlay !== undefined/);
+    expect(css).toMatch(/\[data-dock="folded"\] \.hud-roundsel,[^{]*\.hud-nav > \.hud-nav-btn \{ display: none; \}/);
+    expect(css).not.toMatch(/\[data-dock="folded"\][^{]*\.hud-skip/);
   });
 });
 
@@ -181,11 +175,19 @@ describe('FR-359 to FR-364 the shell of the left column, the band, the track and
     expect(shell).toMatch(/hud\.live/);
   });
 
-  it('FR-364 the track is dots that jump to their round, or a slider that does, both through the navigation of the runner', () => {
+  it('FR-364 FR-442 the selector is one scrolling strip of dots that jump to their round through the navigation of the runner, with no slider', () => {
     expect(shell).toMatch(/trackTarget\(/);
     expect(shell).toContain('STRINGS.hudTrackRound');
-    expect(shell).toMatch(/type\s*=\s*'range'/);
-    expect(shell).toMatch(/onNavigate\(\{\s*to:/);
+    expect(shell).not.toMatch(/type\s*=\s*'range'/);
+    expect(shell).toMatch(/handlers\.onNavigate\(target\)/);
+    expect(shell).toMatch(/stripScroll\(/);
+    expect(rules('.hud-track').join(';')).toMatch(/overflow-x:\s*auto/);
+    expect(rules('.hud-track').join(';')).toMatch(/flex-wrap:\s*nowrap/);
+  });
+
+  it('FR-441 the round controls move between the command panel (desk) and the strip of the dock (phone) as one element, so they are on every tab', () => {
+    expect(shell).toMatch(/strip\.append\(controls\)/);
+    expect(shell).toMatch(/command\.append\(controls\)/);
   });
 
   it('FR-359 the scene draws the minimap from the owners and moves the camera by the pure functions, and redraws it on every round change and camera change', () => {

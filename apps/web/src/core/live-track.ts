@@ -1,5 +1,5 @@
 // The live and replay marks of the match screen (spec 010 FR-363, FR-364): the "live" mark, the band that says the view is not
-// live, and the track of rounds. Pure: the shell draws what these functions return and sends the target they name.
+// live, and the selector of rounds. Pure: the shell draws what these functions return and sends the target they name.
 import { hudState } from './live-hud';
 import type { LiveModel } from './live-model';
 import type { NavAction } from './navigation';
@@ -33,22 +33,32 @@ export interface Dot {
   readonly live: boolean;
 }
 
-export type RoundTrack =
-  | { readonly mode: 'dots'; readonly items: readonly Dot[] }
-  | { readonly mode: 'slider'; readonly min: number; readonly max: number; readonly value: number; readonly live: number; readonly total: number };
+export interface RoundTrack {
+  readonly items: readonly Dot[];
+  /** The displayed round, compact: "Ronda N" (never with the total), or the start before round 1. */
+  readonly label: string;
+}
 
 /**
- * The track of rounds. Up to 12 rounds: one dot per round 1 to `total` (round 0 is the "Primera" control), past before the round
- * on the map, ahead of it up to the live round, future beyond it. Above 12 rounds: a slider from 0 to the live round (never beyond N).
+ * The selector of rounds (FR-364, amended by FR-442): the entry for the state before round 1 (round 0, "Inicio", FR-444), the rounds already played (1 to `applied`) and, while a round is in play, that
+ * round (`applied + 1`, not a target yet). The rounds beyond it are not listed, so the total is not told before the match is over.
+ * `past` is before the round on the map, `ahead` after it up to the live round, `future` the round in play. Always one list: the
+ * shell scrolls it sideways, however many rounds there are. The "Primera" control goes to round 0 too.
  */
-export function roundTrack(total: number, displayed: number, applied: number): RoundTrack {
-  if (total > MAX_DOTS) return { mode: 'slider', min: 0, max: applied, value: displayed, live: applied, total };
+export function roundTrack(total: number, displayed: number, applied: number, inPlay: boolean): RoundTrack {
+  const last = inPlay && applied < total ? applied + 1 : applied;
   const items: Dot[] = [];
-  for (let round = 1; round <= total; round++) {
+  for (let round = 0; round <= last; round++) {
     const state: DotState = round === displayed ? 'current' : round < displayed ? 'past' : round <= applied ? 'ahead' : 'future';
     items.push({ round, state, live: round === applied });
   }
-  return { mode: 'dots', items };
+  return { items, label: displayed < 1 ? STRINGS.hudTrackStart : fillTemplate(STRINGS.roundNow, { round: displayed }) };
+}
+
+/** The scroll position (px) that centres an item in a strip, kept inside the content. */
+export function stripScroll(box: { readonly left: number; readonly width: number; readonly view: number; readonly content: number }): number {
+  const centred = box.left - (box.view - box.width) / 2;
+  return Math.max(0, Math.min(centred, box.content - box.view));
 }
 
 /** Where a dot leads: the jump to its round, or nothing for a round that has not been played. */

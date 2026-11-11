@@ -11,7 +11,7 @@ import { liveProblemMessage, readLiveAddress } from '../core/live-address';
 import type { LiveAddress } from '../core/live-address';
 import { liveTitle } from '../core/live-text';
 import { absorberRequestOf, liveTourPanel, pacedFor, panelView, tourReportOf, victimRequestOf } from '../core/live-view';
-import { hudState, stateCard, topBar } from '../core/live-hud';
+import { hudState, inPlayStage, stateCard, topBar } from '../core/live-hud';
 import { chronicle, factionRows } from '../core/live-stats';
 import { factionAt } from '../core/predict-model';
 import type { PlayerCredentials } from '../core/play-token';
@@ -332,7 +332,8 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials): voi
         card: stateCard(state, model, at, built.factions),
         live: liveMark(model),
         band: replayBand(model),
-        track: roundTrack(model.totalRounds, model.displayed ?? 0, model.applied),
+        track: roundTrack(model.totalRounds, model.displayed ?? 0, model.applied, inPlayStage(model.stage)),
+        hold: shown.revealing || shown.absorbing || overlay !== undefined,
         rows: factionRows(model, built.factions, upTo),
         chronicle: chronicle(model, built.factions, upTo, { revealing: shown.revealing, absorbing: shown.absorbing }),
         ...(bannerNow === undefined ? {} : { banner: bannerNow }),

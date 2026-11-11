@@ -1,8 +1,10 @@
 // The live and replay marks of the match screen (spec 010 FR-363, FR-364): the band that says the view is not live, the "live"
-// mark, and the track of rounds (dots up to 12 rounds, a slider above). Pure: the shell only draws what these functions return.
+// mark, and the selector of rounds (played rounds and the round in play). Pure: the shell only draws what these functions return.
 import { describe, expect, it } from 'vitest';
-import { liveMark, replayBand, roundTrack, trackTarget } from '../src/core/live-track';
-import { controlsState } from '../src/core/navigation';
+import type { Stage } from '@mbrg/protocol';
+import { inPlayStage } from '../src/core/live-hud';
+import { liveMark, replayBand, roundTrack, stripScroll, trackTarget } from '../src/core/live-track';
+import { controlsState, navigate } from '../src/core/navigation';
 import { STRINGS } from '../src/core/strings';
 import { Driver, eventsOfRound, scripted, type Scripted } from './helpers/scripted-match';
 
@@ -48,12 +50,14 @@ describe('FR-363 live and replay', () => {
   });
 });
 
-describe('FR-364 the track of rounds', () => {
-  it('FR-364 up to 12 rounds the track is one dot per round, each marked past, current, ahead or future, with the live round flagged', () => {
-    const track = roundTrack(4, 2, 3);
-    expect(track.mode).toBe('dots');
-    if (track.mode !== 'dots') return;
+describe('FR-364 FR-442 the selector of rounds', () => {
+  // Round 0 (Inicio, FR-444) always leads the list; the ids below are the rounds after it.
+  const ids = (track: ReturnType<typeof roundTrack>): number[] => track.items.map((i) => i.round).filter((r) => r > 0);
+
+  it('FR-442 it lists the rounds played and the round in play, each marked past, current, ahead or future, with the live round flagged', () => {
+    const track = roundTrack(8, 2, 3, true);
     expect(track.items.map((i) => [i.round, i.state, i.live])).toStrictEqual([
+      [0, 'past', false],
       [1, 'past', false],
       [2, 'current', false],
       [3, 'ahead', true],
@@ -62,31 +66,65 @@ describe('FR-364 the track of rounds', () => {
   });
 
   it('FR-364 when the displayed round is the live one the current dot is the live dot', () => {
-    const track = roundTrack(4, 3, 3);
-    if (track.mode !== 'dots') throw new Error('dots expected');
-    expect(track.items[2]).toStrictEqual({ round: 3, state: 'current', live: true });
+    const track = roundTrack(8, 3, 3, false);
+    expect(track.items[3]).toStrictEqual({ round: 3, state: 'current', live: true });
   });
 
-  it('FR-364 12 rounds are dots and 13 are a slider', () => {
-    expect(roundTrack(12, 1, 1).mode).toBe('dots');
-    expect(roundTrack(13, 1, 1).mode).toBe('slider');
+  it('FR-442 the round in play is listed only while a round is in play and never beyond the total', () => {
+    expect(ids(roundTrack(8, 3, 3, true))).toStrictEqual([1, 2, 3, 4]);
+    expect(ids(roundTrack(8, 3, 3, false))).toStrictEqual([1, 2, 3]);
+    expect(ids(roundTrack(4, 4, 4, true))).toStrictEqual([1, 2, 3, 4]);
   });
 
-  it('FR-364 the slider runs from 0 to the live round (never beyond N), with the value and the live marker', () => {
-    const track = roundTrack(240, 17, 40);
-    expect(track).toStrictEqual({ mode: 'slider', min: 0, max: 40, value: 17, live: 40, total: 240 });
+  it('FR-442 the total is not revealed: rounds that are neither played nor in play are not listed, with 4 rounds or with 240', () => {
+    expect(ids(roundTrack(4, 1, 1, true))).toStrictEqual([1, 2]);
+    expect(ids(roundTrack(240, 17, 40, true))).toHaveLength(41);
+    expect(ids(roundTrack(240, 0, 0, true))).toStrictEqual([1]);
   });
 
-  it('FR-364 a dot is a target only up to the live round; a future round is not', () => {
-    const track = roundTrack(4, 2, 3);
-    if (track.mode !== 'dots') throw new Error('dots expected');
-    expect(track.items.map((i) => trackTarget(i))).toStrictEqual([{ to: 1 }, { to: 2 }, { to: 3 }, undefined]);
+  it('FR-442 there is always one list of items, however many rounds: no slider', () => {
+    const track = roundTrack(240, 17, 200, true);
+    expect(Object.keys(track).sort()).toStrictEqual(['items', 'label']);
+    expect(track.items).toHaveLength(202);
   });
 
-  it('FR-364 round 0 is not a dot (the "Primera" control goes there); with N = 0 every dot is in the future and none is live', () => {
-    const track = roundTrack(4, 0, 0);
-    if (track.mode !== 'dots') throw new Error('dots expected');
-    expect(track.items.map((i) => i.state)).toStrictEqual(['future', 'future', 'future', 'future']);
-    expect(track.items.some((i) => i.live)).toBe(false);
+  it('FR-442 the label names the displayed round without a total, and the start before round 1', () => {
+    expect(roundTrack(8, 3, 5, true).label).toBe('Ronda 3');
+    expect(roundTrack(8, 0, 5, true).label).toBe(STRINGS.hudTrackStart);
+    expect(roundTrack(8, 3, 5, true).label).not.toMatch(/ de /);
+  });
+
+  it('FR-364 a dot is a target only up to the live round; the round in play is not', () => {
+    const track = roundTrack(8, 2, 3, true);
+    expect(track.items.map((i) => trackTarget(i))).toStrictEqual([{ to: 0 }, { to: 1 }, { to: 2 }, { to: 3 }, undefined]);
+  });
+
+  it('FR-444 the selector leads with an Inicio entry (round 0), always present, that is a target; the first button goes to it', () => {
+    for (const [displayed, applied, inPlay] of [[0, 0, true], [2, 3, true], [3, 3, false], [0, 5, false]] as const) {
+      const track = roundTrack(8, displayed, applied, inPlay);
+      expect(track.items[0]).toMatchObject({ round: 0 });
+      expect(trackTarget(track.items[0]!)).toStrictEqual({ to: 0 });
+    }
+    expect(roundTrack(8, 0, 3, true).items[0]!.state).toBe('current');
+    expect(navigate(3, 3, 'first')).toBe(0);
+  });
+
+  it('FR-444 with N = 0 the list is Inicio (current and live) and the round in play, which is not a target', () => {
+    const track = roundTrack(4, 0, 0, true);
+    expect(track.items.map((i) => [i.round, i.state])).toStrictEqual([[0, 'current'], [1, 'future']]);
+    expect(track.items[0]!.live).toBe(true);
+  });
+
+  it('FR-442 the in-play stages are the three that run a window', () => {
+    expect(['phase-1', 'phase-2', 'locked', 'finished', 'halted', 'lobby'].map((s) => inPlayStage(s as Stage))).toStrictEqual([true, true, true, false, false, false]);
+  });
+});
+
+describe('FR-442 the strip keeps the current round in view', () => {
+  it('FR-442 the current item is centred when it fits, and the scroll stays inside the content', () => {
+    expect(stripScroll({ left: 500, width: 44, view: 200, content: 1000 })).toBe(422);
+    expect(stripScroll({ left: 10, width: 44, view: 200, content: 1000 })).toBe(0);
+    expect(stripScroll({ left: 980, width: 44, view: 200, content: 1024 })).toBe(824);
+    expect(stripScroll({ left: 10, width: 44, view: 300, content: 200 })).toBe(0);
   });
 });

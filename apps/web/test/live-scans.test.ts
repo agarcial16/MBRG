@@ -141,7 +141,7 @@ describe('FR-316 (shell) the live scene routes the tours and the user through th
     // Spec 013 FR-408: the same skip also dismisses the round banner.
     expect(main).toMatch(/onSkip: \(\) => \{\s*banner = bannerDismiss\(banner\);\s*view\?\.completeTour\(now\(\)\);\s*\}/);
     expect(main).toMatch(/onSkip: \(\) => \{\s*banner = bannerDismiss\(banner\);\s*created\.completeTour\(now\(\)\);\s*\}/);
-    expect(panel).toMatch(/skipLabel\(\), handlers\.onSkip\)/);
+    expect(panel).toMatch(/skipLabel\(\), handlers\.onSkip,/);
   });
 
   it('FR-333 (shell) the camera is written to the address once, at the end of a run (A7); the user camera takes the tour camera', () => {

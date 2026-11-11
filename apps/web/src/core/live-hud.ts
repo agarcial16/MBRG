@@ -46,9 +46,12 @@ export const aliveCount = (panel: LivePanelView): number | undefined =>
 
 const IN_PLAY: readonly Stage[] = ['phase-1', 'phase-2', 'locked'];
 
+/** A round is being played (a window is open or locked). */
+export const inPlayStage = (stage: Stage): boolean => IN_PLAY.includes(stage);
+
 /** The round the bar names: at the live edge of a running match the round being played (the one the prediction block and the chronicle name), else the drawn round. */
 const barRound = (model: LiveModel, panel: LivePanelView): string | undefined =>
-  panel.round !== undefined && model.displayed === model.applied && IN_PLAY.includes(model.stage) && model.applied < model.totalRounds ? roundLine(model.applied + 1, model.totalRounds) : panel.round;
+  panel.round !== undefined && model.displayed === model.applied && IN_PLAY.includes(model.stage) && model.applied < model.totalRounds ? roundLine(model.applied + 1, model.totalRounds, false) : panel.round;
 
 /** The top bar: round, phase, factions alive, countdown. It never names the victim or the winner (the command panel does). */
 export const topBar = (model: LiveModel, panel: LivePanelView, at: number): TopBar => ({

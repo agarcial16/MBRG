@@ -2,7 +2,6 @@
 // of the map stays visible. Pure: the DOM shell only places what this module names.
 import { describe, expect, it } from 'vitest';
 import { BREAKPOINT, DOCK_TABS, PHONE, ZONES, layoutFor, mapShareFolded } from '../src/core/hud-layout';
-import { STRINGS } from '../src/core/strings';
 
 describe('FR-356 the desktop layout', () => {
   it('FR-356 the layout is desktop from 1024 px and phone below it', () => {
@@ -23,15 +22,14 @@ describe('FR-357 the phone layout', () => {
     expect(ZONES.phone).toStrictEqual(['top-bar', 'minimap', 'dock']);
   });
 
-  it('FR-357 the dock has three tabs, in this order, named by the strings module', () => {
-    expect(DOCK_TABS.map((t) => t.id)).toStrictEqual(['match', 'order', 'ranking']);
-    expect(DOCK_TABS.map((t) => t.label)).toStrictEqual([STRINGS.hudTabMatch, STRINGS.hudTabOrder, STRINGS.hudTabRanking]);
+  it('FR-440 the dock has four tabs, in this order (the labels are pinned in dock.test)', () => {
+    expect(DOCK_TABS.map((t) => t.id)).toStrictEqual(['order', 'chronicle', 'factions', 'ranking']);
   });
 
   it('FR-357 with the dock folded the map keeps at least 60 % of the height on every phone from 568 to 1000 px', () => {
     for (let height = 568; height <= 1000; height += 1) expect(mapShareFolded(height), String(height)).toBeGreaterThanOrEqual(0.6);
     expect(mapShareFolded(780)).toBeCloseTo(1 - (PHONE.topBar + PHONE.dockFolded) / 780, 10);
-    expect(PHONE.dockFolded).toBe(160);
+    expect(PHONE.dockFolded).toBe(72);
   });
 
   it('NFR-66 the touch targets of the phone are at least 44 px', () => {

@@ -17,16 +17,17 @@ export const ZONES: Readonly<Record<Layout, readonly Zone[]>> = {
   phone: ['top-bar', 'minimap', 'dock'],
 };
 
-export type DockTab = 'match' | 'order' | 'ranking';
+export type DockTab = 'order' | 'chronicle' | 'factions' | 'ranking';
 
 export const DOCK_TABS: readonly { readonly id: DockTab; readonly label: string }[] = [
-  { id: 'match', label: STRINGS.hudTabMatch },
   { id: 'order', label: STRINGS.hudTabOrder },
+  { id: 'chronicle', label: STRINGS.hudChronicle },
+  { id: 'factions', label: STRINGS.legendTitle },
   { id: 'ranking', label: STRINGS.hudTabRanking },
 ];
 
-/** Phone sizes in CSS pixels: the top bar, the folded dock (grab handle, a summary row and the tabs) and the touch targets. */
-export const PHONE = { topBar: 50, dockFolded: 160, touchTarget: 44, tabHeight: 50 } as const;
+/** Phone sizes in CSS pixels: the top bar, the folded dock (a grab handle and the tabs) and the touch targets. */
+export const PHONE = { topBar: 50, dockFolded: 72, touchTarget: 44, tabHeight: 50 } as const;
 
 /** The share of the viewport height the map keeps visible on a phone with the dock folded. */
 export const mapShareFolded = (viewportHeight: number): number => 1 - (PHONE.topBar + PHONE.dockFolded) / viewportHeight;

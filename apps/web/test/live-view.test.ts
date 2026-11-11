@@ -43,7 +43,7 @@ describe('FR-305 (shell) the panel view', () => {
     const d = new Driver(s);
     await d.load(2);
     const view = panelView(d.model, d.at, factions);
-    expect(view.round).toBe(`Ronda 2 de ${s.total}`);
+    expect(view.round).toBe('Ronda 2');
     expect(view.stage).toContain('Fase 1');
     expect(view.victim).toBeUndefined();
     expect(view.winner).toBeUndefined();
