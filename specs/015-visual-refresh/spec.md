@@ -7,7 +7,7 @@ Make the viewer read as one coherent thing instead of three styles glued togethe
 ## Requirements
 **Background and map**
 - FR-422: Where the map does not cover the screen, THE SYSTEM SHALL draw a dark wood tone with a soft vignette instead of the parchment tile. The parchment tile and its dragons are no longer drawn (the asset may stay in the repository). This replaces the texture of 010 FR-368.
-- FR-423: THE SYSTEM SHALL fade the edge of the map image into that background over a soft band at every zoom and on every viewport, so no hard rectangle edge is visible. Picking, labels and the camera clamp stay as they are.
+- FR-423: THE SYSTEM SHALL fade the edge of the map image into that background over a soft band at every zoom and on every viewport, so no hard rectangle edge is visible. Picking, labels and the camera clamp stay as they are. Amended 2026-11-11 after the real-phone test: the fade is shallow (no deeper than about 5 % of the shorter side of the viewport, 48 px at most) and is not drawn along an edge of the image that lies at or beyond the edge of the screen, so it never darkens map the player is looking at.
 - FR-424: The map's sea colour, land colour and faction palette stay as they are (the "lively sea" of the prototype); only the edge fade and the background change on the map side.
 
 **HUD**
