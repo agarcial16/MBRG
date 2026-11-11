@@ -356,7 +356,8 @@ describe('015 fix: floating cards never hide behind the minimap or the dock on t
   });
   it('FR-446 the winner card of a finished match is a slim line under the bar, left of the minimap, without its body text', () => {
     expect(css).toMatch(/\.hud\[data-layout="phone"\]\[data-state="finished"\] \.hud-card \{[^}]*top: 58px[^}]*transform: none[^}]*max-width: calc\(100vw - 128px\)/);
-    expect(css).toMatch(/\.hud\[data-layout="phone"\]\[data-state="finished"\] \.hud-card p \{ display: none; \}/);
+    expect(css).toMatch(/\.hud\[data-layout="phone"\]\[data-state="finished"\] \.hud-card p:not\(\.hud-champion\) \{ display: none; \}/);
+    expect(css).toMatch(/\.hud-card \.hud-champion \{ color: var\(--hud-verdigris\)/);
   });
   it('the banner centres in the map area above the dock', () => {
     expect(css).toMatch(/\.hud\[data-layout="phone"\] \.hud-banner \{[^}]*padding-bottom: calc\(var\(--hud-dock-h\) \+ 8px\)/);

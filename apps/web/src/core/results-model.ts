@@ -164,3 +164,24 @@ export function winnersView(phase: 1 | 2, names: readonly string[], expanded: bo
   const more = names.length > WINNERS_HEAD ? fillTemplate(STRINGS.winnersMore, { count: names.length - WINNERS_HEAD }) : '';
   return { line: fillTemplate(label, { names: `${head}${more}` }), expandable: names.length > WINNERS_HEAD, page: 0, pages, names: [] };
 }
+
+/** The names shown for a tie at the top before "and N more". */
+const CHAMPION_NAMES = 3;
+
+/** FR-448: the player or players who win the match (first place with points), as one line, or none when nobody scored. `you` marks a line that speaks to the viewer. */
+export function championLine(rows: readonly LeaderboardRow[], myId: string): { readonly text: string; readonly you: boolean } | undefined {
+  const top = rows.filter((row) => row.rank === 1 && row.total > 0);
+  const first = top[0];
+  if (first === undefined) return undefined;
+  const nameOf = (row: LeaderboardRow): string => row.name ?? localName(row.playerId);
+  const list = (some: readonly LeaderboardRow[]): string => {
+    const shown = some.slice(0, CHAMPION_NAMES).map(nameOf).join(', ');
+    return some.length > CHAMPION_NAMES ? fillTemplate(STRINGS.championMore, { names: shown, count: some.length - CHAMPION_NAMES }) : shown;
+  };
+  const total = first.total;
+  if (top.some((row) => row.playerId === myId)) {
+    const others = top.filter((row) => row.playerId !== myId);
+    return { text: others.length === 0 ? fillTemplate(STRINGS.championYou, { total }) : fillTemplate(STRINGS.championYouWith, { names: list(others), total }), you: true };
+  }
+  return { text: fillTemplate(top.length === 1 ? STRINGS.championOne : STRINGS.championMany, { names: list(top), total }), you: false };
+}

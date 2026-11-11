@@ -103,6 +103,9 @@ export const PANEL_CSS = `${pageCss()}
 .hud-card { position: absolute; left: 50%; top: 70px; transform: translateX(-50%); width: min(460px, calc(100vw - 24px)); max-height: calc(100vh - 24px); box-sizing: border-box; overflow-y: auto; padding: 14px 18px; }
 .hud-card .hud-title { font-size: 19px; }
 .hud-card p { margin: 4px 0 0; }
+/* FR-448: the winning player, in verdigris against the gilt of the faction */
+.hud-card .hud-champion { color: var(--hud-verdigris); font-weight: 600; }
+.hud-card .hud-champion[hidden] { display: none; }
 .hud[data-state="loading"] .hud-card,
 .hud[data-state="start"] .hud-card,
 .hud[data-state="error"] .hud-card { top: 50%; transform: translate(-50%, -50%); }
@@ -145,7 +148,7 @@ export const PANEL_CSS = `${pageCss()}
 /* FR-446: the winner of a finished match is one slim line under the bar, left of the minimap, so it never covers the map the player is reviewing */
 .hud[data-layout="phone"][data-state="finished"] .hud-card { top: 58px; left: 8px; transform: none; width: auto; max-width: calc(100vw - 128px); max-height: none; padding: 6px 10px; }
 .hud[data-layout="phone"][data-state="finished"] .hud-card .hud-title { font-size: 15px; }
-.hud[data-layout="phone"][data-state="finished"] .hud-card p { display: none; }
+.hud[data-layout="phone"][data-state="finished"] .hud-card p:not(.hud-champion) { display: none; }
 .hud[data-layout="phone"][data-state="loading"] .hud-card,
 .hud[data-layout="phone"][data-state="start"] .hud-card,
 .hud[data-layout="phone"][data-state="error"] .hud-card { top: 50%; max-height: calc(100vh - 24px); }

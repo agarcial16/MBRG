@@ -9,6 +9,7 @@ import type { FactionName } from './live-view';
 import { bookAfterReply, bookFromOwn, emptyBook, offerOf, offerText, sentFor, sentText, type Book, type Offer } from './predict-model';
 import {
   boardPage,
+  championLine,
   chipParts,
   chipText,
   completeBoard,
@@ -117,6 +118,8 @@ export interface PlayHud {
   readonly predict: PredictView | undefined;
   readonly result: ResultView | undefined;
   readonly board: BoardPage | undefined;
+  /** FR-448: the player who wins the finished match, for the state card. */
+  readonly champion: { readonly text: string; readonly you: boolean } | undefined;
   /** FR-407: the lines under the chronicle entry of each round. */
   readonly winners: ReadonlyMap<number, readonly WinnersLine[]>;
 }
@@ -180,6 +183,7 @@ export function playHud(input: PlayInput): PlayHud {
     lines.set(round, [...(lines.get(round) ?? []), { key, phase, view }].sort((a, b) => a.phase - b.phase));
   }
   const board = rows === undefined ? undefined : boardPage(rows,player?.playerId ?? '', state.boardPage, 10, myName === undefined ? undefined : { name: myName, total: state.scores?.total ?? 0 });
-  return { chip, chipParts: parts, predict, result, board, winners: lines };
+  const champion = model.stage === 'finished' && rows !== undefined ? championLine(rows, player?.playerId ?? '') : undefined;
+  return { chip, chipParts: parts, predict, result, board, champion, winners: lines };
 }
 

@@ -332,6 +332,7 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   card.setAttribute('aria-live', 'polite');
   const cardTitle = el('div', 'hud-title', card);
   const cardText = el('p', '', card);
+  const cardChampion = el('p', 'hud-champion', card);
   card.hidden = true;
 
   // FR-408: the round banner over a dimmed map; a button, so a tap, Enter or Space dismisses it.
@@ -628,6 +629,10 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       write(mismatch, view.mismatch);
       cardTitle.textContent = hud.card?.title ?? '';
       cardText.textContent = hud.card?.text ?? '';
+      const champion = hud.card === undefined ? undefined : hud.play?.champion;
+      cardChampion.hidden = champion === undefined;
+      cardChampion.textContent = champion?.text ?? '';
+      cardChampion.dataset.you = champion?.you === true ? 'yes' : 'no';
       card.hidden = hud.card === undefined;
       const band = hud.band;
       bandBox.hidden = band === undefined;

@@ -264,6 +264,11 @@ export const STRINGS = {
   // Results (spec 013 FR-406, FR-407).
   chipName: '{name}',
   chipStats: ' · {total} pts',
+  championOne: 'Gana la partida: {names} · {total} pts',
+  championMany: 'Ganan la partida: {names} · {total} pts',
+  championYou: '¡Has ganado la partida! · {total} pts',
+  championYouWith: '¡Has ganado la partida con {names}! · {total} pts',
+  championMore: '{names} y {count} más',
   chipRank: ' · puesto {rank}',
   resultTitle: 'Tu resultado',
   resultVictim: 'Ronda {round}, víctima.',

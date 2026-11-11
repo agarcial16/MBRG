@@ -52,6 +52,7 @@ Let a person who is not the operator play in the browser, end to end: create a m
 - FR-445 (added 2026-11-11, after the dock rework): ON THE PHONE the open dock SHALL take no more than about 40 % of the screen height (about 340 px on a 390x844 screen, and no more than 45 % on a 360x640 one): tabs, a content pane that scrolls, and the round strip in at most two compact rows; the selector shows its own "Ronda N" label only once, with no duplicate "Inicio" text next to the "Inicio" entry.
 - FR-446 (added 2026-11-11, after the phone test): ON THE PHONE the state card of a finished match (the winner) SHALL be one slim line under the top bar, left of the minimap, without its body text, so it never covers the map the player is reviewing.
 - FR-447 (added 2026-11-11, real-phone test): the label canvas SHALL have exactly the box of the map canvas (the same height as the body, 100vh), so that on a phone with the address bar showing the names are not squashed and shifted against the map.
+- FR-448 (added 2026-11-11, after the phone test): WHEN a match is finished and the leaderboard is known, the state card SHALL also name the player or players who won it (first place with points) in its own colour (verdigris), as "Gana la partida: Ana · 7 pts" (a tie lists up to three names and a count); to a winning viewer it reads "¡Has ganado la partida!". Nothing is shown when nobody scored.
 
 ## Non-functional requirements
 - NFR-77: Every new text lives in the strings module, in Spanish; touch targets, focus, contrast and reduced motion follow NFR-65 to NFR-67 of 010.

@@ -8,6 +8,7 @@ import {
   boardPage,
   chipParts,
   chipText,
+  championLine,
   completeBoard,
   latestScored,
   rankOf,
@@ -209,5 +210,28 @@ describe('FR-407 who guessed right', () => {
     const view = winnersView(1, [], false, 0);
     expect(view.line).toBe('Acertaron la víctima: nadie');
     expect(view.expandable).toBe(false);
+  });
+});
+
+describe('FR-448 the player who wins the match', () => {
+  const board = (...rows: LeaderboardRow[]): LeaderboardRow[] => rows;
+  it('is the first of the board, with points and the name', () => {
+    const line = championLine(board(row(1, 'p:a', 7, 'Ana'), row(2, 'p:b', 3, 'Bea')), 'p:z');
+    expect(line).toEqual({ text: 'Gana la partida: Ana · 7 pts', you: false });
+  });
+  it('lists players tied for the first place', () => {
+    expect(championLine(board(row(1, 'p:a', 7, 'Ana'), row(1, 'p:b', 7, 'Bea'), row(3, 'p:c', 1, 'Cleo')), 'p:z')?.text).toBe('Ganan la partida: Ana, Bea · 7 pts');
+  });
+  it('shortens a long tie to three names and a count', () => {
+    const rows = ['a', 'b', 'c', 'd', 'e'].map((n) => row(1, `p:${n}`, 4, n.toUpperCase()));
+    expect(championLine(rows, 'p:z')?.text).toBe('Ganan la partida: A, B, C y 2 más · 4 pts');
+  });
+  it('speaks to the viewer who won', () => {
+    expect(championLine(board(row(1, 'p:a', 7, 'Ana'), row(2, 'p:b', 3, 'Bea')), 'p:a')).toEqual({ text: '¡Has ganado la partida! · 7 pts', you: true });
+    expect(championLine(board(row(1, 'p:a', 7, 'Ana'), row(1, 'p:b', 7, 'Bea')), 'p:b')?.text).toBe('¡Has ganado la partida con Ana! · 7 pts');
+  });
+  it('is nothing when nobody scored or the board is empty', () => {
+    expect(championLine(board(row(1, 'p:a', 0, 'Ana')), 'p:a')).toBeUndefined();
+    expect(championLine([], 'p:a')).toBeUndefined();
   });
 });
