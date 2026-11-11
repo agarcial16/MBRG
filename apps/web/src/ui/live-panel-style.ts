@@ -142,6 +142,10 @@ export const PANEL_CSS = `${pageCss()}
 .hud[data-layout="phone"] .hud-legend li { min-height: 44px; }
 /* a state card (winner, halt) sits under the minimap, never over it (58 px bar + about 100 px minimap) */
 .hud[data-layout="phone"] .hud-card { top: 168px; max-height: calc(100vh - 168px - var(--hud-dock-h) - 8px); }
+/* FR-446: the winner of a finished match is one slim line under the bar, left of the minimap, so it never covers the map the player is reviewing */
+.hud[data-layout="phone"][data-state="finished"] .hud-card { top: 58px; left: 8px; transform: none; width: auto; max-width: calc(100vw - 128px); max-height: none; padding: 6px 10px; }
+.hud[data-layout="phone"][data-state="finished"] .hud-card .hud-title { font-size: 15px; }
+.hud[data-layout="phone"][data-state="finished"] .hud-card p { display: none; }
 .hud[data-layout="phone"][data-state="loading"] .hud-card,
 .hud[data-layout="phone"][data-state="start"] .hud-card,
 .hud[data-layout="phone"][data-state="error"] .hud-card { top: 50%; max-height: calc(100vh - 24px); }

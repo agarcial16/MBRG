@@ -50,6 +50,7 @@ Let a person who is not the operator play in the browser, end to end: create a m
 - FR-443 (added 2026-11-11): ON THE PHONE the default view and the framing of animations SHALL use the map area that is visible (between the top bar and the open dock, or the full screen with the dock folded), so the map is not centred under the dock and no large empty ground band appears.
 - FR-444 (added 2026-11-11): THE SYSTEM SHALL let the player reach the state before round 1 ("Inicio", round 0) with the round selector: it is the first entry of the selector, always present, and the "first" button goes to it.
 - FR-445 (added 2026-11-11, after the dock rework): ON THE PHONE the open dock SHALL take no more than about 40 % of the screen height (about 340 px on a 390x844 screen, and no more than 45 % on a 360x640 one): tabs, a content pane that scrolls, and the round strip in at most two compact rows; the selector shows its own "Ronda N" label only once, with no duplicate "Inicio" text next to the "Inicio" entry.
+- FR-446 (added 2026-11-11, after the phone test): ON THE PHONE the state card of a finished match (the winner) SHALL be one slim line under the top bar, left of the minimap, without its body text, so it never covers the map the player is reviewing.
 
 ## Non-functional requirements
 - NFR-77: Every new text lives in the strings module, in Spanish; touch targets, focus, contrast and reduced motion follow NFR-65 to NFR-67 of 010.

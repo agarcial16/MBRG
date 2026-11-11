@@ -354,6 +354,10 @@ describe('015 fix: floating cards never hide behind the minimap or the dock on t
   it('the state card stops above the dock, whatever the screen height', () => {
     expect(css).toContain('.hud[data-layout="phone"] .hud-card { top: 168px; max-height: calc(100vh - 168px - var(--hud-dock-h) - 8px); }');
   });
+  it('FR-446 the winner card of a finished match is a slim line under the bar, left of the minimap, without its body text', () => {
+    expect(css).toMatch(/\.hud\[data-layout="phone"\]\[data-state="finished"\] \.hud-card \{[^}]*top: 58px[^}]*transform: none[^}]*max-width: calc\(100vw - 128px\)/);
+    expect(css).toMatch(/\.hud\[data-layout="phone"\]\[data-state="finished"\] \.hud-card p \{ display: none; \}/);
+  });
   it('the banner centres in the map area above the dock', () => {
     expect(css).toMatch(/\.hud\[data-layout="phone"\] \.hud-banner \{[^}]*padding-bottom: calc\(var\(--hud-dock-h\) \+ 8px\)/);
   });
