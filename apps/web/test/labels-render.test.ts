@@ -76,7 +76,10 @@ describe('FR-173 the label canvas lies over the map canvas and takes no pointer 
     expect(t).toMatch(/pointer-events:\s*none/);
     expect(t).toMatch(/position:\s*(absolute|fixed)/);
     expect(t).toMatch(/width:\s*100%/);
-    expect(t).toMatch(/height:\s*100%/);
+    // Same box as the map canvas (100% of a 100vh body): an absolute 100% is the visible height, which on a phone with the address bar showing is shorter, squashing the names (spec 013 FR-447).
+    expect(t).toMatch(/height:\s*100vh/);
+    expect(tag('map')).toMatch(/height:\s*100%/);
+    expect(indexHtml).toMatch(/<body[^>]*height:\s*100vh/);
     expect(t).not.toMatch(/z-index/);
   });
 
