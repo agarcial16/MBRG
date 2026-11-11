@@ -1,3 +1,4 @@
+import { PHONE } from '../core/hud-layout';
 import { TABLE, pageCss } from '../core/table';
 // The stylesheet of the match screen HUD (spec 010), as a string so the shell injects it and the tests scan it. Colours are the
 // token variables of core/hud-tokens.ts; the layout is chosen by data-layout, never by a media query.
@@ -223,6 +224,8 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="phone"] .hud-predict-head > .hud-title { grid-area: 1 / 1; }
 .hud[data-layout="phone"] .hud-predict-head > .hud-predict-count { grid-area: 1 / 2; }
 .hud[data-layout="phone"] .hud-predict-head > .hud-seal { grid-area: 2 / 1 / 3 / 3; justify-self: start; }
+/* FR-445: no reserved row for a seal that is not there yet (the pane is short); it appears when the player has chosen */
+.hud[data-layout="phone"] .hud-predict-head > .hud-seal[data-empty="true"] { display: none; }
 /* the total is already in the chip of the top bar and the title is implied by the first line: the result stays one line */
 /* no phase open: the result takes the place of the empty prediction block and may use two lines (the forced note is long) */
 .hud[data-layout="desk"] .hud-command[data-offer="closed"]:has(.hud-result:not([hidden])) > .hud-predict { display: none; }
@@ -249,20 +252,21 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-link-btn { min-height: 24px; padding: 0 4px; border: 0; background: none; color: var(--hud-gilt); font: 500 12px var(--hud-body, Spectral, Georgia, serif); text-decoration: underline; cursor: pointer; }
 .hud[data-layout="phone"] .hud-right { position: static; max-height: none; width: auto; }
 .hud[data-layout="phone"] .hud-pop { top: 52px; right: 8px; }
-/* phone dock: handle, tabs, one pane (a fixed height, it scrolls) and the strip of the round controls (FR-439 to FR-441). Open it is about half of the screen; folded, handle + tabs only (72 px) */
-.hud[data-layout="phone"] { --hud-pane-h: clamp(170px, calc(100vh * 0.52 - 176px), 360px); --hud-strip-h: 104px; --hud-dock-h: 72px; }
-.hud[data-layout="phone"][data-dock="open"] { --hud-dock-h: calc(72px + var(--hud-pane-h) + var(--hud-strip-h)); }
+/* phone dock (FR-445): handle + tabs (72 px), one pane that scrolls and the strip of the round controls (FR-439 to FR-441). Open it is at most 40 % of the screen (45 % on a short one); the shell sets --hud-pane-h and --hud-open-h from dockPaneHeight/dockHeight (core/hud-layout.ts) on every resize, these are the same figures as a fallback. --hud-dock-h is the height the dock has now (the camera inset reads it) */
+.hud[data-layout="phone"] { --hud-pane-h: max(${PHONE.paneMin}px, calc(100vh * ${PHONE.shareTall} - ${PHONE.dockFolded + PHONE.strip}px)); --hud-strip-h: ${PHONE.strip}px; --hud-open-h: calc(${PHONE.dockFolded}px + var(--hud-pane-h) + var(--hud-strip-h)); --hud-dock-h: ${PHONE.dockFolded}px; }
+.hud[data-layout="phone"][data-dock="open"] { --hud-dock-h: var(--hud-open-h); }
 .hud[data-layout="phone"] .hud-pane { box-sizing: border-box; height: var(--hud-pane-h); max-height: none; padding: 6px 12px; overflow: hidden auto; overscroll-behavior: contain; }
 .hud[data-layout="phone"] .hud-command { padding: 0; gap: 6px; min-height: 0; }
 /* the strip: the selector of rounds on one row and the buttons on another, on every tab, never in the scrolling pane */
 .hud-strip { display: none; }
-.hud[data-layout="phone"] .hud-strip { display: block; flex: none; box-sizing: border-box; height: var(--hud-strip-h); padding: 4px 8px 8px; border-top: 1px solid var(--hud-gilt-dim); }
+.hud[data-layout="phone"] .hud-strip { display: block; flex: none; box-sizing: border-box; height: var(--hud-strip-h); padding: 4px 8px; border-top: 1px solid var(--hud-gilt-dim); }
 .hud[data-layout="phone"] .hud-controls { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 4px; margin: 0; }
 .hud[data-layout="phone"] .hud-track { scrollbar-width: none; gap: 4px; }
 .hud[data-layout="phone"] .hud-track::-webkit-scrollbar { display: none; }
-.hud[data-layout="phone"] .hud-track .hud-dot { min-width: 44px; padding: 0; }
+.hud[data-layout="phone"] .hud-track .hud-dot { min-width: ${PHONE.chip}px; min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; padding: 0; }
 .hud-dot.start { border-radius: 14px; padding: 0 10px; }
 .hud[data-layout="phone"] .hud-track .hud-dot.start { padding: 0 12px; }
+.hud[data-layout="phone"] .hud-roundsel { min-height: ${PHONE.chip}px; }
 .hud[data-layout="phone"] .hud-nav { display: flex; flex: none; flex-wrap: nowrap; gap: 4px; justify-content: stretch; }
 .hud[data-layout="phone"] .hud-nav .hud-btn { flex: 1 1 0; min-width: 44px; padding: 0 4px; }
 /* folded: the strip shrinks to the skip button alone, which floats above the tabs while a tour plays */

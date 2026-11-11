@@ -7,7 +7,7 @@ import type { Rgb } from '@mbrg/shared';
 import { wheelSteps } from '../core/camera';
 import { pinchDistance } from '../core/pinch';
 import { dockHandle, dockPress, dockStart, dockStep, dockTabs, type DockState } from '../core/dock';
-import { DOCK_TABS, layoutFor, type DockTab, type Layout } from '../core/hud-layout';
+import { DOCK_TABS, dockHeight, dockPaneHeight, layoutFor, type DockTab, type Layout } from '../core/hud-layout';
 import { cssVariables } from '../core/hud-tokens';
 import type { HudState, StateCard, TopBar } from '../core/live-hud';
 import { searchRows, sortRows, visibleRows, type ChronicleEntry, type FactionRow, type SortKey } from '../core/live-stats';
@@ -152,6 +152,12 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const root = el('div', 'hud', container);
   let layout: Layout = layoutFor(window.innerWidth);
   root.dataset.layout = layout;
+  // FR-445: the height of the open dock follows the screen; the custom properties are the figures of dockHeight/dockPaneHeight.
+  const sizeDock = (): void => {
+    root.style.setProperty('--hud-pane-h', `${dockPaneHeight(window.innerHeight)}px`);
+    root.style.setProperty('--hud-open-h', `${dockHeight(window.innerHeight, false)}px`);
+  };
+  sizeDock();
 
   // Top bar.
   const top = zone('top-bar', 'hud-top hud-frame', root);
@@ -392,6 +398,7 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   };
   place();
   window.addEventListener('resize', () => {
+    sizeDock();
     const now = layoutFor(window.innerWidth);
     if (now === layout) return;
     layout = now;

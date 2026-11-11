@@ -237,10 +237,16 @@ describe('second screenshot pass: phone dock and chip', () => {
   it('the dock pane has one fixed height for every tab, with no gap above it, and the strip below it keeps its own', () => {
     const pane = rule('.hud[data-layout="phone"] .hud-pane');
     expect(pane).toContain('height: var(--hud-pane-h)');
-    expect(css).toContain('--hud-pane-h: clamp(170px, calc(100vh * 0.52 - 176px), 360px); --hud-strip-h: 104px; --hud-dock-h: 72px; }');
-    expect(css).toContain('.hud[data-layout="phone"][data-dock="open"] { --hud-dock-h: calc(72px + var(--hud-pane-h) + var(--hud-strip-h)); }');
+    expect(css).toContain('--hud-pane-h: max(120px, calc(100vh * 0.4 - 164px)); --hud-strip-h: 92px; --hud-open-h: calc(72px + var(--hud-pane-h) + var(--hud-strip-h)); --hud-dock-h: 72px; }');
+    expect(css).toContain('.hud[data-layout="phone"][data-dock="open"] { --hud-dock-h: var(--hud-open-h); }');
+    expect(panel).toContain("root.style.setProperty('--hud-pane-h', `${dockPaneHeight(window.innerHeight)}px`)");
+    expect(panel).toContain("root.style.setProperty('--hud-open-h', `${dockHeight(window.innerHeight, false)}px`)");
     expect(pane).toContain('max-height: none');
     expect(rule('.hud-tabs')).not.toContain('margin-top');
+  });
+
+  it('FR-445 the phone does not reserve a row for a seal that is not there yet', () => {
+    expect(css).toContain('.hud[data-layout="phone"] .hud-predict-head > .hud-seal[data-empty="true"] { display: none; }');
   });
 
   it('an open phase shows the prediction and the buttons only; no open phase shows the result instead of the empty prediction', () => {
