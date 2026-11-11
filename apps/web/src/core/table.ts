@@ -14,17 +14,17 @@ export const TABLE = {
   /** Strength of the light vignette over the whole screen (0 to 1, black). */
   vignette: 0.42,
   /** The fade of the image edge: full ground at the edge, nothing `depth` screen pixels inside, eased (smoothstep) so no step shows. */
-  fade: { depth: 110, stops: 10 },
-  /** A fade never eats more than this share of the shorter side of the visible image, so a tiny map keeps a centre. */
-  fadeShare: 0.22,
+  fade: { depth: 48, stops: 10 },
+  /** A fade is never deeper than this share of the shorter side of the viewport (spec 015 FR-423, amended 2026-11-11): on a phone it must not darken the map the player looks at. */
+  fadeShare: 0.05,
   /** The desk panels: the wood tone at this opacity over the map, with a blur of the map behind. */
   panel: { rgb: '18,14,10', alpha: 0.86, blur: 6 },
 } as const;
 
-/** The fade depth for an image whose shorter visible side is `side` screen pixels. */
-export function fadeDepth(side: number): number {
-  const k = Math.max(0, Math.min(1, (side * TABLE.fadeShare) / TABLE.fade.depth));
-  return Math.round(TABLE.fade.depth * k * 100) / 100;
+/** The fade depth in screen pixels for this viewport: 5 % of its shorter side, 48 px at most. */
+export function fadeDepth(viewport: Viewport): number {
+  const side = Math.max(0, Math.min(viewport.width, viewport.height));
+  return Math.round(Math.min(TABLE.fade.depth, side * TABLE.fadeShare) * 100) / 100;
 }
 
 /** The opacity of the fade at `t` (0 at the image edge, 1 at the full depth): 1 at the edge, 0 inside, eased between. */
@@ -45,16 +45,18 @@ function strip(direction: string, depth: number): string {
 }
 
 export interface TableFade {
-  /** The screen rectangle of the fade element: the image on screen, kept within the viewport plus a margin that hides the cut edges. */
+  /** The screen rectangle of the fade element: the image on screen, cut at the viewport (a cut edge is never faded). */
   readonly rect: ScreenRect;
-  /** The `background` that draws the fade: four eased strips along the four edges of the rectangle. */
+  /** The `background` that draws the fade: one eased strip along each edge of the image that lies strictly inside the screen. */
   readonly background: string;
+  /** Which edges of the image are strictly inside the screen and so fade (an edge at or beyond the screen edge is not drawn). */
+  readonly edges: { readonly left: boolean; readonly right: boolean; readonly top: boolean; readonly bottom: boolean };
 }
 
 /**
- * The fade of the map edge for this view, or undefined when the image is not on screen. The rectangle is the image's own screen
- * rectangle cut at the viewport grown by the fade's reach: a cut edge is off screen, so only the real edges of the image fade, at any
- * zoom, and the element never gets the size of a zoomed-in map.
+ * The fade of the map edge for this view, or undefined when no edge of the image is inside the screen (the image is off screen, or
+ * covers it). Only an edge that lies strictly inside the viewport fades, with the depth of `fadeDepth`: where the map reaches or passes
+ * the edge of the screen (the whole width of a phone) nothing is drawn, so it never darkens map the player is looking at (FR-423).
  */
 export function tableFade(camera: Camera, viewport: Viewport, image: ImageSize): TableFade | undefined {
   const a = mapToScreen(camera, { x: 0, y: 0 }, viewport);
@@ -64,13 +66,19 @@ export function tableFade(camera: Camera, viewport: Viewport, image: ImageSize):
   const x1 = b.sx;
   const y1 = b.sy;
   if (x1 <= 0 || y1 <= 0 || x0 >= viewport.width || y0 >= viewport.height) return undefined;
-  const depth = fadeDepth(Math.min(x1 - x0, y1 - y0));
-  const reach = depth;
-  const left = Math.max(x0, -reach);
-  const top = Math.max(y0, -reach);
-  const right = Math.min(x1, viewport.width + reach);
-  const bottom = Math.min(y1, viewport.height + reach);
-  return { rect: { x: left, y: top, w: right - left, h: bottom - top }, background: [strip('to bottom', depth) + ' 0 0 / 100% ' + depth + 'px no-repeat', strip('to top', depth) + ' 0 100% / 100% ' + depth + 'px no-repeat', strip('to right', depth) + ' 0 0 / ' + depth + 'px 100% no-repeat', strip('to left', depth) + ' 100% 0 / ' + depth + 'px 100% no-repeat'].join(', ') };
+  const edges = { left: x0 > 0, right: x1 < viewport.width, top: y0 > 0, bottom: y1 < viewport.height };
+  if (!edges.left && !edges.right && !edges.top && !edges.bottom) return undefined;
+  const depth = fadeDepth(viewport);
+  const left = Math.max(x0, 0);
+  const top = Math.max(y0, 0);
+  const right = Math.min(x1, viewport.width);
+  const bottom = Math.min(y1, viewport.height);
+  const strips: string[] = [];
+  if (edges.top) strips.push(strip('to bottom', depth) + ' 0 0 / 100% ' + depth + 'px no-repeat');
+  if (edges.bottom) strips.push(strip('to top', depth) + ' 0 100% / 100% ' + depth + 'px no-repeat');
+  if (edges.left) strips.push(strip('to right', depth) + ' 0 0 / ' + depth + 'px 100% no-repeat');
+  if (edges.right) strips.push(strip('to left', depth) + ' 100% 0 / ' + depth + 'px 100% no-repeat');
+  return { rect: { x: left, y: top, w: right - left, h: bottom - top }, background: strips.join(', '), edges };
 }
 
 /** The wood of the page (start, create, join and lobby screens, FR-431) and its vignette, as stylesheet text. */
@@ -83,8 +91,14 @@ export function pageCss(): string {
   ].join('\n');
 }
 
+/** The blur of the vignette over the match map: 180 px from a 720 px shorter side up, shrinking with its square below (a phone keeps its sides bright). */
+export function vignetteDepth(viewport: Viewport): number {
+  const k = Math.max(0, Math.min(1, Math.min(viewport.width, viewport.height) / 720));
+  return Math.round(180 * k * k);
+}
+
 /** The vignette drawn over the match map, as an `inset` shadow. */
-export const vignetteShadow = (): string => `inset 0 0 180px rgba(0, 0, 0, ${TABLE.vignette})`;
+export const vignetteShadow = (viewport: Viewport): string => `inset 0 0 ${vignetteDepth(viewport)}px rgba(0, 0, 0, ${TABLE.vignette})`;
 
 /** The translucent desk panel as a CSS colour. */
 export const panelColour = (): string => `rgba(${TABLE.panel.rgb}, ${TABLE.panel.alpha})`;

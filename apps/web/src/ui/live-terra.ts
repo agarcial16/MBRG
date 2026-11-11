@@ -20,12 +20,13 @@ export function createTerra(after: HTMLElement, image: ImageSize): Terra {
   fade.style.position = 'absolute';
   layer.append(fade);
   const vignette = document.createElement('div');
-  vignette.style.cssText = `position:absolute;left:0;top:0;width:100%;height:100%;box-shadow:${vignetteShadow()}`;
+  vignette.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%';
   layer.append(vignette);
   let last: { x: number; y: number; scale: number; w: number; h: number } | undefined;
   return {
     place(camera, viewport) {
       if (last !== undefined && camera.x === last.x && camera.y === last.y && camera.scale === last.scale && viewport.width === last.w && viewport.height === last.h) return;
+      vignette.style.boxShadow = vignetteShadow(viewport);
       last = { x: camera.x, y: camera.y, scale: camera.scale, w: viewport.width, h: viewport.height };
       const bands = terraBands(camera, viewport, image);
       while (nodes.length < bands.length) {

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { mapToScreen, type Camera, type ImageSize, type Viewport } from '../src/core/camera';
 import { contrastRatio, TOKENS } from '../src/core/hud-tokens';
 import { PALETTE, SEA } from '../src/core/theme';
-import { TABLE, fadeAlpha, fadeDepth, overBackdrop, pageCss, panelColour, tableFade } from '../src/core/table';
+import { TABLE, fadeAlpha, fadeDepth, overBackdrop, pageCss, panelColour, tableFade, vignetteDepth, vignetteShadow } from '../src/core/table';
 import { PANEL_CSS as css } from '../src/ui/live-panel-style';
 import terraShell from '../src/ui/live-terra.ts?raw';
 import index from '../index.html?raw';
@@ -36,22 +36,20 @@ describe('FR-423 the edge of the map fades into the ground at every zoom', () =>
   const viewport: Viewport = { width: 1280, height: 720 };
 
   it('FR-423 the fade starts on the ground tone exactly (opaque at the edge, so no join shows) and eases to nothing', () => {
+    for (let i = 1; i <= 100; i++) expect(fadeAlpha(i / 100)).toBeLessThanOrEqual(fadeAlpha((i - 1) / 100));
     expect(fadeAlpha(0)).toBe(1);
     expect(fadeAlpha(1)).toBe(0);
     expect(fadeAlpha(-3)).toBe(1);
     expect(fadeAlpha(7)).toBe(0);
-    let last = 1;
-    for (let i = 1; i <= 100; i++) {
-      const a = fadeAlpha(i / 100);
-      expect(a).toBeLessThanOrEqual(last);
-      last = a;
-    }
     expect(fadeAlpha(0.5)).toBeCloseTo(0.5, 10);
-    const fade = tableFade({ x: 1024, y: 1024, scale: 0.352 }, viewport, image)!;
+    // the whole image inside the screen: all four edges fade
+    const camera: Camera = { x: 1024, y: 1024, scale: 0.2 };
+    const fade = tableFade(camera, viewport, image)!;
+    const depth = fadeDepth(viewport);
     const [r, g, b] = [0x15, 0x10, 0x0c];
     expect(TABLE.ground).toBe('#15100c');
     expect(fade.background).toContain(`rgba(${r},${g},${b},1) 0px`);
-    expect(fade.background).toContain(`rgba(${r},${g},${b},0) ${TABLE.fade.depth}px`);
+    expect(fade.background).toContain(`rgba(${r},${g},${b},0) ${depth}px`);
     for (const direction of ['to bottom', 'to top', 'to right', 'to left']) expect(fade.background).toContain(`linear-gradient(${direction},`);
   });
 
@@ -61,7 +59,7 @@ describe('FR-423 the edge of the map fades into the ground at every zoom', () =>
   });
 
   it('FR-423 the fade rectangle is the image on screen when it fits, so its soft edge is the image edge', () => {
-    const camera: Camera = { x: 1024, y: 1024, scale: 0.352 };
+    const camera: Camera = { x: 1024, y: 1024, scale: 0.2 };
     const fade = tableFade(camera, viewport, image)!;
     const a = mapToScreen(camera, { x: 0, y: 0 }, viewport);
     const b = mapToScreen(camera, { x: image.w, y: image.h }, viewport);
@@ -69,38 +67,72 @@ describe('FR-423 the edge of the map fades into the ground at every zoom', () =>
     expect(fade.rect.x + fade.rect.w).toBeCloseTo(b.sx, 6);
   });
 
-  it('FR-423 zoomed in, the element stays small and its cut edges are off screen: the viewport plus the depth of the fade at most', () => {
-    const camera: Camera = { x: 1024, y: 1024, scale: 8 };
-    const fade = tableFade(camera, viewport, image)!;
-    const reach = fadeDepth(Math.min(image.w, image.h) * camera.scale);
-    expect(fade.rect.x).toBeGreaterThanOrEqual(-reach - 1e-9);
-    expect(fade.rect.y).toBeGreaterThanOrEqual(-reach - 1e-9);
-    expect(fade.rect.x + fade.rect.w).toBeLessThanOrEqual(viewport.width + reach + 1e-9);
-    expect(fade.rect.y + fade.rect.h).toBeLessThanOrEqual(viewport.height + reach + 1e-9);
-    expect(reach).toBe(TABLE.fade.depth);
+  it('FR-423 the depth is at most 5 % of the shorter side of the viewport and 48 px (amended 2026-11-11)', () => {
+    expect(TABLE.fade.depth).toBe(48);
+    expect(TABLE.fadeShare).toBe(0.05);
+    expect(fadeDepth({ width: 390, height: 844 })).toBeCloseTo(19.5, 6);
+    expect(fadeDepth({ width: 360, height: 640 })).toBeCloseTo(18, 6);
+    expect(fadeDepth({ width: 1280, height: 720 })).toBeCloseTo(36, 6);
+    expect(fadeDepth({ width: 3840, height: 2160 })).toBe(48);
+    expect(fadeDepth({ width: 0, height: 700 })).toBe(0);
+    for (const [width, height] of [[390, 844], [360, 640], [1280, 720], [1920, 1080], [2560, 1440], [844, 390]] as const) {
+      const depth = fadeDepth({ width, height });
+      expect(depth, `${width}x${height}`).toBeLessThanOrEqual(Math.min(width, height) * 0.05 + 0.01);
+      expect(depth, `${width}x${height}`).toBeLessThanOrEqual(48);
+    }
   });
 
-  it('FR-423 the fade is the same size at a normal zoom and never eats more than its share of a small map', () => {
-    expect(fadeDepth(720)).toBe(TABLE.fade.depth);
-    expect(fadeDepth(5000)).toBe(TABLE.fade.depth);
-    for (const side of [20, 80, 200, 400]) expect(fadeDepth(side), `side ${side}`).toBeLessThanOrEqual(side * TABLE.fadeShare + 0.01);
-    expect(fadeDepth(0)).toBe(0);
+  it('FR-423 an image edge at or beyond the edge of the screen is not faded: the map the player looks at stays bright', () => {
+    const phone: Viewport = { width: 390, height: 844 };
+    // the image spans the whole width (scale = width / image.w) and sits lower than the top: only top and bottom edges are inside the screen
+    const cam: Camera = { x: 1024, y: 1024, scale: 390 / 2048 };
+    const fade = tableFade(cam, phone, image)!;
+    expect(fade.edges).toStrictEqual({ left: false, right: false, top: true, bottom: true });
+    expect(fade.background).toContain('linear-gradient(to bottom,');
+    expect(fade.background).toContain('linear-gradient(to top,');
+    expect(fade.background).not.toContain('linear-gradient(to right,');
+    expect(fade.background).not.toContain('linear-gradient(to left,');
+    // an edge exactly on the screen edge counts as at the edge
+    expect(tableFade({ x: 1024, y: 1024, scale: 390 / 2048 }, { width: 390, height: 390 }, image)).toBeUndefined();
+    // zoomed in so far that every edge is off screen there is nothing to draw at all
+    expect(tableFade({ x: 1024, y: 1024, scale: 8 }, phone, image)).toBeUndefined();
+    // one edge in, the others beyond
+    const left = tableFade({ x: 1500, y: 1024, scale: 1 }, { width: 1280, height: 720 }, image)!;
+    expect(left.edges).toStrictEqual({ left: false, right: true, top: false, bottom: false });
   });
 
-  it('FR-423 over 200 cameras the fade covers no pixel the map does not: it never leaves the image rectangle', () => {
+  it('FR-423 over 200 cameras the fade covers no pixel the map does not and no edge that is not strictly inside the screen', () => {
     let s = 7;
     const next = (): number => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
-    for (let i = 0; i < 200; i++) {
-      const camera: Camera = { x: next() * 2048, y: next() * 2048, scale: 0.2 + next() * 6 };
-      const fade = tableFade(camera, viewport, image);
-      const a = mapToScreen(camera, { x: 0, y: 0 }, viewport);
-      const b = mapToScreen(camera, { x: image.w, y: image.h }, viewport);
-      if (fade === undefined) continue;
-      expect(fade.rect.x).toBeGreaterThanOrEqual(a.sx - 1e-6);
-      expect(fade.rect.y).toBeGreaterThanOrEqual(a.sy - 1e-6);
-      expect(fade.rect.x + fade.rect.w).toBeLessThanOrEqual(b.sx + 1e-6);
-      expect(fade.rect.y + fade.rect.h).toBeLessThanOrEqual(b.sy + 1e-6);
+    for (const vp of [viewport, { width: 390, height: 844 }, { width: 360, height: 640 }]) {
+      for (let i = 0; i < 200; i++) {
+        const camera: Camera = { x: next() * 2048, y: next() * 2048, scale: 0.1 + next() * 6 };
+        const fade = tableFade(camera, vp, image);
+        const a = mapToScreen(camera, { x: 0, y: 0 }, vp);
+        const b = mapToScreen(camera, { x: image.w, y: image.h }, vp);
+        const onScreen = b.sx > 0 && b.sy > 0 && a.sx < vp.width && a.sy < vp.height;
+        if (fade === undefined) {
+          if (onScreen) expect(a.sx > 0 || b.sx < vp.width || a.sy > 0 || b.sy < vp.height).toBe(false);
+          continue;
+        }
+        expect(onScreen).toBe(true);
+        expect(fade.rect.x).toBeGreaterThanOrEqual(a.sx - 1e-6);
+        expect(fade.rect.y).toBeGreaterThanOrEqual(a.sy - 1e-6);
+        expect(fade.rect.x + fade.rect.w).toBeLessThanOrEqual(b.sx + 1e-6);
+        expect(fade.rect.y + fade.rect.h).toBeLessThanOrEqual(b.sy + 1e-6);
+        expect(fade.edges).toStrictEqual({ left: a.sx > 0, right: b.sx < vp.width, top: a.sy > 0, bottom: b.sy < vp.height });
+      }
     }
+  });
+
+  it('FR-423 the vignette over the match shrinks with the screen, so a phone keeps its sides bright and the desk is unchanged', () => {
+    expect(vignetteDepth({ width: 1280, height: 720 })).toBe(180);
+    expect(vignetteDepth({ width: 3840, height: 2160 })).toBe(180);
+    expect(vignetteDepth({ width: 390, height: 844 })).toBeLessThanOrEqual(55);
+    expect(vignetteDepth({ width: 360, height: 640 })).toBeLessThan(vignetteDepth({ width: 390, height: 844 }) + 1);
+    expect(vignetteDepth({ width: 0, height: 0 })).toBe(0);
+    expect(vignetteShadow({ width: 390, height: 844 })).toBe(`inset 0 0 ${vignetteDepth({ width: 390, height: 844 })}px rgba(0, 0, 0, ${TABLE.vignette})`);
+    expect(terraShell).toMatch(/vignetteShadow\(viewport\)/);
   });
 
   it('NFR-85 the fade is placed with the bands, behind the same unchanged-view guard, and the pointer still passes through the layer', () => {
