@@ -95,7 +95,7 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials): voi
 
   // FR-443: the map area is what the top bar and the open (or folded) dock leave; the camera follows the dock.
   let dockFolded = false;
-  const insetNow = (): { top: number; bottom: number } => mapInset(window.innerWidth, window.innerHeight, dockFolded);
+  const insetNow = (): { top: number; bottom: number } => mapInset(window.innerWidth, window.innerHeight, dockFolded, canvas.clientHeight);
   const canvasViewport = (): Viewport => withInset({ width: canvas.clientWidth, height: canvas.clientHeight }, insetNow());
 
   // FR-410: whether the user moved the camera since the round began; FR-408: the round banner; FR-409/FR-401: the outline.

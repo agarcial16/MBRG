@@ -38,9 +38,9 @@ export const dockPaneHeight = (viewportHeight: number): number => {
 /** The height of the phone dock in CSS px (FR-445): the slim bar when folded; open, bar + pane + strip, at most 40 % (45 % on a short screen) of the viewport. The CSS custom properties `--hud-pane-h` and `--hud-dock-h` follow this. */
 export const dockHeight = (viewportHeight: number, folded: boolean): number => (folded ? PHONE.dockFolded : PHONE.dockFolded + dockPaneHeight(viewportHeight) + PHONE.strip);
 
-/** The canvas margins the HUD covers (FR-443): none on the desk; on the phone the top bar and the dock as it stands (folded or open). The camera works on what is left. */
-export const mapInset = (width: number, height: number, folded: boolean): { top: number; bottom: number } =>
-  layoutFor(width) === 'desk' ? { top: 0, bottom: 0 } : { top: PHONE.topBar, bottom: dockHeight(height, folded) };
+/** The canvas margins the HUD covers (FR-443): none on the desk; on the phone the top bar and the dock as it stands (folded or open). `canvasHeight` is the height of the canvas (100vh: with the mobile address bar showing it is taller than the visible `height`, and its extra part lies below the dock). The camera works on what is left. */
+export const mapInset = (width: number, height: number, folded: boolean, canvasHeight: number = height): { top: number; bottom: number } =>
+  layoutFor(width) === 'desk' ? { top: 0, bottom: 0 } : { top: PHONE.topBar, bottom: dockHeight(height, folded) + Math.max(0, canvasHeight - height) };
 
 /** The share of the viewport height the map keeps visible on a phone with the dock folded. */
 export const mapShareFolded = (viewportHeight: number): number => 1 - (PHONE.topBar + PHONE.dockFolded) / viewportHeight;

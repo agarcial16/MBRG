@@ -82,6 +82,9 @@ describe('FR-443 the visible area', () => {
     expect(isDefaultCamera(initialCamera(IMAGE, VP), IMAGE, VP)).toBe(true);
     expect(isDefaultCamera(initialCamera(IMAGE, FULL), IMAGE, VP)).toBe(false);
     expect(isDefaultCamera({ ...initialCamera(IMAGE, VP), x: 510 }, IMAGE, VP)).toBe(false);
+    // the address keeps x and y to 0.1 and the zoom to 0.001: a reloaded default view still counts as the default
+    const d = initialCamera(IMAGE, VP);
+    expect(isDefaultCamera({ x: Math.round(d.x * 10) / 10, y: Math.round(d.y * 10) / 10, scale: Math.round(d.scale * 1000) / 1000 }, IMAGE, VP)).toBe(true);
   });
 });
 
@@ -163,6 +166,16 @@ describe('FR-443 the dock sets the inset', () => {
     expect(mapInset(390, 844, true)).toStrictEqual({ top: PHONE.topBar, bottom: PHONE.dockFolded });
     expect(mapInset(390, 844, false).bottom).toBe(337);
   });
+
+  it('FR-443 a canvas taller than the visible screen (100vh with the mobile address bar showing) is covered by the dock from its real bottom', () => {
+    // innerHeight 788, canvas 844: the dock hangs from the visible bottom, so 56 px more of the canvas is out of sight below it
+    expect(mapInset(390, 788, false, 844)).toStrictEqual({ top: PHONE.topBar, bottom: dockHeight(788, false) + 56 });
+    expect(mapInset(390, 788, true, 844).bottom).toBe(PHONE.dockFolded + 56);
+    // a canvas as tall as the screen, or shorter, adds nothing; the desk never adds
+    expect(mapInset(390, 844, false, 844).bottom).toBe(dockHeight(844, false));
+    expect(mapInset(390, 844, false, 800).bottom).toBe(dockHeight(844, false));
+    expect(mapInset(1280, 720, false, 800)).toStrictEqual({ top: 0, bottom: 0 });
+  });
 });
 
 describe('FR-443 the inset eases when the dock folds, so the map does not jump', () => {
@@ -187,7 +200,7 @@ describe('FR-443 the inset eases when the dock folds, so the map does not jump',
 describe('FR-443 the shell hands the dock to the camera', () => {
   const mapView = mapViewSource;
   it('FR-443 the live scene builds its viewport with the inset, tells the view when the dock changes and on every resize', () => {
-    expect(liveMain).toMatch(/mapInset\(window\.innerWidth, window\.innerHeight, dockFolded\)/);
+    expect(liveMain).toMatch(/mapInset\(window\.innerWidth, window\.innerHeight, dockFolded, canvas\.clientHeight\)/);
     expect(liveMain).toMatch(/onDock: \(folded\) => \{\s*dockFolded = folded;\s*view\?\.setInset\(insetNow\(\)\);/);
     expect(liveMain).toMatch(/onResize: \(\) => \{\s*created\.setInset\(insetNow\(\)\);/);
     expect(liveMain).toMatch(/viewport: canvasViewport\(\)/);

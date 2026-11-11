@@ -78,7 +78,8 @@ export function initialCamera(image: ImageSize, vp: Viewport): Camera {
 /** Whether `cam` is the default view of this viewport (a dock change may then move it; a view the player chose stays). */
 export function isDefaultCamera(cam: Camera, image: ImageSize, vp: Viewport): boolean {
   const d = initialCamera(image, vp);
-  return Math.abs(cam.x - d.x) < 1e-6 * image.w && Math.abs(cam.y - d.y) < 1e-6 * image.h && Math.abs(cam.scale - d.scale) < 1e-9 * d.scale;
+  // Within what the address can hold (x, y to 0.1 map unit, scale to 0.001): a reloaded default view is still the default.
+  return Math.abs(cam.x - d.x) * d.scale < 1 && Math.abs(cam.y - d.y) * d.scale < 1 && Math.abs(cam.scale - d.scale) < 0.0015 + 1e-9;
 }
 
 export function screenToMap(cam: Camera, p: ScreenPoint, vp: Viewport): MapPoint {
