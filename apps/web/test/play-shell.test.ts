@@ -237,7 +237,7 @@ describe('second screenshot pass: phone dock and chip', () => {
   it('the dock pane has one fixed height for every tab, with no gap above it, and the strip below it keeps its own', () => {
     const pane = rule('.hud[data-layout="phone"] .hud-pane');
     expect(pane).toContain('height: var(--hud-pane-h)');
-    expect(css).toContain('--hud-pane-h: clamp(150px, calc(100vh * 0.46 - 176px), 300px); --hud-strip-h: 104px; --hud-dock-h: 72px; }');
+    expect(css).toContain('--hud-pane-h: clamp(170px, calc(100vh * 0.52 - 176px), 360px); --hud-strip-h: 104px; --hud-dock-h: 72px; }');
     expect(css).toContain('.hud[data-layout="phone"][data-dock="open"] { --hud-dock-h: calc(72px + var(--hud-pane-h) + var(--hud-strip-h)); }');
     expect(pane).toContain('max-height: none');
     expect(rule('.hud-tabs')).not.toContain('margin-top');
@@ -333,7 +333,7 @@ describe('third screenshot pass: one control row, one-line result, stable panels
 
   it('the result is one line and the seal sits on the head row, so a result never grows the desk panel', () => {
     expect(css).toMatch(/\.hud-result \{ display: flex; align-items: baseline;[^}]*white-space: nowrap; overflow: hidden;/);
-    expect(css).toContain('.hud-predict-head > .hud-seal { flex: 0 1 auto; min-width: 0;');
+    expect(css).toContain('.hud-predict-head > .hud-seal { box-sizing: border-box; flex: 0 1 auto; min-width: 0;');
     expect(css).toContain('.hud[data-layout="phone"] .hud-predict-head > .hud-seal { grid-area: 2 / 1 / 3 / 3;');
     expect(css).not.toContain('.hud-predict .hud-seal { position: absolute');
     expect(css).toContain('.hud[data-layout="desk"] .hud-result > p:nth-of-type(3) { display: none; }');

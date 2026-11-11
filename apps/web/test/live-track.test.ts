@@ -88,9 +88,9 @@ describe('FR-364 FR-442 the selector of rounds', () => {
     expect(track.items).toHaveLength(202);
   });
 
-  it('FR-442 the label names the displayed round without a total, and the start before round 1', () => {
+  it('FR-442 the label names the displayed round without a total, and none at Inicio (the Inicio chip says it)', () => {
     expect(roundTrack(8, 3, 5, true).label).toBe('Ronda 3');
-    expect(roundTrack(8, 0, 5, true).label).toBe(STRINGS.hudTrackStart);
+    expect(roundTrack(8, 0, 5, true).label).toBe('');
     expect(roundTrack(8, 3, 5, true).label).not.toMatch(/ de /);
   });
 

@@ -35,7 +35,7 @@ export interface Dot {
 
 export interface RoundTrack {
   readonly items: readonly Dot[];
-  /** The displayed round, compact: "Ronda N" (never with the total), or the start before round 1. */
+  /** The displayed round, compact: "Ronda N" (never with the total), or empty at Inicio (the chip names it). */
   readonly label: string;
 }
 
@@ -52,7 +52,7 @@ export function roundTrack(total: number, displayed: number, applied: number, in
     const state: DotState = round === displayed ? 'current' : round < displayed ? 'past' : round <= applied ? 'ahead' : 'future';
     items.push({ round, state, live: round === applied });
   }
-  return { items, label: displayed < 1 ? STRINGS.hudTrackStart : fillTemplate(STRINGS.roundNow, { round: displayed }) };
+  return { items, label: displayed < 1 ? '' : fillTemplate(STRINGS.roundNow, { round: displayed }) };
 }
 
 /** The scroll position (px) that centres an item in a strip, kept inside the content. */

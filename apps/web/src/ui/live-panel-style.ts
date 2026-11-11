@@ -87,6 +87,7 @@ export const PANEL_CSS = `${pageCss()}
 
 /* track of rounds */
 .hud-roundsel { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.hud-track-label:empty { display: none; }
 .hud-track-label { flex: none; color: var(--hud-gilt); font: 600 14px var(--hud-display, 'Cormorant SC', Georgia, serif); white-space: nowrap; }
 /* FR-442: ONE row that scrolls sideways, however many rounds there are; the shell keeps the current round in view */
 .hud-track { position: relative; display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
@@ -217,7 +218,7 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-predict-head { flex-wrap: nowrap; min-width: 0; }
 .hud-predict-head > .hud-title { flex: none; }
 .hud-predict-head > .hud-predict-count { flex: none; margin-left: auto; white-space: nowrap; }
-.hud-predict-head > .hud-seal { flex: 0 1 auto; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: center; padding: 1px 10px; font-size: 12px; }
+.hud-predict-head > .hud-seal { box-sizing: border-box; flex: 0 1 auto; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: center; padding: 1px 10px; font-size: 12px; }
 .hud[data-layout="phone"] .hud-predict-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; }
 .hud[data-layout="phone"] .hud-predict-head > .hud-title { grid-area: 1 / 1; }
 .hud[data-layout="phone"] .hud-predict-head > .hud-predict-count { grid-area: 1 / 2; }
@@ -248,8 +249,8 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-link-btn { min-height: 24px; padding: 0 4px; border: 0; background: none; color: var(--hud-gilt); font: 500 12px var(--hud-body, Spectral, Georgia, serif); text-decoration: underline; cursor: pointer; }
 .hud[data-layout="phone"] .hud-right { position: static; max-height: none; width: auto; }
 .hud[data-layout="phone"] .hud-pop { top: 52px; right: 8px; }
-/* phone dock: handle, tabs, one pane (a fixed height, it scrolls) and the strip of the round controls (FR-439 to FR-441). Open it is about 40% of the screen; folded, handle + tabs only (72 px) */
-.hud[data-layout="phone"] { --hud-pane-h: clamp(150px, calc(100vh * 0.46 - 176px), 300px); --hud-strip-h: 104px; --hud-dock-h: 72px; }
+/* phone dock: handle, tabs, one pane (a fixed height, it scrolls) and the strip of the round controls (FR-439 to FR-441). Open it is about half of the screen; folded, handle + tabs only (72 px) */
+.hud[data-layout="phone"] { --hud-pane-h: clamp(170px, calc(100vh * 0.52 - 176px), 360px); --hud-strip-h: 104px; --hud-dock-h: 72px; }
 .hud[data-layout="phone"][data-dock="open"] { --hud-dock-h: calc(72px + var(--hud-pane-h) + var(--hud-strip-h)); }
 .hud[data-layout="phone"] .hud-pane { box-sizing: border-box; height: var(--hud-pane-h); max-height: none; padding: 6px 12px; overflow: hidden auto; overscroll-behavior: contain; }
 .hud[data-layout="phone"] .hud-command { padding: 0; gap: 6px; min-height: 0; }
