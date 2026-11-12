@@ -59,47 +59,49 @@ describe('FR-406 the chip and the results panel', () => {
   it('FR-427 the accessible label has the name, the points (0 before any score) and the rank when known', () => {
     expect(chipText('Ana', undefined, undefined)).toBe('Ana · 0 pts');
     expect(chipText('Ana', 20, undefined)).toBe('Ana · 20 pts');
-    expect(chipText('Ana', 20, 3)).toBe('Ana · 20 pts · puesto 3');
-    expect(chipText('Ana', 0, 1)).toBe('Ana · 0 pts · puesto 1');
+    expect(chipText('Ana', 20, 3)).toBe('Ana · 20 pts · 3.º');
+    expect(chipText('Ana', 0, 1)).toBe('Ana · 0 pts · 1.º');
   });
 
-  it('FR-427 the visible chip is the name and the points, without "Tú:" and without the rank', () => {
+  it('FR-449 the chip adds the place when the board lists the player', () => {
+    expect(chipParts('Ana', 20, 2)).toStrictEqual({ name: 'Ana', stats: ' · 20 pts · 2.º' });
+  });
+
+  it('FR-427 the visible chip without a place is the name and the points, without "Tú:"', () => {
     expect(chipParts('Ana', undefined)).toStrictEqual({ name: 'Ana', stats: ' · 0 pts' });
     expect(chipParts('Ana', 20)).toStrictEqual({ name: 'Ana', stats: ' · 20 pts' });
     const parts = chipParts('Ana', 0);
     expect(parts.name + parts.stats).toBe('Ana · 0 pts');
     expect(parts.name + parts.stats).not.toContain('Tú');
-    expect(parts.name + parts.stats).not.toContain('puesto');
   });
 
-  it('FR-406 a right guess says right with its points, the total and the rank', () => {
-    const view = resultView({ scored: { round: 2, phase: 1 }, item: { kind: 'victim', round: 2, choice: 4, correct: true, points: 10 }, total: 30, rank: 2, nameOf: names });
+  it('FR-406 a right guess says right with its points (the total and the place are in the chip)', () => {
+    const view = resultView({ scored: { round: 2, phase: 1 }, item: { kind: 'victim', round: 2, choice: 4, correct: true, points: 10 }, nameOf: names });
     expect(view.right).toBe(true);
     expect(view.lines.join(' ')).toContain('Acertaste');
     expect(view.lines.join(' ')).toContain('10 puntos');
     expect(view.lines.join(' ')).toContain('F4');
-    expect(view.lines.join(' ')).toContain('Total: 30');
-    expect(view.lines.join(' ')).toContain('puesto 2');
+    expect(view.lines.join(' ')).not.toContain('Total');
+    expect(view.lines.join(' ')).not.toContain('puesto');
     expect(view.lines[0]).toContain('víctima');
   });
 
   it('FR-406 a wrong guess and a phase with no prediction are said plainly', () => {
-    const wrong = resultView({ scored: { round: 5, phase: 2 }, item: { kind: 'absorber', round: 5, choice: 8, correct: false, points: 0 }, total: 0, rank: undefined, nameOf: names });
+    const wrong = resultView({ scored: { round: 5, phase: 2 }, item: { kind: 'absorber', round: 5, choice: 8, correct: false, points: 0 }, nameOf: names });
     expect(wrong.right).toBe(false);
     expect(wrong.lines.join(' ')).toContain('Fallaste');
     expect(wrong.lines[0]).toContain('absorbente');
-    expect(wrong.lines[2]).not.toContain('puesto');
-    const none = resultView({ scored: { round: 5, phase: 1 }, item: undefined, total: 4, rank: 7, nameOf: names });
+    expect(wrong.lines).toHaveLength(2);
+    const none = resultView({ scored: { round: 5, phase: 1 }, item: undefined, nameOf: names });
     expect(none.right).toBeUndefined();
     expect(none.lines.join(' ')).toContain('No predijiste');
-    expect(none.lines.join(' ')).toContain('puesto 7');
   });
 
   it('FR-406 a forced absorber is said to be applied without a prediction, not as a missed prediction', () => {
-    const forced = resultView({ scored: { round: 3, phase: 2 }, item: undefined, total: 4, rank: 1, nameOf: names, forced: true });
+    const forced = resultView({ scored: { round: 3, phase: 2 }, item: undefined, nameOf: names, forced: true });
     expect(forced.lines.join(' ')).toContain('forzado');
     expect(forced.lines.join(' ')).not.toContain('No predijiste');
-    const victimNone = resultView({ scored: { round: 3, phase: 1 }, item: undefined, total: 4, rank: 1, nameOf: names, forced: true });
+    const victimNone = resultView({ scored: { round: 3, phase: 1 }, item: undefined, nameOf: names, forced: true });
     expect(victimNone.lines.join(' ')).toContain('No predijiste');
   });
 

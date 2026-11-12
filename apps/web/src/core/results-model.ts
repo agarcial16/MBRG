@@ -40,14 +40,14 @@ export function latestScored(items: readonly PlayerResult[]): Scored | undefined
 export const rankOf = (rows: readonly LeaderboardRow[], playerId: string): number | undefined => rows.find((row) => row.playerId === playerId)?.rank;
 
 /** FR-427: the chip in two parts: the name (the screen may shorten it) and the points (always whole, 0 before any score); no rank. */
-export function chipParts(name: string, total: number | undefined): { readonly name: string; readonly stats: string } {
-  return { name: fillTemplate(STRINGS.chipName, { name }), stats: fillTemplate(STRINGS.chipStats, { total: total ?? 0 }) };
+export function chipParts(name: string, total: number | undefined, rank?: number): { readonly name: string; readonly stats: string } {
+  return { name: fillTemplate(STRINGS.chipName, { name }), stats: fillTemplate(STRINGS.chipStats, { total: total ?? 0 }) + (rank === undefined ? '' : fillTemplate(STRINGS.chipPlace, { rank })) };
 }
 
 /** The accessible label of the chip: the visible text plus the rank when the leaderboard lists the player. */
 export function chipText(name: string, total: number | undefined, rank: number | undefined): string {
-  const parts = chipParts(name, total);
-  return parts.name + parts.stats + (rank === undefined ? '' : fillTemplate(STRINGS.chipRank, { rank }));
+  const parts = chipParts(name, total, rank);
+  return parts.name + parts.stats;
 }
 
 export interface ResultView {
@@ -57,25 +57,22 @@ export interface ResultView {
   readonly right: boolean | undefined;
 }
 
-/** FR-406: the results panel: right or wrong with the points of the phase, then the total and the rank. */
+/** FR-406: the results panel: right or wrong with the points of the phase. The total and the place live in the chip (FR-449). */
 export function resultView(input: {
   readonly scored: Scored;
   readonly item: PlayerResult | undefined;
-  readonly total: number;
-  readonly rank: number | undefined;
   readonly nameOf: (faction: number) => string;
   /** The absorber of this round was forced (a single candidate): there was nothing to predict, and the server applied it. */
   readonly forced?: boolean;
 }): ResultView {
-  const { scored, item, total, rank } = input;
+  const { scored, item } = input;
   const what = scored.phase === 1 ? STRINGS.resultVictim : STRINGS.resultAbsorber;
   const head = fillTemplate(what, { round: scored.round });
-  const totals = rank === undefined ? fillTemplate(STRINGS.resultTotal, { total }) : fillTemplate(STRINGS.resultTotalRank, { total, rank });
-  if (item === undefined) return { title: STRINGS.resultTitle, lines: [head, input.forced === true && scored.phase === 2 ? STRINGS.resultForced : STRINGS.resultNone, totals], right: undefined };
+  if (item === undefined) return { title: STRINGS.resultTitle, lines: [head, input.forced === true && scored.phase === 2 ? STRINGS.resultForced : STRINGS.resultNone], right: undefined };
   const verdict = item.correct ? STRINGS.resultRight : STRINGS.resultWrong;
   const points = fillTemplate(STRINGS.resultPoints, { value: item.points });
   const chosen = fillTemplate(STRINGS.resultYourChoice, { name: input.nameOf(item.choice) });
-  return { title: STRINGS.resultTitle, lines: [`${head} ${chosen}`, `${verdict} ${points}`, totals], right: item.correct };
+  return { title: STRINGS.resultTitle, lines: [`${head} ${chosen}`, `${verdict} ${points}`], right: item.correct };
 }
 
 export interface BoardRow {

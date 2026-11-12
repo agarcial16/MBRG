@@ -281,8 +281,8 @@ describe('FR-406 FR-407 results, leaderboard and winners', () => {
     await tick();
     expect(changes.count).toBeGreaterThan(before);
     const hud = session.view(model, 0, idle);
-    expect(hud.chip).toBe('Ana · 10 pts · puesto 2');
-    expect(hud.chipParts).toStrictEqual({ name: 'Ana', stats: ' · 10 pts' });
+    expect(hud.chip).toBe('Ana · 10 pts · 2.º');
+    expect(hud.chipParts).toStrictEqual({ name: 'Ana', stats: ' · 10 pts · 2.º' });
     expect(hud.result!.right).toBe(true);
     expect(hud.board!.rows.map((r) => [r.name, r.me])).toStrictEqual([['Zed', false], ['Ana', true]]);
     expect(calls.filter((c) => c.name === 'winners').some((c) => c.args[1] === 1 && c.args[2] === 1)).toBe(true);
@@ -404,6 +404,23 @@ describe('FR-406 FR-407 results, leaderboard and winners', () => {
     await tick();
     await tick();
     expect(calls.slice(startCount).map((c) => c.name)).toContain('leaderboard');
+  });
+
+  it('FR-449 what a read brings in during a tour (results, total, place) shows only once the tour has ended', async () => {
+    const { net } = fakeNet({ results: mine, rows });
+    const { session } = open(net);
+    const model = await liveModel(1);
+    session.view(model, 0, { revealing: true, absorbing: false });
+    await tick();
+    await tick();
+    const during = session.view(model, 0, { revealing: true, absorbing: false });
+    expect(during.result).toBeUndefined();
+    expect(during.chipParts!.stats).toBe(' · 0 pts');
+    const absorbing = session.view(model, 0, { revealing: false, absorbing: true });
+    expect(absorbing.result).toBeUndefined();
+    const after = session.view(model, 0, idle);
+    expect(after.result!.right).toBe(true);
+    expect(after.chipParts).toStrictEqual({ name: 'Ana', stats: ' · 10 pts · 2.º' });
   });
 
   it('FR-409 an absorber tour holds the reads too', async () => {

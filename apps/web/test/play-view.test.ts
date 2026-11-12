@@ -147,10 +147,10 @@ describe('FR-406 chip, results panel and leaderboard', () => {
     const m = await model(1);
     const state = withBoard(withScores(initialPlay, scored), [row(1, 'player:zz', 40, 'Zed'), row(2, ME, 20, 'Ana')]);
     const out = hud(state, m);
-    expect(out.chip).toBe('Ana · 20 pts · puesto 2');
-    expect(out.chipParts).toStrictEqual({ name: 'Ana', stats: ' · 20 pts' });
+    expect(out.chip).toBe('Ana · 20 pts · 2.º');
+    expect(out.chipParts).toStrictEqual({ name: 'Ana', stats: ' · 20 pts · 2.º' });
     expect(out.result!.right).toBe(true);
-    expect(out.result!.lines.join(' ')).toContain('Total: 20');
+    expect(out.result!.lines.join(' ')).not.toContain('Total');
   });
 
   it('FR-432 every joined player is on the board with 0 points, and a new one shows when it joins', async () => {

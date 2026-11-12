@@ -151,7 +151,7 @@ export function playHud(input: PlayInput): PlayHud {
   const myName = player === undefined ? undefined : (state.scores?.name ?? rows?.find((r) => r.playerId === player.playerId)?.name ?? localName(player.playerId));
   const chipTotal = state.scored === undefined ? undefined : state.scores?.total;
   const chip = player === undefined || myName === undefined ? undefined : chipText(myName, chipTotal, rank);
-  const parts = player === undefined || myName === undefined ? undefined : chipParts(myName, chipTotal);
+  const parts = player === undefined || myName === undefined ? undefined : chipParts(myName, chipTotal, rank);
 
   const offer = offerFor(model, player !== undefined, input.revealing);
   let predict: PredictView | undefined;
@@ -174,7 +174,7 @@ export function playHud(input: PlayInput): PlayHud {
   const result =
     player === undefined || state.scored === undefined || state.scores === undefined
       ? undefined
-      : resultView({ scored: state.scored, item: resultFor(state.scores.items, state.scored), total: state.scores.total, rank, nameOf, forced: input.forcedRounds?.has(state.scored.round) === true || (model.victim?.round === state.scored.round && model.victim.forced === true) });
+      : resultView({ scored: state.scored, item: resultFor(state.scores.items, state.scored), nameOf, forced: input.forcedRounds?.has(state.scored.round) === true || (model.victim?.round === state.scored.round && model.victim.forced === true) });
 
   const lines = new Map<number, WinnersLine[]>();
   for (const [key, names] of state.winners) {

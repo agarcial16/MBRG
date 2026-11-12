@@ -13,7 +13,7 @@ Make the viewer read as one coherent thing instead of three styles glued togethe
 **HUD**
 - FR-425: On the desk layout the HUD panels use a darker, slightly translucent wood with a blur; on the phone the dock stays opaque and keeps its gilt frame.
 - FR-426: The wax-red seals (the player chip and the "Enviada" seal) become a gilt outline on the wood, no red fill.
-- FR-427: The player chip shows the player's name and points ("Ana · 0 pts"), without the "Tú:" prefix and without the rank. The rank stays in the leaderboard panel, the Ranking tab and the chip's accessible label.
+- FR-427: The player chip shows the player's name, points and, once the leaderboard lists them, the place ("Ana · 2 pts · 1.º"), without the "Tú:" prefix (the place was added 2026-11-12, spec 013 FR-449). The rank stays in the leaderboard panel, the Ranking tab and the chip's accessible label.
 - FR-428: In the top bar, the round, the phase and the countdown are vertically centred in the bar, on the desk and on the phone. The countdown is horizontally centred on the bar on both layouts; a long player name is shortened with an ellipsis before it can push the countdown.
 - FR-429: The player chip's visible box is no taller than its text needs and is vertically centred in the top bar (it no longer fills the bar's height on the phone); its touch area stays at least 44 px on the phone.
 - FR-430: The "Tu predicción" panel shows exactly the two lines of its frame at the top: the extra rule above the prediction block (`.hud-predict` top border) is removed.
