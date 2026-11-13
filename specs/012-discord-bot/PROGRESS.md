@@ -22,7 +22,7 @@
 
 ### Tests run
 - `npx vitest run apps/bot`: 85 passed. Mutation proofs (each killed by the bot suite): resume check `<=` to `<`, 10 mentions to 11, forced-round skip, `Last-Event-ID` fixed to 0, no lower-casing, no posting, wrong guesses kept.
-- Full `npm test` and `npm run typecheck`: see the closing entry.
+- Full `npm test`: 341 files, 5398 passed, 4 skipped (one server flake under load, green alone and on rerun); `npm run typecheck` clean.
 
 ### Untested (hand run, with the user's own token)
 - The Discord shell itself (`discord/shell.ts`, `main.ts` login): permission read of "Manage Channel", real deferral timing (3 s), the text window and select menus as Discord renders them, command registration, `allowedMentions`, ephemeral flags on follow-ups, a mention of a member who left, a crash between post and save.
