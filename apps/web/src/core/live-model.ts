@@ -21,6 +21,7 @@ import { navigate, type NavAction } from './navigation';
 import type { StepData } from './step';
 import { fnv1a32, keyText } from './tour-key';
 import { absorberTourDecision, victimTourDecision } from './tour-plan';
+import { beatOf, type Beat } from './finalised-beat';
 
 /** The largest reported time received and the instant it arrived: the countdown estimate runs from it (FR-302). */
 export interface Reported {
@@ -126,6 +127,8 @@ export interface LiveModel {
   readonly touring: boolean;
   /** The victim reveal of the round on show was skipped for a participant mismatch (FR-320): the development panel reports it until the round changes. */
   readonly skipped: boolean;
+  /** FR-409: the finalised beat in progress. The frames that follow the close wait in `queue` until it ends; the reveal is not on the model yet. */
+  readonly beat: Beat | undefined;
   /** The user asked for the archive (the facts of the earlier rounds): the records that are missing are read, one at a time. */
   readonly archive: boolean;
   /** The round whose record the archive is waiting for. */
@@ -162,7 +165,7 @@ export type LiveEffect =
    * of `<match id>:<round>` and, with a running clock, the milliseconds available (before the view's own scaling). There
    * is no field for an absorber, a record, a state of the round or a round seed.
    */
-  | { readonly type: 'victim-tour'; readonly round: number; readonly victim: number; readonly living: readonly number[]; readonly sigma: number; readonly budget?: number }
+  | { readonly type: 'victim-tour'; readonly round: number; readonly victim: number; readonly living: readonly number[]; readonly sigma: number; readonly budget?: number; readonly forced?: true }
   /** FR-339: complete the running tour at once (its final state). */
   | { readonly type: 'complete-tour' };
 
@@ -210,6 +213,7 @@ export function startLive(matchId: string): LiveResult {
     following: true,
     touring: false,
     skipped: false,
+    beat: undefined,
     archive: false,
     asking: undefined,
   };
@@ -220,7 +224,11 @@ const result = (model: LiveModel, effects: readonly LiveEffect[] = []): LiveResu
 
 /** The timer the shell must arm: the end of the wait or the watchdog of the open stream, whichever comes first. */
 function armFor(model: LiveModel): LiveEffect[] {
-  const dues = [...(model.wait === undefined ? [] : [model.wait.until]), ...(model.connection === 'open' ? [model.lastByteAt + WATCHDOG_MS] : [])];
+  const dues = [
+    ...(model.wait === undefined ? [] : [model.wait.until]),
+    ...(model.connection === 'open' ? [model.lastByteAt + WATCHDOG_MS] : []),
+    ...(model.beat === undefined ? [] : [model.beat.until]),
+  ];
   return dues.length === 0 ? [] : [{ type: 'arm-timer', until: Math.min(...dues) }];
 }
 
@@ -252,6 +260,7 @@ function resync(model: LiveModel, at: number): LiveResult {
     phase: 'resyncing',
     applying: undefined,
     queue: [],
+    beat: undefined,
     wanted: undefined,
     connection: 'closed',
     failures,
@@ -358,6 +367,7 @@ function fromPublic(prev: LiveModel, input: Extract<LiveInput, { type: 'public' 
     haltReason: m.haltReason,
     applying: undefined,
     queue: [],
+    beat: undefined,
     wanted: undefined,
     phase: finalStage ? 'closed' : 'live',
     // A resync keeps counting until a frame is accepted (a protocol fault is not a success); the first public read starts at zero.
@@ -416,7 +426,7 @@ function readInstead(model: LiveModel, applying: Applying): LiveResult {
 /** Handles queued frames in order until one starts checking a round again. */
 function drain(out: LiveResult, at: number): LiveResult {
   let current = out;
-  while (current.model.applying === undefined && current.model.queue.length > 0 && current.model.phase === 'live') {
+  while (current.model.applying === undefined && current.model.beat === undefined && current.model.queue.length > 0 && current.model.phase === 'live') {
     const [head, ...rest] = current.model.queue as Frame[];
     current = join(current, consume({ ...current.model, queue: rest }, head as Frame, at));
   }
@@ -444,6 +454,7 @@ function victimTour(model: LiveModel, e: Extract<MatchEvent, { type: 'victim-rev
     victim: e.victim,
     timing: model.timing,
     c2: e.c2,
+    forced: e.forced === true,
   });
   const complete = completeIfTouring(model);
   const skipped = !decision.play && decision.reason === 'mismatch';
@@ -455,6 +466,7 @@ function victimTour(model: LiveModel, e: Extract<MatchEvent, { type: 'victim-rev
     living: e.living,
     sigma: fnv1a32(keyText(model.matchId, e.round, 'victim')),
     ...(decision.budget === undefined ? {} : { budget: decision.budget }),
+    ...(decision.forced === true ? { forced: true as const } : {}),
   };
   return result({ ...model, touring: true, skipped: false }, [...complete, start]);
 }
@@ -493,7 +505,20 @@ function consume(model: LiveModel, frame: Frame, at: number): LiveResult {
   const e = frame.event;
   if (e === undefined) return result(m);
   switch (e.type) {
-    case 'phase-closed':
+    case 'phase-closed': {
+      // FR-409: a fresh close of the window in play starts the beat; the frames after it wait until it ends.
+      const beat = beatOf({
+        halted: m.stage === 'halted' || m.haltReason !== undefined,
+        round: e.round,
+        displayed: m.displayed,
+        applied: m.applied,
+        estimate: estimateAt(m, at),
+        closedAt: e.at,
+        at,
+      });
+      const held: LiveModel = beat === undefined ? m : { ...m, beat };
+      return beat === undefined ? result(m) : result(held, armFor(held));
+    }
     case 'results':
     case 'player-joined': // a join changes nothing the scene shows (the viewer reads players in spec 013)
       return result(m);
@@ -501,6 +526,8 @@ function consume(model: LiveModel, frame: Frame, at: number): LiveResult {
       if (e.round !== m.applied + 1) return resync(model, at);
       const victim: PublicVictim = {
         round: e.round, victim: e.victim, candidates: e.candidates, living: e.living, revealedAt: e.revealedAt, c2: e.c2, a: e.a, seq: e.seq,
+        // The forced mark must survive: the offer and the result text of a forced round read it (it was dropped here before).
+        ...(e.forced === true ? { forced: true as const } : {}),
       };
       // The estimate of the decision includes the event's own reported time (plan 4.7).
       return victimTour(raise({ ...m, victim }, e.reportedTime, at), e, at);
@@ -510,7 +537,7 @@ function consume(model: LiveModel, frame: Frame, at: number): LiveResult {
     case 'match-finished':
       return result(raise(withoutStream({ ...m, stage: 'finished', winner: e.winner, schedule: undefined, phase: 'closed' }), e.reportedTime, at), [{ type: 'close-stream' }]);
     case 'match-halted':
-      return result(raise(withoutStream({ ...m, stage: 'halted', haltReason: e.reason, schedule: undefined, phase: 'closed', touring: false }), e.reportedTime, at), [
+      return result(raise(withoutStream({ ...m, stage: 'halted', haltReason: e.reason, schedule: undefined, phase: 'closed', touring: false, beat: undefined }), e.reportedTime, at), [
         ...completeIfTouring(m),
         { type: 'close-stream' },
       ]);
@@ -539,7 +566,7 @@ function onEvent(model: LiveModel, data: unknown, at: number): LiveResult {
   const tail = receivedSeq(model);
   if (frame.seq <= tail) return result(model);
   if (frame.seq > tail + 1) return resync(model, at);
-  if (model.applying !== undefined) return result({ ...model, queue: [...model.queue, frame] });
+  if (model.applying !== undefined || model.beat !== undefined) return result({ ...model, queue: [...model.queue, frame] });
   return consume(model, frame, at);
 }
 
@@ -566,7 +593,7 @@ function onFailed(model: LiveModel, input: Extract<LiveInput, { type: 'failed' }
   const { request, at } = input;
   if (input.outcome === 'unknown-match') {
     const stop: LiveEffect[] = model.connection === 'closed' ? [] : [{ type: 'close-stream' }];
-    return result({ ...model, fatal: 'unknown-match', phase: 'closed', connection: 'closed', wait: undefined, retry: [], queue: [], applying: undefined, wanted: undefined }, stop);
+    return result({ ...model, fatal: 'unknown-match', phase: 'closed', connection: 'closed', wait: undefined, retry: [], queue: [], beat: undefined, applying: undefined, wanted: undefined }, stop);
   }
   if (request.type === 'stream') return model.phase === 'live' ? waitFor({ ...model, connection: 'closed' }, at, request, input.retryAfterMs) : result(model);
   if (request.type === 'public' && model.phase !== 'loading' && model.phase !== 'resyncing') return result(model);
@@ -611,6 +638,12 @@ function onTick(model: LiveModel, at: number): LiveResult {
     const asked = current.retry.flatMap((r) => askAgain(current, r) ?? []);
     current = { ...current, wait: undefined, retry: [], connection: asked.some((e) => e.type === 'open-stream') ? 'connecting' : current.connection };
     effects.push(...asked);
+  }
+  if (current.beat !== undefined && at >= current.beat.until) {
+    // FR-409: the beat is over; the frames it held are consumed now, in order, from this instant.
+    const ended = drain(result({ ...current, beat: undefined }), at);
+    current = ended.model;
+    effects.push(...ended.effects);
   }
   return result(current, [...effects, ...armFor(current)]);
 }

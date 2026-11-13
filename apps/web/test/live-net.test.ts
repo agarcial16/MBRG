@@ -325,6 +325,9 @@ function watch(server: FakeServer) {
       void net.openStream(MATCH_ID, effect, into, stream.signal);
     } else if (effect.type === 'close-stream') {
       stream.abort();
+    } else if (effect.type === 'arm-timer' && model.beat?.until === effect.until) {
+      // FR-409: the finalised beat ends at once here (this watcher has no clock of its own).
+      setTimeout(() => feed({ type: 'tick', at: effect.until }), 0);
     }
   }
 

@@ -108,6 +108,16 @@ describe('FR-317 a fresh victim reveal starts the victim tour', () => {
     expect(again.effects.filter((x) => x.type === 'victim-tour' || x.type === 'complete-tour')).toStrictEqual([]);
   });
 
+  it('FR-435 a forced reveal marks the effect; a plain one does not', async () => {
+    const s = await scripted();
+    const d = await ready(s, 0, { timing: { i: 60, l1: 20, l2: 10 }, schedule: { c1: 15_000, c2: 40_000, a: 50_000 } });
+    const forced = victimTours(await feedAt(d, reveal(s, 1, { forced: true, c2: 9721, a: 12_000 }), 10_107))[0] as VictimTour;
+    expect(forced.forced).toBe(true);
+    expect(forced.budget).toBeTypeOf('number');
+    const plain = victimTours(await feedAt(await ready(s), reveal(s, 1), 10_100))[0] as VictimTour;
+    expect('forced' in plain).toBe(false);
+  });
+
   it('FR-317 a halted match keeps its victim from the public data and plays no tour', async () => {
     const s = await scripted();
     const e = matchEventsOfRound(s, 2)[1] as Revealed;
@@ -143,13 +153,13 @@ describe('FR-317 a fresh victim reveal starts the victim tour', () => {
   });
 
   it('FR-317 the effect has exactly its keys: no absorber, record, state or round seed (type-level key list)', async () => {
-    const KEYS: Record<keyof VictimTour, true> = { type: true, round: true, victim: true, living: true, sigma: true, budget: true };
+    const KEYS: Record<keyof VictimTour, true> = { type: true, round: true, victim: true, living: true, sigma: true, budget: true, forced: true };
     const s = await scripted();
     const manual = victimTours(await feedAt(await ready(s), reveal(s, 1), 10_100))[0] as VictimTour;
     expect(Object.keys(manual).sort()).toStrictEqual(['living', 'round', 'sigma', 'type', 'victim']);
     const d = await ready(s, 0, { timing: { i: 60, l1: 20, l2: 10 }, schedule: { c1: 15_000, c2: 40_000, a: 50_000 } });
     const clock = victimTours(await feedAt(d, reveal(s, 1, { c2: 20_000, a: 30_000 }), 10_100))[0] as VictimTour;
-    expect(Object.keys(clock).sort()).toStrictEqual(Object.keys(KEYS).sort());
+    expect(Object.keys(clock).sort()).toStrictEqual(Object.keys(KEYS).filter((k) => k !== 'forced').sort());
     for (const key of Object.keys(KEYS)) expect(key, key).not.toMatch(/absorber|record|state|seed|secret|candidate|next|future/i);
   });
 });
@@ -176,9 +186,11 @@ describe('FR-339 a running victim tour is completed by the events that need it',
     // No tour has been started: nothing to complete.
     const idle = await ready(s);
     expect(types(await feedAt(idle, halt(seqOfRound(1) + 1), 10_110))).toStrictEqual(['close-stream']);
-    // The round was applied: the victim tour is over for the model (the map view completes it with the round step).
+    // The round was applied with an absorber outside the candidates (no absorber tour): the victim tour is over for the model
+    // (the map view completes it with the round step).
     const applied = await ready(s);
     await applied.events(wire(matchEventsOfRound(s, 1).slice(1)));
+    applied.model = { ...applied.model, touring: false };
     expect(applied.model.applied).toBe(1);
     const late = await feedAt(applied, halt(seqOfRound(2)), 10_900);
     expect(types(late)).toStrictEqual(['close-stream']);
@@ -192,7 +204,8 @@ describe('FR-339 a running victim tour is completed by the events that need it',
     expect(types(d.effects)).toContain('play-step');
     expect(await feedAt(d, wire([matchEventsOfRound(s, 2)[0] as MatchEvent])[0], d.at + 3)).toStrictEqual([]);
     const next = await feedAt(d, reveal(s, 2), d.at + 3);
-    expect(types(next)).toStrictEqual(['victim-tour']);
+    // The scripted round has one candidate: its short absorption (FR-436) is the thing the next reveal completes.
+    expect(types(next)).toStrictEqual(['complete-tour', 'victim-tour']);
     expect(victimTours(next)[0]?.round).toBe(2);
     expect(victimTours(next)[0]?.sigma).toBe(fnv1a32('AbCdEfGh01234567:2'));
   });
@@ -366,13 +379,24 @@ describe('FR-345 the absorber tour starts with the round step', () => {
     expect(playSteps(first)[0]?.tour?.budget).toBeTypeOf('number');
   });
 
-  it('FR-350 d = 1, an absorber outside the candidates and candidates that are not held play the step without a tour', async () => {
+  it('FR-436 d = 1 plays the step with a one-candidate tour', async () => {
+    const s = await scripted();
+    const record = s.records[0] as Scripted['records'][number];
+    const d = new Driver(s);
+    await d.load(0);
+    const steps = playSteps(await feedList(d, roundOf(s, 1, { candidates: [record.absorber] }), sequence(10_100, 8)));
+    expect(steps).toHaveLength(1);
+    expect(steps[0]?.tour?.candidates).toStrictEqual([record.absorber]);
+    expect(steps[0]?.tour?.absorber).toBe(record.absorber);
+    expect(d.model.touring).toBe(true);
+  });
+
+  it('FR-350 an absorber outside the candidates and candidates that are not held play the step without a tour', async () => {
     const s = await scripted();
     const record = s.records[0] as Scripted['records'][number];
     const others = (s.living[0] as number[]).filter((f) => f !== record.eliminated && f !== record.absorber).slice(0, 2);
     expect(others).toHaveLength(2);
     const cases: [string, MatchEvent[]][] = [
-      ['d = 1', roundOf(s, 1, { candidates: [record.absorber] })],
       ['absorber outside', roundOf(s, 1, { candidates: others })],
     ];
     for (const [name, list] of cases) {
@@ -529,7 +553,7 @@ describe('FR-337 the tours change nothing else in the model', () => {
       return d;
     };
     const withTours = await run((k) => [absorber(k), (s.records[k - 1] as Scripted['records'][number]).eliminated].sort((a, b) => a - b));
-    const without = await run((k) => [absorber(k)]);
+    const without = await run((k) => [(s.records[k - 1] as Scripted['records'][number]).eliminated]);
     expect(playSteps(withTours.effects).filter((p) => p.tour !== undefined)).toHaveLength(s.total);
     expect(playSteps(without.effects).filter((p) => p.tour !== undefined)).toStrictEqual([]);
     const plainEffects = (d: Driver): unknown[] => d.effects.filter((e) => e.type !== 'victim-tour' && e.type !== 'complete-tour').map(strip);

@@ -6,6 +6,7 @@
 // `core/transition-shade.ts` (FR-179, FR-180): same names, same order of tests, same comparison in float32.
 // While a reveal tour dims the map (`uDim` above 0), the last step is a port of `shadeTour` in `core/tour-shade.ts`.
 import { BORDER_PRIORITY, EDGE_BIAS, WIDTH_LEVELS } from '../core/borders';
+import { PICK_CLASSES, PICK_REACH } from '../core/pick-outline';
 import { TRANSITION_PRIORITY } from '../core/transition-shade';
 
 /** One full-screen quad: positions are already clip-space coordinates. */
@@ -27,6 +28,11 @@ const STEP_CONSTANTS = TRANSITION_PRIORITY.map((name, i) => `const int S_${class
 const BASE_OF_STEP = TRANSITION_PRIORITY.map((name) => BORDER_PRIORITY.indexOf(name === 'absorbed' ? 'faction' : name));
 /** The step class of each base class. */
 const STEP_OF_BASE = BORDER_PRIORITY.map((name) => TRANSITION_PRIORITY.indexOf(name));
+
+/** The condition of the white outline of the chosen faction: the border classes of `PICK_CLASSES` (rule of `pickedColor`). */
+const PICK_CONDITION = PICK_CLASSES.map((name) => `border == C_${classConstant(name)}`).join(' || ');
+/** The same classes tested on the class of a probe `PICK_REACH` pixels away (the wide band of the outline). */
+const PICK_REACH_CONDITION = PICK_CLASSES.map((name) => `pc == C_${classConstant(name)}`).join(' || ');
 
 /** The width levels of the reference, widest first, as GLSL float literals: `4.0, 2.0, 1.0`. */
 const WIDTH_LIST = WIDTH_LEVELS.map((w) => w.toFixed(1)).join(', ');
@@ -59,6 +65,8 @@ uniform int uFrontOn;       // 1 while a front is drawn, 0 for the plain drawing
 uniform float uProgress;    // forward fraction f of the step, in [0, 1)
 uniform float uDim;         // dim of a reveal tour, 0 for the plain drawing
 uniform ivec2 uLit;         // faction indices drawn as they are during a tour dim (a missing one is 0)
+uniform int uPick;          // faction index outlined in white (spec 013), 0 for none
+uniform vec3 uPickColor;    // the white
 
 layout(location = 0) out highp vec4 outColor;
 
@@ -207,6 +215,16 @@ void main() {
   // Reveal tour (FR-326, port of shadeTour in core/tour-shade.ts): a pixel of an unlit map unit is dimmed after the
   // colour is final; the gate keeps the drawing without a tour exactly as it was (FR-355).
   int unitOwner = byteAt(uOwners, a);
+  // The chosen faction (spec 013, port of pickedColor in core/pick-outline.ts): its own side of its perimeter lines turns white.
+  if (uPick != 0 && uFrontOn == 0 && fillKind == 1 && unitOwner == uPick && (${PICK_CONDITION})) color = uPickColor;
+  // The band: a pixel of the chosen faction within ${PICK_REACH.toFixed(1)} screen pixels of one of those lines is white too.
+  if (uPick != 0 && uFrontOn == 0 && fillKind == 1 && unitOwner == uPick) {
+    for (int pi = 0; pi < 4; pi++) {
+      int pb = cellAt(base + ivec2(floor(q + DIRS[pi] * ${PICK_REACH.toFixed(1)} / uScale)));
+      int pc = borderClassOf(a, pb);
+      if (pc >= 0 && (${PICK_REACH_CONDITION})) color = uPickColor;
+    }
+  }
   if (uDim > 0.0 && !(fillKind == 1 && (unitOwner == uLit.x || unitOwner == uLit.y) && unitOwner != 0)) color = floor(floor(color * 255.0 + 0.5) * (1.0 - uDim) + 0.5) / 255.0;
   outColor = vec4(color, 1.0);
 }

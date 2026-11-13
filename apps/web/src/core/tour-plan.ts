@@ -3,6 +3,7 @@
 // reduced-motion preference. Nothing here reads a clock; the caller passes the reported-time estimate.
 import { LABEL_PARAMS } from './label-params';
 import { nominalEnd } from './tour';
+import type { TourPace } from './tour';
 import type { TourKind } from './tour-key';
 import { TOUR_PARAMS } from './tour-params';
 
@@ -19,7 +20,7 @@ export type SkipReason =
 
 /** Play (with the time available in ms, absent for nominal speed) or skip with the reason. */
 export type Decision =
-  | { readonly play: true; readonly budget?: number }
+  | { readonly play: true; readonly budget?: number; readonly forced?: true }
   | { readonly play: false; readonly reason: SkipReason };
 
 /** How a tour is played after the scale rule: `budget` is present only when the tour is compressed. */
@@ -43,6 +44,8 @@ export interface VictimInput {
   readonly victim: number;
   readonly timing: PlanTiming;
   readonly c2: number | null;
+  /** Spec 013 FR-435: the round is forced (the reveal event says so): its window is short and the tour is never skipped for it. */
+  readonly forced?: boolean;
 }
 
 /** What the absorber decision reads at the receipt of `round-applied`. */
@@ -58,6 +61,9 @@ export interface AbsorberInput {
   readonly absorber: number;
   readonly timing: PlanTiming;
 }
+
+/** D of the still tour: the length a forced tour is never compressed below (FR-435). */
+const STILL_END = TOUR_PARAMS.still.hold + TOUR_PARAMS.still.fade;
 
 /** The age of a match instant: never negative, even when the estimate is below it. */
 const ageOf = (estimate: number, instant: number): number => Math.max(0, estimate - instant);
@@ -85,8 +91,9 @@ export function victimTourDecision(input: VictimInput): Decision {
   if (input.living.length < 2 || !input.living.includes(input.victim) || !sameFactions(input.living, input.displayedLiving)) {
     return { play: false, reason: 'mismatch' };
   }
-  if (input.timing === 'manual' || input.c2 === null) return { play: true };
-  return { play: true, budget: input.c2 - input.estimate - TOUR_PARAMS.marginMs };
+  const forced = input.forced === true ? { forced: true as const } : {};
+  if (input.timing === 'manual' || input.c2 === null) return { play: true, ...forced };
+  return { play: true, budget: input.c2 - input.estimate - TOUR_PARAMS.marginMs, ...forced };
 }
 
 /**
@@ -101,19 +108,27 @@ export function scaleFor(end: number, budget: number | undefined): Scale {
 
 /**
  * The view's choice (reduced motion is known only there): a victim tour becomes the still tour (D = 1,800 ms) and
- * is scaled with that D (D14); an absorber tour is dropped. `n` is the size of the tour's set.
+ * is scaled with that D (D14); an absorber tour is dropped. `n` is the size of the tour's set. A `forced` victim tour (spec 013
+ * FR-435) is never skipped as too short: with less than its D it plays in the time left, at least the length of the still tour
+ * (`squeeze`: below the half that every other tour needs).
  */
 export function viewChoice(
   kind: TourKind,
   reduced: boolean,
   n: number,
   budget: number | undefined,
-): { readonly play: true; readonly still?: true; readonly budget?: number } | { readonly play: false; readonly reason: SkipReason } {
+  pace: TourPace = 'classic',
+  forced = false,
+): { readonly play: true; readonly still?: true; readonly budget?: number; readonly squeeze?: true } | { readonly play: false; readonly reason: SkipReason } {
   if (kind === 'absorber' && reduced) return { play: false, reason: 'reduced-motion' };
   const still = kind === 'victim' && reduced;
-  const scale = scaleFor(nominalEnd(kind, n, still), budget);
-  if (!scale.play) return { play: false, reason: 'too-short' };
-  return { play: true, ...(still ? { still: true as const } : {}), ...(scale.budget === undefined ? {} : { budget: scale.budget }) };
+  const end = nominalEnd(kind, n, still, pace);
+  const scale = scaleFor(end, budget);
+  if (scale.play) return { play: true, ...(still ? { still: true as const } : {}), ...(scale.budget === undefined ? {} : { budget: scale.budget }) };
+  if (!forced || kind !== 'victim') return { play: false, reason: 'too-short' };
+  const floor = Math.max(budget ?? 0, STILL_END);
+  if (floor >= end) return { play: true, ...(still ? { still: true as const } : {}) };
+  return { play: true, ...(still ? { still: true as const } : {}), budget: floor, squeeze: true };
 }
 
 /**
@@ -128,7 +143,7 @@ export function absorberTourDecision(input: AbsorberInput): Decision {
     ageOf(input.estimate, input.appliedAt) <= TOUR_PARAMS.lateMs;
   if (!fresh) return { play: false, reason: 'not-fresh' };
   const candidates = input.candidates;
-  if (candidates === undefined || new Set(candidates).size < 2) return { play: false, reason: 'no-candidates' };
+  if (candidates === undefined || new Set(candidates).size < 1) return { play: false, reason: 'no-candidates' };
   if (!candidates.includes(input.absorber)) return { play: false, reason: 'not-a-candidate' };
   if (input.timing === 'manual' || input.round >= input.totalRounds) return { play: true };
   const gap = (input.timing.i - input.timing.l1 - input.timing.l2) * 1000;

@@ -138,8 +138,9 @@ describe('FR-316 (shell) the live scene routes the tours and the user through th
   });
 
   it('FR-341 (live) the skip button and the Escape key both complete the running tour', () => {
-    expect(main).toMatch(/onSkip: \(\) => view\?\.completeTour\(now\(\)\)/);
-    expect(main).toMatch(/onSkip: \(\) => created\.completeTour\(now\(\)\)/);
+    // Spec 013 FR-408: the same skip also dismisses the round banner.
+    expect(main).toMatch(/onSkip: \(\) => \{\s*banner = bannerDismiss\(banner\);\s*view\?\.completeTour\(now\(\)\);\s*\}/);
+    expect(main).toMatch(/onSkip: \(\) => \{\s*banner = bannerDismiss\(banner\);\s*created\.completeTour\(now\(\)\);\s*\}/);
     expect(panel).toMatch(/skipLabel\(\), handlers\.onSkip\)/);
   });
 
@@ -147,7 +148,8 @@ describe('FR-316 (shell) the live scene routes the tours and the user through th
     expect(main).toMatch(/if \(status\.runEnded\) syncAddress\(lastRound, created\.camera\(\)\)/);
     expect(main.match(/syncAddress\(/g)?.length).toBeGreaterThan(0);
     expect(main).not.toMatch(/\.setCamera\(/);
-    // Every user move of the camera goes through userCamera: the reset button, a tap on the minimap, its wheel zoom and the map itself.
-    expect(main.match(/userCamera\(/g)).toHaveLength(4);
+    // Every move of the camera goes through userCamera: the reset button, `userMoved` (the map, the minimap, its wheel zoom and the pinch)
+    // and the return to the default view at the end of a round (spec 013 FR-410).
+    expect(main.match(/userCamera\(/g)).toHaveLength(3);
   });
 });

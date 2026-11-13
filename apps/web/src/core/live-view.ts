@@ -129,13 +129,15 @@ export function victimRequestOf(
   const result = index.get(effect.victim);
   const set = effect.living.map((f) => index.get(f));
   if (result === undefined || set.some((i) => i === undefined)) return undefined;
-  const last = effect.round === model.totalRounds && (model.victim?.candidates.length ?? 0) < 2;
+  // FR-436: a single candidate now has its own absorption, which returns the camera to the overview itself.
+  const last = effect.round === model.totalRounds && (model.victim?.candidates.length ?? 0) < 1;
   return {
     kind: VICTIM_TOUR,
     result,
     set: set as number[],
     sigma: effect.sigma,
     ...(effect.budget === undefined ? {} : { budget: effect.budget }),
+    ...(effect.forced === true ? { forced: true as const } : {}),
     ...(last ? { overviewAfter: true as const } : {}),
   };
 }
@@ -147,4 +149,9 @@ export function absorberRequestOf(tour: AbsorberTour, index: ReadonlyMap<number,
   const set = tour.candidates.map((f) => index.get(f));
   if (result === undefined || victim === undefined || set.some((i) => i === undefined)) return undefined;
   return { kind: ABSORBER_TOUR, result, victim, set: set as number[], sigma: tour.sigma, ...(tour.budget === undefined ? {} : { budget: tour.budget }) };
+}
+
+/** Spec 013 FR-411: a played match (a player is present) plays its tours at the bell pace; a spectator keeps the classic pace of spec 009. */
+export function pacedFor(request: TourRequest | undefined, player: boolean): TourRequest | undefined {
+  return request === undefined || !player ? request : { ...request, pace: 'bell' };
 }

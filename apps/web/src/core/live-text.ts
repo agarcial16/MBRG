@@ -45,6 +45,19 @@ export const haltText = (reason: HaltReason): string => HALT_TEXTS[reason];
 /** The Spanish message of an error that ends the scene. */
 export const errorText = (kind: LiveErrorKind): string => ERROR_TEXTS[kind];
 
+/**
+ * The schedule the countdown reads: after the victim reveal the anchors C2 and A of the victim (a forced round shortens phase 2 to
+ * min(L1, F)) win over an older schedule event, so the timer never runs to a stale C2.
+ */
+export function scheduleOf(
+  stage: Stage,
+  schedule: PublicSchedule | undefined,
+  victim: { readonly c2: number | null; readonly a: number | null } | undefined,
+): PublicSchedule | undefined {
+  if (schedule === undefined || victim === undefined || (stage !== 'phase-2' && stage !== 'locked')) return schedule;
+  return { ...schedule, c2: victim.c2 ?? schedule.c2, a: victim.a ?? schedule.a };
+}
+
 /** The instant the countdown of a running stage runs to: C1 in `phase-1`, C2 in `phase-2`, A in `locked` (FR-305). */
 export function nextAnchor(stage: Stage, schedule: PublicSchedule | undefined): number | undefined {
   if (schedule === undefined) return undefined;

@@ -8,6 +8,7 @@
 import type { FactionId, MapData, PresentationData, Rgb, TerritoryId } from '@mbrg/shared';
 import { initialCamera, resizeCamera } from '../core/camera';
 import type { Camera, Viewport } from '../core/camera';
+import { detailFactor } from '../core/detail-scale';
 import { factionColorList, buildEntryIndex, factionIndexOf, ownerTable } from '../core/entries';
 import type { EntryIndex } from '../core/entries';
 import { frontField } from '../core/front';
@@ -45,6 +46,7 @@ import {
 import type { SessionPaint, SessionView, TourRequest, TourSession, TourStatus } from '../core/tour-session';
 import { attachLabelLayer } from '../render/labels-layer';
 import type { TourOverlay } from '../render/labels-layer';
+import { fontEpoch } from './map-font';
 import { createMapScene } from '../render/map-scene';
 import { attachRenderer } from '../render/renderer';
 import { createFrameLoop } from './frame-loop';
@@ -138,6 +140,8 @@ export interface MapView {
   completeTour(nowMs: number): void;
   /** The user's camera (pan, zoom, reset): changes the camera and takes it from a running tour (FR-333). */
   userCamera(next: Camera): void;
+  /** Outlines the faction with this view index in gilt, or none (spec 013): the player's choice. */
+  setPick(faction: number | undefined): void;
   /** The tour frame of the last drawing, or undefined when it was not a tour frame (the debug panel shows its digest). */
   tourFrame(): TourFrame | undefined;
   /** Label layouts computed since the last tour began (0 for a victim tour, 1 for an absorber tour: the round-k layout). */
@@ -254,7 +258,7 @@ export function createMapView(input: MapViewInput): MapView {
       renderer.resize(viewport, ratio);
       labelLayer.resize(viewport, ratio);
     }
-    const view = { camera, viewport, dpr: ratio };
+    const view = { camera, viewport, dpr: ratio, detail: detailFactor(image, viewport), fonts: fontEpoch() };
     mapScene.setView(view);
     renderer.draw();
     labelLayer.draw(drawn, view, overlay);
@@ -414,6 +418,10 @@ export function createMapView(input: MapViewInput): MapView {
     },
     tourFrame: () => lastFrame,
     tourLayouts: () => tourLayouts,
+    setPick: (faction) => {
+      mapScene.setPick(faction);
+      loop.request();
+    },
     userCamera: (next) => {
       session = takeCamera(session);
       camera = next;

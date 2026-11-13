@@ -192,10 +192,11 @@ describe('absorber tour decision', () => {
     }
   });
 
-  it('no absorber tour when the candidates are not held, d is 1, or the absorber is not among them', () => {
+  it('no absorber tour when the candidates are not held or the absorber is not among them', () => {
     expect(absorberTourDecision(absorberInput({ candidates: undefined }))).toStrictEqual({ play: false, reason: 'no-candidates' });
     expect(absorberTourDecision(absorberInput({ candidates: [] }))).toStrictEqual({ play: false, reason: 'no-candidates' });
-    expect(absorberTourDecision(absorberInput({ candidates: [13] }))).toStrictEqual({ play: false, reason: 'no-candidates' });
+    // One candidate (a forced absorber) plays since spec 013 FR-436.
+    expect(absorberTourDecision(absorberInput({ candidates: [13] })).play).toBe(true);
     expect(absorberTourDecision(absorberInput({ candidates: [5, 13, 21], absorber: 8 }))).toStrictEqual({ play: false, reason: 'not-a-candidate' });
     expect(absorberTourDecision(absorberInput({ candidates: [5, 13], absorber: 13 })).play).toBe(true);
   });

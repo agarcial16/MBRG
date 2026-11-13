@@ -8,6 +8,7 @@ import {
   haltText,
   liveTitle,
   nextAnchor,
+  scheduleOf,
   roundLine,
   stageText,
   victimLine,
@@ -187,5 +188,18 @@ describe('NFR-56 the live texts are Spanish and live in the strings module', () 
     for (const key of Object.keys(STRINGS).filter((k) => k.startsWith('live'))) {
       expect(new RegExp(`\\bSTRINGS\\s*\\.\\s*${key}\\b`).test(code), `STRINGS.${key} is unused by the live core`).toBe(true);
     }
+  });
+});
+
+describe('the countdown reads the anchors of the revealed victim', () => {
+  const schedule: PublicSchedule = { c1: 1000, c2: 5000, a: 9000 };
+  it('in phase 2 and locked the victim anchors (a forced round is shorter) win over the schedule; before the reveal nothing changes', () => {
+    const victim = { c2: 3000, a: 4000 };
+    expect(scheduleOf('phase-2', schedule, victim)).toStrictEqual({ c1: 1000, c2: 3000, a: 4000 });
+    expect(scheduleOf('locked', schedule, victim)).toStrictEqual({ c1: 1000, c2: 3000, a: 4000 });
+    expect(scheduleOf('phase-1', schedule, victim)).toBe(schedule);
+    expect(scheduleOf('phase-2', schedule, undefined)).toBe(schedule);
+    expect(scheduleOf('phase-2', schedule, { c2: null, a: null })).toStrictEqual(schedule);
+    expect(scheduleOf('phase-2', undefined, victim)).toBeUndefined();
   });
 });

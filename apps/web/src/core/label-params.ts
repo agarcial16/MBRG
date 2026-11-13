@@ -24,7 +24,7 @@ export interface LabelParams {
 }
 
 export const LABEL_PARAMS: LabelParams = {
-  font: { weight: 600, families: ['"Segoe UI"', '"Helvetica Neue"', 'Arial', 'sans-serif'] },
+  font: { weight: 600, families: ['"Noto Sans"', 'sans-serif'] },
   margin: 2,
   maxHeight: 120,
   minPx: 9,

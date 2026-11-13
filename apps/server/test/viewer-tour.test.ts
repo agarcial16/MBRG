@@ -80,7 +80,8 @@ describe('the reveal tours against the real server: the victim tour', () => {
     expect(effect.budget).toBeGreaterThanOrEqual(end);
     expect(effect.budget).toBeLessThanOrEqual(29_000);
     expect(scaleFor(end, effect.budget)).toStrictEqual({ play: true });
-    expect(at).toBe(v.clock.now());
+    // FR-409: the reveal is read at the end of the finalised beat, exactly one beat after the frozen clock.
+    expect(at).toBe(v.clock.now() + 2000);
     // The rest of the round (phase-2 close and the application) starts no second victim tour.
     await step(h, id, v, () => nextClockStep(h));
     await step(h, id, v, () => nextClockStep(h));
@@ -129,14 +130,14 @@ describe('the reveal tours against the real server: the victim tour', () => {
 });
 
 describe('the reveal tours against the real server: the absorber tour and the halt', () => {
-  it('FR-345 (real server) a clock match with L2 = 2 s and one with L2 = 0 give an absorber tour with the application of each round with two candidates, after the C2 close', async () => {
+  it('FR-345 (real server) a clock match with L2 = 2 s and one with L2 = 0 give an absorber tour with the application of each round with a candidate (spec 013 FR-436 includes a single one), after the C2 close', async () => {
     for (const l2 of [2, 0]) {
       const h = await startReads({ service: { scheduler: true } });
       const { id } = makeMatch(h, `t-a${l2}`, { timing: { i: 60, l1: 20, l2 } });
       const v = startViewer({ port: h.port, matchId: id });
       await playToEnd(h, id, v, () => nextClockStep(h));
       const reveals = revealsOf(h, id);
-      const wanted = reveals.filter((e) => e.candidates.length >= 2).map((e) => e.round);
+      const wanted = reveals.filter((e) => e.candidates.length >= 1).map((e) => e.round);
       // The dev match has rounds with two or more candidates (otherwise this test would prove nothing).
       expect(wanted.length).toBeGreaterThan(0);
       expect(v.scene.absorberTours.map((x) => x.to)).toStrictEqual(wanted);
@@ -146,7 +147,9 @@ describe('the reveal tours against the real server: the absorber tour and the ha
         expect(tour.victim).toBe(reveal.victim);
         expect([...tour.candidates].sort((a, b) => a - b)).toStrictEqual([...reveal.candidates].sort((a, b) => a - b));
         expect(tour.absorber).toBe(record.absorber);
-        expect(at).toBe(v.clock.now());
+        // FR-409: the application waited for the finalised beat of the phase-2 close, so the tour starts at most one beat after the frozen clock.
+        expect(at).toBeGreaterThanOrEqual(v.clock.now());
+        expect(at - v.clock.now()).toBeLessThanOrEqual(2000);
         // The budget is the time to the next C1 (I - L1 - L2) less the margin and the label step, from the application instant; none for the last round.
         const gap = (60 - 20 - l2) * 1000;
         if (to < v.model().totalRounds) {
@@ -171,7 +174,7 @@ describe('the reveal tours against the real server: the absorber tour and the ha
     const reveals = revealsOf(h, id);
     expect(v.scene.victimTours.map((x) => x.effect.round)).toStrictEqual(reveals.map((e) => e.round));
     for (const { effect } of v.scene.victimTours) expect(effect.budget).toBeUndefined();
-    expect(v.scene.absorberTours.map((x) => x.to)).toStrictEqual(reveals.filter((e) => e.candidates.length >= 2).map((e) => e.round));
+    expect(v.scene.absorberTours.map((x) => x.to)).toStrictEqual(reveals.filter((e) => e.candidates.length >= 1).map((e) => e.round));
     for (const { tour } of v.scene.absorberTours) expect(tour.budget).toBeUndefined();
     expectNoRequestAboveN(v);
   }, timeoutOf);

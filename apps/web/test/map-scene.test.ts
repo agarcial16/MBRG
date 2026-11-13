@@ -278,7 +278,7 @@ describe('FR-159 the rendering part takes only the package views, the owner tabl
     expectTypeOf(createMapScene).parameters.toEqualTypeOf<[EntryIndex, readonly Rgb[], MapTheme]>();
     expectTypeOf<MapScene['setOwners']>().parameters.toEqualTypeOf<[Uint8Array]>();
     expectTypeOf<MapScene['setView']>().parameters.toEqualTypeOf<[MapView]>();
-    expectTypeOf<keyof MapView>().toEqualTypeOf<'camera' | 'viewport' | 'dpr'>();
+    expectTypeOf<keyof MapView>().toEqualTypeOf<'camera' | 'viewport' | 'dpr' | 'detail' | 'fonts'>();
     expectTypeOf(attachRenderer).parameters.toEqualTypeOf<[HTMLCanvasElement, MapScene]>();
     expectTypeOf(deviceSize).parameters.toEqualTypeOf<[Viewport, number]>();
     expect(true).toBe(true);
