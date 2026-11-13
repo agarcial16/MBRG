@@ -1,5 +1,5 @@
 # Spec 015 — Visual refresh (one look: the dark table)
-Status: approved (by the user on 2026-11-10). Tier: Light SDD (UI, visual design). Depends on 010 and 013 (the branch builds on 013's HUD; rebase onto `rewrite` once PR #57 is merged). Ids continue 014: FR-422 onwards, NFR-84 onwards. Amends 010 FR-368 (terra incognita).
+Status: implemented (approved by the user on 2026-11-10; accepted after the hand run on 2026-11-13). Tier: Light SDD (UI, visual design). Depends on 010 and 013. Ids continue 014: FR-422 onwards, NFR-84 onwards. Amends 010 FR-368 (terra incognita).
 
 ## Goal
 Make the viewer read as one coherent thing instead of three styles glued together (a parchment wallpaper with dragons, dark wood panels, a flat vector map). Direction "D", chosen by the user from prototypes (`specs/015-visual-refresh/prototype/desk-D-mesa-con-mar-vivo.png`, `phone-D-mesa-con-mar-vivo.png`): the map is a lit table. The map keeps its bright sea and its faction colours at the centre and fades into a dark wood background, so it no longer looks like a rectangle pasted on a wallpaper. The server, the protocol, the sim and the map format do not change.

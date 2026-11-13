@@ -1,5 +1,5 @@
 # Spec 014 — Public match config read
-Status: approved (by the user on 2026-11-01)
+Status: implemented (approved by the user on 2026-11-01)
 
 ## Context and goal
 Spec 011 lets anyone create a match from a public map list inside public timing bounds, and caps the players of a match. The values live in operator settings and no read publishes them. Spec 013's create-match screen therefore cannot offer only valid maps or timings, and would learn the limits by being refused. Goal: one credential-free read that publishes exactly the public creation options, nothing else.
