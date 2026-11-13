@@ -49,6 +49,11 @@ describe('FR-393 the create form offers only what the public config allows', () 
     expect(slow!.i).toBeGreaterThan(fast!.i);
   });
 
+  it('FR-450 the wait between the close of the predictions and the animation (L2) is 5 s, or the server minimum, in every pace', () => {
+    for (const pace of PACES) expect(paceTiming(pace.id, CONFIG).l2, pace.id).toBe(5);
+    expect(paceTiming('normal', { ...CONFIG, minPhase2: 8 }).l2).toBe(8);
+  });
+
   it('FR-393 the options list the maps in the server order and say when public creation is off', () => {
     expect(createOptions(CONFIG)).toStrictEqual({ enabled: true, maps: ['europe', 'asia'] });
     expect(createOptions({ ...CONFIG, maps: [], enabled: false })).toStrictEqual({ enabled: false, maps: [] });

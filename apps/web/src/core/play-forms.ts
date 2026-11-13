@@ -21,8 +21,8 @@ export interface PaceTiming {
 
 /** What each pace asks for before the public bounds apply, in seconds: the round interval and the two prediction phases. */
 const TARGETS: Readonly<Record<Exclude<Pace, 'fast'>, PaceTiming>> = {
-  normal: { i: 60, l1: 30, l2: 15 },
-  slow: { i: 300, l1: 150, l2: 60 },
+  normal: { i: 60, l1: 30, l2: 5 },
+  slow: { i: 300, l1: 150, l2: 5 },
 };
 
 /**

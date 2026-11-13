@@ -25,7 +25,7 @@ export interface LegendEntry {
 }
 
 export interface LivePanelView {
-  /** "Ronda N de T" for the displayed round; none before the first drawing. */
+  /** "Ronda N" for the displayed round ("Ronda N de T" once finished); none before the first drawing. */
   readonly round: string | undefined;
   readonly stage: string;
   readonly countdown: string | undefined;
@@ -87,7 +87,7 @@ export function panelView(model: LiveModel, at: number, factions: readonly Facti
           return { faction: f.id, text: legendLine({ faction: f.id, name: f.name, territories, alive }), alive };
         });
   return {
-    round: displayed === undefined ? undefined : roundLine(displayed, model.totalRounds),
+    round: displayed === undefined ? undefined : roundLine(displayed, model.totalRounds, model.stage === 'finished'),
     stage: stageText(model.stage),
     countdown: countdownText(model.stage, model.timing, model.schedule, estimateAt(model, at)),
     victim: victimLine(model.stage, model.victim?.victim, nameOf, tour.revealing === true),

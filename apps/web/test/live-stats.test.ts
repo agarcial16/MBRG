@@ -3,8 +3,9 @@
 // values are computed here independently from the scripted match, never from the module under test.
 import { describe, expect, it } from 'vitest';
 import type { LiveModel } from '../src/core/live-model';
-import { chronicle, factionRows, missingRecords, searchRows, sortRows, visibleRows, type FactionRow } from '../src/core/live-stats';
+import { chronicle, chronicleNeedsArchive, factionRows, missingRecords, searchRows, sortRows, visibleRows, type FactionRow } from '../src/core/live-stats';
 import { DEV_PRESENTATION } from './helpers/dev-map';
+import liveMainSource from '../src/ui/live-main.ts?raw';
 import { Driver, eventsOfRound, scripted, type Scripted } from './helpers/scripted-match';
 
 const factions = DEV_PRESENTATION.factions.map((f) => ({ id: f.id, name: f.name }));
@@ -151,6 +152,27 @@ describe('FR-361 sorting, searching and the cap of the factions list', () => {
   });
 });
 
+describe('FR-360 the chronicle of a match opened late', () => {
+  it('FR-360 a match opened at round n holds no records, so the chronicle asks for the archive once (Task 4 of 015, 2026-11-11)', async () => {
+    const s = await scripted();
+    const late = await joined(s, 3);
+    expect(chronicle(late, factions, 3, none)).toStrictEqual([]);
+    expect(chronicleNeedsArchive(late, 3)).toBe(true);
+    expect(chronicleNeedsArchive({ ...late, archive: true }, 3)).toBe(false);
+    expect(chronicleNeedsArchive(await followed(s, 3), 3)).toBe(false);
+    expect(chronicleNeedsArchive(late, 0)).toBe(false);
+  });
+
+  it('FR-360 with the records read the chronicle lists every played round', async () => {
+    const s = await scripted();
+    const late = await joined(s, 3);
+    const records = new Map(late.records);
+    for (let k = 1; k <= 3; k++) records.set(k, s.records[k - 1]!);
+    expect(chronicle({ ...late, records }, factions, 3, none).map((e) => e.round)).toStrictEqual([3, 2, 1]);
+    expect(chronicleNeedsArchive({ ...late, records }, 3)).toBe(false);
+  });
+});
+
 describe('FR-360 the chronicle', () => {
   it('FR-360 one entry per applied round with a known record, newest first: round, victim, absorber and territories taken', async () => {
     const s = await scripted();
@@ -198,5 +220,12 @@ describe('FR-360 the chronicle', () => {
     expect(hidden[0]).toStrictEqual({ status: 'pending', round: 2, victim: nameOf(record.eliminated) });
     const text = JSON.stringify(hidden[0]);
     expect(text).not.toMatch(/absorber|taken/);
+  });
+});
+
+describe('FR-360 the shell reads the archive for a chronicle that lacks records', () => {
+  it('FR-360 the live scene asks for the archive when the chronicle needs it and tells the panel while the records load', () => {
+    expect(liveMainSource).toMatch(/if \(chronicleNeedsArchive\(model, upTo\)\) after\(0, \(\) => runner\?\.requestArchive\(\)\);/);
+    expect(liveMainSource).toMatch(/chronicleLoading: missingRecords\(model, upTo\)\.length > 0/);
   });
 });

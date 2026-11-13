@@ -66,15 +66,20 @@ function overlayFor(box: Box, cam: Camera, area: Viewport): { marker?: Marker; i
   if (w < TOUR_PARAMS.tinyPx && h < TOUR_PARAMS.tinyPx) {
     out.marker = { x: cx, y: cy, r: TOUR_PARAMS.markerBasePx + Math.hypot(w, h) / 2 };
   }
-  const outside = b.sx <= 0 || a.sx >= area.width || b.sy <= 0 || a.sy >= area.height;
+  // FR-443: the edge indicator lives in the visible area, not under the phone's bars.
+  const top = area.top ?? 0;
+  const bottom = area.height - (area.bottom ?? 0);
+  const outside = b.sx <= 0 || a.sx >= area.width || b.sy <= top || a.sy >= bottom;
   if (outside) {
-    const dx = cx - area.width / 2;
-    const dy = cy - area.height / 2;
+    const mx = area.width / 2;
+    const my = (top + bottom) / 2;
+    const dx = cx - mx;
+    const dy = cy - my;
     const inset = TOUR_PARAMS.indicatorPx;
-    const sx = dx === 0 ? Infinity : (area.width / 2 - inset) / Math.abs(dx);
-    const sy = dy === 0 ? Infinity : (area.height / 2 - inset) / Math.abs(dy);
+    const sx = dx === 0 ? Infinity : (mx - inset) / Math.abs(dx);
+    const sy = dy === 0 ? Infinity : ((bottom - top) / 2 - inset) / Math.abs(dy);
     const s = Math.min(sx, sy);
-    out.indicator = { x: area.width / 2 + dx * s, y: area.height / 2 + dy * s, angle: Math.atan2(dy, dx) };
+    out.indicator = { x: mx + dx * s, y: my + dy * s, angle: Math.atan2(dy, dx) };
   }
   return out;
 }

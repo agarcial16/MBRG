@@ -6,8 +6,9 @@
 // It also plays the reveal tours of spec 009 (dim, labels, marker, camera, hand-over to the round step): the decisions are
 // the pure `core/tour-session.ts`; this file applies what the session answers and calls no layout function while a tour paints.
 import type { FactionId, MapData, PresentationData, Rgb, TerritoryId } from '@mbrg/shared';
-import { initialCamera, resizeCamera } from '../core/camera';
-import type { Camera, Viewport } from '../core/camera';
+import { initialCamera, isDefaultCamera, resizeCamera, withInset } from '../core/camera';
+import type { Camera, Inset, Viewport } from '../core/camera';
+import { insetAt } from '../core/inset';
 import { detailFactor } from '../core/detail-scale';
 import { factionColorList, buildEntryIndex, factionIndexOf, ownerTable } from '../core/entries';
 import type { EntryIndex } from '../core/entries';
@@ -116,6 +117,11 @@ export interface MapView {
   readonly owners: ReadonlyMap<FactionId, number>;
   camera(): Camera;
   viewport(): Viewport;
+  /**
+   * FR-443: the margins of the canvas the HUD covers (the phone's top bar and dock). The camera works on the area between them; a
+   * change glides over INSET_MS (a camera at the default view follows it) instead of jumping.
+   */
+  setInset(next: Inset): void;
   /** Changes the camera and asks for a frame. */
   setCamera(next: Camera): void;
   /** What a change to round `target` needs; nothing is changed until `commit` (FR-176 to FR-178, FR-183). */
@@ -234,6 +240,9 @@ export function createMapView(input: MapViewInput): MapView {
   });
 
   let camera: Camera = start.camera ?? initialCamera(image, viewport);
+  // FR-443: the margins now drawn, and a glide to new ones (`startedMs` is the reading of the first frame of the glide).
+  let inset: Inset = { top: viewport.top ?? 0, bottom: viewport.bottom ?? 0 };
+  let glide: { from: Inset; to: Inset; follow: boolean; startedMs: number | undefined } | undefined;
   const dpr = (): number => window.devicePixelRatio || 1;
 
   // One drawing at clock reading `nowMs`: the playback says whole round or step at forward progress f.
@@ -305,6 +314,22 @@ export function createMapView(input: MapViewInput): MapView {
     return session !== undefined && session.run !== undefined;
   };
 
+  /** One step of the glide of the margins at `nowMs`; true while it is still moving. */
+  const stepInset = (nowMs: number): boolean => {
+    if (glide === undefined) return false;
+    glide.startedMs ??= nowMs;
+    inset = insetAt(glide.from, glide.to, nowMs - glide.startedMs);
+    viewport = withInset(viewport, inset);
+    // A camera at the default view follows the new visible area; any other keeps what it shows (a tour computes its own each frame).
+    if (glide.follow && session === undefined) camera = initialCamera(image, viewport);
+    else camera = resizeCamera(camera, image, viewport);
+    if (inset.top === glide.to.top && inset.bottom === glide.to.bottom) {
+      glide = undefined;
+      return false;
+    }
+    return true;
+  };
+
   const paint = (nowMs: number): boolean => {
     if (session !== undefined) {
       const v = sessionView();
@@ -336,13 +361,14 @@ export function createMapView(input: MapViewInput): MapView {
 
   // Frames from the loop: camera changes and the frames of a running step.
   const loop = createFrameLoop((t) => {
+    const gliding = stepInset(t);
     const more = paint(t);
     input.onFrame?.(t);
-    return more;
+    return more || gliding;
   });
 
   window.addEventListener('resize', () => {
-    viewport = { width: canvas.clientWidth, height: canvas.clientHeight };
+    viewport = withInset({ width: canvas.clientWidth, height: canvas.clientHeight }, inset);
     camera = resizeCamera(camera, image, viewport);
     input.onResize?.();
     loop.request();
@@ -353,6 +379,20 @@ export function createMapView(input: MapViewInput): MapView {
     owners,
     camera: () => camera,
     viewport: () => viewport,
+    setInset: (next) => {
+      const to = glide?.to ?? inset;
+      if (next.top === to.top && next.bottom === to.bottom) return;
+      if (motion.reduced()) {
+        glide = undefined;
+        const follow = session === undefined && isDefaultCamera(camera, image, viewport);
+        inset = next;
+        viewport = withInset(viewport, inset);
+        camera = follow ? initialCamera(image, viewport) : resizeCamera(camera, image, viewport);
+      } else {
+        glide = { from: inset, to: next, follow: (glide?.follow ?? false) || (session === undefined && isDefaultCamera(camera, image, viewport)), startedMs: undefined };
+      }
+      loop.request();
+    },
     setCamera: (next) => {
       camera = next;
       loop.request();

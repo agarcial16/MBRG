@@ -189,9 +189,13 @@ describe('screenshot pass: top bar, dock and desk panels', () => {
     expect(rule('.hud-pane')).toMatch(/padding: \d+px 1[0-9]px \d+px/);
   });
 
-  it('the Orden tab renders the prediction offer for a player and keeps the plain note for a page without a player', () => {
-    expect(panel).toContain('renderOrderPredict(hud.play?.predict)');
-    expect(panel).toContain('orderNote.hidden = hud.play !== undefined');
+  it('FR-440 the Orden tab holds the command panel (prediction and result) on the phone; the chronicle and the factions are tabs of their own', () => {
+    expect(panel).toMatch(/panes\.get\('order'\) \?\? panes\.get\('chronicle'\)\)\?\.append\(command\)/);
+    expect(panel).toContain("panes.get('chronicle')?.append(chronSection)");
+    expect(panel).toContain("panes.get('factions')?.append(factionsSection)");
+    expect(panel).toContain("panes.get('ranking')?.append(rightColumn)");
+    expect(panel).not.toContain('renderOrderPredict');
+    expect(css).toContain('.hud[data-layout="phone"] .hud-chron { max-height: none; overflow: visible; margin: 0; }');
   });
 
   it('the desk command panel starts after the left column and the left column counts its padding in its width', () => {
@@ -230,11 +234,19 @@ describe('second screenshot pass: phone dock and chip', () => {
     return css.slice(start, css.indexOf('}', start));
   };
 
-  it('the dock pane has one fixed height of about a third of the screen for every tab, with no gap above it', () => {
+  it('the dock pane has one fixed height for every tab, with no gap above it, and the strip below it keeps its own', () => {
     const pane = rule('.hud[data-layout="phone"] .hud-pane');
-    expect(pane).toContain('height: clamp(250px, calc(37vh - 50px), 330px)');
+    expect(pane).toContain('height: var(--hud-pane-h)');
+    expect(css).toContain('--hud-pane-h: max(120px, calc(100vh * 0.4 - 164px)); --hud-strip-h: 92px; --hud-open-h: calc(72px + var(--hud-pane-h) + var(--hud-strip-h)); --hud-dock-h: 72px; }');
+    expect(css).toContain('.hud[data-layout="phone"][data-dock="open"] { --hud-dock-h: var(--hud-open-h); }');
+    expect(panel).toContain("root.style.setProperty('--hud-pane-h', `${dockPaneHeight(window.innerHeight)}px`)");
+    expect(panel).toContain("root.style.setProperty('--hud-open-h', `${dockHeight(window.innerHeight, false)}px`)");
     expect(pane).toContain('max-height: none');
     expect(rule('.hud-tabs')).not.toContain('margin-top');
+  });
+
+  it('FR-445 the phone does not reserve a row for a seal that is not there yet', () => {
+    expect(css).toContain('.hud[data-layout="phone"] .hud-predict-head > .hud-seal[data-empty="true"] { display: none; }');
   });
 
   it('an open phase shows the prediction and the buttons only; no open phase shows the result instead of the empty prediction', () => {
@@ -250,8 +262,8 @@ describe('second screenshot pass: phone dock and chip', () => {
     expect(panel).toContain("el('span', 'hud-chip-stats', chipButton)");
   });
 
-  it('the ranking list scrolls inside the dock and the own row stays pinned', () => {
-    expect(css).toContain('.hud[data-layout="phone"] .hud-right .hud-board:not(.hud-board-mine) { flex: 1 1 auto; min-height: 0; overflow: auto; }');
+  it('the ranking scrolls with its pane and the own row stays pinned at the bottom of it', () => {
+    expect(css).toContain('.hud[data-layout="phone"] .hud-board-mine { position: sticky; bottom: 0;');
     expect(rule('.hud-boardrow.me')).toContain('position: sticky');
     expect(panel).toContain("'hud-board hud-board-mine'");
   });
@@ -263,6 +275,12 @@ describe('second screenshot pass: desk panel, outline, scrollbars and the round 
     expect(css).toContain('.hud[data-layout="desk"] .hud-command .hud-dot { min-width: 26px; min-height: 26px; }');
     expect(css).toContain('.hud[data-layout="desk"] .hud-command:has(.hud-predict:not([hidden])) > .hud-stage { display: none; }');
     expect(css).toContain('.hud-predict .hud-line { margin: 0; }');
+  });
+
+  it('FR-430 the prediction block has no rule above it: the frame already draws the two lines', () => {
+    const block = css.split('\n').find((line) => line.startsWith('.hud-predict {'));
+    expect(block).toBeDefined();
+    expect(block).not.toContain('border');
   });
 
   it('the seal row is reserved while there is something to choose, so the buttons do not jump when a choice is sent', () => {
@@ -308,21 +326,40 @@ describe('third screenshot pass: one control row, one-line result, stable panels
     for (const key of ['controlFirstShort', 'controlPreviousShort', 'controlNextShort', 'controlLastShort', 'controlResetShort']) expect(panel, key).toContain(`STRINGS.${key}`);
   });
 
-  it('the dots and the buttons never wrap: one row on the phone and on the desk, and the Partida pane does not scroll', () => {
+  it('FR-441 the selector and the buttons are the strip of the dock on the phone and one row on the desk; the buttons never wrap', () => {
     expect(panel).toMatch(/el\('div', 'hud-controls', command\)/);
-    expect(panel).toMatch(/el\('div', 'hud-track', controls\)/);
+    expect(panel).toMatch(/el\('div', 'hud-track', roundSel\)/);
     expect(panel).toMatch(/el\('div', 'hud-nav', controls\)/);
     expect(css).toContain('.hud-controls { display: flex; align-items: center; flex-wrap: nowrap;');
-    expect(css).toContain('margin-top: auto; }');
-    expect(css).toContain('.hud-controls > .hud-nav { flex: 1 1 auto; justify-content: flex-end; flex-wrap: nowrap;');
-    expect(css).toContain('.hud-controls > .hud-track { flex: 0 1 auto; flex-wrap: nowrap; }');
-    expect(css).toContain('.hud[data-layout="phone"] .hud-command { padding: 0; gap: 6px; min-height: 212px; }');
-    expect(css).toMatch(/\.hud\[data-layout="phone"\] \.hud-pane:not\(\[hidden\]\):has\(> \.hud-command\) \{ display: flex; flex-direction: column; overflow: hidden; \}/);
+    expect(css).toContain('.hud-controls > .hud-nav { flex: none; justify-content: flex-end; flex-wrap: nowrap;');
+    expect(css).toContain('.hud-controls > .hud-roundsel { flex: 1 1 0; }');
+    expect(css).toContain('.hud[data-layout="phone"] .hud-controls { flex-direction: column;');
+    expect(css).toContain('.hud[data-layout="phone"] .hud-nav .hud-btn { flex: 1 1 0; min-width: 44px;');
   });
 
   it('the result is one line and the seal sits on the head row, so a result never grows the desk panel', () => {
     expect(css).toMatch(/\.hud-result \{ display: flex; align-items: baseline;[^}]*white-space: nowrap; overflow: hidden;/);
-    expect(css).toContain('.hud-predict .hud-seal { position: absolute;');
+    expect(css).toContain('.hud-predict-head > .hud-seal { box-sizing: border-box; flex: 0 1 auto; min-width: 0;');
+    expect(css).toContain('.hud[data-layout="phone"] .hud-predict-head > .hud-seal { grid-area: 2 / 1 / 3 / 3;');
+    expect(css).not.toContain('.hud-predict .hud-seal { position: absolute');
     expect(css).toContain('.hud[data-layout="desk"] .hud-result > p:nth-of-type(3) { display: none; }');
+  });
+});
+
+describe('015 fix: floating cards never hide behind the minimap or the dock on the phone', () => {
+  it('the minimap canvas is capped, so a tall map cannot grow it over the card placed under it', () => {
+    expect(css).toMatch(/\.hud\[data-layout="phone"\] \.hud-minicanvas \{[^}]*max-height: 92px/);
+    expect(css).toMatch(/\.hud\[data-layout="phone"\] \.hud-minicanvas \{[^}]*width: auto/);
+  });
+  it('the state card stops above the dock, whatever the screen height', () => {
+    expect(css).toContain('.hud[data-layout="phone"] .hud-card { top: 168px; max-height: calc(100vh - 168px - var(--hud-dock-h) - 8px); }');
+  });
+  it('FR-446 the winner card of a finished match is a slim line under the bar, left of the minimap, without its body text', () => {
+    expect(css).toMatch(/\.hud\[data-layout="phone"\]\[data-state="finished"\] \.hud-card \{[^}]*top: 58px[^}]*transform: none[^}]*max-width: calc\(100vw - 128px\)/);
+    expect(css).toMatch(/\.hud\[data-layout="phone"\]\[data-state="finished"\] \.hud-card p:not\(\.hud-champion\) \{ display: none; \}/);
+    expect(css).toMatch(/\.hud-card \.hud-champion \{ color: var\(--hud-verdigris\)/);
+  });
+  it('the banner centres in the map area above the dock', () => {
+    expect(css).toMatch(/\.hud\[data-layout="phone"\] \.hud-banner \{[^}]*padding-bottom: calc\(var\(--hud-dock-h\) \+ 8px\)/);
   });
 });

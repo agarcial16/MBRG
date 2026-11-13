@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { encodeEvent } from '@mbrg/protocol';
 import type { LeaderboardRow } from '@mbrg/protocol';
 import type { LiveModel } from '../src/core/live-model';
 import {
@@ -8,8 +9,10 @@ import {
   playHud,
   toggleWinners,
   withBoard,
+  withJoined,
   withNotice,
   withOwn,
+  withPlayers,
   withReply,
   withScores,
   withSending,
@@ -134,18 +137,48 @@ describe('FR-406 chip, results panel and leaderboard', () => {
   it('FR-406 before any score the chip has the name only and there is no results panel', async () => {
     const m = await model(1);
     const out = hud(initialPlay, m);
-    expect(out.chip).toBe('Tú: Ab3_x-9.Qz1k');
+    expect(out.chip).toBe('Ab3_x-9.Qz1k · 0 pts');
+    expect(out.chipParts).toStrictEqual({ name: 'Ab3_x-9.Qz1k', stats: ' · 0 pts' });
     expect(out.result).toBeUndefined();
-    expect(hud(withScores(initialPlay, { total: 0, items: [], name: 'Ana' }), m).chip).toBe('Tú: Ana');
+    expect(hud(withScores(initialPlay, { total: 0, items: [], name: 'Ana' }), m).chip).toBe('Ana · 0 pts');
   });
 
   it('FR-406 after a scored phase the chip has total and rank and the panel the right/wrong line', async () => {
     const m = await model(1);
     const state = withBoard(withScores(initialPlay, scored), [row(1, 'player:zz', 40, 'Zed'), row(2, ME, 20, 'Ana')]);
     const out = hud(state, m);
-    expect(out.chip).toBe('Tú: Ana · 20 pts · puesto 2');
+    expect(out.chip).toBe('Ana · 20 pts · 2.º');
+    expect(out.chipParts).toStrictEqual({ name: 'Ana', stats: ' · 20 pts · 2.º' });
     expect(out.result!.right).toBe(true);
-    expect(out.result!.lines.join(' ')).toContain('Total: 20');
+    expect(out.result!.lines.join(' ')).not.toContain('Total');
+  });
+
+  it('FR-432 every joined player is on the board with 0 points, and a new one shows when it joins', async () => {
+    const m = await model(1);
+    const joined = (n: number, seq: number) => ({ playerId: `player:P${n}b_x-9.Qz1k`, name: `P${n}`, joinedSeq: seq });
+    let state = withPlayers(withBoard(initialPlay, [row(1, 'player:P1b_x-9.Qz1k', 7, 'P1')]), [joined(1, 1), joined(2, 2)]);
+    expect(hud(state, m).board!.rows.map((r) => [r.rank, r.name, r.total])).toStrictEqual([[1, 'P1', 7], [2, 'P2', 0]]);
+    state = withJoined(state, JSON.parse(encodeEvent({ type: 'player-joined', seq: 5, playerId: 'player:P3b_x-9.Qz1k', name: 'P3' })));
+    expect(hud(state, m).board!.rows.map((r) => [r.rank, r.name, r.total])).toStrictEqual([[1, 'P1', 7], [2, 'P2', 0], [2, 'P3', 0]]);
+    expect(withJoined(state, JSON.parse(encodeEvent({ type: 'phase-closed', seq: 6, round: 1, phase: 1, at: 1 })))).toBe(state);
+  });
+
+  it('FR-432 before any score read the roster alone makes the board; no roster and no rows leave it empty', async () => {
+    const m = await model(1);
+    const state = withPlayers(initialPlay, [{ playerId: ME, name: 'Ana', joinedSeq: 1 }]);
+    expect(hud(state, m).board!.rows).toStrictEqual([{ rank: 1, name: 'Ana', total: 0, me: true }]);
+    expect(hud(initialPlay, m).board).toBeUndefined();
+  });
+
+  it('FR-433 the own row is the only one marked, also when the player has no row yet', async () => {
+    const m = await model(1);
+    const rows = Array.from({ length: 12 }, (_, i) => row(i + 1, `player:p${i}`, 50 - i, `N${i}`));
+    const mineLate = hud(withBoard(initialPlay, rows), m).board!;
+    expect(mineLate.rows.some((r) => r.me)).toBe(false);
+    expect(mineLate.mine).toStrictEqual({ rank: undefined, name: 'Ab3_x-9.Qz1k', total: 0, me: true });
+    const listed = hud(withBoard(initialPlay, [...rows, row(13, ME, 1, 'Ana')]), m).board!;
+    expect(listed.mine).toStrictEqual({ rank: 13, name: 'Ana', total: 1, me: true });
+    expect(listed.rows.filter((r) => r.me)).toStrictEqual([]);
   });
 
   it('FR-406 a spectator sees the leaderboard but no chip and no personal result', async () => {

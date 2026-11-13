@@ -1,7 +1,7 @@
 // The minimap of the match screen (spec 010 FR-359): the size and the picture of the thumbnail, the rectangle of the current view and
 // the camera a tap asks for. Pure: the shell puts the pixels on a canvas and reads the pointer.
 import type { Rgb } from '@mbrg/shared';
-import { clampCamera, zoomAt } from './camera';
+import { areaCentre, clampCamera, zoomAt } from './camera';
 import type { Camera, ImageSize, Viewport } from './camera';
 import type { EntryIndex } from './entries';
 import type { Owners } from './live-rounds';
@@ -19,27 +19,29 @@ export interface UnitRect {
   h: number;
 }
 
-/** The share of the map the viewport shows, as a rectangle of the unit square (clipped to the map). */
+/** The share of the map the visible area shows (FR-443: not the part under the bars), as a rectangle of the unit square (clipped to the map). */
 export function viewRect(camera: Camera, viewport: Viewport, image: ImageSize): UnitRect {
   const halfW = viewport.width / camera.scale / 2;
-  const halfH = viewport.height / camera.scale / 2;
+  const halfH = (viewport.height - (viewport.top ?? 0) - (viewport.bottom ?? 0)) / camera.scale / 2;
+  const middleY = camera.y + ((viewport.top ?? 0) - (viewport.bottom ?? 0)) / 2 / camera.scale;
   const x0 = Math.max(0, camera.x - halfW) / image.w;
-  const y0 = Math.max(0, camera.y - halfH) / image.h;
+  const y0 = Math.max(0, middleY - halfH) / image.h;
   const x1 = Math.min(image.w, camera.x + halfW) / image.w;
-  const y1 = Math.min(image.h, camera.y + halfH) / image.h;
+  const y1 = Math.min(image.h, middleY + halfH) / image.h;
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
-/** The camera centred on a point of the unit square (clamped to it), with the same scale, clamped like every camera of the viewer. */
+/** The camera that puts a point of the unit square (clamped to it) at the middle of the visible area, same scale, clamped like every camera of the viewer. */
 export function cameraAtPoint(point: { x: number; y: number }, camera: Camera, viewport: Viewport, image: ImageSize): Camera {
   const x = Math.min(1, Math.max(0, point.x)) * image.w;
   const y = Math.min(1, Math.max(0, point.y)) * image.h;
-  return clampCamera({ x, y, scale: camera.scale }, image, viewport);
+  const shift = ((viewport.top ?? 0) - (viewport.bottom ?? 0)) / 2 / camera.scale;
+  return clampCamera({ x, y: y - shift, scale: camera.scale }, image, viewport);
 }
 
 /** The camera after the wheel turned over the minimap: zoomed about the centre of the view, inside the limits of every camera. */
 export function cameraZoomed(camera: Camera, steps: number, viewport: Viewport, image: ImageSize): Camera {
-  return zoomAt(camera, { sx: viewport.width / 2, sy: viewport.height / 2 }, steps, image, viewport);
+  return zoomAt(camera, areaCentre(viewport), steps, image, viewport);
 }
 
 /**

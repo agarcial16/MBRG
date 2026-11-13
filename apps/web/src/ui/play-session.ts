@@ -12,8 +12,10 @@ import {
   playHud,
   toggleWinners,
   withBoard,
+  withJoined,
   withNotice,
   withOwn,
+  withPlayers,
   withReply,
   withScores,
   withSending,
@@ -63,6 +65,8 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
   let state: PlayState = initialPlay;
   let model: LiveModel | undefined;
   let hold: TourHold = { revealing: false, absorbing: false, finalised: false };
+  /** FR-449: the scores, rows and winners as they stood when no tour was running; a tour shows these, never what a read brought in meanwhile. */
+  let settled: Pick<PlayState, 'scores' | 'scored' | 'rows' | 'winners'> | undefined;
   const due: Scored[] = [];
   const asked = new Set<string>();
   const forcedRounds = new Set<number>();
@@ -113,6 +117,9 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
       const own = await deps.net.ownPredictions(deps.matchId, deps.player.token, deps.player.playerId.slice(deps.player.playerId.indexOf(':') + 1));
       if (own.ok) state = withOwn(state, own.value);
     }
+    // FR-432: the players list, once; later joins arrive as `player-joined` frames (see `onFrame`), with no further read.
+    const roster = await deps.net.players(deps.matchId);
+    if (roster.ok) state = withPlayers(state, roster.value);
     await readScores(undefined);
   }
 
@@ -160,9 +167,14 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
         if (state.notice !== undefined) state = withNotice(state, undefined);
       }
       flush();
-      return playHud({ state, model: next, player: deps.player, factions: deps.factions, revealing: tour.revealing, at, forcedRounds });
+      const quiet = !tour.revealing && !tour.absorbing && tour.finalised !== true;
+      if (quiet) settled = { scores: state.scores, scored: state.scored, rows: state.rows, winners: state.winners };
+      const shown: PlayState = quiet ? state : { ...state, scores: settled?.scores, scored: settled?.scored, rows: settled?.rows, winners: settled?.winners ?? state.winners };
+      return playHud({ state: shown, model: next, player: deps.player, factions: deps.factions, revealing: tour.revealing, at, forcedRounds });
     },
     onFrame(data) {
+      const joined = withJoined(state, data);
+      if (joined !== state) set(joined);
       const scored = scoredOf(data);
       if (scored === undefined) return;
       due.push(scored);

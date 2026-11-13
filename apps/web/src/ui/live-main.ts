@@ -3,16 +3,17 @@
 // to the displayed round and camera (D31). Any failure shows one Spanish message and draws no map.
 import type { PublicMatch } from '@mbrg/protocol';
 import type { MapData, PresentationData, Rgb } from '@mbrg/shared';
-import { initialCamera, screenToMap } from '../core/camera';
+import { initialCamera, screenToMap, withInset } from '../core/camera';
 import type { Camera, Viewport } from '../core/camera';
+import { mapInset } from '../core/hud-layout';
 import { capabilityMessage, checkCapabilities } from '../core/capabilities';
 import { assignFactionColors, paletteMessage } from '../core/colors';
 import { liveProblemMessage, readLiveAddress } from '../core/live-address';
 import type { LiveAddress } from '../core/live-address';
 import { liveTitle } from '../core/live-text';
 import { absorberRequestOf, liveTourPanel, pacedFor, panelView, tourReportOf, victimRequestOf } from '../core/live-view';
-import { hudState, stateCard, topBar } from '../core/live-hud';
-import { chronicle, factionRows } from '../core/live-stats';
+import { hudState, inPlayStage, stateCard, topBar } from '../core/live-hud';
+import { chronicle, chronicleNeedsArchive, factionRows, missingRecords } from '../core/live-stats';
 import { factionAt } from '../core/predict-model';
 import type { PlayerCredentials } from '../core/play-token';
 import { liveMark, replayBand, roundTrack } from '../core/live-track';
@@ -92,6 +93,11 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials): voi
 
   const syncAddress = (round: number, camera: Camera): void => syncLiveAddress(matchId, round, camera);
 
+  // FR-443: the map area is what the top bar and the open (or folded) dock leave; the camera follows the dock.
+  let dockFolded = false;
+  const insetNow = (): { top: number; bottom: number } => mapInset(window.innerWidth, window.innerHeight, dockFolded, canvas.clientHeight);
+  const canvasViewport = (): Viewport => withInset({ width: canvas.clientWidth, height: canvas.clientHeight }, insetNow());
+
   // FR-410: whether the user moved the camera since the round began; FR-408: the round banner; FR-409/FR-401: the outline.
   let watch: CameraWatch = watchStart;
   let banner: BannerState = bannerStart;
@@ -152,7 +158,7 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials): voi
       const colors = assignFactionColors(map, presentation, THEME);
       if (!colors.ok) return { ok: false, message: paletteMessage(colors.errors[0]!, presentation) };
       const image = { w: pkg.width, h: pkg.height };
-      const viewport: Viewport = { width: canvas.clientWidth, height: canvas.clientHeight };
+      const viewport: Viewport = canvasViewport();
       const address = readLiveAddress(window.location.search, match.appliedRounds, image, viewport);
       const names = presentation.factions.map((f) => ({ id: f.id, name: f.name }));
       const origin = pageServerOrigin();
@@ -167,6 +173,10 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials): voi
       });
       const panel = createLivePanel(panelContainer, colors.value, {
         play: session.handlers,
+        onDock: (folded) => {
+          dockFolded = folded;
+          view?.setInset(insetNow());
+        },
         onNavigate: (action) => runner?.navigate(action),
         onSkip: () => {
           banner = bannerDismiss(banner);
@@ -216,10 +226,11 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials): voi
           height: pkg.height,
           values: pkg.values,
           colors,
-          viewport: { width: canvas.clientWidth, height: canvas.clientHeight },
+          viewport: canvasViewport(),
           start: { round, owners, ...(address.camera === undefined ? {} : { camera: address.camera }) },
           onFrame: () => terra?.place(created.camera(), created.viewport()),
           onResize: () => {
+            created.setInset(insetNow());
             syncAddress(lastRound, created.camera());
             drawMinimap();
             terra?.place(created.camera(), created.viewport());
@@ -311,6 +322,8 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials): voi
       const state = hudState(model);
       // The facts follow the drawn round: while the absorber tour runs, the round before it (the legend rule, D12).
       const upTo = model.displayed === undefined ? 0 : shown.absorbing ? model.displayed - 1 : model.displayed;
+      // A match opened after some rounds holds no records: read them (newest first) so the chronicle lists what was played.
+      if (chronicleNeedsArchive(model, upTo)) after(0, () => runner?.requestArchive());
       banner = bannerNext(banner, { displayed: model.displayed, applied: model.applied, absorbing: shown.absorbing, revealing: shown.revealing }, at);
       const bannerNow = bannerView(banner, model, built.factions, at, motion.reduced());
       const left = bannerExpiresIn(banner, at);
@@ -332,9 +345,11 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials): voi
         card: stateCard(state, model, at, built.factions),
         live: liveMark(model),
         band: replayBand(model),
-        track: roundTrack(model.totalRounds, model.displayed ?? 0, model.applied),
+        track: roundTrack(model.totalRounds, model.displayed ?? 0, model.applied, inPlayStage(model.stage)),
+        hold: shown.revealing || shown.absorbing || overlay !== undefined,
         rows: factionRows(model, built.factions, upTo),
         chronicle: chronicle(model, built.factions, upTo, { revealing: shown.revealing, absorbing: shown.absorbing }),
+        chronicleLoading: missingRecords(model, upTo).length > 0,
         ...(bannerNow === undefined ? {} : { banner: bannerNow }),
         ...(overlay === undefined ? {} : { overlay }),
         ...(play === undefined ? {} : { play }),

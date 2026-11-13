@@ -89,7 +89,7 @@ describe('FR-345 the legend follows the drawn state during the absorber tour', (
       const record = s.records[k - 1] as Scripted['records'][number];
       const plain = panelView(model, 20_000, factions);
       const absorbing = panelView(model, 20_000, factions, { absorbing: true });
-      expect(absorbing.round).toBe(`Ronda ${String(k)} de ${String(s.total)}`);
+      expect(absorbing.round).toBe(`Ronda ${String(k)}`);
       // The legend of the old round: the one the model gives for the displayed round k - 1.
       expect(absorbing.legend).toStrictEqual(panelView({ ...model, displayed: k - 1 }, 20_000, factions).legend);
       expect(absorbing.legend).not.toStrictEqual(plain.legend);

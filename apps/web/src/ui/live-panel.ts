@@ -6,11 +6,12 @@
 import type { Rgb } from '@mbrg/shared';
 import { wheelSteps } from '../core/camera';
 import { pinchDistance } from '../core/pinch';
-import { DOCK_TABS, layoutFor, type DockTab, type Layout } from '../core/hud-layout';
+import { dockHandle, dockPress, dockStart, dockStep, dockTabs, type DockState } from '../core/dock';
+import { DOCK_TABS, dockHeight, dockPaneHeight, layoutFor, type DockTab, type Layout } from '../core/hud-layout';
 import { cssVariables } from '../core/hud-tokens';
 import type { HudState, StateCard, TopBar } from '../core/live-hud';
 import { searchRows, sortRows, visibleRows, type ChronicleEntry, type FactionRow, type SortKey } from '../core/live-stats';
-import { trackTarget, type ReplayBand, type RoundTrack } from '../core/live-track';
+import { stripScroll, trackTarget, type ReplayBand, type RoundTrack } from '../core/live-track';
 import { liveTitle, skipLabel } from '../core/live-text';
 import type { LivePanelView } from '../core/live-view';
 import type { UnitRect } from '../core/minimap';
@@ -39,6 +40,8 @@ export interface LivePanelHandlers {
   onMinimapPinch(ratio: number): void;
   /** FR-408: a tap or a key on the round banner. */
   onBannerDismiss(): void;
+  /** FR-443: the phone dock folded or unfolded (called with every repaint of the dock, also at the start); the map area follows it. */
+  onDock?(folded: boolean): void;
   /** The player's controls (spec 013); absent when the page has no player session. */
   readonly play?: PlayHandlers;
 }
@@ -63,8 +66,12 @@ export interface HudView {
   readonly live: string | undefined;
   readonly band: ReplayBand | undefined;
   readonly track: RoundTrack;
+  /** FR-439: a victim reveal, a finalised beat or an absorber animation is on screen (the phone dock folds). */
+  readonly hold?: boolean;
   readonly rows: readonly FactionRow[];
   readonly chronicle: readonly ChronicleEntry[];
+  /** The records of played rounds are still being read (a match opened late): the empty chronicle says so instead of "none has fallen". */
+  readonly chronicleLoading?: boolean;
   /** FR-408: the round banner on screen, or none. */
   readonly banner?: BannerView;
   /** FR-409: "PREDICCIONES FINALIZADAS" or "REVELANDO...", or none. */
@@ -149,6 +156,12 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const root = el('div', 'hud', container);
   let layout: Layout = layoutFor(window.innerWidth);
   root.dataset.layout = layout;
+  // FR-445: the height of the open dock follows the screen; the custom properties are the figures of dockHeight/dockPaneHeight.
+  const sizeDock = (): void => {
+    root.style.setProperty('--hud-pane-h', `${dockPaneHeight(window.innerHeight)}px`);
+    root.style.setProperty('--hud-open-h', `${dockHeight(window.innerHeight, false)}px`);
+  };
+  sizeDock();
 
   // Top bar.
   const top = zone('top-bar', 'hud-top hud-frame', root);
@@ -175,12 +188,17 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   button(bandBox, STRINGS.hudBackToLive, () => handlers.onNavigate(bandTarget), 'hud-btn primary');
   bandBox.hidden = true;
 
-  // Left column: the chronicle and the factions. The right column is the leaderboard slot (spec 011).
+  // Left column: the chronicle and the factions. On the phone each section is the content of its own dock tab (FR-440).
+  // The right column is the leaderboard slot (spec 011).
   const left = zone('left-column', 'hud-left hud-frame', root);
-  el('div', 'hud-title', left).textContent = STRINGS.hudChronicle;
-  const chron = el('ol', 'hud-chron', left);
-  const factionsHead = el('div', 'hud-title hud-factions-title', left);
-  const sorts = el('div', 'hud-sort', left);
+  const chronSection = el('div', 'hud-section hud-chron-section', left);
+  el('div', 'hud-title hud-chron-title', chronSection).textContent = STRINGS.hudChronicle;
+  const chronEmpty = el('p', 'hud-note', chronSection);
+  chronEmpty.textContent = STRINGS.hudChronicleEmpty;
+  const chron = el('ol', 'hud-chron', chronSection);
+  const factionsSection = el('div', 'hud-section hud-factions-section', left);
+  const factionsHead = el('div', 'hud-title hud-factions-title', factionsSection);
+  const sorts = el('div', 'hud-sort', factionsSection);
   const sortButtons = new Map<SortKey, HTMLButtonElement>();
   const sortLabels: readonly (readonly [SortKey, string])[] = [
     ['territories', STRINGS.hudSortTerritories],
@@ -199,7 +217,7 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     }, 'hud-chip');
     sortButtons.set(key, chip);
   }
-  const search = el('input', 'hud-search', left) as HTMLInputElement;
+  const search = el('input', 'hud-search', factionsSection) as HTMLInputElement;
   search.type = 'search';
   search.placeholder = STRINGS.hudSearch;
   search.setAttribute('aria-label', STRINGS.hudSearch);
@@ -208,10 +226,10 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     query = search.value;
     renderFactions();
   });
-  const head = el('div', 'hud-row hud-headrow', left);
+  const head = el('div', 'hud-row hud-headrow', factionsSection);
   for (const label of ['', '', STRINGS.hudColTerritories, STRINGS.hudColKills, STRINGS.hudColConquered]) el('span', '', head).textContent = label;
-  const legend = el('ul', 'hud-legend', left);
-  const more = button(left, STRINGS.hudShowAll, () => {
+  const legend = el('ul', 'hud-legend', factionsSection);
+  const more = button(factionsSection, STRINGS.hudShowAll, () => {
     showAll = !showAll;
     renderFactions();
   }, 'hud-btn');
@@ -291,16 +309,21 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const winner = el('div', 'hud-line', command);
   const halt = el('div', 'hud-line hud-alert', command);
   const mismatch = el('div', 'hud-line hud-alert', command);
-  // The dots and the five controls share one row, pinned to the bottom of the panel in every state.
+  // The round controls: the selector of rounds and the buttons. On the desk they are the bottom row of this panel; on the phone they
+  // are the strip of the dock, always visible with the dock open, on every tab (FR-441).
   const controls = el('div', 'hud-controls', command);
-  const trackBox = el('div', 'hud-track', controls);
+  const roundSel = el('div', 'hud-roundsel', controls);
+  roundSel.setAttribute('role', 'group');
+  roundSel.setAttribute('aria-label', STRINGS.hudTrack);
+  const trackLabel = el('span', 'hud-track-label hud-num', roundSel);
+  const trackBox = el('div', 'hud-track', roundSel);
   const nav = el('div', 'hud-nav', controls);
   const first = navButton(nav, STRINGS.controlFirst, STRINGS.controlFirstShort, () => handlers.onNavigate('first'), 'hud-btn hud-secondary hud-nav-btn');
   const previous = navButton(nav, STRINGS.controlPrevious, STRINGS.controlPreviousShort, () => handlers.onNavigate('previous'), 'hud-btn hud-nav-btn');
   const next = navButton(nav, STRINGS.controlNext, STRINGS.controlNextShort, () => handlers.onNavigate('next'), 'hud-btn primary hud-nav-btn');
   const lastButton = navButton(nav, STRINGS.controlLast, STRINGS.controlLastShort, () => handlers.onNavigate('last'), 'hud-btn hud-secondary hud-nav-btn');
   navButton(nav, STRINGS.controlReset, STRINGS.controlResetShort, handlers.onReset, 'hud-btn hud-secondary hud-nav-btn');
-  const skip = button(nav, skipLabel(), handlers.onSkip);
+  const skip = button(nav, skipLabel(), handlers.onSkip, 'hud-btn primary hud-skip');
   skip.hidden = true;
 
   // State card: the one polite live region of the screen.
@@ -309,6 +332,7 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   card.setAttribute('aria-live', 'polite');
   const cardTitle = el('div', 'hud-title', card);
   const cardText = el('p', '', card);
+  const cardChampion = el('p', 'hud-champion', card);
   card.hidden = true;
 
   // FR-408: the round banner over a dimmed map; a button, so a tap, Enter or Space dismisses it.
@@ -323,53 +347,64 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   overlayBox.setAttribute('role', 'status');
   overlayBox.hidden = true;
 
-  // Phone dock: three tabs; the command panel and the legend live in the first one.
+  // FR-442: the selector is one strip that scrolls sideways; it keeps the current round in view (the strip is moved, never the page).
+  let currentDot: HTMLElement | undefined;
+  function centreTrack(): void {
+    if (currentDot === undefined) return;
+    trackBox.scrollLeft = stripScroll({ left: currentDot.offsetLeft, width: currentDot.offsetWidth, view: trackBox.clientWidth, content: trackBox.scrollWidth });
+  }
+
+  // Phone dock (FR-439, FR-440, FR-441): a handle, the tabs, the pane of the open tab and the strip of the round controls.
   const dock = zone('dock', 'hud-dock hud-frame', root);
+  const handle = button(dock, '', () => dockSet(dockHandle(dockNow)), 'hud-handle');
+  handle.setAttribute('aria-label', STRINGS.hudDockHandle);
   const tabs = el('div', 'hud-tabs', dock);
   tabs.setAttribute('role', 'tablist');
+  const shownTabs = dockTabs(handlers.play !== undefined);
   const panes = new Map<DockTab, HTMLElement>();
   const tabButtons = new Map<DockTab, HTMLElement>();
-  let current: DockTab = 'match';
-  let open = false;
-  root.dataset.dock = 'folded';
-  const select = (id: DockTab): void => {
-    open = !(id === current && open);
-    current = id;
-    root.dataset.dock = open ? 'open' : 'folded';
-    const shown = open ? current : 'match';
-    for (const [tab, node] of tabButtons) node.setAttribute('aria-selected', String(tab === shown));
-    for (const [tab, node] of panes) node.hidden = tab !== shown;
+  let dockNow: DockState = dockStart(shownTabs);
+  const paintDock = (): void => {
+    root.dataset.dock = dockNow.folded ? 'folded' : 'open';
+    handle.setAttribute('aria-expanded', String(!dockNow.folded));
+    for (const [tab, node] of tabButtons) node.setAttribute('aria-selected', String(tab === dockNow.tab));
+    for (const [tab, node] of panes) node.hidden = dockNow.folded || tab !== dockNow.tab;
+    if (!dockNow.folded) centreTrack();
+    handlers.onDock?.(dockNow.folded);
   };
-  for (const tab of DOCK_TABS) {
-    const node = button(tabs, tab.label, () => select(tab.id), 'hud-tab');
+  const dockSet = (next: DockState): void => {
+    dockNow = next;
+    paintDock();
+  };
+  for (const tab of DOCK_TABS.filter((t) => shownTabs.includes(t.id))) {
+    const node = button(tabs, tab.label, () => dockSet(dockPress(dockNow, tab.id)), 'hud-tab');
     node.setAttribute('role', 'tab');
     tabButtons.set(tab.id, node);
     const pane = el('div', 'hud-pane', dock);
     pane.setAttribute('role', 'tabpanel');
     panes.set(tab.id, pane);
   }
-  // "Orden": the prediction offer for a player; the plain note only on a page that has no player session.
-  const orderPane = panes.get('order')!;
-  const orderNote = el('p', 'hud-note', orderPane);
-  orderNote.textContent = STRINGS.hudSoon;
-  const orderPredict = el('div', 'hud-predict', orderPane);
-  orderPredict.hidden = true;
-  panes.get('order')!.hidden = true;
-  panes.get('ranking')!.hidden = true;
-  tabButtons.get('match')!.setAttribute('aria-selected', 'true');
+  const strip = el('div', 'hud-strip', dock);
 
-  /** The command panel and the left column sit in their own zones on the desktop and in the first tab of the dock on a phone. */
+  /** The desk zones and the dock tabs hold the same builders: the panel (prediction, result) and the round controls, the chronicle, the factions, the ranking. */
   const place = (): void => {
     if (layout === 'phone') {
-      panes.get('match')?.append(command, left);
+      (panes.get('order') ?? panes.get('chronicle'))?.append(command);
+      strip.append(controls);
+      panes.get('chronicle')?.append(chronSection);
+      panes.get('factions')?.append(factionsSection);
       panes.get('ranking')?.append(rightColumn);
     } else {
+      left.append(chronSection, factionsSection);
+      command.append(controls);
       root.append(left, command, rightColumn);
     }
     boardVisible();
+    paintDock();
   };
   place();
   window.addEventListener('resize', () => {
+    sizeDock();
     const now = layoutFor(window.innerWidth);
     if (now === layout) return;
     layout = now;
@@ -396,10 +431,12 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       }
     }
   };
-  const renderChronicle = (entries: readonly ChronicleEntry[], winners?: ReadonlyMap<number, readonly WinnersLine[]>): void => {
-    const sig = JSON.stringify([entries, winners === undefined ? [] : [...winners]]);
+  const renderChronicle = (entries: readonly ChronicleEntry[], winners?: ReadonlyMap<number, readonly WinnersLine[]>, loading = false): void => {
+    const sig = JSON.stringify([entries, winners === undefined ? [] : [...winners], loading]);
     if (sig === chronSig) return;
     chronSig = sig;
+    chronEmpty.textContent = loading ? STRINGS.hudChronicleLoading : STRINGS.hudChronicleEmpty;
+    chronEmpty.hidden = entries.length > 0;
     chron.replaceChildren(
       ...entries.map((entry) => {
         const item = document.createElement('li');
@@ -474,6 +511,19 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       predictBox.replaceChildren();
       const head = el('div', 'hud-predict-head', predictBox);
       el('span', 'hud-title', head).textContent = view.title;
+      // The seal is part of the head row: inline between the title and the countdown on the desk, a row of its own under them on the
+      // phone (CSS), so it never crowds either. Its slot is reserved while there is something to choose, so the buttons below do not jump.
+      if (view.seal !== undefined || view.choices.length > 0) {
+        const sealWords = view.seal;
+        const seal = el('span', 'hud-seal', head);
+        seal.textContent = sealWords ?? '\u00a0';
+        if (sealWords === undefined) {
+          seal.dataset.empty = 'true';
+          seal.setAttribute('aria-hidden', 'true');
+        } else {
+          seal.title = sealWords;
+        }
+      }
       predictCount = el('span', 'hud-num hud-predict-count', head);
       el('p', 'hud-line', predictBox).textContent = view.line;
       if (view.choices.length > 0) {
@@ -490,15 +540,6 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
           pick.prepend(swatch);
         }
       }
-      // The seal's row is reserved while there is something to choose, so the buttons below do not jump when a choice is sent.
-      if (view.seal !== undefined || view.choices.length > 0) {
-        const seal = el('span', 'hud-seal', predictBox);
-        seal.textContent = view.seal ?? '\u00a0';
-        if (view.seal === undefined) {
-          seal.dataset.empty = 'true';
-          seal.setAttribute('aria-hidden', 'true');
-        }
-      }
       if (view.notice !== undefined) {
         const notice = el('div', 'hud-messages', predictBox);
         notice.setAttribute('role', 'alert');
@@ -509,7 +550,6 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   };
   };
   const renderPredict = predictRenderer(predictBox);
-  const renderOrderPredict = predictRenderer(orderPredict);
 
   let resultSig = '';
   const renderResult = (outcome: ResultView | undefined): void => {
@@ -552,25 +592,26 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     if (board.pages > 1) pager(rightColumn, board.page, board.pages, (delta) => handlers.play?.onBoardPage(delta));
   };
 
+  // The strip is rebuilt only when the rounds or the displayed round change (a rebuild every second would drop the keyboard focus).
+  let trackSig = '';
   const renderTrack = (track: RoundTrack): void => {
+    const sig = JSON.stringify(track);
+    if (sig === trackSig) return;
+    trackSig = sig;
+    trackLabel.textContent = track.label;
     trackBox.replaceChildren();
-    if (track.mode === 'slider') {
-      const slider = el('input', 'hud-slider', trackBox) as HTMLInputElement;
-      slider.type = 'range';
-      slider.min = String(track.min);
-      slider.max = String(track.max);
-      slider.value = String(track.value);
-      slider.setAttribute('aria-label', STRINGS.hudTrack);
-      slider.addEventListener('change', () => handlers.onNavigate({ to: Number(slider.value) }));
-      return;
-    }
+    currentDot = undefined;
     for (const dot of track.items) {
       const target = trackTarget(dot);
-      const node = button(trackBox, String(dot.round), () => target !== undefined && handlers.onNavigate(target), `hud-dot ${dot.state}${dot.live ? ' live' : ''}`);
-      node.setAttribute('aria-label', fillTemplate(STRINGS.hudTrackRound, { round: dot.round }));
+      const node = button(trackBox, dot.round === 0 ? STRINGS.hudTrackStart : String(dot.round), () => target !== undefined && handlers.onNavigate(target), `hud-dot ${dot.state}${dot.live ? ' live' : ''}${dot.round === 0 ? ' start' : ''}`);
+      node.setAttribute('aria-label', dot.round === 0 ? STRINGS.hudTrackStart : fillTemplate(target === undefined ? STRINGS.hudTrackInPlay : STRINGS.hudTrackRound, { round: dot.round }));
       node.disabled = target === undefined;
-      if (dot.state === 'current') node.setAttribute('aria-current', 'true');
+      if (dot.state === 'current') {
+        node.setAttribute('aria-current', 'true');
+        currentDot = node;
+      }
     }
+    centreTrack();
   };
 
   return {
@@ -588,6 +629,10 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       write(mismatch, view.mismatch);
       cardTitle.textContent = hud.card?.title ?? '';
       cardText.textContent = hud.card?.text ?? '';
+      const champion = hud.card === undefined ? undefined : hud.play?.champion;
+      cardChampion.hidden = champion === undefined;
+      cardChampion.textContent = champion?.text ?? '';
+      cardChampion.dataset.you = champion?.you === true ? 'yes' : 'no';
       card.hidden = hud.card === undefined;
       const band = hud.band;
       bandBox.hidden = band === undefined;
@@ -604,7 +649,7 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       bannerLine.textContent = hud.banner?.line ?? '';
       overlayBox.hidden = hud.overlay === undefined;
       overlayBox.textContent = hud.overlay ?? '';
-      renderChronicle(hud.chronicle, hud.play?.winners);
+      renderChronicle(hud.chronicle, hud.play?.winners, hud.chronicleLoading === true);
       const chip = hud.play?.chip;
       chipButton.hidden = chip === undefined;
       chipName.textContent = hud.play?.chipParts?.name ?? '';
@@ -612,12 +657,11 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       chipButton.setAttribute('aria-label', chip === undefined ? '' : `${chip}. ${STRINGS.personalTitle}`);
       command.dataset.offer = hud.play?.predict?.countdown !== undefined ? 'open' : 'closed';
       renderPredict(hud.play?.predict);
-      renderOrderPredict(hud.play?.predict);
-      orderNote.hidden = hud.play !== undefined;
       renderResult(hud.play?.result);
       renderBoard(hud.play?.board);
       renderFactions();
       renderTrack(hud.track);
+      dockSet(dockStep(dockNow, { tabs: shownTabs, held: hud.hold === true, offer: hud.play?.predict?.countdown !== undefined }));
     },
     showSkip(visible: boolean): void {
       skip.hidden = !visible;

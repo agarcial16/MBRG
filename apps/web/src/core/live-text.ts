@@ -33,8 +33,9 @@ const ERROR_TEXTS: Readonly<Record<LiveErrorKind, string>> = {
 /** The title of the live scene. */
 export const liveTitle = (): string => STRINGS.liveTitle;
 
-/** "Ronda N de T" for the displayed round. */
-export const roundLine = (round: number, total: number): string => fillTemplate(STRINGS.roundStatus, { round, total });
+/** "Ronda N" for a round, and "Ronda N de T" only once the match is finished: the total is not told before (FR-442). */
+export const roundLine = (round: number, total: number, finished: boolean): string =>
+  finished ? fillTemplate(STRINGS.roundStatus, { round, total }) : fillTemplate(STRINGS.roundNow, { round });
 
 /** The text of a stage (five texts). */
 export const stageText = (stage: Stage): string => STAGE_TEXTS[stage];

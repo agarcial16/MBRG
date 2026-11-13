@@ -1,10 +1,7 @@
-// Terra incognita (spec 010 FR-368): the parchment that shows where the map does not cover the screen. Pure geometry: the screen
-// rectangles that lie outside the image, and where the texture sits so it stays fixed to the ground when the camera moves.
+// Terra incognita (spec 010 FR-368, ground changed by spec 015 FR-422): the table that shows where the map does not cover the screen.
+// Pure geometry: the screen rectangles that lie outside the image. The colours and the edge fade are in `table.ts`.
 import { mapToScreen } from './camera';
 import type { Camera, ImageSize, Viewport } from './camera';
-
-/** The texture: one tile of an image file in `public/`, as wide and as high in map units as in pixels (one pixel per map unit). */
-export const TERRA_TILE = { url: '/terra.webp', width: 640, height: 420 } as const;
 
 export interface ScreenRect {
   readonly x: number;
@@ -34,13 +31,4 @@ export function terraBands(camera: Camera, viewport: Viewport, image: ImageSize)
     { x: right, y: top, w: viewport.width - right, h: bottom - top },
   ];
   return bands.filter((band) => band.w > 0 && band.h > 0);
-}
-
-/**
- * Where the texture sits: the size of one tile on screen and the screen position of the tile that starts at the map origin. A
- * band places its own background at this position minus its own corner, so the texture moves with the map.
- */
-export function terraOffset(camera: Camera, viewport: Viewport): { x: number; y: number; w: number; h: number } {
-  const origin = mapToScreen(camera, { x: 0, y: 0 }, viewport);
-  return { x: origin.sx, y: origin.sy, w: TERRA_TILE.width * camera.scale, h: TERRA_TILE.height * camera.scale };
 }

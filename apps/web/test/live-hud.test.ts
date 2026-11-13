@@ -25,8 +25,8 @@ describe('FR-358 the top bar', () => {
     const panel = panelView(model, 10_000, factions);
     const bar = topBar(model, panel, 10_000);
     // At the live edge the bar names the round being played (applied + 1), as the prediction block and the chronicle do.
-    expect(bar.round).toBe(`Ronda 2 de ${String(s.total)}`);
-    expect(panel.round).toBe(`Ronda 1 de ${String(s.total)}`);
+    expect(bar.round).toBe('Ronda 2');
+    expect(panel.round).toBe('Ronda 1');
     expect(bar.alive).toBe(aliveCount(panel));
     expect(bar.alive).toBe(factions.length - 1);
     expect(bar.countdown).toBeUndefined();
@@ -37,12 +37,13 @@ describe('FR-358 the top bar', () => {
     const s = await scripted();
     const model = await loaded(s, 2);
     const at = (m: LiveModel): string | undefined => topBar(m, panelView(m, 10_000, factions), 10_000).round;
-    for (const stage of ['phase-1', 'phase-2', 'locked'] as const) expect(at({ ...model, stage })).toBe(`Ronda 3 de ${String(s.total)}`);
-    expect(at({ ...model, displayed: 1, stage: 'phase-1' })).toBe(`Ronda 1 de ${String(s.total)}`);
+    for (const stage of ['phase-1', 'phase-2', 'locked'] as const) expect(at({ ...model, stage })).toBe('Ronda 3');
+    expect(at({ ...model, displayed: 1, stage: 'phase-1' })).toBe('Ronda 1');
+    // FR-442: the total is told only once the match is finished.
     expect(at({ ...model, stage: 'finished' })).toBe(`Ronda 2 de ${String(s.total)}`);
-    expect(at({ ...model, stage: 'halted' })).toBe(`Ronda 2 de ${String(s.total)}`);
+    expect(at({ ...model, stage: 'halted' })).toBe('Ronda 2');
     const first = await loaded(s, 0);
-    expect(at(first)).toBe(`Ronda 1 de ${String(s.total)}`);
+    expect(at(first)).toBe('Ronda 1');
   });
 
   it('FR-358 with a running clock the countdown is the time alone, from the estimate (not the sentence of the panel)', async () => {

@@ -44,7 +44,8 @@ describe('FR-305 the stage and the round', () => {
 
   it('FR-305 the title and the round line come from the strings module', () => {
     expect(liveTitle()).toBe(STRINGS.liveTitle);
-    expect(roundLine(3, 8)).toBe('Ronda 3 de 8');
+    expect(roundLine(3, 8, true)).toBe('Ronda 3 de 8');
+    expect(roundLine(3, 8, false)).toBe('Ronda 3');
   });
 });
 

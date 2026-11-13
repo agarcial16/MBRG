@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { ZONES } from '../src/core/hud-layout';
 import { PANEL_CSS as css } from '../src/ui/live-panel-style';
+import { pageCss } from '../src/core/table';
 import shell from '../src/ui/live-panel.ts?raw';
 import main from '../src/ui/live-main.ts?raw';
 import startShell from '../src/ui/live-start.ts?raw';
@@ -31,36 +32,32 @@ describe('FR-356 FR-357 the shell places the zones the layout module names', () 
     expect(css).not.toMatch(/@media[^{]*(?:min|max)-width/);
   });
 
-  it('FR-357 the dock has the three tabs of the layout module and they are real tabs (roles and selection)', () => {
+  it('FR-357 the dock has the tabs of the layout module and they are real tabs (roles and selection)', () => {
     expect(shell).toMatch(/DOCK_TABS/);
     expect(shell).toMatch(/role['"]?\s*,\s*['"]tab['"]/);
     expect(shell).toMatch(/aria-selected/);
   });
 });
 
-describe('FR-357 the dock folds', () => {
-  it('FR-357 the dock starts folded: a folded dock hides the legend, the title and the stage line, and keeps the victim line and the controls', () => {
-    expect(shell).toMatch(/dataset\.dock\s*=\s*['"]folded['"]/);
-    const folded = rules('[data-dock="folded"]').join(';');
-    expect(folded).toMatch(/display:\s*none/);
-    expect(css).toMatch(/\[data-dock="folded"\][^{]*\.hud-left/);
-    expect(css).toMatch(/\[data-dock="folded"\][^{]*\.hud-stage/);
-    expect(css).toMatch(/\[data-dock="folded"\][^{]*\.hud-track/);
-    expect(css).toMatch(/\[data-dock="folded"\][^{]*\.hud-secondary/);
-    expect(css).not.toMatch(/\[data-dock="folded"\][^{]*\.hud-nav/);
-    expect(css).not.toMatch(/\[data-dock="folded"\][^{]*\.hud-victim/);
-  });
-
-  it('FR-357 a tab opens the dock; the selected tab folds it again (the second click)', () => {
-    expect(shell).toMatch(/dataset\.dock\s*=\s*open\s*\?/);
-    expect(shell).toMatch(/id\s*===\s*current\s*&&\s*open/);
+describe('FR-357 FR-439 the dock folds', () => {
+  it('FR-439 the dock state is the pure module one: folded by an animation, a tab press or the handle; folded it keeps handle and tabs and only the skip button of the strip', () => {
+    expect(shell).toMatch(/dataset\.dock\s*=\s*dockNow\.folded\s*\?\s*'folded'\s*:\s*'open'/);
+    expect(shell).toMatch(/dockStep\(dockNow,/);
+    expect(shell).toMatch(/dockHandle\(dockNow\)/);
+    expect(shell).toMatch(/dockPress\(dockNow, tab\.id\)/);
+    expect(shell).toMatch(/held: hud\.hold === true/);
+    expect(main).toMatch(/hold: shown\.revealing \|\| shown\.absorbing \|\| overlay !== undefined/);
+    expect(css).toMatch(/\[data-dock="folded"\] \.hud-roundsel,[^{]*\.hud-nav > \.hud-nav-btn \{ display: none; \}/);
+    expect(css).not.toMatch(/\[data-dock="folded"\][^{]*\.hud-skip/);
   });
 });
 
 describe('FR-367 the stylesheet uses the tokens only', () => {
   it('FR-367 no colour literal in the stylesheet except black shadows: every colour is a --hud-* variable', () => {
-    expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
-    for (const m of css.matchAll(/rgba?\([^)]*\)/g)) expect(m[0], m[0]).toMatch(/^rgba\(0, 0, 0, /);
+    // the page wood and the panel variable come from core/table.ts (spec 015), the one place of those tones
+    const sheet = css.replace(pageCss(), '');
+    expect(sheet).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    for (const m of sheet.matchAll(/rgba?\([^)]*\)/g)) expect(m[0], m[0]).toMatch(/^rgba\(0, 0, 0, /);
     expect(css).toMatch(/var\(--hud-wood\)/);
     expect(css).toMatch(/var\(--hud-gilt\)/);
   });
@@ -178,11 +175,19 @@ describe('FR-359 to FR-364 the shell of the left column, the band, the track and
     expect(shell).toMatch(/hud\.live/);
   });
 
-  it('FR-364 the track is dots that jump to their round, or a slider that does, both through the navigation of the runner', () => {
+  it('FR-364 FR-442 the selector is one scrolling strip of dots that jump to their round through the navigation of the runner, with no slider', () => {
     expect(shell).toMatch(/trackTarget\(/);
     expect(shell).toContain('STRINGS.hudTrackRound');
-    expect(shell).toMatch(/type\s*=\s*'range'/);
-    expect(shell).toMatch(/onNavigate\(\{\s*to:/);
+    expect(shell).not.toMatch(/type\s*=\s*'range'/);
+    expect(shell).toMatch(/handlers\.onNavigate\(target\)/);
+    expect(shell).toMatch(/stripScroll\(/);
+    expect(rules('.hud-track').join(';')).toMatch(/overflow-x:\s*auto/);
+    expect(rules('.hud-track').join(';')).toMatch(/flex-wrap:\s*nowrap/);
+  });
+
+  it('FR-441 the round controls move between the command panel (desk) and the strip of the dock (phone) as one element, so they are on every tab', () => {
+    expect(shell).toMatch(/strip\.append\(controls\)/);
+    expect(shell).toMatch(/command\.append\(controls\)/);
   });
 
   it('FR-359 the scene draws the minimap from the owners and moves the camera by the pure functions, and redraws it on every round change and camera change', () => {
@@ -194,7 +199,7 @@ describe('FR-359 to FR-364 the shell of the left column, the band, the track and
   });
 });
 
-describe('FR-368 terra incognita: the asset and the layer', () => {
+describe('FR-368 / FR-422 terra incognita: the asset (kept, no longer drawn) and the layer', () => {
   const file = readFileSync(new URL('../public/terra.webp', import.meta.url));
 
   it('FR-368 the texture is one WebP tile of at most 150 KB, in public/', () => {
@@ -206,9 +211,10 @@ describe('FR-368 terra incognita: the asset and the layer', () => {
 
   it('FR-368 the layer is made of the bands of the pure module, above the map canvas and below the labels, and never takes the pointer', () => {
     expect(terraShell).toMatch(/terraBands\(/);
-    expect(terraShell).toMatch(/terraOffset\(/);
+    expect(terraShell).toMatch(/tableFade\(/);
     expect(terraShell).toMatch(/pointerEvents\s*=\s*'none'/);
-    expect(terraShell).toContain('TERRA_TILE');
+    expect(terraShell).toContain('TABLE.ground');
+    expect(terraShell).not.toContain('terra.webp');
     expect(main).toMatch(/createTerra\(/);
     expect(main).toMatch(/terra\??\.place\(/);
     expect(main.match(/terra\??\.place\(/g)!.length).toBeGreaterThanOrEqual(3);
@@ -262,8 +268,8 @@ describe('FR-356 the zones of the desk layout do not overlap', () => {
     expect(px(command!, 'right')).toBeGreaterThanOrEqual(px(mini!, 'right') + px(mini!, 'width') + 8);
   });
 
-  it('FR-356 the top bar puts its texts on one baseline, the countdown is in the middle and the factions alive are not repeated there', () => {
-    expect(rules('.hud-top').join(';')).toMatch(/align-items:\s*baseline/);
+  it('FR-356 the top bar centres its texts (015 FR-428 replaced the baseline), the countdown is in the middle and the factions alive are not repeated there', () => {
+    expect(rules('.hud-top').join(';')).toMatch(/align-items:\s*center/);
     const count = rules('.hud-top .hud-count').join(';');
     expect(count).toMatch(/position:\s*absolute/);
     expect(count).toMatch(/left:\s*50%/);

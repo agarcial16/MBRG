@@ -2,7 +2,7 @@
 // A `results` event only says that a phase was scored; the numbers come from the reads, and a wrong guess of another player is never
 // part of any input (the winners read carries names of right guesses only).
 import { readEvent } from '@mbrg/protocol';
-import type { LeaderboardRow, PlayerResult } from '@mbrg/protocol';
+import type { LeaderboardRow, PlayerListItem, PlayerResult } from '@mbrg/protocol';
 import { STRINGS, fillTemplate } from './strings';
 
 /** A scored phase: round k, phase 1 (victim) or 2 (absorber). */
@@ -39,12 +39,12 @@ export function latestScored(items: readonly PlayerResult[]): Scored | undefined
 /** FR-406: the competition rank of a player on the leaderboard rows read, or undefined when the player is not listed. */
 export const rankOf = (rows: readonly LeaderboardRow[], playerId: string): number | undefined => rows.find((row) => row.playerId === playerId)?.rank;
 
-/** The chip in two parts: the name (the screen may shorten it) and the score (always whole); `stats` is empty before a phase is scored. */
-export function chipParts(name: string, total: number | undefined, rank: number | undefined): { readonly name: string; readonly stats: string } {
-  return { name: fillTemplate(STRINGS.chipName, { name }), stats: total === undefined || rank === undefined ? '' : fillTemplate(STRINGS.chipStats, { total, rank }) };
+/** FR-427: the chip in two parts: the name (the screen may shorten it) and the points (always whole, 0 before any score); no rank. */
+export function chipParts(name: string, total: number | undefined, rank?: number): { readonly name: string; readonly stats: string } {
+  return { name: fillTemplate(STRINGS.chipName, { name }), stats: fillTemplate(STRINGS.chipStats, { total: total ?? 0 }) + (rank === undefined ? '' : fillTemplate(STRINGS.chipPlace, { rank })) };
 }
 
-/** The player chip: the name, and the total and rank once a phase has been scored. */
+/** The accessible label of the chip: the visible text plus the rank when the leaderboard lists the player. */
 export function chipText(name: string, total: number | undefined, rank: number | undefined): string {
   const parts = chipParts(name, total, rank);
   return parts.name + parts.stats;
@@ -57,25 +57,22 @@ export interface ResultView {
   readonly right: boolean | undefined;
 }
 
-/** FR-406: the results panel: right or wrong with the points of the phase, then the total and the rank. */
+/** FR-406: the results panel: right or wrong with the points of the phase. The total and the place live in the chip (FR-449). */
 export function resultView(input: {
   readonly scored: Scored;
   readonly item: PlayerResult | undefined;
-  readonly total: number;
-  readonly rank: number | undefined;
   readonly nameOf: (faction: number) => string;
   /** The absorber of this round was forced (a single candidate): there was nothing to predict, and the server applied it. */
   readonly forced?: boolean;
 }): ResultView {
-  const { scored, item, total, rank } = input;
+  const { scored, item } = input;
   const what = scored.phase === 1 ? STRINGS.resultVictim : STRINGS.resultAbsorber;
   const head = fillTemplate(what, { round: scored.round });
-  const totals = rank === undefined ? fillTemplate(STRINGS.resultTotal, { total }) : fillTemplate(STRINGS.resultTotalRank, { total, rank });
-  if (item === undefined) return { title: STRINGS.resultTitle, lines: [head, input.forced === true && scored.phase === 2 ? STRINGS.resultForced : STRINGS.resultNone, totals], right: undefined };
+  if (item === undefined) return { title: STRINGS.resultTitle, lines: [head, input.forced === true && scored.phase === 2 ? STRINGS.resultForced : STRINGS.resultNone], right: undefined };
   const verdict = item.correct ? STRINGS.resultRight : STRINGS.resultWrong;
   const points = fillTemplate(STRINGS.resultPoints, { value: item.points });
   const chosen = fillTemplate(STRINGS.resultYourChoice, { name: input.nameOf(item.choice) });
-  return { title: STRINGS.resultTitle, lines: [`${head} ${chosen}`, `${verdict} ${points}`, totals], right: item.correct };
+  return { title: STRINGS.resultTitle, lines: [`${head} ${chosen}`, `${verdict} ${points}`], right: item.correct };
 }
 
 export interface BoardRow {
@@ -99,6 +96,25 @@ export interface BoardPage {
   readonly pages: number;
   /** The own row, pinned under the list when the shown page does not hold it. */
   readonly mine?: PinnedRow;
+}
+
+/**
+ * FR-432: the server's leaderboard lists only players with scores. Every joined player missing from it is added with 0 points; rows are
+ * ordered by points (the server order kept for ties, the newcomers after) and ranked as 1 + the players with more points.
+ */
+export function completeBoard(rows: readonly LeaderboardRow[], roster: readonly PlayerListItem[]): LeaderboardRow[] {
+  const listed = new Set(rows.map((row) => row.playerId));
+  const added: LeaderboardRow[] = roster
+    .filter((p) => !listed.has(p.playerId))
+    .map((p) => ({ rank: 0, playerId: p.playerId, total: 0, correctVictims: 0, correctAbsorbers: 0, correctWinner: 0, name: p.name }));
+  const ordered = [...rows, ...added].sort((a, b) => b.total - a.total);
+  // Sorted by points, so a row's rank is its index unless the row before it has the same points.
+  const out: LeaderboardRow[] = [];
+  ordered.forEach((row, i) => {
+    const before = out[i - 1];
+    out.push({ ...row, rank: before !== undefined && before.total === row.total ? before.rank : i + 1 });
+  });
+  return out;
 }
 
 /** The local part of a namespaced player id: what shows for a player the server gave no name. */
@@ -144,4 +160,25 @@ export function winnersView(phase: 1 | 2, names: readonly string[], expanded: bo
   const head = names.slice(0, WINNERS_HEAD).join(', ');
   const more = names.length > WINNERS_HEAD ? fillTemplate(STRINGS.winnersMore, { count: names.length - WINNERS_HEAD }) : '';
   return { line: fillTemplate(label, { names: `${head}${more}` }), expandable: names.length > WINNERS_HEAD, page: 0, pages, names: [] };
+}
+
+/** The names shown for a tie at the top before "and N more". */
+const CHAMPION_NAMES = 3;
+
+/** FR-448: the player or players who win the match (first place with points), as one line, or none when nobody scored. `you` marks a line that speaks to the viewer. */
+export function championLine(rows: readonly LeaderboardRow[], myId: string): { readonly text: string; readonly you: boolean } | undefined {
+  const top = rows.filter((row) => row.rank === 1 && row.total > 0);
+  const first = top[0];
+  if (first === undefined) return undefined;
+  const nameOf = (row: LeaderboardRow): string => row.name ?? localName(row.playerId);
+  const list = (some: readonly LeaderboardRow[]): string => {
+    const shown = some.slice(0, CHAMPION_NAMES).map(nameOf).join(', ');
+    return some.length > CHAMPION_NAMES ? fillTemplate(STRINGS.championMore, { names: shown, count: some.length - CHAMPION_NAMES }) : shown;
+  };
+  const total = first.total;
+  if (top.some((row) => row.playerId === myId)) {
+    const others = top.filter((row) => row.playerId !== myId);
+    return { text: others.length === 0 ? fillTemplate(STRINGS.championYou, { total }) : fillTemplate(STRINGS.championYouWith, { names: list(others), total }), you: true };
+  }
+  return { text: fillTemplate(top.length === 1 ? STRINGS.championOne : STRINGS.championMany, { names: list(top), total }), you: false };
 }
