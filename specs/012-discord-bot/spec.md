@@ -33,6 +33,12 @@ The server already offers everything a chat client needs: public matches, a lobb
 - FR-460: IF the event stream drops, THEN THE SYSTEM SHALL reconnect with backoff and resume from the last announced event; WHILE disconnected, it SHALL NOT announce anything.
 - FR-461: THE SYSTEM SHALL show every sentence from a single strings module (Spanish).
 
+### Additions after the hand run (user, 2026-11-14)
+- FR-464: THE SYSTEM SHALL let only the member who ran `/mbrg create` start the match (button or `/mbrg start`); anyone else, managers included, gets a private sentence. Managers keep `/mbrg stop`. This replaces the manager rule of FR-452 for Start. The creator's Discord id is kept in the state file only.
+- FR-465: WHILE a phase is open, THE SYSTEM SHALL edit the open-phase message every 5 seconds with the seconds left (counted from the pace's phase length, so approximate), and SHALL stop editing when the phase closes or the stream drops; a failed edit is ignored and never produces a new message.
+- FR-466: WHEN a match finishes, halts or the channel stops following it, THE SYSTEM SHALL keep it as the channel's last match, so `/mbrg board` still shows its leaderboard until a new `/mbrg create` replaces it; with none at all it says so. A last match needs no event stream.
+- FR-467: WHEN a match finishes, THE SYSTEM SHALL post the final leaderboard (first 10) right after the winner (the hand run showed only the winner).
+
 ## Non-functional requirements
 - NFR-88 (Secrecy): the bot holds nothing about a future round: it reads only public data and events, and a test with a planted secret in a fake server proves no message contains it.
 - NFR-89 (Privacy): the Discord token, the `discord` credential, host tokens and Discord ids never appear in a log, a commit or a message other than the mention of that member; the stored state keeps host tokens only for followed matches.
@@ -47,6 +53,7 @@ The server already offers everything a chat client needs: public matches, a lobb
 - The server is down at start: the command replies that the server is unavailable.
 
 ## Out of scope
+- Spectator-only viewer link and closing joins from the viewer for bot matches (needs a server option: its own Full SDD spec); a cross-match history database per Discord server (later spec).
 - Server changes (the interface is used as it is), a web dashboard for the bot, several simultaneous matches per channel, direct messages, voice, accounts across matches, other modes, translating the bot.
 - Round animation as a GIF or video, and a map image per round: a later spec (needs server-side rendering, heavy dependencies and its own secrecy review). This version only links to the viewer.
 
