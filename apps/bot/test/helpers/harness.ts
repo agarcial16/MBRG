@@ -35,10 +35,10 @@ export interface Bot {
   stop(): void;
 }
 
-export const waitFor = async (check: () => boolean, ms = 20_000): Promise<void> => {
+export const waitFor = async (check: () => boolean, ms = 20_000, info?: () => string): Promise<void> => {
   const end = Date.now() + ms;
   while (!check()) {
-    if (Date.now() > end) throw new Error('waitFor timed out');
+    if (Date.now() > end) throw new Error(info === undefined ? 'waitFor timed out' : `waitFor timed out: ${info()}`);
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
 };

@@ -261,7 +261,7 @@ describe('FR-455 refusals', () => {
     revealRound1(fake);
     applyRound1(fake);
     revealRound2Forced(fake);
-    await waitFor(() => bot.posts.length === 7);
+    await waitFor(() => bot.posts.length === 7, 20_000, () => `${bot.posts.length} posts: ${JSON.stringify(texts(bot.posts).map((t) => t.slice(0, 30)))}`);
     expect(textOf(await bot.run({ type: 'button', customId: PREDICT_ID, canManage: false }, MEMBER))).toBe(STRINGS.errForced);
     expect(fake.predictions).toEqual([]);
   });
@@ -317,7 +317,7 @@ describe('FR-459 restart', () => {
     bots.push(second);
     expect(second.store.get(CHANNEL)?.lastSeq).toBe(savedSeq);
     second.follower.followAll();
-    await waitFor(() => second.posts.length === 7);
+    await waitFor(() => second.posts.length === 7, 20_000, () => `${second.posts.length} posts: ${JSON.stringify(texts(second.posts).map((t) => t.slice(0, 30)))}`);
     finishRound2(fake);
     await waitFor(() => second.posts.length === FULL_JOURNEY.length);
     await new Promise((resolve) => setTimeout(resolve, 100));
