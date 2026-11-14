@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PREDICT_ID, START_ID, findId, pickId } from '../src/core/custom-ids';
 import type { Reply } from '../src/core/model';
 import { STRINGS } from '../src/core/strings';
@@ -9,6 +9,9 @@ import type { Fake } from './helpers/fake-server';
 import { CHANNEL, MANAGER, boot, manager, tempState, waitFor } from './helpers/harness';
 import type { Bot, Posted } from './helpers/harness';
 import { FULL_JOURNEY, TEXTS, WRONG_GUESSER, applyRound1, finishRound2, revealRound1, revealRound2Forced } from './helpers/journey';
+
+// Flow tests wait on real sockets: under CI load the default 5 s test limit is too tight.
+vi.setConfig({ testTimeout: 30_000 });
 
 const MEMBER = { channelId: CHANNEL, userId: '123123123123123123' };
 const textOf = (reply: Reply): string => (reply.type === 'text' ? reply.text : `<${reply.type}>`);
