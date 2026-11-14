@@ -35,6 +35,8 @@ const SPEC_008_ENTRY = /^(?:apps\/server|packages\/protocol|node_modules\/@mbrg\
 /** Number of entries of package-lock.json at the end of spec 004 (root, workspaces and every package). */
 const LOCK_ENTRIES = 138;
 
+import { botOwnedEntries } from './helpers/lock-owners';
+
 const manifest = JSON.parse(webManifestRaw) as any;
 const lock = JSON.parse(lockRaw) as any;
 
@@ -53,8 +55,9 @@ describe('NFR-36 no dependency is added for labels and transitions', () => {
     expect(entry.devDependencies).toStrictEqual(DEV);
     expect(entry.peerDependencies).toBeUndefined();
     expect(entry.optionalDependencies).toBeUndefined();
-    // Spec 008 adds its own workspaces and their links only (NFR-53).
-    expect(Object.keys(lock.packages).filter((k) => !SPEC_008_ENTRY.test(k))).toHaveLength(LOCK_ENTRIES);
+    // Spec 008 adds its own workspaces and their links only (NFR-53); spec 012 the bot workspace and discord.js with what only they need.
+    const bot = botOwnedEntries(lock.packages);
+    expect(Object.keys(lock.packages).filter((k) => !SPEC_008_ENTRY.test(k) && !bot.has(k))).toHaveLength(LOCK_ENTRIES);
   });
 });
 
