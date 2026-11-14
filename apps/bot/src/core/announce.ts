@@ -5,8 +5,9 @@ import type { MatchEvent } from '@mbrg/protocol';
 import { PREDICT_ID, START_ID } from './custom-ids';
 import type { ButtonSpec, OutMessage } from './model';
 import type { NameBook } from './names';
-import { winnersText } from './results';
+import { boardMessages, winnersText } from './results';
 import type { Winners } from './results';
+import type { LeaderboardRow } from '@mbrg/protocol';
 import type { Followed } from './state';
 import { STRINGS, fill } from './strings';
 
@@ -14,11 +15,14 @@ import { STRINGS, fill } from './strings';
 export type Need =
   | { readonly type: 'none' }
   | { readonly type: 'left'; readonly round: number }
-  | { readonly type: 'winners'; readonly round: number; readonly phase: 1 | 2 };
+  | { readonly type: 'winners'; readonly round: number; readonly phase: 1 | 2 }
+  | { readonly type: 'board' };
 
 export interface Extras {
   readonly left?: number;
   readonly winners?: Winners;
+  /** The first rows of the final leaderboard (FR-467). */
+  readonly board?: readonly LeaderboardRow[];
 }
 
 export interface AnnounceContext {
@@ -38,6 +42,8 @@ export function needOf(event: MatchEvent, follow: Followed): Need {
       // The absorber of a forced round is never scored: its phase 2 has no results to announce.
       if (event.phase === 2 && follow.forcedRound === event.round) return NONE;
       return { type: 'winners', round: event.round, phase: event.phase };
+    case 'match-finished':
+      return { type: 'board' };
     default:
       return NONE;
   }
@@ -98,14 +104,40 @@ export function buildAnnouncement(event: MatchEvent, ctx: AnnounceContext, extra
     }
     case 'results':
       return extras.winners === undefined ? [] : [{ text: winnersText(event.phase, extras.winners), buttons: [] }];
-    case 'match-finished':
-      return [{ text: fill(STRINGS.matchFinished, { winner: names.nameOf(event.winner) }), buttons: [] }];
+    case 'match-finished': {
+      const winner: OutMessage = { text: fill(STRINGS.matchFinished, { winner: names.nameOf(event.winner) }), buttons: [] };
+      // The final leaderboard follows the winner (FR-467); with no points at all there is nothing to show.
+      return extras.board === undefined || extras.board.length === 0 ? [winner] : [winner, ...boardMessages(extras.board)];
+    }
     case 'match-halted':
       return [{ text: fill(STRINGS.matchHalted, { round: event.round }), buttons: [] }];
     default:
       return [];
   }
 }
+
+/** How many seconds an open phase lasts for the countdown of the message that announces it; none for any other event (FR-465). */
+export function openPhaseSeconds(event: MatchEvent, follow: Followed): number | undefined {
+  if (follow.phases === undefined) return undefined;
+  if (event.type === 'schedule' && event.stage === 'phase-1') return follow.phases.l1;
+  if (event.type === 'victim-revealed' && event.forced !== true) return follow.phases.l2;
+  return undefined;
+}
+
+/** Whether this event ends the open phase whose message counts down (the phase closes, the round or the match moves on). */
+export const closesPhase = (event: MatchEvent): boolean =>
+  event.type === 'phase-closed' ||
+  event.type === 'victim-revealed' ||
+  event.type === 'round-applied' ||
+  event.type === 'match-finished' ||
+  event.type === 'match-halted' ||
+  (event.type === 'schedule' && event.stage !== 'phase-2');
+
+/** The seconds between two edits of the countdown. */
+export const COUNTDOWN_STEP = 5;
+
+/** The open-phase message with the seconds left under it; nothing else is added (FR-465). */
+export const countdownMessage = (base: OutMessage, secondsLeft: number): OutMessage => ({ ...base, text: `${base.text}\n${fill(STRINGS.countdown, { n: secondsLeft })}` });
 
 /** Whether announcing this event ends the following (the match is over for the channel). */
 export const endsFollowing = (event: MatchEvent): boolean => event.type === 'match-finished' || event.type === 'match-halted';

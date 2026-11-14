@@ -41,7 +41,7 @@ async function createAndStart(fake: Fake, bot: Bot): Promise<void> {
   const made = await bot.run(manager());
   expect(made.type).toBe('channel');
   await waitFor(() => fake.streamCount() === 1);
-  const started = await bot.run({ type: 'button', customId: START_ID, canManage: true });
+  const started = await bot.run({ type: 'button', customId: START_ID, canManage: true, userId: MANAGER.userId });
   expect(textOf(started)).toBe(STRINGS.started);
   await waitFor(() => bot.posts.length === 1);
 }
@@ -93,13 +93,18 @@ describe('FR-452 start', () => {
     expect(start?.bearer).toBe(HOST_TOKEN);
   });
 
-  it('FR-452 anyone else is told privately that they cannot, and nothing is sent to the server', async () => {
-    const { fake, bot } = await world();
+  it('FR-464 the creator is kept in the state file; anyone else, a manager included, is told privately that they cannot, and nothing is sent to the server', async () => {
+    const { fake, bot, statePath } = await world();
     await bot.run(manager());
-    const reply = await bot.run({ type: 'start', canManage: false }, MEMBER);
-    expect(textOf(reply)).toBe(STRINGS.noPermission);
-    expect((await bot.run({ type: 'button', customId: START_ID, canManage: false }, MEMBER)).type).toBe('text');
+    expect(bot.store.get(CHANNEL)?.creatorId).toBe(MANAGER.userId);
+    expect(readFileSync(statePath, 'utf8')).toContain(MANAGER.userId);
+    expect(textOf(await bot.run({ type: 'start', canManage: false, userId: MEMBER.userId }, MEMBER))).toBe(STRINGS.onlyCreator);
+    expect(textOf(await bot.run({ type: 'start', canManage: true, userId: MEMBER.userId }, MEMBER))).toBe(STRINGS.onlyCreator);
+    expect(textOf(await bot.run({ type: 'button', customId: START_ID, canManage: true, userId: MEMBER.userId }, MEMBER))).toBe(STRINGS.onlyCreator);
     expect(fake.requests.some((r) => r.path.endsWith('/start'))).toBe(false);
+    // The creator starts even without the manager permission.
+    expect(textOf(await bot.run({ type: 'start', canManage: false, userId: MANAGER.userId }))).toBe(STRINGS.started);
+    expect(fake.requests.some((r) => r.path.endsWith('/start'))).toBe(true);
   });
 });
 
@@ -172,7 +177,7 @@ describe('FR-454 predictions', () => {
 
   it('FR-454 and FR-463 the Predict press offers a select menu of the candidates to that member and a choice is submitted with the credential, no join', async () => {
     const { fake, bot } = await inPhase2();
-    const offer = await bot.run({ type: 'button', customId: PREDICT_ID, canManage: false }, MEMBER);
+    const offer = await bot.run({ type: 'button', customId: PREDICT_ID, canManage: false, userId: MEMBER.userId }, MEMBER);
     expect(offer).toMatchObject({ type: 'select', customId: pickId('absorber', 1) });
     if (offer.type === 'select') expect(offer.options).toEqual([{ label: 'España', value: '2' }, { label: 'Francia', value: '3' }]);
     const chosen = await bot.run({ type: 'select', customId: pickId('absorber', 1), values: ['3'] }, MEMBER);
@@ -201,7 +206,7 @@ describe('FR-454 predictions', () => {
     const { fake, bot } = await world({ factions });
     await createAndStart(fake, bot);
     fake.match = baseMatch({ stage: 'phase-1', schedule: SCHEDULE, state: { mode: 'classic', round: 0, owners: factions.map((f) => [f.id, f.id] as const) }, lastSeq: fake.match.lastSeq });
-    const window = await bot.run({ type: 'button', customId: PREDICT_ID, canManage: false }, MEMBER);
+    const window = await bot.run({ type: 'button', customId: PREDICT_ID, canManage: false, userId: MEMBER.userId }, MEMBER);
     expect(window).toEqual({ type: 'modal', customId: findId('victim', 1), title: 'Buscar facción', label: 'Parte del nombre' });
     expect(textOf(await bot.run({ type: 'modal', customId: findId('victim', 1), text: 'zzz' }, MEMBER))).toContain('Ninguna facción');
     const several = await bot.run({ type: 'modal', customId: findId('victim', 1), text: 'region 1' }, MEMBER);
@@ -234,7 +239,7 @@ describe('FR-455 refusals', () => {
     // Locked, finished and lobby stages are known from the public data: no submission is even sent.
     const before = fake.requests.length;
     fake.match = baseMatch({ ...fake.match, stage: 'locked' });
-    expect(textOf(await bot.run({ type: 'button', customId: PREDICT_ID, canManage: false }, MEMBER))).toBe(STRINGS.phaseClosed);
+    expect(textOf(await bot.run({ type: 'button', customId: PREDICT_ID, canManage: false, userId: MEMBER.userId }, MEMBER))).toBe(STRINGS.phaseClosed);
     expect(fake.requests.slice(before).every((r) => r.method === 'GET')).toBe(true);
   });
 
@@ -262,7 +267,7 @@ describe('FR-455 refusals', () => {
     applyRound1(fake);
     revealRound2Forced(fake);
     await waitFor(() => bot.posts.length === 8, 20_000, () => `${bot.posts.length} posts: ${JSON.stringify(texts(bot.posts).map((t) => t.slice(0, 30)))}`);
-    expect(textOf(await bot.run({ type: 'button', customId: PREDICT_ID, canManage: false }, MEMBER))).toBe(STRINGS.errForced);
+    expect(textOf(await bot.run({ type: 'button', customId: PREDICT_ID, canManage: false, userId: MEMBER.userId }, MEMBER))).toBe(STRINGS.errForced);
     expect(fake.predictions).toEqual([]);
   });
 });
@@ -399,11 +404,11 @@ describe('NFR-88 secrecy', () => {
     const replies: Reply[] = [];
     replies.push(await bot.run(manager()));
     await waitFor(() => fake.streamCount() === 1);
-    replies.push(await bot.run({ type: 'start', canManage: true }));
+    replies.push(await bot.run({ type: 'start', canManage: true, userId: MANAGER.userId }));
     await waitFor(() => bot.posts.length === 1);
     revealRound1(fake);
     await waitFor(() => bot.posts.length === 3);
-    replies.push(await bot.run({ type: 'button', customId: PREDICT_ID, canManage: false }, MEMBER));
+    replies.push(await bot.run({ type: 'button', customId: PREDICT_ID, canManage: false, userId: MEMBER.userId }, MEMBER));
     replies.push(await bot.run({ type: 'select', customId: pickId('absorber', 1), values: ['2'] }, MEMBER));
     applyRound1(fake);
     revealRound2Forced(fake);
@@ -428,7 +433,7 @@ describe('NFR-89 privacy', () => {
     replies.push(await bot.run(manager()));
     await waitFor(() => fake.streamCount() === 1);
     expect(readFileSync(statePath, 'utf8')).toContain(HOST_TOKEN);
-    replies.push(await bot.run({ type: 'start', canManage: true }));
+    replies.push(await bot.run({ type: 'start', canManage: true, userId: MANAGER.userId }));
     await waitFor(() => bot.posts.length === 1);
     revealRound1(fake);
     await waitFor(() => bot.posts.length === 3);

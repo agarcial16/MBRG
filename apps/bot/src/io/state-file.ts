@@ -2,8 +2,8 @@
 // rename), so a crash leaves the old state or the new one, never half of either. The path comes from the environment.
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { emptyState, follow, followedOf, parseState, serializeState, unfollow } from '../core/state';
-import type { BotState, Followed } from '../core/state';
+import { emptyState, follow, followedOf, lastOf, parseState, retire, serializeState, unfollow } from '../core/state';
+import type { BotState, Followed, LastMatch } from '../core/state';
 
 export type Loaded = { readonly ok: true; readonly state: BotState } | { readonly ok: false };
 
@@ -31,6 +31,10 @@ export interface StateStore {
   get(channelId: string): Followed | undefined;
   set(channelId: string, entry: Followed): void;
   remove(channelId: string): void;
+  /** The channel stops following and keeps the match as its last one, without the host token (FR-466). */
+  retire(channelId: string): void;
+  last(channelId: string): LastMatch | undefined;
+  /** The channels that follow a match now (a last match is not one). */
   channelIds(): string[];
 }
 
@@ -49,6 +53,13 @@ export function createStateStore(path: string, initial: BotState): StateStore {
       saveState(path, next);
       state = next;
     },
+    retire(channelId) {
+      if (followedOf(state, channelId) === undefined) return;
+      const next = retire(state, channelId);
+      saveState(path, next);
+      state = next;
+    },
+    last: (channelId) => lastOf(state, channelId),
     channelIds: () => Object.keys(state.channels),
   };
 }

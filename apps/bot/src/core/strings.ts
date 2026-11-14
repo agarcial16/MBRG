@@ -3,7 +3,8 @@
 
 export const STRINGS = {
   // Lobby, rounds and results announced in the channel (FR-451, FR-453, FR-456).
-  lobby: 'Nueva partida **{match}** en el mapa **{map}**. Quien gestione el canal puede iniciarla con el botón.',
+  lobby: 'Nueva partida **{match}** en el mapa **{map}**. Solo quien la creó puede iniciarla con el botón.',
+  countdown: 'Quedan unos {n} s.',
   startButton: 'Iniciar',
   predictButton: 'Predecir',
   viewerButton: 'Ver en el visor',
@@ -29,6 +30,7 @@ export const STRINGS = {
 
   // Replies to commands and presses (FR-452, FR-454, FR-455, FR-458).
   noPermission: 'Solo quien gestiona el canal puede hacer eso.',
+  onlyCreator: 'Solo quien creó la partida puede iniciarla.',
   alreadyFollowing: 'Este canal ya sigue una partida. Usa /mbrg stop antes de crear otra.',
   notFollowing: 'Este canal no sigue ninguna partida.',
   serverDown: 'El servidor no está disponible ahora. Inténtalo más tarde.',

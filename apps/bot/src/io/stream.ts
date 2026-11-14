@@ -15,6 +15,8 @@ export interface StreamOptions {
   readonly sleep: (ms: number, signal: AbortSignal) => Promise<void>;
   /** A closed code only (no id, no token, no text of the server). */
   readonly log: (code: string) => void;
+  /** Called when the connection drops, before the wait (the countdown of an open phase stops then). */
+  readonly onDrop?: () => void;
   readonly fetch?: typeof fetch;
 }
 
@@ -53,6 +55,7 @@ export async function followStream(options: StreamOptions): Promise<void> {
     if (options.signal.aborted) return;
     attempt += 1;
     options.log('stream-dropped');
+    options.onDrop?.();
     await options.sleep(backoffMs(attempt), options.signal);
   }
 }

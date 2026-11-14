@@ -16,13 +16,14 @@ const SHORT = 1;
 export const EPHEMERAL = 64;
 
 /** The core interaction of a slash command, from the subcommand name and its text options. */
-export function fromCommand(sub: string, options: { readonly map?: string | null; readonly pace?: string | null; readonly faction?: string | null }, canManage: boolean): Interaction | undefined {
+export function fromCommand(sub: string, options: { readonly map?: string | null; readonly pace?: string | null; readonly faction?: string | null }, canManage: boolean, userId: string): Interaction | undefined {
   switch (sub) {
     case 'create':
       return { type: 'create', canManage, map: options.map ?? '', pace: options.pace ?? undefined };
     case 'start':
+      return { type: 'start', canManage, userId };
     case 'stop':
-      return { type: sub, canManage };
+      return { type: 'stop', canManage };
     case 'board':
       return { type: 'board' };
     case 'predict':
@@ -32,7 +33,7 @@ export function fromCommand(sub: string, options: { readonly map?: string | null
   }
 }
 
-export const fromButton = (customId: string, canManage: boolean): Interaction => ({ type: 'button', customId, canManage });
+export const fromButton = (customId: string, canManage: boolean, userId: string): Interaction => ({ type: 'button', customId, canManage, userId });
 export const fromSelect = (customId: string, values: readonly string[]): Interaction => ({ type: 'select', customId, values });
 export const fromModal = (customId: string, text: string): Interaction => ({ type: 'modal', customId, text });
 export const fromAutocomplete = (focused: string, text: string): Interaction | undefined =>

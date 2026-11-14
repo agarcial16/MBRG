@@ -32,6 +32,10 @@ async function main(): Promise<void> {
   let handle: ReturnType<typeof createHandler> | undefined;
   const shell = createShell({
     following: (channelId) => store.get(channelId) !== undefined,
+    info: (channelId) => {
+      const creatorId = store.get(channelId)?.creatorId;
+      return { ...(creatorId === undefined ? {} : { creatorId }), hasLast: store.last(channelId) !== undefined };
+    },
     handle: (action, who) => (handle as NonNullable<typeof handle>)(action, who),
     log,
   });

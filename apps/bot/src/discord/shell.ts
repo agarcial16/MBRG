@@ -5,7 +5,7 @@
 import { Client, Events, GatewayIntentBits, PermissionFlagsBits } from 'discord.js';
 import type { Interaction as DiscordInteraction } from 'discord.js';
 import { decide, deliveryOf } from '../core/actions';
-import type { Interaction } from '../core/actions';
+import type { ChannelInfo, Interaction } from '../core/actions';
 import { splitMessage } from '../core/limits';
 import type { OutMessage, Reply } from '../core/model';
 import { STRINGS } from '../core/strings';
@@ -15,8 +15,9 @@ import type { Action } from '../core/actions';
 import { EPHEMERAL, MODAL_FIELD, commandDefinitions, fromAutocomplete, fromButton, fromCommand, fromModal, fromSelect, messagePayload, modalPayload, replyPayload } from './translate';
 
 export interface ShellOptions {
-  /** True when the channel follows a match now. */
+  /** True when the channel follows a match now, and what the channel keeps (its creator, a last match). */
   readonly following: (channelId: string) => boolean;
+  readonly info: (channelId: string) => ChannelInfo;
   readonly handle: (action: Action, who: Who) => Promise<Reply>;
   readonly log: (code: string) => void;
 }
@@ -35,24 +36,35 @@ export function createShell(options: ShellOptions): Shell {
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
   const poster: Poster = {
-    async post(channelId: string, message: OutMessage): Promise<void> {
+    async post(channelId: string, message: OutMessage): Promise<string | undefined> {
       const channel = await client.channels.fetch(channelId);
       if (channel === null || !channel.isSendable()) throw new Error('not-sendable');
       const parts = splitMessage(message.text);
-      for (const [i, part] of parts.entries()) await channel.send(raw(messagePayload({ text: part, buttons: i === 0 ? message.buttons : [] })));
+      let firstId: string | undefined;
+      for (const [i, part] of parts.entries()) {
+        const sent = await channel.send(raw(messagePayload({ text: part, buttons: i === 0 ? message.buttons : [] })));
+        if (i === 0) firstId = sent.id;
+      }
+      return firstId;
+    },
+    async edit(channelId: string, messageId: string, message: OutMessage): Promise<void> {
+      const channel = await client.channels.fetch(channelId);
+      if (channel === null || !channel.isTextBased()) throw new Error('not-editable');
+      const [first] = splitMessage(message.text);
+      await channel.messages.edit(messageId, raw(messagePayload({ text: first ?? message.text, buttons: message.buttons })));
     },
   };
 
   async function interactionOf(i: DiscordInteraction): Promise<Interaction | undefined> {
     const canManage = (i.memberPermissions?.has(PermissionFlagsBits.ManageChannels) ?? false) === true;
     if (i.isChatInputCommand()) {
-      return fromCommand(i.options.getSubcommand(), { map: i.options.getString(STRINGS.optMap), pace: i.options.getString(STRINGS.optPace), faction: i.options.getString(STRINGS.optFaction) }, canManage);
+      return fromCommand(i.options.getSubcommand(), { map: i.options.getString(STRINGS.optMap), pace: i.options.getString(STRINGS.optPace), faction: i.options.getString(STRINGS.optFaction) }, canManage, i.user.id);
     }
     if (i.isAutocomplete()) {
       const focused = i.options.getFocused(true);
       return fromAutocomplete(focused.name, String(focused.value));
     }
-    if (i.isButton()) return fromButton(i.customId, canManage);
+    if (i.isButton()) return fromButton(i.customId, canManage, i.user.id);
     if (i.isStringSelectMenu()) return fromSelect(i.customId, i.values);
     if (i.isModalSubmit()) return fromModal(i.customId, i.fields.getTextInputValue(MODAL_FIELD));
     return undefined;
@@ -62,7 +74,7 @@ export function createShell(options: ShellOptions): Shell {
     const channelId = i.channelId;
     const core = await interactionOf(i);
     if (core === undefined || channelId === null) return;
-    const action = decide(core, options.following(channelId));
+    const action = decide(core, options.following(channelId), options.info(channelId));
     const who: Who = { channelId, userId: i.user.id };
     if (i.isAutocomplete()) {
       const reply = await options.handle(action, who);

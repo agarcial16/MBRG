@@ -26,18 +26,33 @@ const manyNames = nameBook(many.map((id) => ({ id, name: `Region ${id}` })));
 const names = nameBook([{ id: 1, name: 'Alemania' }, { id: 2, name: 'España' }, { id: 3, name: 'Francia' }]);
 
 describe('FR-452 who may start, stop and create', () => {
-  const start: Interaction = { type: 'start', canManage: true };
-  it('FR-452 a manager starts; anyone else is refused with a private sentence and nothing runs', () => {
-    expect(decide(start, true)).toEqual({ do: 'start' });
-    expect(decide({ type: 'start', canManage: false }, true)).toEqual({ do: 'say', text: 'Solo quien gestiona el canal puede hacer eso.' });
-    expect(decide({ type: 'button', customId: START_ID, canManage: true }, true)).toEqual({ do: 'start' });
-    expect(decide({ type: 'button', customId: START_ID, canManage: false }, true).do).toBe('say');
-    expect(decide({ type: 'stop', canManage: false }, true).do).toBe('say');
+  const start: Interaction = { type: 'start', canManage: false, userId: '10' };
+  const creator = { creatorId: '10' };
+  it('FR-464 only the creator starts, button or command, even without the manager permission; a manager who is not the creator is refused', () => {
+    expect(decide(start, true, creator)).toEqual({ do: 'start' });
+    expect(decide({ type: 'button', customId: START_ID, canManage: false, userId: '10' }, true, creator)).toEqual({ do: 'start' });
+    const refused = { do: 'say', text: 'Solo quien creó la partida puede iniciarla.' };
+    expect(decide({ type: 'start', canManage: true, userId: '11' }, true, creator)).toEqual(refused);
+    expect(decide({ type: 'button', customId: START_ID, canManage: true, userId: '11' }, true, creator)).toEqual(refused);
+    expect(decide({ type: 'stop', canManage: false }, true, creator).do).toBe('say');
+    expect(decide({ type: 'stop', canManage: true }, true, creator)).toEqual({ do: 'stop' });
+  });
+
+  it('FR-464 an entry from an older file has no creator: the manager rule still applies', () => {
+    expect(decide({ type: 'start', canManage: true, userId: '11' }, true)).toEqual({ do: 'start' });
+    expect(decide({ type: 'start', canManage: false, userId: '11' }, true).do).toBe('say');
   });
 
   it('FR-452 a channel that follows nothing cannot start or stop', () => {
-    expect(decide(start, false)).toEqual({ do: 'say', text: 'Este canal no sigue ninguna partida.' });
+    expect(decide(start, false, creator)).toEqual({ do: 'say', text: 'Este canal no sigue ninguna partida.' });
     expect(decide({ type: 'stop', canManage: true }, false).do).toBe('say');
+  });
+
+  it('FR-466 the board is shown for a followed match or a last match, and a channel with none says so', () => {
+    expect(decide({ type: 'board' }, true)).toEqual({ do: 'board' });
+    expect(decide({ type: 'board' }, false, { hasLast: true })).toEqual({ do: 'board' });
+    expect(decide({ type: 'board' }, false, { hasLast: false })).toEqual({ do: 'say', text: 'Este canal no sigue ninguna partida.' });
+    expect(decide({ type: 'create', canManage: true, map: 'europe', pace: 'fast' }, false, { hasLast: true })).toEqual({ do: 'create', mapId: 'europe', pace: 'fast' });
   });
 
   it('FR-451 create needs a manager, refuses a channel that already follows, and defaults to the normal pace', () => {
@@ -106,7 +121,7 @@ describe('FR-454 prediction flow', () => {
   });
 
   it('FR-454 a press and a window are decided from the ids they carry', () => {
-    expect(decide({ type: 'button', customId: PREDICT_ID, canManage: false }, true)).toEqual({ do: 'predict-open' });
+    expect(decide({ type: 'button', customId: PREDICT_ID, canManage: false, userId: '1' }, true)).toEqual({ do: 'predict-open' });
     expect(decide({ type: 'predict', faction: undefined }, true)).toEqual({ do: 'predict-open' });
     expect(decide({ type: 'predict', faction: 'fran' }, true)).toEqual({ do: 'predict-text', text: 'fran' });
     expect(decide({ type: 'select', customId: pickId('absorber', 3), values: ['2'] }, true)).toEqual({ do: 'choose', kind: 'absorber', round: 3, faction: 2 });

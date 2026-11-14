@@ -5,18 +5,18 @@ import { EPHEMERAL, commandDefinitions, componentsOf, fromAutocomplete, fromButt
 
 describe('NFR-90 translation of Discord shapes', () => {
   it('NFR-90 a slash command becomes a core interaction with the manager flag and its text options', () => {
-    expect(fromCommand('create', { map: 'europe', pace: 'fast' }, true)).toEqual({ type: 'create', canManage: true, map: 'europe', pace: 'fast' });
-    expect(fromCommand('create', { map: 'europe' }, false)).toEqual({ type: 'create', canManage: false, map: 'europe', pace: undefined });
-    expect(fromCommand('start', {}, true)).toEqual({ type: 'start', canManage: true });
-    expect(fromCommand('stop', {}, false)).toEqual({ type: 'stop', canManage: false });
-    expect(fromCommand('board', {}, false)).toEqual({ type: 'board' });
-    expect(fromCommand('predict', { faction: null }, false)).toEqual({ type: 'predict', faction: undefined });
-    expect(fromCommand('predict', { faction: 'fra' }, false)).toEqual({ type: 'predict', faction: 'fra' });
-    expect(fromCommand('nope', {}, true)).toBeUndefined();
+    expect(fromCommand('create', { map: 'europe', pace: 'fast' }, true, '42')).toEqual({ type: 'create', canManage: true, map: 'europe', pace: 'fast' });
+    expect(fromCommand('create', { map: 'europe' }, false, '42')).toEqual({ type: 'create', canManage: false, map: 'europe', pace: undefined });
+    expect(fromCommand('start', {}, true, '42')).toEqual({ type: 'start', canManage: true, userId: '42' });
+    expect(fromCommand('stop', {}, false, '42')).toEqual({ type: 'stop', canManage: false });
+    expect(fromCommand('board', {}, false, '42')).toEqual({ type: 'board' });
+    expect(fromCommand('predict', { faction: null }, false, '42')).toEqual({ type: 'predict', faction: undefined });
+    expect(fromCommand('predict', { faction: 'fra' }, false, '42')).toEqual({ type: 'predict', faction: 'fra' });
+    expect(fromCommand('nope', {}, true, '42')).toBeUndefined();
   });
 
   it('NFR-90 presses, menus, windows and autocomplete are read as their core interactions', () => {
-    expect(fromButton(START_ID, true)).toEqual({ type: 'button', customId: START_ID, canManage: true });
+    expect(fromButton(START_ID, true, '42')).toEqual({ type: 'button', customId: START_ID, canManage: true, userId: '42' });
     expect(fromSelect(pickId('victim', 2), ['5'])).toEqual({ type: 'select', customId: 'mbrg:pick:victim:2', values: ['5'] });
     expect(fromModal('mbrg:find:victim:2', 'fra')).toEqual({ type: 'modal', customId: 'mbrg:find:victim:2', text: 'fra' });
     expect(fromAutocomplete('map', 'eu')).toEqual({ type: 'autocomplete', option: 'map', text: 'eu' });

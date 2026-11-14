@@ -12,20 +12,37 @@ export interface Followed {
   readonly appliedRounds: number;
   /** The round whose absorber was forced, 0 when none (its phase 2 is never scored). */
   readonly forcedRound: number;
+  /** The Discord id of the member who created the match: the only one who may start it (FR-464). Absent in an older file. */
+  readonly creatorId?: string;
+  /** Length in seconds of phase 1 and phase 2 from the chosen pace, for the countdown (FR-465). Absent in an older file. */
+  readonly phases?: { readonly l1: number; readonly l2: number };
+}
+
+/** A match the channel no longer follows (finished, halted or stopped): only what `/mbrg board` needs; no host token (FR-466). */
+export interface LastMatch {
+  readonly matchId: string;
+  readonly mapId: string;
 }
 
 export interface BotState {
   readonly version: 1;
   readonly channels: Readonly<Record<string, Followed>>;
+  /** The last match of a channel; absent when no channel has one (an older file has none). */
+  readonly last?: Readonly<Record<string, LastMatch>>;
 }
 
 export const emptyState = (): BotState => ({ version: 1, channels: {} });
+
+const build = (channels: Readonly<Record<string, Followed>>, last: Readonly<Record<string, LastMatch>> | undefined): BotState =>
+  last === undefined || Object.keys(last).length === 0 ? { version: 1, channels } : { version: 1, channels, last };
 
 const CHANNEL_ID = /^[0-9]{1,25}$/;
 const MATCH_ID = /^[A-Za-z0-9_.-]{1,64}$/;
 const MAP_ID = /^[a-z0-9-]{1,64}$/;
 const TOKEN = /^[A-Za-z0-9_-]{22,256}$/;
 const FOLLOWED_KEYS = ['matchId', 'mapId', 'hostToken', 'lastSeq', 'appliedRounds', 'forcedRound'] as const;
+const OPTIONAL_KEYS = ['creatorId', 'phases'] as const;
+const USER_ID = /^[0-9]{1,25}$/;
 const hasOwn = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isCount = (v: unknown, min: number): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= min;
@@ -35,12 +52,31 @@ export const isChannelId = (text: string): boolean => CHANNEL_ID.test(text);
 function readFollowed(v: unknown): Followed | undefined {
   if (!isObject(v)) return undefined;
   const keys = Object.keys(v);
-  if (keys.length !== FOLLOWED_KEYS.length || !FOLLOWED_KEYS.every((k) => hasOwn(v, k))) return undefined;
+  if (!FOLLOWED_KEYS.every((k) => hasOwn(v, k))) return undefined;
+  if (keys.some((k) => !(FOLLOWED_KEYS as readonly string[]).includes(k) && !(OPTIONAL_KEYS as readonly string[]).includes(k))) return undefined;
   const { matchId, mapId, hostToken, lastSeq, appliedRounds, forcedRound } = v;
   if (typeof matchId !== 'string' || !MATCH_ID.test(matchId) || typeof mapId !== 'string' || !MAP_ID.test(mapId)) return undefined;
   if (typeof hostToken !== 'string' || !TOKEN.test(hostToken)) return undefined;
   if (!isCount(lastSeq, 0) || !isCount(appliedRounds, 0) || !isCount(forcedRound, 0)) return undefined;
-  return { matchId, mapId, hostToken, lastSeq, appliedRounds, forcedRound };
+  const entry: Followed = { matchId, mapId, hostToken, lastSeq, appliedRounds, forcedRound };
+  let extra: { creatorId?: string; phases?: { l1: number; l2: number } } = {};
+  if (hasOwn(v, 'creatorId')) {
+    if (typeof v.creatorId !== 'string' || !USER_ID.test(v.creatorId)) return undefined;
+    extra = { ...extra, creatorId: v.creatorId };
+  }
+  if (hasOwn(v, 'phases')) {
+    const p = v.phases;
+    if (!isObject(p) || Object.keys(p).length !== 2 || !isCount(p.l1, 1) || !isCount(p.l2, 1)) return undefined;
+    extra = { ...extra, phases: { l1: p.l1, l2: p.l2 } };
+  }
+  return { ...entry, ...extra };
+}
+
+function readLast(v: unknown): LastMatch | undefined {
+  if (!isObject(v) || Object.keys(v).length !== 2 || !hasOwn(v, 'matchId') || !hasOwn(v, 'mapId')) return undefined;
+  const { matchId, mapId } = v;
+  if (typeof matchId !== 'string' || !MATCH_ID.test(matchId) || typeof mapId !== 'string' || !MAP_ID.test(mapId)) return undefined;
+  return { matchId, mapId };
 }
 
 /** The state from its JSON text, or undefined when the text is not exactly a state (it is never partly read). */
@@ -51,7 +87,8 @@ export function parseState(text: string): BotState | undefined {
   } catch {
     return undefined;
   }
-  if (!isObject(json) || Object.keys(json).length !== 2 || !hasOwn(json, 'version') || !hasOwn(json, 'channels') || json.version !== 1) return undefined;
+  if (!isObject(json) || !hasOwn(json, 'version') || !hasOwn(json, 'channels') || json.version !== 1) return undefined;
+  if (Object.keys(json).some((k) => k !== 'version' && k !== 'channels' && k !== 'last')) return undefined;
   const raw = json.channels;
   if (!isObject(raw)) return undefined;
   const channels: Record<string, Followed> = {};
@@ -60,7 +97,16 @@ export function parseState(text: string): BotState | undefined {
     if (!CHANNEL_ID.test(id) || entry === undefined) return undefined;
     channels[id] = entry;
   }
-  return { version: 1, channels };
+  const last: Record<string, LastMatch> = {};
+  if (hasOwn(json, 'last')) {
+    if (!isObject(json.last)) return undefined;
+    for (const id of Object.keys(json.last)) {
+      const entry = readLast(json.last[id]);
+      if (!CHANNEL_ID.test(id) || entry === undefined) return undefined;
+      last[id] = entry;
+    }
+  }
+  return build(channels, last);
 }
 
 export function serializeState(state: BotState): string {
@@ -69,9 +115,24 @@ export function serializeState(state: BotState): string {
 
 export const followedOf = (state: BotState, channelId: string): Followed | undefined => (hasOwn(state.channels, channelId) ? state.channels[channelId] : undefined);
 
-export const follow = (state: BotState, channelId: string, entry: Followed): BotState => ({ version: 1, channels: { ...state.channels, [channelId]: entry } });
+export const lastOf = (state: BotState, channelId: string): LastMatch | undefined =>
+  state.last !== undefined && hasOwn(state.last, channelId) ? state.last[channelId] : undefined;
+
+/** The channel follows a new match: the last match it had is replaced (FR-466). */
+export function follow(state: BotState, channelId: string, entry: Followed): BotState {
+  const { [channelId]: _old, ...last } = state.last ?? {};
+  return build({ ...state.channels, [channelId]: entry }, last);
+}
 
 export function unfollow(state: BotState, channelId: string): BotState {
   const { [channelId]: _gone, ...rest } = state.channels;
-  return { version: 1, channels: rest };
+  return build(rest, state.last);
+}
+
+/** The channel stops following a match (finished, halted, stopped): it becomes the last match, without its host token (FR-466). */
+export function retire(state: BotState, channelId: string): BotState {
+  const entry = followedOf(state, channelId);
+  if (entry === undefined) return state;
+  const { [channelId]: _gone, ...rest } = state.channels;
+  return build(rest, { ...state.last, [channelId]: { matchId: entry.matchId, mapId: entry.mapId } });
 }

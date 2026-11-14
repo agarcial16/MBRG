@@ -55,7 +55,8 @@ export function createHandler(options: HandlerOptions): (action: Action, who: Wh
         // Two creations at once in one channel: the second finds the channel taken and creates nothing more.
         if (store.get(who.channelId) !== undefined) return text(STRINGS.alreadyFollowing);
         const { matchId, hostToken, match } = made.value;
-        store.set(who.channelId, { matchId, mapId: match.mapId, hostToken, lastSeq: match.lastSeq, appliedRounds: 0, forcedRound: 0 });
+        const { l1, l2 } = paceTiming(action.pace, config.value);
+        store.set(who.channelId, { matchId, mapId: match.mapId, hostToken, lastSeq: match.lastSeq, appliedRounds: 0, forcedRound: 0, creatorId: who.userId, phases: { l1, l2 } });
         follower.follow(who.channelId);
         return { type: 'channel', messages: [lobbyMessage(matchId, match.mapId)] };
       }
@@ -68,8 +69,10 @@ export function createHandler(options: HandlerOptions): (action: Action, who: Wh
         follower.unfollow(who.channelId);
         return { type: 'channel', messages: [{ text: STRINGS.stopped, buttons: [] }] };
       case 'board': {
-        if (entry === undefined) return text(STRINGS.notFollowing);
-        const rows = await client.leaderboard(entry.matchId, 10);
+        // The followed match, or else the last one the channel had (FR-466).
+        const shown = entry ?? store.last(who.channelId);
+        if (shown === undefined) return text(STRINGS.notFollowing);
+        const rows = await client.leaderboard(shown.matchId, 10);
         return rows.ok ? { type: 'channel', messages: boardMessages(rows.value) } : failed(rows.failure);
       }
       case 'predict-open':
