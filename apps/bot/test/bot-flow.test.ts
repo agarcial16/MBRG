@@ -116,9 +116,9 @@ describe('FR-453 announcements', () => {
     applyRound1(fake);
     revealRound2Forced(fake);
     finishRound2(fake);
-    await waitFor(() => bot.posts.length === FULL_JOURNEY.length);
+    await waitFor(() => bot.posts.length === FULL_JOURNEY.length + 1);
     await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(texts(bot.posts)).toEqual(FULL_JOURNEY);
+    expect(texts(bot.posts).slice(0, FULL_JOURNEY.length)).toEqual(FULL_JOURNEY);
     // The open phases carry ONE Predict button and the viewer link at that round; the forced round carries no button.
     const open = bot.posts[0]?.message.buttons ?? [];
     expect(open).toEqual([
@@ -273,17 +273,17 @@ describe('FR-455 refusals', () => {
 });
 
 describe('FR-457 and FR-458', () => {
-  it('FR-457 the board shows rank, mention and points of the first 10, asking the server for 10', async () => {
+  it('FR-457 the board shows rank, mention and points of the first 10 as page 1 of a paged embed (spec 017)', async () => {
     const { fake, bot } = await world();
     await createAndStart(fake, bot);
     fake.leaderboard = Array.from({ length: 14 }, (_, i) => ({ rank: i + 1, playerId: `discord:${800 + i}`, total: 50 - i }));
     const reply = await bot.run({ type: 'board' }, MEMBER);
     expect(reply.type).toBe('channel');
-    const text = reply.type === 'channel' ? reply.messages.map((m) => m.text).join('\n') : '';
+    const text = reply.type === 'channel' ? (reply.messages[0]?.embed?.description ?? '') : '';
     expect(text).toContain('1. <@800> - 50 pts');
     expect(text).toContain('10. <@809> - 41 pts');
     expect(text).not.toContain('<@810>');
-    expect(fake.requests.find((r) => r.path.includes('/leaderboard'))?.path).toContain('limit=10');
+    expect(fake.requests.find((r) => r.path.includes('/leaderboard'))).toBeDefined();
   });
 
   it('FR-458 stop makes the channel stop following, drops the host token and leaves the match alone; only a manager may', async () => {
@@ -324,9 +324,9 @@ describe('FR-459 restart', () => {
     second.follower.followAll();
     await waitFor(() => second.posts.length === 8, 20_000, () => `${second.posts.length} posts: ${JSON.stringify(texts(second.posts).map((t) => t.slice(0, 30)))}`);
     finishRound2(fake);
-    await waitFor(() => second.posts.length === FULL_JOURNEY.length);
+    await waitFor(() => second.posts.length === FULL_JOURNEY.length + 1);
     await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(texts(second.posts)).toEqual(FULL_JOURNEY);
+    expect(texts(second.posts).slice(0, FULL_JOURNEY.length)).toEqual(FULL_JOURNEY);
     const reopen = fake.requests.filter((r) => r.path.endsWith('/events')).at(-1);
     expect(reopen?.lastEventId).toBe(String(savedSeq));
   });
@@ -371,9 +371,9 @@ describe('FR-460 stream drop', () => {
     await waitFor(() => bot.posts.length === 6);
     revealRound2Forced(fake);
     finishRound2(fake);
-    await waitFor(() => bot.posts.length === FULL_JOURNEY.length);
+    await waitFor(() => bot.posts.length === FULL_JOURNEY.length + 1);
     await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(texts(bot.posts)).toEqual(FULL_JOURNEY);
+    expect(texts(bot.posts).slice(0, FULL_JOURNEY.length)).toEqual(FULL_JOURNEY);
     expect(fake.requests.filter((r) => r.path.endsWith('/events') && r.lastEventId === String(savedSeq)).length).toBeGreaterThanOrEqual(2);
   });
 
@@ -413,9 +413,11 @@ describe('NFR-88 secrecy', () => {
     applyRound1(fake);
     revealRound2Forced(fake);
     finishRound2(fake);
-    await waitFor(() => bot.posts.length === FULL_JOURNEY.length);
+    await waitFor(() => bot.posts.length === FULL_JOURNEY.length + 1);
     replies.push(await bot.run({ type: 'autocomplete', option: 'faction', text: '' }, MEMBER));
     replies.push(await bot.run({ type: 'board' }, MEMBER));
+    // NFR-92: every announcement of the journey went as an embed too, and the same checks cover them.
+    expect(bot.posts.filter((p) => p.message.embed !== undefined).length).toBeGreaterThanOrEqual(FULL_JOURNEY.length);
     const everything = JSON.stringify([bot.posts, replies]);
     expect(everything).not.toContain(FUTURE_SECRET);
     expect(everything).not.toContain(MATCH_SECRET);
@@ -444,11 +446,11 @@ describe('NFR-89 privacy', () => {
     applyRound1(fake);
     revealRound2Forced(fake);
     finishRound2(fake);
-    await waitFor(() => bot.posts.length === FULL_JOURNEY.length);
+    await waitFor(() => bot.posts.length === FULL_JOURNEY.length + 1);
     const visible = JSON.stringify([bot.posts.map((p) => p.message), replies, bot.logs]);
     for (const secret of [HOST_TOKEN, CREDENTIAL, MEMBER.userId, MANAGER.userId, WRONG_GUESSER]) expect(visible).not.toContain(secret);
     // The ids that do appear are the mentions of members who guessed right.
-    const ids = [...visible.split(MATCH_ID).join('').matchAll(/[0-9]{3,}/g)].map((m) => m[0]);
+    const ids = [...visible.replace(/"color":[0-9]+/g, '').split(MATCH_ID).join('').matchAll(/[0-9]{3,}/g)].map((m) => m[0]);
     for (const id of ids) expect(['111', '222', ...Array.from({ length: 10 }, (_, i) => String(5000 + i))]).toContain(id);
     // The credential travels only in the Authorization header of a prediction, a host token only in that of the start.
     for (const request of fake.requests) {

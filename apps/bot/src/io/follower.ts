@@ -8,8 +8,10 @@ import type { Extras } from '../core/announce';
 import type { OutMessage } from '../core/model';
 import { nameBook } from '../core/names';
 import type { NameBook } from '../core/names';
-import { BOARD_SIZE, summarizeWinners } from '../core/results';
+import { summarizeWinners } from '../core/results';
 import type { SseFrame } from '../core/sse-parser';
+import type { Boards } from './boards';
+import { registerSent } from './boards';
 import type { ServerClient } from './server-client';
 import type { StateStore } from './state-file';
 import { followStream, sleepMs } from './stream';
@@ -20,6 +22,8 @@ export interface Poster {
   post(channelId: string, message: OutMessage): Promise<string | undefined>;
   /** Replaces the text and buttons of a message this poster posted. */
   edit(channelId: string, messageId: string, message: OutMessage): Promise<void>;
+  /** Disables every button of a message this poster posted, leaving the rest as it is (FR-481). */
+  disable(channelId: string, messageId: string): Promise<void>;
 }
 
 /** Runs `tick` every `ms` until the returned function is called. */
@@ -55,6 +59,8 @@ export interface FollowerOptions {
   readonly client: ServerClient;
   readonly store: StateStore;
   readonly poster: Poster;
+  /** The leaderboard messages that page: the final post is registered here once it is sent (FR-478, FR-480). */
+  readonly boards: Boards;
   readonly names: NamesProvider;
   readonly viewerUrl: string | undefined;
   readonly log: (code: string) => void;
@@ -75,7 +81,7 @@ export interface Follower {
 }
 
 export function createFollower(options: FollowerOptions): Follower {
-  const { client, store, poster, names, log } = options;
+  const { client, store, poster, names, boards, log } = options;
   const running = new Map<string, AbortController>();
   const every = options.every ?? everyMs;
   interface Countdown {
@@ -150,7 +156,7 @@ export function createFollower(options: FollowerOptions): Follower {
       return { winners: summarizeWinners(correct.value) };
     }
     if (need.type === 'board') {
-      const rows = await client.leaderboard(matchId, BOARD_SIZE);
+      const rows = await client.leaderboard(matchId);
       if (!rows.ok) throw new Error('read-failed');
       return { board: rows.value };
     }
@@ -190,6 +196,7 @@ export function createFollower(options: FollowerOptions): Follower {
       // The first label already shows the seconds when the schedule is known.
       const id = await poster.post(channelId, i === 0 && seconds !== undefined ? countdownMessage(message, seconds) : message);
       if (i === 0) firstId = id;
+      registerSent(boards, channelId, id, message);
     }
     // The channel may have been stopped or replaced while this event was being read and posted: then nothing is saved.
     const current = store.get(channelId);

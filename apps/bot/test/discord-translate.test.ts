@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { PREDICT_ID, START_ID, pickId } from '../src/core/custom-ids';
 import type { ButtonSpec } from '../src/core/model';
-import { EPHEMERAL, commandDefinitions, componentsOf, fromAutocomplete, fromButton, fromCommand, fromModal, fromSelect, messagePayload, modalPayload, replyPayload } from '../src/discord/translate';
+import { EPHEMERAL, commandDefinitions, componentsOf, embedPayload, fromAutocomplete, fromBoardButton, fromButton, fromCommand, fromModal, fromSelect, messagePayload, modalPayload, replyPayload, withButtonsDisabled } from '../src/discord/translate';
+import type { OutMessage } from '../src/core/model';
 
 describe('NFR-90 translation of Discord shapes', () => {
   it('NFR-90 a slash command becomes a core interaction with the manager flag and its text options', () => {
@@ -80,5 +81,63 @@ describe('NFR-91 Discord limits in payloads', () => {
     expect(create?.options?.[0]).toMatchObject({ name: 'map', required: true, autocomplete: true });
     expect(root?.options[4]?.options?.[0]).toMatchObject({ name: 'faction', required: false, autocomplete: true });
     expect(root?.dm_permission).toBe(false);
+  });
+});
+
+describe('spec 017 embeds in payloads', () => {
+  const embedMessage: OutMessage = {
+    text: 'Ronda 1 abierta.',
+    embed: { color: 7, title: 'Ronda 1 abierta', description: 'Hola <@42>', fields: [{ name: 'Victima', value: '**A**' }], footer: 'Pagina 1/2' },
+    buttons: [{ type: 'custom', customId: PREDICT_ID, label: 'Predecir', style: 'primary' }],
+  };
+
+  it('FR-472 an embed goes with its color, fields and footer and the bot avatar as the only image; no image, video or map', () => {
+    const e = embedPayload(embedMessage.embed as NonNullable<OutMessage['embed']>, 'https://cdn.example/bot.png');
+    expect(e).toEqual({ title: 'Ronda 1 abierta', color: 7, description: 'Hola <@42>', fields: [{ name: 'Victima', value: '**A**' }], footer: { text: 'Pagina 1/2' }, thumbnail: { url: 'https://cdn.example/bot.png' } });
+    expect(embedPayload({ color: 1, title: 't', fields: [] })).toEqual({ title: 't', color: 1 });
+    expect(Object.keys(e)).not.toContain('image');
+    expect(Object.keys(e)).not.toContain('video');
+  });
+
+  it('FR-472 in embed mode the message is the embed and its buttons, with the text cleared; mentions never ping (NFR-94)', () => {
+    const p = messagePayload(embedMessage, { mode: 'embed', avatarUrl: 'https://cdn.example/bot.png' });
+    expect(p.content).toBe('');
+    expect(p.embeds).toHaveLength(1);
+    expect(p.allowedMentions).toEqual({ parse: [] });
+    expect(p.components).toHaveLength(1);
+  });
+
+  it('FR-475 without Embed Links the same message is the plain text of 012 and an edit clears any embed', () => {
+    const p = messagePayload(embedMessage, { mode: 'text' });
+    expect(p.content).toBe('Ronda 1 abierta.');
+    expect(p.embeds).toEqual([]);
+    expect(p.components).toHaveLength(1);
+    expect(messagePayload({ text: 'plain', buttons: [] })).not.toHaveProperty('embeds');
+  });
+
+  it('NFR-94 an embed over the Discord limits is cut before it is sent', () => {
+    const e = embedPayload({ color: 1, title: 't'.repeat(999), description: 'd'.repeat(9000), fields: Array.from({ length: 30 }, () => ({ name: 'n', value: 'v'.repeat(3000) })) });
+    expect(e.title.length).toBeLessThanOrEqual(256);
+    expect((e.description ?? '').length).toBeLessThanOrEqual(4096);
+    expect((e.fields ?? []).length).toBeLessThanOrEqual(25);
+    for (const f of e.fields ?? []) expect(f.value.length).toBeLessThanOrEqual(1024);
+  });
+
+  it('FR-477 a channel reply in embed mode is one payload (an embed is not split) and private when asked', () => {
+    const parts = replyPayload({ type: 'channel', messages: [embedMessage] }, true, { mode: 'embed' });
+    expect(parts).toHaveLength(1);
+    expect(parts[0]?.flags).toBe(EPHEMERAL);
+    expect(parts[0]).toHaveProperty('embeds');
+  });
+
+  it('FR-481 disabling the buttons of a message sets every button disabled and leaves the rest', () => {
+    const rows = [{ type: 1, components: [{ type: 2, style: 1, custom_id: 'a', label: 'A' }, { type: 2, style: 5, url: 'https://v.example/', label: 'V' }] }];
+    const out = withButtonsDisabled(rows);
+    expect(out[0]?.components).toEqual([{ type: 2, style: 1, custom_id: 'a', label: 'A', disabled: true }, { type: 2, style: 5, url: 'https://v.example/', label: 'V', disabled: true }]);
+    expect(rows[0]?.components[0]).not.toHaveProperty('disabled');
+  });
+
+  it('FR-480 a press on a leaderboard button carries the user, what the shell knows of the message, and the time', () => {
+    expect(fromBoardButton('mbrg:bd:n:2', '42', undefined, 9)).toEqual({ type: 'board-press', customId: 'mbrg:bd:n:2', userId: '42', entry: undefined, now: 9 });
   });
 });

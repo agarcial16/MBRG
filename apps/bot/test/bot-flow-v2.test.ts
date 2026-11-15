@@ -201,7 +201,7 @@ describe('FR-466 last match', () => {
     applyRound1(fake);
     revealRound2Forced(fake);
     finishRound2(fake);
-    await waitFor(() => bot.posts.length === FULL_JOURNEY.length);
+    await waitFor(() => bot.posts.length === FULL_JOURNEY.length + 1);
     await waitFor(() => bot.store.get(CHANNEL) === undefined);
     await waitFor(() => fake.streamCount() === 0);
     expect(bot.store.last(CHANNEL)).toEqual({ matchId: MATCH_ID, mapId: 'europe' });
@@ -267,12 +267,11 @@ describe('FR-467 final leaderboard', () => {
     expect(board).toContain('1. <@800> - 50 pts');
     expect(board).toContain('10. <@809> - 41 pts');
     expect(board).not.toContain('<@810>');
-    expect(fake.requests.filter((r) => r.path.includes('/leaderboard')).at(-1)?.path).toContain('limit=10');
     // No viewer address set: no link.
     expect(board).not.toContain('http');
   });
 
-  it('FR-468 the final post has the top 10 and the link to the full leaderboard, and no own-rank line', async () => {
+  it('FR-482 the final post has no link to the full leaderboard any more, even with a viewer address, and no own-rank line', async () => {
     const fake = await startFake();
     fakes.push(fake);
     const state = tempState();
@@ -286,54 +285,10 @@ describe('FR-467 final leaderboard', () => {
     revealRound2Forced(fake);
     finishRound2(fake);
     await waitFor(() => bot.posts.length === FULL_JOURNEY.length + 1);
-    const board = bot.posts[FULL_JOURNEY.length]?.message.text ?? '';
-    expect(board.split('\n').at(-1)).toBe(`Clasificación completa: https://viewer.example/?match=${MATCH_ID}&spectate=1`);
+    const board = JSON.stringify(bot.posts[FULL_JOURNEY.length]?.message);
+    expect(board).not.toContain('completa');
+    expect(board).not.toContain('Clasificación completa');
     expect(board).not.toContain('Tu puesto');
-  });
-});
-
-describe('FR-468 board for the member who asks', () => {
-  const rows = (n: number) => Array.from({ length: n }, (_, i) => ({ rank: i + 1, playerId: `discord:${800 + i}`, total: 100 - i }));
-  const boardText = (reply: { type: string; messages?: readonly { text: string }[] }): string => (reply.type === 'channel' ? (reply.messages ?? []).map((m) => m.text).join('\n') : `<${reply.type}>`);
-
-  async function lastMatch(viewerUrl?: string) {
-    const fake = await startFake();
-    fakes.push(fake);
-    const state = tempState();
-    cleanups.push(state.remove);
-    const bot = boot(fake, state.path, viewerUrl === undefined ? {} : { viewerUrl });
-    bots.push(bot);
-    await createAndStart(fake, bot);
-    await bot.run({ type: 'stop', canManage: true });
-    return { fake, bot };
-  }
-
-  it('FR-468 a member outside the first 10 gets a last line with their rank and points, found on a later page', async () => {
-    const { fake, bot } = await lastMatch();
-    fake.leaderboard = rows(30);
-    fake.pageSize = 10;
-    const reply = await bot.run({ type: 'board' }, { channelId: CHANNEL, userId: '822' });
-    const lines = boardText(reply).split('\n');
-    expect(lines.at(-1)).toBe('Tu puesto: 23. <@822> - 78 pts');
-    expect(lines).toContain('10. <@809> - 91 pts');
-    expect(lines.join('\n')).not.toContain('11. <@810>');
-  });
-
-  it('FR-468 a member inside the first 10, or with no row at all, gets no own line', async () => {
-    const { fake, bot } = await lastMatch();
-    fake.leaderboard = rows(30);
-    expect(boardText(await bot.run({ type: 'board' }, { channelId: CHANNEL, userId: '803' }))).not.toContain('Tu puesto');
-    expect(boardText(await bot.run({ type: 'board' }, { channelId: CHANNEL, userId: '999' }))).not.toContain('Tu puesto');
-  });
-
-  it('FR-468 the viewer link comes last, after the own line, only when a viewer address is set', async () => {
-    const { fake, bot } = await lastMatch('https://viewer.example/');
-    fake.leaderboard = rows(30);
-    const lines = boardText(await bot.run({ type: 'board' }, { channelId: CHANNEL, userId: '822' })).split('\n');
-    expect(lines.at(-2)).toBe('Tu puesto: 23. <@822> - 78 pts');
-    expect(lines.at(-1)).toBe(`Clasificación completa: https://viewer.example/?match=${MATCH_ID}&spectate=1`);
-    const plain = await lastMatch();
-    plain.fake.leaderboard = rows(30);
-    expect(boardText(await plain.bot.run({ type: 'board' }, MEMBER))).not.toContain('http');
+    expect(board).not.toContain('match=');
   });
 });

@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { readConfig } from './core/env';
 import { STRINGS, fill } from './core/strings';
 import { createShell } from './discord/shell';
+import { afterMs, createBoards } from './io/boards';
 import { createFollower, createNames } from './io/follower';
 import { createHandler } from './io/handler';
 import { createServerClient } from './io/server-client';
@@ -30,6 +31,8 @@ async function main(): Promise<void> {
   const client = createServerClient({ baseUrl: config.serverUrl, credential: config.credential });
   const names = createNames(client);
   let handle: ReturnType<typeof createHandler> | undefined;
+  let disable: ((channelId: string, messageId: string) => Promise<void>) | undefined;
+  const boards = createBoards({ now: Date.now, after: afterMs, disable: (channelId, messageId) => (disable as NonNullable<typeof disable>)(channelId, messageId) });
   const shell = createShell({
     following: (channelId) => store.get(channelId) !== undefined,
     info: (channelId) => {
@@ -38,13 +41,17 @@ async function main(): Promise<void> {
     },
     handle: (action, who) => (handle as NonNullable<typeof handle>)(action, who),
     log,
+    boards,
+    now: Date.now,
   });
-  const follower = createFollower({ baseUrl: config.serverUrl, client, store, poster: shell.poster, names, viewerUrl: config.viewerUrl, log });
-  handle = createHandler({ client, store, follower, names, viewerUrl: config.viewerUrl, newRequestId: randomUUID });
+  disable = shell.poster.disable;
+  const follower = createFollower({ baseUrl: config.serverUrl, client, store, poster: shell.poster, boards, names, viewerUrl: config.viewerUrl, log });
+  handle = createHandler({ client, store, follower, names, newRequestId: randomUUID });
 
   process.on('unhandledRejection', () => log('unhandled'));
   const shutdown = (): void => {
     follower.stopAll();
+    boards.stopAll();
     void shell.stop().finally(() => process.exit(0));
   };
   process.once('SIGINT', shutdown);

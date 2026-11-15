@@ -37,9 +37,8 @@ export interface ServerClient {
   submit(matchId: string, submission: Submission): Promise<Result<PredictionReply>>;
   /** The ids of every player who guessed a scored phase right (all pages). */
   correctPlayers(matchId: string, round: number, phase: 1 | 2): Promise<Result<string[]>>;
-  leaderboard(matchId: string, limit: number): Promise<Result<LeaderboardRow[]>>;
-  /** The leaderboard row of one player (any rank, all pages); none when the player has no row. The server has no own-rank read. */
-  rankOf(matchId: string, playerId: string): Promise<Result<LeaderboardRow | undefined>>;
+  /** Every row of the leaderboard (all pages), as the server ranks it; the paging of the channel is the bot's own (spec 017 FR-477). */
+  leaderboard(matchId: string): Promise<Result<LeaderboardRow[]>>;
 }
 
 const DOWN: Failure = { type: 'down' };
@@ -106,22 +105,18 @@ export function createServerClient(options: ClientOptions): ServerClient {
       }
       return { ok: true, value: ids };
     },
-    async leaderboard(matchId, limit) {
-      const page = await call('GET', `/matches/${enc(matchId)}/leaderboard?limit=${limit}`, decoded(readLeaderboardPage));
-      return page.ok ? { ok: true, value: [...page.value.items] } : page;
-    },
-    async rankOf(matchId, playerId) {
+    async leaderboard(matchId) {
+      const rows: LeaderboardRow[] = [];
       let cursor: string | undefined;
       for (let page = 0; page < MAX_PAGES; page += 1) {
         const query = `?limit=${PAGE}${cursor === undefined ? '' : `&cursor=${enc(cursor)}`}`;
         const got = await call('GET', `/matches/${enc(matchId)}/leaderboard${query}`, decoded(readLeaderboardPage));
         if (!got.ok) return got;
-        const found = got.value.items.find((r) => r.playerId === playerId);
-        if (found !== undefined) return { ok: true, value: found };
+        rows.push(...got.value.items);
         cursor = got.value.next;
         if (cursor === undefined) break;
       }
-      return { ok: true, value: undefined };
+      return { ok: true, value: rows };
     },
   };
 }

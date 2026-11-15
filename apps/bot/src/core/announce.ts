@@ -2,10 +2,12 @@
 // viewer address come in as parameters. The bot reads only public events; the only data it asks for besides them is named by
 // `needOf` and concerns an applied round or a scored phase, never a future one.
 import type { MatchEvent } from '@mbrg/protocol';
+import { boardView } from './board';
 import { PREDICT_ID, START_ID } from './custom-ids';
+import { appliedEmbed, finishedEmbed, forcedEmbed, haltedEmbed, openedEmbed, scoredEmbed, victimEmbed } from './embeds';
 import type { ButtonSpec, OutMessage } from './model';
 import type { NameBook } from './names';
-import { boardMessages, winnersText } from './results';
+import { winnersText } from './results';
 import type { Winners } from './results';
 import type { LeaderboardRow } from '@mbrg/protocol';
 import type { Followed } from './state';
@@ -21,7 +23,7 @@ export type Need =
 export interface Extras {
   readonly left?: number;
   readonly winners?: Winners;
-  /** The first rows of the final leaderboard (FR-467). */
+  /** Every row of the final leaderboard (FR-467, FR-478): the first page is posted, the rest is paged. */
   readonly board?: readonly LeaderboardRow[];
 }
 
@@ -71,19 +73,6 @@ export function viewerLink(base: string | undefined, matchId: string, round: num
   }
 }
 
-/** The link to the full leaderboard of a match (FR-468): the viewer address as a spectator, with no round. */
-export function boardLink(base: string | undefined, matchId: string): string | undefined {
-  if (base === undefined) return undefined;
-  try {
-    const url = new URL(base);
-    url.searchParams.set('match', matchId);
-    url.searchParams.set('spectate', '1');
-    return url.toString();
-  } catch {
-    return undefined;
-  }
-}
-
 const withLink = (buttons: ButtonSpec[], url: string | undefined): ButtonSpec[] => (url === undefined ? buttons : [...buttons, { type: 'link', url, label: STRINGS.viewerButton }]);
 
 const predictButton: ButtonSpec = { type: 'custom', customId: PREDICT_ID, label: STRINGS.predictButton, style: 'primary' };
@@ -101,30 +90,34 @@ export function buildAnnouncement(event: MatchEvent, ctx: AnnounceContext, extra
     case 'schedule': {
       if (event.stage !== 'phase-1') return [];
       const round = follow.appliedRounds + 1;
-      return [{ text: fill(STRINGS.roundOpened, { round }), buttons: withLink([predictButton], viewerLink(ctx.viewerUrl, follow.matchId, round)) }];
+      return [{ text: fill(STRINGS.roundOpened, { round }), embed: openedEmbed(round), buttons: withLink([predictButton], viewerLink(ctx.viewerUrl, follow.matchId, round)) }];
     }
     case 'victim-revealed': {
       const victim = names.nameOf(event.victim);
       if (event.forced === true) {
         const only = event.candidates[0];
-        return [{ text: fill(STRINGS.victimForced, { round: event.round, victim, absorber: only === undefined ? '' : names.nameOf(only) }), buttons: [] }];
+        const absorber = only === undefined ? undefined : names.nameOf(only);
+        return [{ text: fill(STRINGS.victimForced, { round: event.round, victim, absorber: absorber ?? '' }), embed: forcedEmbed(event.round, victim, absorber), buttons: [] }];
       }
-      return [{ text: fill(STRINGS.victimRevealed, { round: event.round, victim }), buttons: withLink([predictButton], viewerLink(ctx.viewerUrl, follow.matchId, event.round)) }];
+      return [{ text: fill(STRINGS.victimRevealed, { round: event.round, victim }), embed: victimEmbed(event.round, victim), buttons: withLink([predictButton], viewerLink(ctx.viewerUrl, follow.matchId, event.round)) }];
     }
     case 'round-applied': {
       const left = extras.left === undefined ? '' : extras.left === 1 ? STRINGS.factionsLeftOne : fill(STRINGS.factionsLeftMany, { n: extras.left });
-      const text = fill(STRINGS.roundApplied, { round: event.round, victim: names.nameOf(event.record.eliminated), absorber: names.nameOf(event.record.absorber), left });
-      return [{ text: text.trim(), buttons: [] }];
+      const victim = names.nameOf(event.record.eliminated);
+      const absorber = names.nameOf(event.record.absorber);
+      const text = fill(STRINGS.roundApplied, { round: event.round, victim, absorber, left });
+      return [{ text: text.trim(), embed: appliedEmbed(event.round, victim, absorber, extras.left), buttons: [] }];
     }
     case 'results':
-      return extras.winners === undefined ? [] : [{ text: winnersText(event.phase, extras.winners), buttons: [] }];
+      return extras.winners === undefined ? [] : [{ text: winnersText(event.phase, extras.winners), embed: scoredEmbed(event.round, event.phase, extras.winners), buttons: [] }];
     case 'match-finished': {
-      const winner: OutMessage = { text: fill(STRINGS.matchFinished, { winner: names.nameOf(event.winner) }), buttons: [] };
-      // The final leaderboard follows the winner (FR-467); with no points at all there is nothing to show.
-      return extras.board === undefined || extras.board.length === 0 ? [winner] : [winner, ...boardMessages(extras.board, { link: boardLink(ctx.viewerUrl, follow.matchId) })];
+      const name = names.nameOf(event.winner);
+      const winner: OutMessage = { text: fill(STRINGS.matchFinished, { winner: name }), embed: finishedEmbed(name), buttons: [] };
+      // The public leaderboard, page 1, follows the winner (FR-478): no asker, so each presser pages for themselves (FR-480).
+      return extras.board === undefined ? [winner] : [winner, boardView(extras.board, 1, { matchId: follow.matchId, kind: 'final' }).message];
     }
     case 'match-halted':
-      return [{ text: fill(STRINGS.matchHalted, { round: event.round }), buttons: [] }];
+      return [{ text: fill(STRINGS.matchHalted, { round: event.round }), embed: haltedEmbed(event.round), buttons: [] }];
     default:
       return [];
   }

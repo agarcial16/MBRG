@@ -6,6 +6,13 @@ import type { Pace, PhaseKind } from './model';
 import { isPace } from './paces';
 import { STRINGS } from './strings';
 
+/** What the shell knows of a leaderboard message a press came from: its match, who asked (none: the final post) and when it stops paging. */
+export interface BoardEntryView {
+  readonly matchId: string;
+  readonly askerId?: string;
+  readonly expiresAt: number;
+}
+
 export type Interaction =
   | { readonly type: 'create'; readonly canManage: boolean; readonly map: string; readonly pace: string | undefined }
   | { readonly type: 'start'; readonly canManage: boolean; readonly userId: string }
@@ -15,7 +22,8 @@ export type Interaction =
   | { readonly type: 'button'; readonly customId: string; readonly canManage: boolean; readonly userId: string }
   | { readonly type: 'select'; readonly customId: string; readonly values: readonly string[] }
   | { readonly type: 'modal'; readonly customId: string; readonly text: string }
-  | { readonly type: 'autocomplete'; readonly option: 'map' | 'faction'; readonly text: string };
+  | { readonly type: 'autocomplete'; readonly option: 'map' | 'faction'; readonly text: string }
+  | { readonly type: 'board-press'; readonly customId: string; readonly userId: string; readonly entry: BoardEntryView | undefined; readonly now: number };
 
 export type Action =
   | { readonly do: 'say'; readonly text: string }
@@ -24,10 +32,12 @@ export type Action =
   | { readonly do: 'predict-text'; readonly text: string }
   | { readonly do: 'choose'; readonly kind: PhaseKind; readonly round: number; readonly faction: number }
   | { readonly do: 'find'; readonly kind: PhaseKind; readonly round: number; readonly text: string }
-  | { readonly do: 'suggest'; readonly option: 'map' | 'faction'; readonly text: string };
+  | { readonly do: 'suggest'; readonly option: 'map' | 'faction'; readonly text: string }
+  /** A leaderboard page: in place on the asker's public message, as a new private reply (final post), or in place on a private page (FR-480). */
+  | { readonly do: 'board-page'; readonly matchId: string; readonly page: number; readonly mode: 'asker' | 'new-private' | 'update-private' };
 
-/** How the answer is sent: deferred at once (the work may take longer than Discord's three seconds) as public or private, or direct. */
-export type Delivery = 'public' | 'private' | 'direct';
+/** How the answer is sent: deferred at once (the work may take longer than Discord's three seconds) as public or private, direct, or as the edit of the message pressed (`update`). */
+export type Delivery = 'public' | 'private' | 'direct' | 'update';
 
 const say = (text: string): Action => ({ do: 'say', text });
 
@@ -83,6 +93,16 @@ export function decide(interaction: Interaction, following: boolean, info: Chann
     }
     case 'autocomplete':
       return { do: 'suggest', option: interaction.option, text: interaction.text };
+    case 'board-press': {
+      const id = parseCustomId(interaction.customId);
+      if (id?.type === 'mine') return { do: 'board-page', matchId: id.matchId, page: id.page, mode: 'update-private' };
+      if (id?.type !== 'board') return say(STRINGS.errUnexpected);
+      const entry = interaction.entry;
+      // The message is unknown (the bot restarted) or past its five minutes: nothing is served (FR-481).
+      if (entry === undefined || interaction.now >= entry.expiresAt) return say(STRINGS.boardExpired);
+      if (entry.askerId === undefined) return { do: 'board-page', matchId: entry.matchId, page: id.page, mode: 'new-private' };
+      return entry.askerId === interaction.userId ? { do: 'board-page', matchId: entry.matchId, page: id.page, mode: 'asker' } : say(STRINGS.boardNotYours);
+    }
   }
 }
 
@@ -96,6 +116,8 @@ export function deliveryOf(action: Action): Delivery {
     case 'stop':
     case 'board':
       return 'public';
+    case 'board-page':
+      return action.mode === 'new-private' ? 'private' : 'update';
     case 'start':
     case 'predict-text':
     case 'choose':

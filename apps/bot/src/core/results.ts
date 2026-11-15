@@ -1,12 +1,8 @@
-// Who guessed right and the leaderboard (spec 012 FR-456, FR-457). Pure. Only the right guesses of a scored phase come in: a
+// Who guessed right (spec 012 FR-456; the leaderboard is in board.ts, spec 017). Pure. Only the right guesses of a scored phase come in: a
 // wrong guess, a choice or a count of guesses has no field here, so no message can carry one (008 P12).
-import type { LeaderboardRow } from '@mbrg/protocol';
-import { splitMessage } from './limits';
-import type { OutMessage } from './model';
 import { STRINGS, fill } from './strings';
 
 export const MAX_MENTIONS = 10;
-export const BOARD_SIZE = 10;
 const DISCORD_PLAYER = /^discord:([0-9]{1,25})$/;
 
 /** The Discord user id of a player id of the `discord` namespace; undefined for any other player. */
@@ -35,33 +31,4 @@ export function winnersText(phase: 1 | 2, winners: Winners): string {
   const list = winners.userIds.map(mentionOf).join(', ');
   const mentions = winners.more > 0 ? fill(STRINGS.winnersMore, { list, n: winners.more }) : list;
   return fill(phase === 1 ? STRINGS.winnersVictim : STRINGS.winnersAbsorber, { mentions });
-}
-
-const lineOf = (row: LeaderboardRow): string | undefined => {
-  const userId = userIdOf(row.playerId);
-  const who = userId !== undefined ? mentionOf(userId) : row.name;
-  return who === undefined ? undefined : fill(STRINGS.boardRow, { rank: row.rank, who, points: row.total });
-};
-
-export interface BoardExtras {
-  /** The row of the member who asked, when it is outside the first ten: shown as a last line (FR-468). */
-  readonly own?: LeaderboardRow;
-  /** The link to the full leaderboard (FR-468); none: no link. */
-  readonly link?: string | undefined;
-}
-
-/** The leaderboard as messages: rank, mention and points of the first ten rows, the asker's own row and the link to the rest. */
-export function boardMessages(rows: readonly LeaderboardRow[], extras: BoardExtras = {}): OutMessage[] {
-  const lines: string[] = [];
-  for (const row of rows.slice(0, BOARD_SIZE)) {
-    const line = lineOf(row);
-    if (line !== undefined) lines.push(line);
-  }
-  if (lines.length > 0 && extras.own !== undefined && !rows.slice(0, BOARD_SIZE).some((r) => r.playerId === extras.own?.playerId)) {
-    const own = lineOf(extras.own);
-    if (own !== undefined) lines.push(fill(STRINGS.boardOwn, { row: own }));
-  }
-  if (lines.length > 0 && extras.link !== undefined) lines.push(fill(STRINGS.boardLink, { url: extras.link }));
-  const text = lines.length === 0 ? STRINGS.boardEmpty : [STRINGS.boardTitle, ...lines].join('\n');
-  return splitMessage(text).map((part) => ({ text: part, buttons: [] }));
 }
