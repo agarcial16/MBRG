@@ -57,3 +57,10 @@ Decisions (user, 2026-11-15, all as proposed):
 - Final post: public, with paging buttons whose pages are private to the member who presses.
 - `/mbrg board`: public reply in the channel (the asker alone pages it).
 - Invite instructions: a short section in the bot operator doc, including Embed Links.
+
+## Implementation notes (2026-11-15, found in review; the spec is fixed to match the code)
+- FR-481 and the restart edge case apply to the public leaderboard messages (the `/mbrg board` reply and the final post). The private pages of the final post (FR-480) are ephemeral: their buttons carry the match, are not disabled after 5 minutes and keep working until Discord drops them.
+- A leaderboard of one page shows both buttons disabled and is not registered for expiry.
+- The final post is also posted when there are 0 rows (the "no points yet" embed, no buttons).
+- FR-475 also covers an unreadable permission: if Discord refuses an embed send, the bot resends the same announcement as plain text.
+- The invite also needs Read Message History (the bot fetches a message to disable its buttons).

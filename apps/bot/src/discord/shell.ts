@@ -64,8 +64,17 @@ export function createShell(options: ShellOptions): Shell {
     async post(channelId: string, message: OutMessage): Promise<string | undefined> {
       const channel = await client.channels.fetch(channelId);
       if (channel === null || !channel.isSendable()) throw new Error('not-sendable');
-      const view = await viewFor(channelId);
-      if (message.embed !== undefined && view.mode === 'embed') return (await channel.send(raw(messagePayload(message, view)))).id;
+      let view = await viewFor(channelId);
+      if (message.embed !== undefined && view.mode === 'embed') {
+        try {
+          return (await channel.send(raw(messagePayload(message, view)))).id;
+        } catch {
+          // The permission could not be read (null or uncached) and Discord refused the embed: the announcement is never dropped (FR-475).
+          if (!warned.has(channelId)) options.log('embed-links-missing');
+          warned.add(channelId);
+          view = { mode: 'text' };
+        }
+      }
       const parts = splitMessage(message.text);
       let firstId: string | undefined;
       for (const [i, part] of parts.entries()) {
