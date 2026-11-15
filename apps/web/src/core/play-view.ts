@@ -165,7 +165,8 @@ export function playHud(input: PlayInput): PlayHud {
       line: text.line,
       choices: choiceList.map((faction) => ({ faction, name: nameOf(faction), selected: faction === chosen })),
       seal: chosen === undefined ? undefined : sentText(nameOf(chosen)),
-      notice: state.notice,
+      // FR-471: a notice that says what the line already says is not drawn twice.
+      notice: state.notice === text.line ? undefined : state.notice,
       sending: state.sending,
       countdown: open ? countdownTime(model.stage, model.timing, scheduleOf(model.stage, model.schedule, model.victim), estimateAt(model, input.at)) : undefined,
     };

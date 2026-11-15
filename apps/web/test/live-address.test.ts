@@ -147,6 +147,18 @@ describe('FR-306 the live address (D31)', () => {
     expect(back.problems).toStrictEqual([]);
   });
 
+  it('FR-470 spectate=1 marks a spectator link, only exactly that, and the address keeps it', () => {
+    const search = `?match=${ID}&round=2&spectate=1`;
+    expect(chooseScene(search, false)).toStrictEqual({ kind: 'live', matchId: ID, spectate: true });
+    expect(chooseScene(search, true)).toStrictEqual({ kind: 'live', matchId: ID, spectate: true });
+    for (const other of ['', '&spectate=0', '&spectate=', '&spectate=1&spectate=1', '&spectate=true']) {
+      expect(chooseScene(`?match=${ID}${other}`, false), other).toStrictEqual({ kind: 'live', matchId: ID });
+    }
+    expect(readLiveAddress(search, 5, IMAGE, VP)).toStrictEqual(readLiveAddress(`?match=${ID}&round=2`, 5, IMAGE, VP));
+    expect(formatLiveAddress(ID, 3, { x: 1, y: 2, scale: 1 }, true)).toBe(`?match=${ID}&round=3&x=1.0&y=2.0&zoom=1.000&spectate=1`);
+    expect(chooseScene(formatLiveAddress(ID, 3, { x: 1, y: 2, scale: 1 }, true), false)).toMatchObject({ spectate: true });
+  });
+
   it('FR-306 the notices come from the strings module', () => {
     expect(STRINGS.liveRoundAboveN).toContain('{round}');
     expect(liveProblemMessage({ param: 'round', text: '9', reason: 'out-of-range' }, 4)).toBe(

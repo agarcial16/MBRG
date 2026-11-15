@@ -16,7 +16,7 @@ function actions(debug: boolean): EnterActions & { calls: string[] } {
   return {
     calls,
     debug: debug ? async () => void calls.push('debug') : undefined,
-    live: (id) => void calls.push(`live:${id}`),
+    live: (id, spectate) => void calls.push(spectate === true ? `live:${id}:spectate` : `live:${id}`),
     message: (text) => void calls.push(`message:${text}`),
     start: () => void calls.push('start'),
   };
@@ -29,6 +29,13 @@ describe('FR-306 (entry) the page entry chooses the scene of each address', () =
       await enter(`?match=${ID}`, dev, a);
       expect(a.calls).toStrictEqual([`live:${ID}`]);
     }
+  });
+
+  it('FR-470 (entry) spectate=1 reaches the live action as a spectator; without it nothing changes', async () => {
+    const a = actions(false);
+    await enter(`?match=${ID}&round=2&spectate=1`, false, a);
+    await enter(`?match=${ID}&round=2`, false, a);
+    expect(a.calls).toStrictEqual([`live:${ID}:spectate`, `live:${ID}`]);
   });
 
   it('FR-306 (entry) a seed alone starts the debug scene in development and shows the need-match message in production', async () => {

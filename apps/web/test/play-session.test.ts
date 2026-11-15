@@ -194,11 +194,11 @@ describe('FR-401 FR-404 prediction by a tap on the map', () => {
     const model = await liveModel(1);
     session.view({ ...model, stage: 'locked' }, 0, idle);
     session.tap(3);
-    expect(session.view({ ...model, stage: 'locked' }, 0, idle).predict!.notice).toBe(STRINGS.predictNoneClosed);
+    expect(session.view({ ...model, stage: 'locked' }, 0, idle).predict!.line).toBe(STRINGS.predictNoneClosed);
     const replay: LiveModel = { ...model, applied: 3, displayed: 2, held: new Map(model.held).set(3, model.held.get(0)!) };
     session.view(replay, 0, idle);
     session.tap(3);
-    expect(session.view(replay, 0, idle).predict!.notice).toBe(STRINGS.predictNoneBehind);
+    expect(session.view(replay, 0, idle).predict!.line).toBe(STRINGS.predictNoneBehind);
     expect(submits(calls)).toHaveLength(0);
   });
 
@@ -208,7 +208,9 @@ describe('FR-401 FR-404 prediction by a tap on the map', () => {
     const model = await liveModel(1);
     session.view(model, 0, idle);
     session.tap(3);
-    expect(session.view(model, 0, idle).predict!.notice).toBe(STRINGS.predictNoneNotJoined);
+    const view = session.view(model, 0, idle).predict!;
+    expect(view.line).toBe(STRINGS.predictNoneNotJoined);
+    expect(view.notice).toBeUndefined();
     expect(calls.map((c) => c.name)).not.toContain('submit');
     expect(calls.map((c) => c.name)).not.toContain('ownPredictions');
   });

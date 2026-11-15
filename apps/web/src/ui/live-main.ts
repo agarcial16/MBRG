@@ -75,7 +75,7 @@ interface Built {
  * Starts the live scene for a match id: the runner does the rest. `player` is the joined player of this browser (spec 013); without
  * one the screen is the spectator's, with the leaderboard and the who-guessed-right lines but no prediction.
  */
-export function startLiveScene(matchId: string, player?: PlayerCredentials): void {
+export function startLiveScene(matchId: string, player?: PlayerCredentials, spectate = false): void {
   const canvas = document.getElementById('map') as HTMLCanvasElement;
   const labelCanvas = document.getElementById('labels') as HTMLCanvasElement;
   const panelContainer = document.getElementById('panel') as HTMLElement;
@@ -91,7 +91,7 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials): voi
   // The tour on screen, as the map view reported it (FR-330): the panel hides the victim and keeps the old legend by it.
   let tour: TourReport | undefined;
 
-  const syncAddress = (round: number, camera: Camera): void => syncLiveAddress(matchId, round, camera);
+  const syncAddress = (round: number, camera: Camera): void => syncLiveAddress(matchId, round, camera, undefined, spectate);
 
   // FR-443: the map area is what the top bar and the open (or folded) dock leave; the camera follows the dock.
   let dockFolded = false;

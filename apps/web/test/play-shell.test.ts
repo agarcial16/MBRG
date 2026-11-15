@@ -150,7 +150,7 @@ describe('FR-401 to FR-407 the prediction shells hand their decisions to the pur
   it('FR-397 the player chip opens the personal link and the door passes the player to the match scene', () => {
     expect(panel).toContain('handlers.play?.fillPersonal(personal)');
     expect(session).toContain('personalBlock(parent, deps.pageUrl, deps.matchId, deps.player)');
-    expect(main).toContain('startLiveScene(matchId, who)');
+    expect(main).toContain('startLiveScene(matchId, who, spectate)');
   });
 
   it('NFR-77 the rebuilt parts of the panel are rebuilt only when they change, so a countdown does not drop the keyboard focus', () => {
