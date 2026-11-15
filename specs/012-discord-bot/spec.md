@@ -1,5 +1,5 @@
 # Spec 012 — Discord bot
-Status: implemented pending the hand run (approved by the user on 2026-11-13). Tier: Light SDD (Discord bot; a separate app that only consumes the server's public interface). Depends on 008, 009 and 011 (implemented). Ids continue 013/015: FR-451 onwards, NFR-88 onwards.
+Status: implemented (approved 2026-11-13; hand-tested on a real Discord server 2026-11-15; merged in #60). Tier: Light SDD (Discord bot; a separate app that only consumes the server's public interface). Depends on 008, 009 and 011 (implemented). Ids continue 013/015: FR-451 onwards, NFR-88 onwards.
 
 ## Context and goal
 The server already offers everything a chat client needs: public matches, a lobby, per-phase predictions by a client credential in the namespace `discord`, public results, a leaderboard and an event stream (008, 011). This spec adds the Discord client: a channel follows one match, members predict with buttons, and the bot announces each round and the results. Players predict; they never control the match.
