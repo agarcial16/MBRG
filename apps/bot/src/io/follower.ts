@@ -85,8 +85,9 @@ export function createFollower(options: FollowerOptions): Follower {
     countdowns.delete(channelId);
   }
 
-  // FR-465: every COUNTDOWN_STEP seconds the open-phase message is edited with the seconds left, counted from the pace's phase
-  // length. It stops when the time is out, at the next event, when the stream drops or the channel stops. A failed edit is ignored.
+  // FR-465: every COUNTDOWN_STEP seconds the Predict button of the open-phase message is edited with the seconds left, counted
+  // from the server's schedule at receipt. It stops when the time is out, at the next event, when the stream drops or the channel
+  // stops. A failed edit is ignored.
   function startCountdown(channelId: string, messageId: string, base: OutMessage, seconds: number): void {
     stopCountdown(channelId);
     let left = seconds;
@@ -164,7 +165,7 @@ export function createFollower(options: FollowerOptions): Follower {
       return;
     }
     store.set(channelId, advanceFollow(current, event));
-    const seconds = openPhaseSeconds(event, current);
+    const seconds = openPhaseSeconds(event);
     const first = messages[0];
     if (seconds !== undefined && firstId !== undefined && first !== undefined) startCountdown(channelId, firstId, first, seconds);
   }

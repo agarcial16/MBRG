@@ -40,7 +40,7 @@ async function main(): Promise<void> {
     log,
   });
   const follower = createFollower({ baseUrl: config.serverUrl, client, store, poster: shell.poster, names, viewerUrl: config.viewerUrl, log });
-  handle = createHandler({ client, store, follower, names, newRequestId: randomUUID });
+  handle = createHandler({ client, store, follower, names, viewerUrl: config.viewerUrl, newRequestId: randomUUID });
 
   process.on('unhandledRejection', () => log('unhandled'));
   const shutdown = (): void => {

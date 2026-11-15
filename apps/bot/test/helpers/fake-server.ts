@@ -148,9 +148,10 @@ export async function startFake(options: FakeOptions = {}): Promise<Fake> {
         return json(res, 200, { round: Number(results[1]), phase: Number(results[2]), victim: 1, items, ...(more ? { next: String(from + limit) } : {}) });
       }
       if (path === `/matches/${MATCH_ID}/leaderboard`) {
-        const limit = Number(url.searchParams.get('limit') ?? 100);
-        const items = state.leaderboard.slice(0, limit).map((r) => ({ ...r, correctVictims: 0, correctAbsorbers: 0, correctWinner: 0 }));
-        return json(res, 200, { items });
+        const limit = Math.min(Number(url.searchParams.get('limit') ?? 100), state.pageSize);
+        const from = Number(url.searchParams.get('cursor') ?? 0);
+        const items = state.leaderboard.slice(from, from + limit).map((r) => ({ ...r, correctVictims: 0, correctAbsorbers: 0, correctWinner: 0 }));
+        return json(res, 200, { items, ...(from + limit < state.leaderboard.length ? { next: String(from + limit) } : {}) });
       }
       if (/^\/maps\/[^/]+\/presentation\.json$/.test(path)) return json(res, 200, { factions, territories: [] });
       return json(res, 404, { kind: 'unknown-path' });

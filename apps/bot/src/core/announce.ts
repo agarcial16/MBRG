@@ -64,6 +64,20 @@ export function viewerLink(base: string | undefined, matchId: string, round: num
     const url = new URL(base);
     url.searchParams.set('match', matchId);
     url.searchParams.set('round', String(round));
+    url.searchParams.set('spectate', '1');
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+/** The link to the full leaderboard of a match (FR-468): the viewer address as a spectator, with no round. */
+export function boardLink(base: string | undefined, matchId: string): string | undefined {
+  if (base === undefined) return undefined;
+  try {
+    const url = new URL(base);
+    url.searchParams.set('match', matchId);
+    url.searchParams.set('spectate', '1');
     return url.toString();
   } catch {
     return undefined;
@@ -107,7 +121,7 @@ export function buildAnnouncement(event: MatchEvent, ctx: AnnounceContext, extra
     case 'match-finished': {
       const winner: OutMessage = { text: fill(STRINGS.matchFinished, { winner: names.nameOf(event.winner) }), buttons: [] };
       // The final leaderboard follows the winner (FR-467); with no points at all there is nothing to show.
-      return extras.board === undefined || extras.board.length === 0 ? [winner] : [winner, ...boardMessages(extras.board)];
+      return extras.board === undefined || extras.board.length === 0 ? [winner] : [winner, ...boardMessages(extras.board, { link: boardLink(ctx.viewerUrl, follow.matchId) })];
     }
     case 'match-halted':
       return [{ text: fill(STRINGS.matchHalted, { round: event.round }), buttons: [] }];
@@ -116,11 +130,19 @@ export function buildAnnouncement(event: MatchEvent, ctx: AnnounceContext, extra
   }
 }
 
-/** How many seconds an open phase lasts for the countdown of the message that announces it; none for any other event (FR-465). */
-export function openPhaseSeconds(event: MatchEvent, follow: Followed): number | undefined {
-  if (follow.phases === undefined) return undefined;
-  if (event.type === 'schedule' && event.stage === 'phase-1') return follow.phases.l1;
-  if (event.type === 'victim-revealed' && event.forced !== true) return follow.phases.l2;
+const secondsUntil = (anchor: number, reportedTime: number): number | undefined => {
+  const left = Math.ceil((anchor - reportedTime) / 1000);
+  return left > 0 ? left : undefined;
+};
+
+/**
+ * Seconds left in the phase an event opens, from the server's own schedule (FR-465): the anchor C1 of a phase-1 schedule or
+ * C2 of a free victim reveal, minus the server time the event reports. None for any other event, a forced reveal, a manual
+ * timing (no anchors) or an anchor already past.
+ */
+export function openPhaseSeconds(event: MatchEvent): number | undefined {
+  if (event.type === 'schedule' && event.stage === 'phase-1' && event.schedule !== undefined) return secondsUntil(event.schedule.c1, event.reportedTime);
+  if (event.type === 'victim-revealed' && event.forced !== true && event.c2 !== null) return secondsUntil(event.c2, event.reportedTime);
   return undefined;
 }
 
@@ -136,8 +158,11 @@ export const closesPhase = (event: MatchEvent): boolean =>
 /** The seconds between two edits of the countdown. */
 export const COUNTDOWN_STEP = 5;
 
-/** The open-phase message with the seconds left under it; nothing else is added (FR-465). */
-export const countdownMessage = (base: OutMessage, secondsLeft: number): OutMessage => ({ ...base, text: `${base.text}\n${fill(STRINGS.countdown, { n: secondsLeft })}` });
+/** The open-phase message with the seconds left in the label of its Predict button; the text and the other buttons stay (FR-465). */
+export const countdownMessage = (base: OutMessage, secondsLeft: number): OutMessage => ({
+  ...base,
+  buttons: base.buttons.map((b) => (b.type === 'custom' && b.customId === PREDICT_ID ? { ...b, label: fill(STRINGS.predictCountdown, { n: secondsLeft }) } : b)),
+});
 
 /** Whether announcing this event ends the following (the match is over for the channel). */
 export const endsFollowing = (event: MatchEvent): boolean => event.type === 'match-finished' || event.type === 'match-halted';

@@ -38,6 +38,8 @@ export interface ServerClient {
   /** The ids of every player who guessed a scored phase right (all pages). */
   correctPlayers(matchId: string, round: number, phase: 1 | 2): Promise<Result<string[]>>;
   leaderboard(matchId: string, limit: number): Promise<Result<LeaderboardRow[]>>;
+  /** The leaderboard row of one player (any rank, all pages); none when the player has no row. The server has no own-rank read. */
+  rankOf(matchId: string, playerId: string): Promise<Result<LeaderboardRow | undefined>>;
 }
 
 const DOWN: Failure = { type: 'down' };
@@ -107,6 +109,19 @@ export function createServerClient(options: ClientOptions): ServerClient {
     async leaderboard(matchId, limit) {
       const page = await call('GET', `/matches/${enc(matchId)}/leaderboard?limit=${limit}`, decoded(readLeaderboardPage));
       return page.ok ? { ok: true, value: [...page.value.items] } : page;
+    },
+    async rankOf(matchId, playerId) {
+      let cursor: string | undefined;
+      for (let page = 0; page < MAX_PAGES; page += 1) {
+        const query = `?limit=${PAGE}${cursor === undefined ? '' : `&cursor=${enc(cursor)}`}`;
+        const got = await call('GET', `/matches/${enc(matchId)}/leaderboard${query}`, decoded(readLeaderboardPage));
+        if (!got.ok) return got;
+        const found = got.value.items.find((r) => r.playerId === playerId);
+        if (found !== undefined) return { ok: true, value: found };
+        cursor = got.value.next;
+        if (cursor === undefined) break;
+      }
+      return { ok: true, value: undefined };
     },
   };
 }

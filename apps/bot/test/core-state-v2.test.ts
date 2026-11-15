@@ -1,6 +1,6 @@
 import type { LeaderboardRow, MatchEvent } from '@mbrg/protocol';
 import { describe, expect, it } from 'vitest';
-import { START_ID } from '../src/core/custom-ids';
+import { PREDICT_ID, START_ID } from '../src/core/custom-ids';
 import { buildAnnouncement, closesPhase, countdownMessage, needOf, openPhaseSeconds } from '../src/core/announce';
 import { nameBook } from '../src/core/names';
 import { emptyState, follow, followedOf, lastOf, parseState, retire, serializeState, unfollow } from '../src/core/state';
@@ -12,18 +12,22 @@ const names = nameBook([{ id: 3, name: 'Francia' }]);
 const hex = 'ab'.repeat(32);
 
 describe('FR-464 and FR-465 the follow entry', () => {
-  it('FR-464 the creator and the phase lengths survive a round trip; an entry without them (an older file) still loads', () => {
-    const state = follow(emptyState(), '100', entry({ creatorId: '4242', phases: { l1: 30, l2: 5 } }));
+  it('FR-464 the creator survives a round trip; an entry without it, or with the old phase lengths (an older file), still loads', () => {
+    const state = follow(emptyState(), '100', entry({ creatorId: '4242' }));
     expect(parseState(serializeState(state))).toEqual(state);
+    // The pace's phase lengths of an earlier version are read and dropped (FR-465 now uses the server's schedule).
+    const withPhases = serializeState(state).replace('"creatorId"', '"phases": {"l1": 30, "l2": 5}, "creatorId"');
+    expect(parseState(withPhases)).toEqual(state);
     const older = '{"version":1,"channels":{"100":{"matchId":"m1","mapId":"europe","hostToken":"' + HOST + '","lastSeq":1,"appliedRounds":0,"forcedRound":0}}}';
     expect(parseState(older)?.channels['100']).toEqual(entry());
     expect(followedOf(parseState(older) ?? emptyState(), '100')?.creatorId).toBeUndefined();
   });
 
   it('FR-464 a creator that is not a Discord id, a bad phase length or an unknown key refuses the file', () => {
-    const good = serializeState(follow(emptyState(), '100', entry({ creatorId: '4242', phases: { l1: 30, l2: 5 } })));
+    const good = serializeState(follow(emptyState(), '100', entry({ creatorId: '4242' })));
     expect(parseState(good.replace('"4242"', '"abc"'))).toBeUndefined();
-    expect(parseState(good.replace('"l1": 30', '"l1": 0'))).toBeUndefined();
+    const old = good.replace('"creatorId"', '"phases": {"l1": 30, "l2": 5}, "creatorId"');
+    expect(parseState(old.replace('"l1": 30', '"l1": 0'))).toBeUndefined();
     expect(parseState(good.replace('"creatorId"', '"other"'))).toBeUndefined();
   });
 });
@@ -51,23 +55,30 @@ describe('FR-466 last match in the state', () => {
 });
 
 describe('FR-465 countdown texts', () => {
-  const schedule = (stage: 'phase-1' | 'phase-2' | 'locked'): MatchEvent => ({ type: 'schedule', seq: 2, stage, reportedTime: 5 });
-  const reveal = (forced: boolean): MatchEvent => ({
-    type: 'victim-revealed', seq: 3, round: 1, victim: 1, candidates: [3], living: [1, 3], revealedAt: 9, c2: null, a: null, ...(forced ? { forced: true as const } : {}), reportedTime: 9,
+  const schedule = (stage: 'phase-1' | 'phase-2' | 'locked', anchors?: { c1: number; c2: number; a: number }, reportedTime = 5_000): MatchEvent => ({
+    type: 'schedule', seq: 2, stage, ...(anchors === undefined ? {} : { schedule: anchors }), reportedTime,
   });
-  const phases = { phases: { l1: 30, l2: 7 } };
+  const reveal = (forced: boolean, c2: number | null = null, reportedTime = 9_000): MatchEvent => ({
+    type: 'victim-revealed', seq: 3, round: 1, victim: 1, candidates: [3], living: [1, 3], revealedAt: 9, c2, a: null, ...(forced ? { forced: true as const } : {}), reportedTime,
+  });
+  const anchors = { c1: 35_500, c2: 60_000, a: 65_000 };
 
-  it('FR-465 phase 1 counts from its length and phase 2 from its own; a forced reveal and any other event have no countdown', () => {
-    expect(openPhaseSeconds(schedule('phase-1'), entry(phases))).toBe(30);
-    expect(openPhaseSeconds(reveal(false), entry(phases))).toBe(7);
-    expect(openPhaseSeconds(reveal(true), entry(phases))).toBeUndefined();
-    expect(openPhaseSeconds(schedule('phase-2'), entry(phases))).toBeUndefined();
-    expect(openPhaseSeconds(schedule('phase-1'), entry())).toBeUndefined();
+  it('FR-465 the seconds are the anchor minus the reported time (phase 1: C1, phase 2: C2); a forced reveal and any other event have none', () => {
+    expect(openPhaseSeconds(schedule('phase-1', anchors, 5_000))).toBe(31);
+    expect(openPhaseSeconds(reveal(false, 20_000, 9_000))).toBe(11);
+    expect(openPhaseSeconds(reveal(true, 20_000))).toBeUndefined();
+    expect(openPhaseSeconds(schedule('phase-2', anchors))).toBeUndefined();
+    expect(openPhaseSeconds(schedule('phase-1'))).toBeUndefined();
+    expect(openPhaseSeconds(reveal(false, null))).toBeUndefined();
+    expect(openPhaseSeconds(schedule('phase-1', anchors, 35_500))).toBeUndefined();
   });
 
-  it('FR-465 only the seconds are added to the text, the buttons stay', () => {
-    const base = { text: 'Ronda 1 abierta.', buttons: [{ type: 'custom' as const, customId: START_ID, label: 'x', style: 'primary' as const }] };
-    expect(countdownMessage(base, 25)).toEqual({ text: 'Ronda 1 abierta.\nQuedan unos 25 s.', buttons: base.buttons });
+  it('FR-465 only the label of the Predict button carries the seconds; the text and the other buttons stay', () => {
+    const link = { type: 'link' as const, url: 'https://v.example/', label: 'Ver' };
+    const predict = { type: 'custom' as const, customId: PREDICT_ID, label: 'Predecir', style: 'primary' as const };
+    const other = { type: 'custom' as const, customId: START_ID, label: 'x', style: 'success' as const };
+    const base = { text: 'Ronda 1 abierta.', buttons: [predict, link, other] };
+    expect(countdownMessage(base, 8)).toEqual({ text: 'Ronda 1 abierta.', buttons: [{ ...predict, label: 'Predecir · 8 s' }, link, other] });
   });
 
   it('FR-465 the events that end an open phase stop its countdown; results and joins do not', () => {

@@ -4,9 +4,9 @@
 export const STRINGS = {
   // Lobby, rounds and results announced in the channel (FR-451, FR-453, FR-456).
   lobby: 'Nueva partida **{match}** en el mapa **{map}**. Solo quien la creó puede iniciarla con el botón.',
-  countdown: 'Quedan unos {n} s.',
   startButton: 'Iniciar',
   predictButton: 'Predecir',
+  predictCountdown: 'Predecir · {n} s',
   viewerButton: 'Ver en el visor',
   roundOpened: 'Ronda {round} abierta. ¿Qué facción será eliminada? Pulsa Predecir.',
   victimRevealed: 'Ronda {round}: la víctima es **{victim}**. ¿Quién la absorberá? Pulsa Predecir.',
@@ -27,6 +27,8 @@ export const STRINGS = {
   boardTitle: 'Clasificación',
   boardRow: '{rank}. {who} - {points} pts',
   boardEmpty: 'Todavía no hay puntos.',
+  boardOwn: 'Tu puesto: {row}',
+  boardLink: 'Clasificación completa: {url}',
 
   // Replies to commands and presses (FR-452, FR-454, FR-455, FR-458).
   noPermission: 'Solo quien gestiona el canal puede hacer eso.',

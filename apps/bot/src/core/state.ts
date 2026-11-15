@@ -14,8 +14,6 @@ export interface Followed {
   readonly forcedRound: number;
   /** The Discord id of the member who created the match: the only one who may start it (FR-464). Absent in an older file. */
   readonly creatorId?: string;
-  /** Length in seconds of phase 1 and phase 2 from the chosen pace, for the countdown (FR-465). Absent in an older file. */
-  readonly phases?: { readonly l1: number; readonly l2: number };
 }
 
 /** A match the channel no longer follows (finished, halted or stopped): only what `/mbrg board` needs; no host token (FR-466). */
@@ -59,17 +57,16 @@ function readFollowed(v: unknown): Followed | undefined {
   if (typeof hostToken !== 'string' || !TOKEN.test(hostToken)) return undefined;
   if (!isCount(lastSeq, 0) || !isCount(appliedRounds, 0) || !isCount(forcedRound, 0)) return undefined;
   const entry: Followed = { matchId, mapId, hostToken, lastSeq, appliedRounds, forcedRound };
-  let extra: { creatorId?: string; phases?: { l1: number; l2: number } } = {};
-  if (hasOwn(v, 'creatorId')) {
-    if (typeof v.creatorId !== 'string' || !USER_ID.test(v.creatorId)) return undefined;
-    extra = { ...extra, creatorId: v.creatorId };
-  }
+  // `phases` (the pace's phase lengths) was kept by an earlier version: a valid one is read and dropped, the countdown now uses the server's schedule.
   if (hasOwn(v, 'phases')) {
     const p = v.phases;
     if (!isObject(p) || Object.keys(p).length !== 2 || !isCount(p.l1, 1) || !isCount(p.l2, 1)) return undefined;
-    extra = { ...extra, phases: { l1: p.l1, l2: p.l2 } };
   }
-  return { ...entry, ...extra };
+  if (hasOwn(v, 'creatorId')) {
+    if (typeof v.creatorId !== 'string' || !USER_ID.test(v.creatorId)) return undefined;
+    return { ...entry, creatorId: v.creatorId };
+  }
+  return entry;
 }
 
 function readLast(v: unknown): LastMatch | undefined {

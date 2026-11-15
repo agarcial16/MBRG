@@ -37,14 +37,31 @@ export function winnersText(phase: 1 | 2, winners: Winners): string {
   return fill(phase === 1 ? STRINGS.winnersVictim : STRINGS.winnersAbsorber, { mentions });
 }
 
-/** The leaderboard as messages: rank, mention and points of the first ten rows. */
-export function boardMessages(rows: readonly LeaderboardRow[]): OutMessage[] {
+const lineOf = (row: LeaderboardRow): string | undefined => {
+  const userId = userIdOf(row.playerId);
+  const who = userId !== undefined ? mentionOf(userId) : row.name;
+  return who === undefined ? undefined : fill(STRINGS.boardRow, { rank: row.rank, who, points: row.total });
+};
+
+export interface BoardExtras {
+  /** The row of the member who asked, when it is outside the first ten: shown as a last line (FR-468). */
+  readonly own?: LeaderboardRow;
+  /** The link to the full leaderboard (FR-468); none: no link. */
+  readonly link?: string | undefined;
+}
+
+/** The leaderboard as messages: rank, mention and points of the first ten rows, the asker's own row and the link to the rest. */
+export function boardMessages(rows: readonly LeaderboardRow[], extras: BoardExtras = {}): OutMessage[] {
   const lines: string[] = [];
   for (const row of rows.slice(0, BOARD_SIZE)) {
-    const userId = userIdOf(row.playerId);
-    const who = userId !== undefined ? mentionOf(userId) : row.name;
-    if (who !== undefined) lines.push(fill(STRINGS.boardRow, { rank: row.rank, who, points: row.total }));
+    const line = lineOf(row);
+    if (line !== undefined) lines.push(line);
   }
+  if (lines.length > 0 && extras.own !== undefined && !rows.slice(0, BOARD_SIZE).some((r) => r.playerId === extras.own?.playerId)) {
+    const own = lineOf(extras.own);
+    if (own !== undefined) lines.push(fill(STRINGS.boardOwn, { row: own }));
+  }
+  if (lines.length > 0 && extras.link !== undefined) lines.push(fill(STRINGS.boardLink, { url: extras.link }));
   const text = lines.length === 0 ? STRINGS.boardEmpty : [STRINGS.boardTitle, ...lines].join('\n');
   return splitMessage(text).map((part) => ({ text: part, buttons: [] }));
 }

@@ -50,30 +50,63 @@ describe('FR-465 countdown of the open phase', () => {
     await createAndStart(fake, bot);
     await waitFor(() => bot.ticker.active() === 1);
     expect(bot.ticker.periods).toEqual([5000]);
-    for (const left of [25, 20, 15, 10, 5]) {
+    // The schedule says C1 = 30 000 ms and the event reports 2 000 ms: 28 s left at receipt, then 5 s less per tick.
+    for (const left of [23, 18, 13, 8, 3]) {
       const before = bot.edits.length;
       bot.ticker.fire();
       await settle(bot, before + 1);
       const last = bot.edits.at(-1);
       expect(last?.messageId).toBe('message-1');
-      expect(last?.message.text).toBe(`${TEXTS.opened1}\nQuedan unos ${left} s.`);
-      expect(last?.message.buttons).toEqual(bot.posts[0]?.message.buttons);
+      // Only the label of the Predict button changes; the text is the one posted.
+      expect(last?.message.text).toBe(TEXTS.opened1);
+      expect(last?.message.buttons).toEqual([{ ...(bot.posts[0]?.message.buttons[0] as object), label: `Predecir · ${left} s` }]);
     }
+    expect(bot.posts[0]?.message.buttons[0]).toMatchObject({ label: 'Predecir' });
     bot.ticker.fire();
     expect(bot.ticker.active()).toBe(0);
     expect(bot.edits).toHaveLength(5);
-    // Only the seconds were added: no new message.
+    // No new message.
     expect(bot.posts).toHaveLength(1);
   });
 
-  it('FR-465 the countdown follows the chosen pace (a slow phase 1 lasts 150 s)', async () => {
+  it('FR-465 the countdown comes from the server schedule, not from the chosen pace', async () => {
     const { fake, bot } = await world();
     await createAndStart(fake, bot, 'slow');
-    expect(bot.store.get(CHANNEL)?.phases).toEqual({ l1: 150, l2: 5 });
     await waitFor(() => bot.ticker.active() === 1);
     bot.ticker.fire();
     await settle(bot, 1);
-    expect(bot.edits[0]?.message.text).toContain('Quedan unos 145 s.');
+    expect(bot.edits[0]?.message.buttons[0]).toMatchObject({ label: 'Predecir · 23 s' });
+  });
+
+  it('FR-465 phase 2 counts down too, from the C2 of the reveal, on the reveal message; a forced reveal has none', async () => {
+    const { fake, bot } = await world();
+    await createAndStart(fake, bot);
+    revealRound1(fake);
+    await waitFor(() => bot.posts.length === 3);
+    await waitFor(() => bot.ticker.active() === 1);
+    bot.ticker.fire();
+    await settle(bot, 1);
+    // C2 = 60 000 ms, reported 31 000 ms: 29 s at receipt.
+    expect(bot.edits[0]?.messageId).toBe('message-2');
+    expect(bot.edits[0]?.message.text).toBe(TEXTS.reveal1);
+    expect(bot.edits[0]?.message.buttons[0]).toMatchObject({ label: 'Predecir · 24 s' });
+    applyRound1(fake);
+    await waitFor(() => bot.posts.length === 6);
+    // The round applied ended the phase-2 countdown (the scripted round-2 anchor is already past: no new one).
+    expect(bot.ticker.active()).toBe(0);
+    revealRound2Forced(fake);
+    await waitFor(() => bot.posts.length === 8);
+    expect(bot.ticker.active()).toBe(0);
+  });
+
+  it('FR-465 with no schedule in the event the button stays plain and no timer runs', async () => {
+    const { fake, bot } = await world();
+    await bot.run(manager());
+    await waitFor(() => fake.streamCount() === 1);
+    fake.emit({ type: 'schedule', stage: 'phase-1', reportedTime: 2000 }, { stage: 'phase-1' });
+    await waitFor(() => bot.posts.length === 1);
+    expect(bot.ticker.active()).toBe(0);
+    expect(bot.posts[0]?.message.buttons[0]).toMatchObject({ label: 'Predecir' });
   });
 
   it('FR-465 the countdown stops when the phase closes, and no timer is left once the match is over', async () => {
@@ -105,7 +138,7 @@ describe('FR-465 countdown of the open phase', () => {
     await waitFor(() => fake.streamCount() === 1);
     revealRound1(fake);
     await waitFor(() => bot.posts.length === 3);
-    // The victim reveal opened a phase 2 countdown (5 s long: it has no edit to make, but it runs until its first tick).
+    // The victim reveal opened a phase 2 countdown.
     expect(bot.ticker.active()).toBe(1);
     await bot.run({ type: 'stop', canManage: true });
     expect(bot.ticker.active()).toBe(0);
@@ -123,18 +156,8 @@ describe('FR-465 countdown of the open phase', () => {
     bot.failEdits = false;
     bot.ticker.fire();
     await settle(bot, 1);
-    expect(bot.edits[0]?.message.text).toContain('Quedan unos 20 s.');
-  });
-
-  it('FR-465 a state entry from before the countdown has no phase length: no countdown and nothing breaks', async () => {
-    const { fake, bot } = await world();
-    await bot.run(manager());
-    const { phases: _phases, ...older } = bot.store.get(CHANNEL) as NonNullable<ReturnType<Bot['store']['get']>>;
-    bot.store.set(CHANNEL, older);
-    await waitFor(() => fake.streamCount() === 1);
-    await bot.run({ type: 'start', canManage: true, userId: MANAGER.userId });
-    await waitFor(() => bot.posts.length === 1);
-    expect(bot.ticker.active()).toBe(0);
+    // The failed tick still counted its 5 s.
+    expect(bot.edits[0]?.message.buttons[0]).toMatchObject({ label: 'Predecir · 18 s' });
   });
 });
 
@@ -213,5 +236,72 @@ describe('FR-467 final leaderboard', () => {
     expect(board).toContain('10. <@809> - 41 pts');
     expect(board).not.toContain('<@810>');
     expect(fake.requests.filter((r) => r.path.includes('/leaderboard')).at(-1)?.path).toContain('limit=10');
+    // No viewer address set: no link.
+    expect(board).not.toContain('http');
+  });
+
+  it('FR-468 the final post has the top 10 and the link to the full leaderboard, and no own-rank line', async () => {
+    const fake = await startFake();
+    fakes.push(fake);
+    const state = tempState();
+    cleanups.push(state.remove);
+    const bot = boot(fake, state.path, { viewerUrl: 'https://viewer.example/' });
+    bots.push(bot);
+    fake.leaderboard = Array.from({ length: 12 }, (_, i) => ({ rank: i + 1, playerId: `discord:${800 + i}`, total: 50 - i }));
+    await createAndStart(fake, bot);
+    revealRound1(fake);
+    applyRound1(fake);
+    revealRound2Forced(fake);
+    finishRound2(fake);
+    await waitFor(() => bot.posts.length === FULL_JOURNEY.length + 1);
+    const board = bot.posts[FULL_JOURNEY.length]?.message.text ?? '';
+    expect(board.split('\n').at(-1)).toBe(`Clasificación completa: https://viewer.example/?match=${MATCH_ID}&spectate=1`);
+    expect(board).not.toContain('Tu puesto');
+  });
+});
+
+describe('FR-468 board for the member who asks', () => {
+  const rows = (n: number) => Array.from({ length: n }, (_, i) => ({ rank: i + 1, playerId: `discord:${800 + i}`, total: 100 - i }));
+  const boardText = (reply: { type: string; messages?: readonly { text: string }[] }): string => (reply.type === 'channel' ? (reply.messages ?? []).map((m) => m.text).join('\n') : `<${reply.type}>`);
+
+  async function lastMatch(viewerUrl?: string) {
+    const fake = await startFake();
+    fakes.push(fake);
+    const state = tempState();
+    cleanups.push(state.remove);
+    const bot = boot(fake, state.path, viewerUrl === undefined ? {} : { viewerUrl });
+    bots.push(bot);
+    await createAndStart(fake, bot);
+    await bot.run({ type: 'stop', canManage: true });
+    return { fake, bot };
+  }
+
+  it('FR-468 a member outside the first 10 gets a last line with their rank and points, found on a later page', async () => {
+    const { fake, bot } = await lastMatch();
+    fake.leaderboard = rows(30);
+    fake.pageSize = 10;
+    const reply = await bot.run({ type: 'board' }, { channelId: CHANNEL, userId: '822' });
+    const lines = boardText(reply).split('\n');
+    expect(lines.at(-1)).toBe('Tu puesto: 23. <@822> - 78 pts');
+    expect(lines).toContain('10. <@809> - 91 pts');
+    expect(lines.join('\n')).not.toContain('11. <@810>');
+  });
+
+  it('FR-468 a member inside the first 10, or with no row at all, gets no own line', async () => {
+    const { fake, bot } = await lastMatch();
+    fake.leaderboard = rows(30);
+    expect(boardText(await bot.run({ type: 'board' }, { channelId: CHANNEL, userId: '803' }))).not.toContain('Tu puesto');
+    expect(boardText(await bot.run({ type: 'board' }, { channelId: CHANNEL, userId: '999' }))).not.toContain('Tu puesto');
+  });
+
+  it('FR-468 the viewer link comes last, after the own line, only when a viewer address is set', async () => {
+    const { fake, bot } = await lastMatch('https://viewer.example/');
+    fake.leaderboard = rows(30);
+    const lines = boardText(await bot.run({ type: 'board' }, { channelId: CHANNEL, userId: '822' })).split('\n');
+    expect(lines.at(-2)).toBe('Tu puesto: 23. <@822> - 78 pts');
+    expect(lines.at(-1)).toBe(`Clasificación completa: https://viewer.example/?match=${MATCH_ID}&spectate=1`);
+    const plain = await lastMatch();
+    plain.fake.leaderboard = rows(30);
+    expect(boardText(await plain.bot.run({ type: 'board' }, MEMBER))).not.toContain('http');
   });
 });

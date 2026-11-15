@@ -2,12 +2,12 @@
 // pure core; this only calls the server, the state and the follower. A member's first valid prediction makes them a player: there
 // is no join (FR-463), the server creates the `discord:<id>` player from the credential and the local id.
 import type { Action } from '../core/actions';
-import { lobbyMessage } from '../core/announce';
+import { boardLink, lobbyMessage } from '../core/announce';
 import type { Reply } from '../core/model';
 import { matchCandidates } from '../core/text';
 import { paceTiming } from '../core/paces';
 import { chosenText, closedSentence, errorSentence, offerFor, openPhaseOf, resolveText, suggestionsFor } from '../core/predict';
-import { boardMessages } from '../core/results';
+import { BOARD_SIZE, boardMessages } from '../core/results';
 import { STRINGS } from '../core/strings';
 import type { Followed } from '../core/state';
 import type { NamesProvider, Follower } from './follower';
@@ -19,6 +19,8 @@ export interface HandlerOptions {
   readonly store: StateStore;
   readonly follower: Follower;
   readonly names: NamesProvider;
+  /** The viewer's base address, for the link to the full leaderboard (FR-468); none: no link. */
+  readonly viewerUrl?: string | undefined;
   /** A fresh client request id for a creation (the server remembers it for a retry). */
   readonly newRequestId: () => string;
 }
@@ -55,8 +57,7 @@ export function createHandler(options: HandlerOptions): (action: Action, who: Wh
         // Two creations at once in one channel: the second finds the channel taken and creates nothing more.
         if (store.get(who.channelId) !== undefined) return text(STRINGS.alreadyFollowing);
         const { matchId, hostToken, match } = made.value;
-        const { l1, l2 } = paceTiming(action.pace, config.value);
-        store.set(who.channelId, { matchId, mapId: match.mapId, hostToken, lastSeq: match.lastSeq, appliedRounds: 0, forcedRound: 0, creatorId: who.userId, phases: { l1, l2 } });
+        store.set(who.channelId, { matchId, mapId: match.mapId, hostToken, lastSeq: match.lastSeq, appliedRounds: 0, forcedRound: 0, creatorId: who.userId });
         follower.follow(who.channelId);
         return { type: 'channel', messages: [lobbyMessage(matchId, match.mapId)] };
       }
@@ -72,8 +73,13 @@ export function createHandler(options: HandlerOptions): (action: Action, who: Wh
         // The followed match, or else the last one the channel had (FR-466).
         const shown = entry ?? store.last(who.channelId);
         if (shown === undefined) return text(STRINGS.notFollowing);
-        const rows = await client.leaderboard(shown.matchId, 10);
-        return rows.ok ? { type: 'channel', messages: boardMessages(rows.value) } : failed(rows.failure);
+        const rows = await client.leaderboard(shown.matchId, BOARD_SIZE);
+        if (!rows.ok) return failed(rows.failure);
+        // The asker outside the first ten gets their own row as a last line; a failed search only leaves it out (FR-468).
+        const askerId = `discord:${who.userId}`;
+        const own = rows.value.length >= BOARD_SIZE && !rows.value.some((r) => r.playerId === askerId) ? await client.rankOf(shown.matchId, askerId) : undefined;
+        const link = boardLink(options.viewerUrl, shown.matchId);
+        return { type: 'channel', messages: boardMessages(rows.value, { link, ...(own?.ok === true && own.value !== undefined ? { own: own.value } : {}) }) };
       }
       case 'predict-open':
       case 'predict-text':

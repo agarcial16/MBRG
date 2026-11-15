@@ -54,3 +54,25 @@
 
 ### Next step
 - Hand run again with the user's token; reviewer pass.
+
+## Second hand run: FR-465 (corrected), FR-468, FR-469 (Light SDD)
+
+### What changed
+- FR-465: the countdown no longer uses the pace. `openPhaseSeconds(event)` reads the server's schedule: phase 1 = `schedule.c1 - reportedTime` of the phase-1 `schedule` event; phase 2 = `c2 - reportedTime` of a free `victim-revealed` (forced reveals, events without anchors and anchors already past give none). Seconds are taken at receipt and counted down locally in 5 s steps with the injected timer. The seconds go in the label of the Predict button ("Predecir · 8 s", `STRINGS.predictCountdown`); the text and other buttons are untouched (the edit port already carried the whole `OutMessage`). Phase 2 now edits too. The posted message keeps the plain "Predecir" and the first edit comes 5 s later. The old "Quedan unos N s." string, `Followed.phases` and its write at create are removed; `parseState` still reads a valid `phases` of an older file and drops it.
+- FR-468: `boardMessages(rows, {own, link})`: first 10, then (asker outside them) `Tu puesto: <row>`, then `Clasificación completa: <url>` (only with a viewer address). `/mbrg board` asks `leaderboard(10)` and, if the asker `discord:<id>` is not there and there are 10 rows, `client.rankOf` pages the leaderboard (limit 500, `cursor`) to find it (the server has no own-rank read; not changed). A failed search only leaves the line out. The final post (match-finished) has the top 10 and the link, no asker. `HandlerOptions.viewerUrl` is new (main.ts passes it).
+- FR-469: `viewerLink` adds `spectate=1`; `boardLink` (`?match=<id>&spectate=1`) is new.
+
+### Decisions the spec did not cover
+- D13: the link and the own row are text lines of the leaderboard message (not buttons); with an empty board neither is shown.
+- D14: the own-row search is capped at 40 pages of 500 (as the results paging).
+
+### Tests run
+- `npx vitest run apps/bot`: 115 passed (107 before; the old pace-based countdown tests were rewritten, new ones for phase 2, no schedule, paging of the own rank, link, spectate).
+- Mutants killed (bot suite): countdown seconds computed from a wrong anchor/time formula (5 tests fail); `rankOf` stopping after the first page (own-row test fails).
+- Full `npm test` and `npm run typecheck`: see the commit report.
+
+### Untested
+- Real Discord: editing the button label of a posted message (`messages.edit` with components), 5 s edit rate; real server pagination cursor of the leaderboard with more than 500 players.
+
+### Next step
+- Hand run again; reviewer pass.

@@ -1,6 +1,6 @@
 import type { LeaderboardRow, MatchEvent } from '@mbrg/protocol';
 import { describe, expect, it } from 'vitest';
-import { advanceFollow, buildAnnouncement, endsFollowing, lobbyMessage, needOf, viewerLink } from '../src/core/announce';
+import { advanceFollow, boardLink, buildAnnouncement, endsFollowing, lobbyMessage, needOf, viewerLink } from '../src/core/announce';
 import { START_ID, PREDICT_ID, parseCustomId, pickId, findId } from '../src/core/custom-ids';
 import { nameBook, readFactionNames } from '../src/core/names';
 import { boardMessages, summarizeWinners, userIdOf, winnersText } from '../src/core/results';
@@ -84,9 +84,9 @@ describe('FR-453 event to message', () => {
 
 describe('FR-462 viewer link', () => {
   it('FR-462 builds the link from the configured address at the round', () => {
-    expect(viewerLink('https://viewer.example/play', 'm1', 3)).toBe('https://viewer.example/play?match=m1&round=3');
+    expect(viewerLink('https://viewer.example/play', 'm1', 3)).toBe('https://viewer.example/play?match=m1&round=3&spectate=1');
     const out = buildAnnouncement(schedule('phase-1'), ctx({}, 'https://viewer.example/'));
-    expect(out[0]?.buttons[1]).toEqual({ type: 'link', url: 'https://viewer.example/?match=m1&round=1', label: 'Ver en el visor' });
+    expect(out[0]?.buttons[1]).toEqual({ type: 'link', url: 'https://viewer.example/?match=m1&round=1&spectate=1', label: 'Ver en el visor' });
   });
 
   it('FR-462 posts no link when no address is configured or it is not an address', () => {
@@ -153,6 +153,27 @@ describe('FR-457 leaderboard text', () => {
   it('FR-457 an empty board says so; a web player shows its name', () => {
     expect(boardMessages([])[0]?.text).toBe('Todavía no hay puntos.');
     expect(boardMessages([row(1, 'player:abc', 5, 'Eva')])[0]?.text).toContain('1. Eva - 5 pts');
+  });
+
+  it('FR-468 the own row is the last line after the first ten (and before the link); an own row already inside the ten is not repeated', () => {
+    const rows = Array.from({ length: 10 }, (_, i) => row(i + 1, `discord:${500 + i}`, 100 - i));
+    const own = row(23, 'discord:777', 40);
+    const lines = boardMessages(rows, { own, link: 'https://v.example/?match=m1&spectate=1' }).map((m) => m.text).join('\n').split('\n');
+    expect(lines.slice(-2)).toEqual(['Tu puesto: 23. <@777> - 40 pts', 'Clasificación completa: https://v.example/?match=m1&spectate=1']);
+    expect(lines).toHaveLength(1 + 10 + 2);
+    const inside = boardMessages(rows, { own: rows[3] as LeaderboardRow }).map((m) => m.text).join('\n');
+    expect(inside).not.toContain('Tu puesto');
+    expect(boardMessages(rows).map((m) => m.text).join('\n')).not.toContain('http');
+  });
+
+  it('FR-468 an empty board shows neither the own line nor the link', () => {
+    expect(boardMessages([], { own: row(3, 'discord:777', 4), link: 'https://v.example/' })[0]?.text).toBe('Todavía no hay puntos.');
+  });
+
+  it('FR-468 the full-leaderboard link is the viewer address as a spectator, with the match and no round', () => {
+    expect(boardLink('https://viewer.example/play', 'm1')).toBe('https://viewer.example/play?match=m1&spectate=1');
+    expect(boardLink(undefined, 'm1')).toBeUndefined();
+    expect(boardLink('not an address', 'm1')).toBeUndefined();
   });
 });
 
