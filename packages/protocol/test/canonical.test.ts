@@ -71,6 +71,13 @@ describe('canonical request body', () => {
     expect(canonicalBody(POST, '/p', { b: 1, a: 'x y', c: [true, null, 'é'] })).toBe('"POST" "/p" {"a":"x y","b":1,"c":[true,null,"é"]}');
   });
 
+  it('FR-490 the canonical creation body keeps joinPolicy as content, so a body with, without or with another value differs', () => {
+    const base = { mapId: 'dev', timing: 'manual', requestId: 'r' };
+    expect(canonicalBody(POST, '/matches', { ...base, joinPolicy: 'client' })).toBe('"POST" "/matches" {"joinPolicy":"client","mapId":"dev","timing":"manual"}');
+    expect(canonicalBody(POST, '/matches', { ...base, joinPolicy: 'client' })).not.toBe(canonicalBody(POST, '/matches', base));
+    expect(canonicalBody(POST, '/matches', { ...base, joinPolicy: 'client' })).not.toBe(canonicalBody(POST, '/matches', { ...base, joinPolicy: 'open' }));
+  });
+
   it('FR-282 (canonical content) drops only the top-level request id key', () => {
     const withId = { kind: 'winner', faction: 2, playerId: 'p', requestId: 'r-1' };
     const without = { kind: 'winner', faction: 2, playerId: 'p' };

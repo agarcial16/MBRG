@@ -6,6 +6,7 @@ import {
   ADVANCE_FIELDS,
   CREATION_FIELDS,
   JOIN_FIELDS,
+  JOIN_POLICIES,
   PREDICTION_KINDS,
   START_FIELDS,
   STEP_KINDS,
@@ -13,6 +14,7 @@ import {
   type AdvanceBody,
   type CreationBody,
   type JoinBody,
+  type JoinPolicy,
   type PredictionKind,
   type StartBody,
   type StepKind,
@@ -39,7 +41,7 @@ const isOneOf = <T extends string>(list: readonly T[], v: unknown): v is T => ty
 /** True when the request id is missing (and required) or present and outside the FR-297 set. */
 const requestIdProblem = (o: Body, required: boolean): boolean => (own(o, 'requestId') ? !isLocalId(o.requestId) : required);
 
-/** Creation body `{ mapId, timing, requestId }` (FR-231, FR-233, FR-296). */
+/** Creation body `{ mapId, timing, requestId, joinPolicy? }` (FR-231, FR-233, FR-296, spec 018 FR-490). */
 export function readCreation(input: unknown): ReadResult<CreationBody> {
   const o = bodyOf(input);
   if (o === undefined) return fail('invalid-request', 'body');
@@ -48,11 +50,15 @@ export function readCreation(input: unknown): ReadResult<CreationBody> {
   const timing = readTimingShape(o.timing);
   if (!timing.ok) return fail('invalid-request', timing.field);
   if (requestIdProblem(o, true)) return fail('invalid-request', 'requestId');
+  if (own(o, 'joinPolicy') && !isOneOf<JoinPolicy>(JOIN_POLICIES, o.joinPolicy)) return fail('invalid-request', 'joinPolicy');
   const extra = firstUnknown(o, CREATION_FIELDS);
   if (extra !== undefined) return fail('invalid-request', extra);
   const failed = timingRuleFailures(timing.value);
   if (failed.length > 0) return { ok: false, error: errorReply('invalid-timing', failed) };
-  return { ok: true, value: { mapId: o.mapId, timing: timing.value, requestId: o.requestId as string } };
+  return {
+    ok: true,
+    value: { mapId: o.mapId, timing: timing.value, requestId: o.requestId as string, ...(own(o, 'joinPolicy') ? { joinPolicy: o.joinPolicy as JoinPolicy } : {}) },
+  };
 }
 
 /** Advance body `{ round, step, requestId? }` (FR-244, FR-295). */

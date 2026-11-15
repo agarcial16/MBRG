@@ -76,8 +76,8 @@ export { MAX_INTERVAL_SECONDS, readTiming, readTimingShape, timingRuleFailures }
 export type { TimingResult, TimingRule } from './timing';
 export { readAdvance, readCreation, readJoin, readStart, readSubmission } from './read';
 export type { ReadResult } from './read';
-export { ADVANCE_FIELDS, CREATION_FIELDS, JOIN_FIELDS, PREDICTION_KINDS, START_FIELDS, STEP_KINDS, SUBMISSION_FIELDS } from './wire';
-export type { AdvanceBody, CreationBody, JoinBody, PredictionKind, StartBody, StepKind, SubmissionBody, Timing } from './wire';
+export { ADVANCE_FIELDS, CREATION_FIELDS, JOIN_FIELDS, JOIN_POLICIES, PREDICTION_KINDS, START_FIELDS, STEP_KINDS, SUBMISSION_FIELDS } from './wire';
+export type { AdvanceBody, CreationBody, JoinBody, JoinPolicy, PredictionKind, StartBody, StepKind, SubmissionBody, Timing } from './wire';
 export { MAP_FILE_NAMES, REQUEST_ID_KEY, canonicalBody, mapDigestBytes, stateText } from './canonical';
 export type { MapFileName } from './canonical';
 export { encodePublicMatch } from './public';
