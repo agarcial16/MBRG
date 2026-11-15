@@ -76,3 +76,21 @@
 
 ### Next step
 - Hand run again; reviewer pass.
+
+## FR-465 every second, closed at the end (Light SDD, user-approved change)
+
+### What changed
+- The countdown ticks every 1 s (`COUNTDOWN_STEP = 1`). When the schedule is known at posting time the first message is already posted with "Predecir · N s"; otherwise nothing runs.
+- At zero, or when an event closes the phase (phase-closed, victim-revealed, round-applied, match-finished/halted, a new phase-1 schedule), the message is edited once more: Predict button `disabled: true`, label "Predecir · cerrado" (`STRINGS.predictClosed`, `closedMessage`); the link button stays. `ButtonSpec` custom has `disabled?`; `translate.ts` sends `disabled: true` only when set. A closed countdown is removed from the map, so a late tick can never re-enable it.
+- Stream drop, `stop` and `stopAll` only cancel the timer: the message is left as is, never claimed closed.
+- Rate limits (Discord: about 5 edits per 5 s per channel; 1/s per message is at the edge): each countdown has at most one edit in flight; a tick that finds one pending is skipped (the seconds still count down), so nothing queues. The closing edit waits for the in-flight edit so the old label cannot land after it. Edit failures are ignored (no new message).
+- Spec FR-465 updated.
+
+### Tests run
+- `npx vitest run apps/bot`: 117 passed (115 before; new: tick skipped while an edit is in flight, closed message/translate `disabled`). Tests with the 5 s step rewritten; the posted label is now "Predecir · 28 s".
+
+### Untested
+- Real Discord: a disabled button on `messages.edit`, real rate-limit behaviour at 1 edit/s (discord.js queues and may delay edits; late ones are not retried).
+
+### Next step
+- Hand run; reviewer pass.

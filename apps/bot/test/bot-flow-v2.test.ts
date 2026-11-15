@@ -45,13 +45,14 @@ async function createAndStart(fake: Fake, bot: Bot, pace: 'fast' | 'normal' | 's
 const settle = (bot: Bot, edits: number) => waitFor(() => bot.edits.length === edits, 5_000, () => `${bot.edits.length} edits`);
 
 describe('FR-465 countdown of the open phase', () => {
-  it('FR-465 the open-phase message is edited every 5 seconds with the seconds left, keeping its buttons, and stops when the time is out', async () => {
+  it('FR-465 the first label shows the seconds at posting time; then one edit per second; at zero the Predict button is disabled and the timer stops', async () => {
     const { fake, bot } = await world();
     await createAndStart(fake, bot);
     await waitFor(() => bot.ticker.active() === 1);
-    expect(bot.ticker.periods).toEqual([5000]);
-    // The schedule says C1 = 30 000 ms and the event reports 2 000 ms: 28 s left at receipt, then 5 s less per tick.
-    for (const left of [23, 18, 13, 8, 3]) {
+    expect(bot.ticker.periods).toEqual([1000]);
+    // The schedule says C1 = 30 000 ms and the event reports 2 000 ms: 28 s left, already in the posted label.
+    expect(bot.posts[0]?.message.buttons[0]).toMatchObject({ label: 'Predecir · 28 s' });
+    for (let left = 27; left >= 1; left -= 1) {
       const before = bot.edits.length;
       bot.ticker.fire();
       await settle(bot, before + 1);
@@ -59,12 +60,17 @@ describe('FR-465 countdown of the open phase', () => {
       expect(last?.messageId).toBe('message-1');
       // Only the label of the Predict button changes; the text is the one posted.
       expect(last?.message.text).toBe(TEXTS.opened1);
-      expect(last?.message.buttons).toEqual([{ ...(bot.posts[0]?.message.buttons[0] as object), label: `Predecir · ${left} s` }]);
+      expect(last?.message.buttons[0]).toMatchObject({ label: `Predecir · ${left} s` });
+      expect(last?.message.buttons[0]).not.toHaveProperty('disabled');
     }
-    expect(bot.posts[0]?.message.buttons[0]).toMatchObject({ label: 'Predecir' });
+    // The tick that reaches zero edits once more: disabled and closed; then no timer.
     bot.ticker.fire();
+    await settle(bot, 28);
     expect(bot.ticker.active()).toBe(0);
-    expect(bot.edits).toHaveLength(5);
+    const last = bot.edits.at(-1);
+    expect(last?.messageId).toBe('message-1');
+    expect(last?.message.text).toBe(TEXTS.opened1);
+    expect(last?.message.buttons[0]).toMatchObject({ label: 'Predecir · cerrado', disabled: true });
     // No new message.
     expect(bot.posts).toHaveLength(1);
   });
@@ -75,7 +81,7 @@ describe('FR-465 countdown of the open phase', () => {
     await waitFor(() => bot.ticker.active() === 1);
     bot.ticker.fire();
     await settle(bot, 1);
-    expect(bot.edits[0]?.message.buttons[0]).toMatchObject({ label: 'Predecir · 23 s' });
+    expect(bot.edits[0]?.message.buttons[0]).toMatchObject({ label: 'Predecir · 27 s' });
   });
 
   it('FR-465 phase 2 counts down too, from the C2 of the reveal, on the reveal message; a forced reveal has none', async () => {
@@ -84,15 +90,22 @@ describe('FR-465 countdown of the open phase', () => {
     revealRound1(fake);
     await waitFor(() => bot.posts.length === 3);
     await waitFor(() => bot.ticker.active() === 1);
-    bot.ticker.fire();
+    // The reveal closed the phase 1 message.
     await settle(bot, 1);
-    // C2 = 60 000 ms, reported 31 000 ms: 29 s at receipt.
-    expect(bot.edits[0]?.messageId).toBe('message-2');
-    expect(bot.edits[0]?.message.text).toBe(TEXTS.reveal1);
-    expect(bot.edits[0]?.message.buttons[0]).toMatchObject({ label: 'Predecir · 24 s' });
+    expect(bot.edits[0]?.messageId).toBe('message-1');
+    expect(bot.edits[0]?.message.buttons[0]).toMatchObject({ label: 'Predecir · cerrado', disabled: true });
+    // C2 = 60 000 ms, reported 31 000 ms: 29 s at receipt, already in the posted label.
+    expect(bot.posts[1]?.message.buttons[0]).toMatchObject({ label: 'Predecir · 29 s' });
+    bot.ticker.fire();
+    await settle(bot, 2);
+    expect(bot.edits[1]?.messageId).toBe('message-2');
+    expect(bot.edits[1]?.message.text).toBe(TEXTS.reveal1);
+    expect(bot.edits[1]?.message.buttons[0]).toMatchObject({ label: 'Predecir · 28 s' });
     applyRound1(fake);
     await waitFor(() => bot.posts.length === 6);
-    // The round applied ended the phase-2 countdown (the scripted round-2 anchor is already past: no new one).
+    // The round applied closed the phase-2 message (the scripted round-2 anchor is already past: no new countdown).
+    await settle(bot, 3);
+    expect(bot.edits[2]?.message.buttons[0]).toMatchObject({ label: 'Predecir · cerrado', disabled: true });
     expect(bot.ticker.active()).toBe(0);
     revealRound2Forced(fake);
     await waitFor(() => bot.posts.length === 8);
@@ -109,15 +122,19 @@ describe('FR-465 countdown of the open phase', () => {
     expect(bot.posts[0]?.message.buttons[0]).toMatchObject({ label: 'Predecir' });
   });
 
-  it('FR-465 the countdown stops when the phase closes, and no timer is left once the match is over', async () => {
+  it('FR-465 an event that closes the phase disables the button once and stops the timer; no timer is left once the match is over', async () => {
     const { fake, bot } = await world();
     await createAndStart(fake, bot);
     await waitFor(() => bot.ticker.active() === 1);
     fake.emit({ type: 'phase-closed', round: 1, phase: 1, at: 31_000 });
     await waitFor(() => bot.ticker.active() === 0);
+    await settle(bot, 1);
+    expect(bot.edits[0]?.messageId).toBe('message-1');
+    expect(bot.edits[0]?.message.buttons[0]).toMatchObject({ label: 'Predecir · cerrado', disabled: true });
+    // A late tick never re-enables or edits again.
     bot.ticker.fire();
     await new Promise((resolve) => setTimeout(resolve, 30));
-    expect(bot.edits).toEqual([]);
+    expect(bot.edits).toHaveLength(1);
     revealRound1(fake);
     applyRound1(fake);
     revealRound2Forced(fake);
@@ -126,7 +143,7 @@ describe('FR-465 countdown of the open phase', () => {
     expect(bot.ticker.active()).toBe(0);
   });
 
-  it('FR-465 the countdown stops when the stream drops, and when the channel stops following', async () => {
+  it('FR-465 the countdown stops when the stream drops, without claiming the phase closed, and when the channel stops following', async () => {
     const { fake, bot } = await world();
     await createAndStart(fake, bot);
     await waitFor(() => bot.ticker.active() === 1);
@@ -134,6 +151,8 @@ describe('FR-465 countdown of the open phase', () => {
     fake.dropStreams();
     await waitFor(() => bot.logs.includes('stream-dropped'));
     expect(bot.ticker.active()).toBe(0);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(bot.edits).toEqual([]);
     fake.down = false;
     await waitFor(() => fake.streamCount() === 1);
     revealRound1(fake);
@@ -156,8 +175,21 @@ describe('FR-465 countdown of the open phase', () => {
     bot.failEdits = false;
     bot.ticker.fire();
     await settle(bot, 1);
-    // The failed tick still counted its 5 s.
-    expect(bot.edits[0]?.message.buttons[0]).toMatchObject({ label: 'Predecir · 18 s' });
+    // The failed tick still counted its second.
+    expect(bot.edits[0]?.message.buttons[0]).toMatchObject({ label: 'Predecir · 26 s' });
+  });
+
+  it('FR-465 a tick is skipped while the previous edit is still in flight: never more than one pending edit', async () => {
+    const { fake, bot } = await world();
+    await createAndStart(fake, bot);
+    await waitFor(() => bot.ticker.active() === 1);
+    bot.slowEdits = true;
+    bot.ticker.fire();
+    bot.ticker.fire();
+    bot.ticker.fire();
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(bot.edits).toHaveLength(1);
+    bot.slowEdits = false;
   });
 });
 

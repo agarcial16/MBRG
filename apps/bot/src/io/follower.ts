@@ -3,7 +3,7 @@
 // before the save throws, the stream is re-opened after the backoff and the same event is tried again; an event whose number is
 // not above the saved one is never announced again (a restart or a re-sent event). The bot never asks for a future round.
 import { readEvent } from '@mbrg/protocol';
-import { COUNTDOWN_STEP, advanceFollow, buildAnnouncement, closesPhase, countdownMessage, endsFollowing, needOf, openPhaseSeconds } from '../core/announce';
+import { COUNTDOWN_STEP, advanceFollow, buildAnnouncement, closedMessage, closesPhase, countdownMessage, endsFollowing, needOf, openPhaseSeconds } from '../core/announce';
 import type { Extras } from '../core/announce';
 import type { OutMessage } from '../core/model';
 import { nameBook } from '../core/names';
@@ -78,31 +78,64 @@ export function createFollower(options: FollowerOptions): Follower {
   const { client, store, poster, names, log } = options;
   const running = new Map<string, AbortController>();
   const every = options.every ?? everyMs;
-  const countdowns = new Map<string, () => void>();
+  interface Countdown {
+    readonly cancel: () => void;
+    readonly messageId: string;
+    readonly base: OutMessage;
+    /** The edit in flight, if any: at most one per message, and the closing edit goes after it. */
+    pending: Promise<void> | undefined;
+  }
+  const countdowns = new Map<string, Countdown>();
 
+  /** Stops the timer without touching the message (stream drop, stop, restart): it is never claimed closed. */
   function stopCountdown(channelId: string): void {
-    countdowns.get(channelId)?.();
+    countdowns.get(channelId)?.cancel();
     countdowns.delete(channelId);
   }
 
-  // FR-465: every COUNTDOWN_STEP seconds the Predict button of the open-phase message is edited with the seconds left, counted
-  // from the server's schedule at receipt. It stops when the time is out, at the next event, when the stream drops or the channel
-  // stops. A failed edit is ignored.
+  /** The last edit of a message: its Predict button disabled. Waits for an edit in flight so the old label never lands after it. */
+  function closeCountdown(channelId: string): void {
+    const c = countdowns.get(channelId);
+    if (c === undefined) return;
+    stopCountdown(channelId);
+    const previous = c.pending ?? Promise.resolve();
+    void previous.then(async () => {
+      try {
+        await poster.edit(channelId, c.messageId, closedMessage(c.base));
+      } catch {
+        // an edit that fails changes nothing and posts nothing
+      }
+    });
+  }
+
+  // FR-465: every second the Predict button of the open-phase message is edited with the seconds left, counted from the server's
+  // schedule at receipt. A tick is skipped while the previous edit is still in flight (Discord allows about 5 edits per 5 s per
+  // channel), so no more than one edit per message is ever queued. At zero or when an event closes the phase the button is
+  // disabled. A failed edit is ignored; a stream drop or a stop leaves the message as it is.
   function startCountdown(channelId: string, messageId: string, base: OutMessage, seconds: number): void {
     stopCountdown(channelId);
     let left = seconds;
-    const cancel = every(COUNTDOWN_STEP * 1000, () => {
-      left -= COUNTDOWN_STEP;
-      if (left <= 0) return stopCountdown(channelId);
-      void (async () => {
-        try {
-          await poster.edit(channelId, messageId, countdownMessage(base, left));
-        } catch {
-          // an edit that fails changes nothing and posts nothing
-        }
-      })();
-    });
-    countdowns.set(channelId, cancel);
+    const c: Countdown = {
+      messageId,
+      base,
+      pending: undefined,
+      cancel: every(COUNTDOWN_STEP * 1000, () => {
+        left -= COUNTDOWN_STEP;
+        if (left <= 0) return closeCountdown(channelId);
+        if (c.pending !== undefined) return;
+        const edit = (async () => {
+          try {
+            await poster.edit(channelId, messageId, countdownMessage(base, left));
+          } catch {
+            // an edit that fails changes nothing and posts nothing
+          } finally {
+            c.pending = undefined;
+          }
+        })();
+        c.pending = edit;
+      }),
+    };
+    countdowns.set(channelId, c);
   }
 
   async function extrasFor(channelId: string, matchId: string, need: ReturnType<typeof needOf>): Promise<Extras> {
@@ -142,7 +175,7 @@ export function createFollower(options: FollowerOptions): Follower {
     const seq = read.status === 'unknown' ? read.seq : read.event.seq;
     if (seq <= entry.lastSeq) return;
     // An event that closes or replaces the open phase ends its countdown.
-    if (read.status === 'known' && closesPhase(read.event)) stopCountdown(channelId);
+    if (read.status === 'known' && closesPhase(read.event)) closeCountdown(channelId);
     if (read.status === 'unknown') {
       store.set(channelId, { ...entry, lastSeq: seq });
       return;
@@ -151,9 +184,11 @@ export function createFollower(options: FollowerOptions): Follower {
     const extras = await extrasFor(channelId, entry.matchId, needOf(event, entry));
     const book = await names.get(entry.mapId);
     const messages = buildAnnouncement(event, { follow: entry, names: book, ...(options.viewerUrl === undefined ? {} : { viewerUrl: options.viewerUrl }) }, extras);
+    const seconds = openPhaseSeconds(event);
     let firstId: string | undefined;
     for (const [i, message] of messages.entries()) {
-      const id = await poster.post(channelId, message);
+      // The first label already shows the seconds when the schedule is known.
+      const id = await poster.post(channelId, i === 0 && seconds !== undefined ? countdownMessage(message, seconds) : message);
       if (i === 0) firstId = id;
     }
     // The channel may have been stopped or replaced while this event was being read and posted: then nothing is saved.
@@ -165,7 +200,6 @@ export function createFollower(options: FollowerOptions): Follower {
       return;
     }
     store.set(channelId, advanceFollow(current, event));
-    const seconds = openPhaseSeconds(event);
     const first = messages[0];
     if (seconds !== undefined && firstId !== undefined && first !== undefined) startCountdown(channelId, firstId, first, seconds);
   }

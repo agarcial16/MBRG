@@ -7,6 +7,7 @@ export const STRINGS = {
   startButton: 'Iniciar',
   predictButton: 'Predecir',
   predictCountdown: 'Predecir · {n} s',
+  predictClosed: 'Predecir · cerrado',
   viewerButton: 'Ver en el visor',
   roundOpened: 'Ronda {round} abierta. ¿Qué facción será eliminada? Pulsa Predecir.',
   victimRevealed: 'Ronda {round}: la víctima es **{victim}**. ¿Quién la absorberá? Pulsa Predecir.',

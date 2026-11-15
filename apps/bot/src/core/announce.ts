@@ -156,12 +156,18 @@ export const closesPhase = (event: MatchEvent): boolean =>
   (event.type === 'schedule' && event.stage !== 'phase-2');
 
 /** The seconds between two edits of the countdown. */
-export const COUNTDOWN_STEP = 5;
+export const COUNTDOWN_STEP = 1;
 
 /** The open-phase message with the seconds left in the label of its Predict button; the text and the other buttons stay (FR-465). */
 export const countdownMessage = (base: OutMessage, secondsLeft: number): OutMessage => ({
   ...base,
   buttons: base.buttons.map((b) => (b.type === 'custom' && b.customId === PREDICT_ID ? { ...b, label: fill(STRINGS.predictCountdown, { n: secondsLeft }) } : b)),
+});
+
+/** The open-phase message once the phase is over: its Predict button is disabled and says so; the link button stays (FR-465). */
+export const closedMessage = (base: OutMessage): OutMessage => ({
+  ...base,
+  buttons: base.buttons.map((b) => (b.type === 'custom' && b.customId === PREDICT_ID ? { ...b, label: STRINGS.predictClosed, disabled: true } : b)),
 });
 
 /** Whether announcing this event ends the following (the match is over for the channel). */

@@ -122,7 +122,7 @@ describe('FR-453 announcements', () => {
     // The open phases carry ONE Predict button and the viewer link at that round; the forced round carries no button.
     const open = bot.posts[0]?.message.buttons ?? [];
     expect(open).toEqual([
-      { type: 'custom', customId: PREDICT_ID, label: 'Predecir', style: 'primary' },
+      { type: 'custom', customId: PREDICT_ID, label: 'Predecir · 28 s', style: 'primary' },
       { type: 'link', url: `https://viewer.example/?match=${MATCH_ID}&round=1&spectate=1`, label: 'Ver en el visor' },
     ]);
     expect(bot.posts[6]?.message.buttons).toEqual([]);

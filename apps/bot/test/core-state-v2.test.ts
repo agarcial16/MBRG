@@ -1,7 +1,8 @@
 import type { LeaderboardRow, MatchEvent } from '@mbrg/protocol';
 import { describe, expect, it } from 'vitest';
 import { PREDICT_ID, START_ID } from '../src/core/custom-ids';
-import { buildAnnouncement, closesPhase, countdownMessage, needOf, openPhaseSeconds } from '../src/core/announce';
+import { componentsOf } from '../src/discord/translate';
+import { buildAnnouncement, closedMessage, closesPhase, countdownMessage, needOf, openPhaseSeconds } from '../src/core/announce';
 import { nameBook } from '../src/core/names';
 import { emptyState, follow, followedOf, lastOf, parseState, retire, serializeState, unfollow } from '../src/core/state';
 import type { Followed } from '../src/core/state';
@@ -79,6 +80,17 @@ describe('FR-465 countdown texts', () => {
     const other = { type: 'custom' as const, customId: START_ID, label: 'x', style: 'success' as const };
     const base = { text: 'Ronda 1 abierta.', buttons: [predict, link, other] };
     expect(countdownMessage(base, 8)).toEqual({ text: 'Ronda 1 abierta.', buttons: [{ ...predict, label: 'Predecir · 8 s' }, link, other] });
+  });
+
+  it('FR-465 the closed message disables only the Predict button and keeps the link; the translation sends disabled', () => {
+    const link = { type: 'link' as const, url: 'https://v.example/', label: 'Ver' };
+    const predict = { type: 'custom' as const, customId: PREDICT_ID, label: 'Predecir · 3 s', style: 'primary' as const };
+    const closed = closedMessage({ text: 'Ronda 1 abierta.', buttons: [predict, link] });
+    expect(closed).toEqual({ text: 'Ronda 1 abierta.', buttons: [{ ...predict, label: 'Predecir · cerrado', disabled: true }, link] });
+    const row = componentsOf(closed.buttons)[0]?.components;
+    expect(row?.[0]).toMatchObject({ custom_id: PREDICT_ID, disabled: true });
+    expect(row?.[1]).not.toHaveProperty('disabled');
+    expect(componentsOf([predict])[0]?.components[0]).not.toHaveProperty('disabled');
   });
 
   it('FR-465 the events that end an open phase stop its countdown; results and joins do not', () => {

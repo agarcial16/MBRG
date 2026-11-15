@@ -50,6 +50,8 @@ export interface Bot {
   failPosts: number;
   /** While true every edit fails. */
   failEdits: boolean;
+  /** While true an edit takes 40 ms to finish (an edit in flight). */
+  slowEdits: boolean;
   run(interaction: Interaction, who?: Who): Promise<Reply>;
   stop(): void;
 }
@@ -88,6 +90,7 @@ export function boot(fake: Fake, statePath: string, options: { posts?: Posted[];
     logs,
     failPosts: 0,
     failEdits: false,
+    slowEdits: false,
     follower: undefined as unknown as Follower,
     run: undefined as unknown as Bot['run'],
     stop: () => bot.follower.stopAll(),
@@ -103,6 +106,7 @@ export function boot(fake: Fake, statePath: string, options: { posts?: Posted[];
     },
     async edit(channelId, messageId, message) {
       if (bot.failEdits) throw new Error('discord down');
+      if (bot.slowEdits) await new Promise((resolve) => setTimeout(resolve, 40));
       edits.push({ channelId, messageId, message });
     },
   };

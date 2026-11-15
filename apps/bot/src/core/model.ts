@@ -1,7 +1,7 @@
 // The plain shapes the pure core and the shells share (spec 012 NFR-90). No Discord library types here.
 
 export type ButtonSpec =
-  | { readonly type: 'custom'; readonly customId: string; readonly label: string; readonly style: 'primary' | 'success' }
+  | { readonly type: 'custom'; readonly customId: string; readonly label: string; readonly style: 'primary' | 'success'; readonly disabled?: boolean }
   | { readonly type: 'link'; readonly url: string; readonly label: string };
 
 /** One message for the channel: its text and at most a few buttons (never one per candidate). Mentions are written in the text. */

@@ -42,7 +42,7 @@ export const fromAutocomplete = (focused: string, text: string): Interaction | u
 const buttonOf = (button: ButtonSpec) =>
   button.type === 'link'
     ? { type: BUTTON, style: BUTTON_STYLE.link, label: button.label, url: button.url }
-    : { type: BUTTON, style: BUTTON_STYLE[button.style], label: button.label, custom_id: button.customId };
+    : { type: BUTTON, style: BUTTON_STYLE[button.style], label: button.label, custom_id: button.customId, ...(button.disabled === true ? { disabled: true } : {}) };
 
 /** The components of a message: its buttons in rows of at most five. */
 export const componentsOf = (buttons: readonly ButtonSpec[]) => rowsOf(buttons).map((row) => ({ type: ACTION_ROW, components: row.map(buttonOf) }));
