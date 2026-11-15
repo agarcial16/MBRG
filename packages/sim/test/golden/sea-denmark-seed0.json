@@ -1,0 +1,30 @@
+[
+  {
+    "round": 1,
+    "eliminated": 30,
+    "absorber": 10,
+    "transferred": [
+      3
+    ]
+  },
+  {
+    "round": 2,
+    "eliminated": 20,
+    "absorber": 10,
+    "transferred": [
+      2,
+      4
+    ]
+  },
+  {
+    "round": 3,
+    "eliminated": 10,
+    "absorber": 50,
+    "transferred": [
+      1,
+      2,
+      3,
+      4
+    ]
+  }
+]

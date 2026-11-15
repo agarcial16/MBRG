@@ -1,0 +1,50 @@
+[
+  {
+    "name": "one map, defaults",
+    "config": {
+      "maps": [
+        "classic-eu"
+      ],
+      "minInterval": 30,
+      "maxInterval": 3600,
+      "minPhase1": 10,
+      "minPhase2": 5,
+      "maxPlayers": 200,
+      "enabled": true
+    },
+    "text": "{\"maps\":[\"classic-eu\"],\"minInterval\":30,\"maxInterval\":3600,\"minPhase1\":10,\"minPhase2\":5,\"maxPlayers\":200,\"enabled\":true}",
+    "sha256": "78538853bb15af5fdfd9db4e15c3aa7a0c9b4232659f52b190598e2ef2f15b22"
+  },
+  {
+    "name": "three maps, custom bounds",
+    "config": {
+      "maps": [
+        "iberia",
+        "europe-1444",
+        "world-2"
+      ],
+      "minInterval": 45,
+      "maxInterval": 7200,
+      "minPhase1": 12,
+      "minPhase2": 7,
+      "maxPlayers": 64,
+      "enabled": true
+    },
+    "text": "{\"maps\":[\"iberia\",\"europe-1444\",\"world-2\"],\"minInterval\":45,\"maxInterval\":7200,\"minPhase1\":12,\"minPhase2\":7,\"maxPlayers\":64,\"enabled\":true}",
+    "sha256": "bc7237af8d433f96352beb0b9446f83f8b9188a400cccf0e4114cc6b1feda21f"
+  },
+  {
+    "name": "disabled, bounds present",
+    "config": {
+      "maps": [],
+      "minInterval": 30,
+      "maxInterval": 3600,
+      "minPhase1": 10,
+      "minPhase2": 5,
+      "maxPlayers": 200,
+      "enabled": false
+    },
+    "text": "{\"maps\":[],\"minInterval\":30,\"maxInterval\":3600,\"minPhase1\":10,\"minPhase2\":5,\"maxPlayers\":200,\"enabled\":false}",
+    "sha256": "d33068dde39c6daaf746e515787dd169599ae3d68f12a1614abb4b7ec1404984"
+  }
+]

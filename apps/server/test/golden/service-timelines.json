@@ -1,0 +1,2950 @@
+{
+  "note": "Service timelines of spec 008 (NFR-48 lifecycle goldens): the six core scenarios driven through the lifecycle service. Per scenario, the match id, the creation event and, per action, the stored rows, event types and numbers, anchors, stage, victim, record digest and public data digest; finally the digest of every stored event. Instants are absolute ms; T0 is the creation instant.",
+  "t0": 1700000000000,
+  "scenarios": {
+    "on-time": {
+      "timing": {
+        "i": 120,
+        "l1": 30,
+        "l2": 10
+      },
+      "secret": "ascending-00-1f",
+      "matchId": "ASjg9PrifgfxGkMn",
+      "creation": {
+        "events": [
+          "schedule"
+        ],
+        "seqs": [
+          1
+        ],
+        "lastSeq": 1,
+        "publicDigest": "3beff04a7d7e465d447dddb36647f1b306009f244155b227525a0f7ce12e7992"
+      },
+      "actions": [
+        {
+          "at": 79999,
+          "act": "tick",
+          "effective": 1700000079999,
+          "reported": 1700000079999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-1",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000080000,
+            1700000110000,
+            1700000120000
+          ],
+          "victim": null,
+          "recordDigest": null,
+          "publicDigest": "21152d67c7d76e69b4203932adf22b5745d7d6b91ac9070a6d2bf3ab1cbed9d9"
+        },
+        {
+          "at": 80000,
+          "act": "tick",
+          "effective": 1700000080000,
+          "reported": 1700000080000,
+          "rows": [
+            [
+              1,
+              "phase-1-close",
+              1700000080000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000080000,
+            1700000110000,
+            1700000120000
+          ],
+          "victim": 2,
+          "recordDigest": null,
+          "publicDigest": "4797180cd2f01831dde8c00adb66ea41abbf33714069b1c19a6443461e3cfddf"
+        },
+        {
+          "at": 109999,
+          "act": "tick",
+          "effective": 1700000109999,
+          "reported": 1700000109999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-2",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000080000,
+            1700000110000,
+            1700000120000
+          ],
+          "victim": 2,
+          "recordDigest": null,
+          "publicDigest": "4df6ee8f076415a054697306c42452c0b5d82623856c52d90ef28051972b9c98"
+        },
+        {
+          "at": 110000,
+          "act": "tick",
+          "effective": 1700000110000,
+          "reported": 1700000110000,
+          "rows": [
+            [
+              1,
+              "phase-2-close",
+              1700000110000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            6,
+            7
+          ],
+          "stage": "locked",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000080000,
+            1700000110000,
+            1700000120000
+          ],
+          "victim": 2,
+          "recordDigest": null,
+          "publicDigest": "1c79ba1879dc22fb8af2c9b4b54665e2b0bbf431d679bd5d5a77f51c4320fb4d"
+        },
+        {
+          "at": 119999,
+          "act": "tick",
+          "effective": 1700000119999,
+          "reported": 1700000119999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "locked",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000080000,
+            1700000110000,
+            1700000120000
+          ],
+          "victim": 2,
+          "recordDigest": null,
+          "publicDigest": "e5d71679c8b88f9d330ec5f3cdbff701aa6e29661931bdd077d66caeb6f59d27"
+        },
+        {
+          "at": 120000,
+          "act": "tick",
+          "effective": 1700000120000,
+          "reported": 1700000120000,
+          "rows": [
+            [
+              1,
+              "application",
+              1700000120000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            8,
+            9,
+            10
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000200000,
+            1700000230000,
+            1700000240000
+          ],
+          "victim": null,
+          "recordDigest": "cdc24075bd759cf50cb68ad19ef38bd5d6c81d9b22e606352e955b998d2b31f8",
+          "publicDigest": "598c25e31a254a096cbd302881197d63c4bc36101bf0b04ce51a6ffbb6cce01a"
+        },
+        {
+          "at": 199999,
+          "act": "tick",
+          "effective": 1700000199999,
+          "reported": 1700000199999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-1",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000200000,
+            1700000230000,
+            1700000240000
+          ],
+          "victim": null,
+          "recordDigest": null,
+          "publicDigest": "08bd9047da29e321990ae0002fa0fdead25c96fa5dbd7351697e0c29df76a041"
+        },
+        {
+          "at": 200000,
+          "act": "tick",
+          "effective": 1700000200000,
+          "reported": 1700000200000,
+          "rows": [
+            [
+              2,
+              "phase-1-close",
+              1700000200000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            11,
+            12,
+            13,
+            14
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000200000,
+            1700000230000,
+            1700000240000
+          ],
+          "victim": 3,
+          "recordDigest": null,
+          "publicDigest": "630db90b20b81a4b9dfa2d19746c6c79ca70ca55ba03949f86def78c1262a575"
+        },
+        {
+          "at": 229999,
+          "act": "tick",
+          "effective": 1700000229999,
+          "reported": 1700000229999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-2",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000200000,
+            1700000230000,
+            1700000240000
+          ],
+          "victim": 3,
+          "recordDigest": null,
+          "publicDigest": "054bc361bfa9a4a34c948845927ca0c106fc7971891cfe9d4657849221c79444"
+        },
+        {
+          "at": 230000,
+          "act": "tick",
+          "effective": 1700000230000,
+          "reported": 1700000230000,
+          "rows": [
+            [
+              2,
+              "phase-2-close",
+              1700000230000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            15,
+            16
+          ],
+          "stage": "locked",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000200000,
+            1700000230000,
+            1700000240000
+          ],
+          "victim": 3,
+          "recordDigest": null,
+          "publicDigest": "a6461a1eb3cd6d1eb1b631b05b15bb74ce9b130b3482f687c4d66ecbcdf539b2"
+        },
+        {
+          "at": 239999,
+          "act": "tick",
+          "effective": 1700000239999,
+          "reported": 1700000239999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "locked",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000200000,
+            1700000230000,
+            1700000240000
+          ],
+          "victim": 3,
+          "recordDigest": null,
+          "publicDigest": "3ee74e776f700da09260e5b615c377a9964b6fe54854aebb500648df28a5b399"
+        },
+        {
+          "at": 240000,
+          "act": "tick",
+          "effective": 1700000240000,
+          "reported": 1700000240000,
+          "rows": [
+            [
+              2,
+              "application",
+              1700000240000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            17,
+            18,
+            19
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000320000,
+            1700000350000,
+            1700000360000
+          ],
+          "victim": null,
+          "recordDigest": "86ba7e4bbd138140a34a28f0df7235323053ad6a02818cedd7510d6c2c5a3770",
+          "publicDigest": "c4f671f612d484c28623650f9cda6cf73a7f9a2725228750bbc9a475bdfdc92e"
+        },
+        {
+          "at": 319999,
+          "act": "tick",
+          "effective": 1700000319999,
+          "reported": 1700000319999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-1",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000320000,
+            1700000350000,
+            1700000360000
+          ],
+          "victim": null,
+          "recordDigest": null,
+          "publicDigest": "26dfa843a44cd2036196fea59550129b65a929afa924f9126412bb3d1ed3ed82"
+        },
+        {
+          "at": 320000,
+          "act": "tick",
+          "effective": 1700000320000,
+          "reported": 1700000320000,
+          "rows": [
+            [
+              3,
+              "phase-1-close",
+              1700000320000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            20,
+            21,
+            22,
+            23
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000320000,
+            1700000350000,
+            1700000360000
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "3f5104757d0aa79dea681dca49abd9d2fc415234d511a901153fe530857de0d9"
+        },
+        {
+          "at": 349999,
+          "act": "tick",
+          "effective": 1700000349999,
+          "reported": 1700000349999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-2",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000320000,
+            1700000350000,
+            1700000360000
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "a1974a05c4c89ae13e3bfe6cad2bca75c0d5f633c7bde818524b54330c0d96a1"
+        },
+        {
+          "at": 350000,
+          "act": "tick",
+          "effective": 1700000350000,
+          "reported": 1700000350000,
+          "rows": [
+            [
+              3,
+              "phase-2-close",
+              1700000350000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            24,
+            25
+          ],
+          "stage": "locked",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000320000,
+            1700000350000,
+            1700000360000
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "ede9ea1280e376a84ae4cb20d248a55d3573527ddb4f6ba2ea653e4dc6c87637"
+        },
+        {
+          "at": 359999,
+          "act": "tick",
+          "effective": 1700000359999,
+          "reported": 1700000359999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "locked",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000320000,
+            1700000350000,
+            1700000360000
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "b0ef4ee52d3561e5d758535b5d4ae30f81032346ddf376c97504e7b97c6f715f"
+        },
+        {
+          "at": 360000,
+          "act": "tick",
+          "effective": 1700000360000,
+          "reported": 1700000360000,
+          "rows": [
+            [
+              3,
+              "application",
+              1700000360000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            26,
+            27,
+            28
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 3,
+          "anchors": [
+            1700000440000,
+            1700000470000,
+            1700000480000
+          ],
+          "victim": null,
+          "recordDigest": "91791820ce0df1ea7a2811bed889a7cadd4aeb263e8c6c5c4527b38600ba64f1",
+          "publicDigest": "cba649d25399f9dccc1224eab2cd4027fc4b7429ce189a6702e6ffb8ca73fcbf"
+        },
+        {
+          "at": 439999,
+          "act": "tick",
+          "effective": 1700000439999,
+          "reported": 1700000439999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-1",
+          "appliedRounds": 3,
+          "anchors": [
+            1700000440000,
+            1700000470000,
+            1700000480000
+          ],
+          "victim": null,
+          "recordDigest": null,
+          "publicDigest": "1df8aa05f23cb8f9875e1f0e47a7a2d684b4fa24dafdfa4b4d26e3064cd6b1c2"
+        },
+        {
+          "at": 440000,
+          "act": "tick",
+          "effective": 1700000440000,
+          "reported": 1700000440000,
+          "rows": [
+            [
+              4,
+              "phase-1-close",
+              1700000440000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            29,
+            30,
+            31,
+            32
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 3,
+          "anchors": [
+            1700000440000,
+            1700000445000,
+            1700000455000
+          ],
+          "victim": 5,
+          "recordDigest": null,
+          "publicDigest": "25d708c1f2d2794bb8a97e8638fdfd34422121d52216105b9b40f9e2a751d3c8"
+        },
+        {
+          "at": 444999,
+          "act": "tick",
+          "effective": 1700000444999,
+          "reported": 1700000444999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-2",
+          "appliedRounds": 3,
+          "anchors": [
+            1700000440000,
+            1700000445000,
+            1700000455000
+          ],
+          "victim": 5,
+          "recordDigest": null,
+          "publicDigest": "e6a4f47c334efc2b7f8d0f240152711091bfda0f0a948498fd2a17cb02e484a5"
+        },
+        {
+          "at": 445000,
+          "act": "tick",
+          "effective": 1700000445000,
+          "reported": 1700000445000,
+          "rows": [
+            [
+              4,
+              "phase-2-close",
+              1700000445000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            33,
+            34
+          ],
+          "stage": "locked",
+          "appliedRounds": 3,
+          "anchors": [
+            1700000440000,
+            1700000445000,
+            1700000455000
+          ],
+          "victim": 5,
+          "recordDigest": null,
+          "publicDigest": "139ad7e244beee0090ca264094c43d6c827f35efc73d2536c4f7a0075131abdd"
+        },
+        {
+          "at": 454999,
+          "act": "tick",
+          "effective": 1700000454999,
+          "reported": 1700000454999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "locked",
+          "appliedRounds": 3,
+          "anchors": [
+            1700000440000,
+            1700000445000,
+            1700000455000
+          ],
+          "victim": 5,
+          "recordDigest": null,
+          "publicDigest": "3e60f3d84d6bcc8985478ecfcdf470a8139be734ac66d2c47c814205e7e6531c"
+        },
+        {
+          "at": 455000,
+          "act": "tick",
+          "effective": 1700000455000,
+          "reported": 1700000455000,
+          "rows": [
+            [
+              4,
+              "application",
+              1700000455000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "match-finished"
+          ],
+          "seqs": [
+            35,
+            36,
+            37
+          ],
+          "stage": "finished",
+          "appliedRounds": 4,
+          "anchors": null,
+          "victim": null,
+          "recordDigest": "ad1d876ce8dc9bfb4b7c5d2ac1556eba3ce6009fd321cd6a20445403f89d0e8b",
+          "publicDigest": "05c46732f6b6aad6da2db89b62d1b83bc1b65099034461b34103647d4dc1e494"
+        }
+      ],
+      "eventsDigest": "33566182e2a271c8e2c30981f7eb7a096d0c848889d5ba19f920bc319b48b7f8"
+    },
+    "l2-zero": {
+      "timing": {
+        "i": 60,
+        "l1": 20,
+        "l2": 0
+      },
+      "secret": "all-a5",
+      "matchId": "ASjg9PrifgfxGkMn",
+      "creation": {
+        "events": [
+          "schedule"
+        ],
+        "seqs": [
+          1
+        ],
+        "lastSeq": 1,
+        "publicDigest": "1a347a345aa045b9145e67a88a02bb16dee979f167ef914d8ba0eaa4a51bcb35"
+      },
+      "actions": [
+        {
+          "at": 39999,
+          "act": "tick",
+          "effective": 1700000039999,
+          "reported": 1700000039999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-1",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000040000,
+            1700000060000,
+            1700000060000
+          ],
+          "victim": null,
+          "recordDigest": null,
+          "publicDigest": "f12dee5f1eac37b4727d110e013f4e9de44ac8b9ed6f45bcfeaa8321e22f1b74"
+        },
+        {
+          "at": 40000,
+          "act": "tick",
+          "effective": 1700000040000,
+          "reported": 1700000040000,
+          "rows": [
+            [
+              1,
+              "phase-1-close",
+              1700000040000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000040000,
+            1700000060000,
+            1700000060000
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "4a6579fe9ce52286e6239a185757844306f013c3023e1a25b77de8c56bf346b9"
+        },
+        {
+          "at": 59999,
+          "act": "tick",
+          "effective": 1700000059999,
+          "reported": 1700000059999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-2",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000040000,
+            1700000060000,
+            1700000060000
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "1a0315c9399e213072c553eb8dd49fa44bab8bdac68dbbd73657f89ee3e96db9"
+        },
+        {
+          "at": 60000,
+          "act": "tick",
+          "effective": 1700000060000,
+          "reported": 1700000060000,
+          "rows": [
+            [
+              1,
+              "phase-2-close",
+              1700000060000,
+              "clock"
+            ],
+            [
+              1,
+              "application",
+              1700000060000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            6,
+            7,
+            8,
+            9
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000100000,
+            1700000120000,
+            1700000120000
+          ],
+          "victim": null,
+          "recordDigest": "75390e1fea942dd5996bf943a69a56c80d632aff739b46cfd7a26aebc04a49c9",
+          "publicDigest": "1fbc5ba4edcf64a640566735f30321a073d7b14affda622e73cdd767e2eb1d4c"
+        },
+        {
+          "at": 99999,
+          "act": "tick",
+          "effective": 1700000099999,
+          "reported": 1700000099999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-1",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000100000,
+            1700000120000,
+            1700000120000
+          ],
+          "victim": null,
+          "recordDigest": null,
+          "publicDigest": "2366d16d2b4baca2a9db19a3c4fd39953b4279906b90ae44de132e8dcf3d2af3"
+        },
+        {
+          "at": 100000,
+          "act": "tick",
+          "effective": 1700000100000,
+          "reported": 1700000100000,
+          "rows": [
+            [
+              2,
+              "phase-1-close",
+              1700000100000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            10,
+            11,
+            12,
+            13
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000100000,
+            1700000120000,
+            1700000120000
+          ],
+          "victim": 2,
+          "recordDigest": null,
+          "publicDigest": "bba92b93631fce14ebdb41d7663d43c60d6dd7258e36b74f52568820e103c719"
+        },
+        {
+          "at": 119999,
+          "act": "tick",
+          "effective": 1700000119999,
+          "reported": 1700000119999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-2",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000100000,
+            1700000120000,
+            1700000120000
+          ],
+          "victim": 2,
+          "recordDigest": null,
+          "publicDigest": "f9002062b1f8cc8e9100b8ff45dc917c43d32d65f2d19af38436ccc09b94cac3"
+        },
+        {
+          "at": 120000,
+          "act": "tick",
+          "effective": 1700000120000,
+          "reported": 1700000120000,
+          "rows": [
+            [
+              2,
+              "phase-2-close",
+              1700000120000,
+              "clock"
+            ],
+            [
+              2,
+              "application",
+              1700000120000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            14,
+            15,
+            16,
+            17
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000160000,
+            1700000180000,
+            1700000180000
+          ],
+          "victim": null,
+          "recordDigest": "49336650d2c36822da9add5bf745f2adf96b83fc5ab395fcb9090cde0b176603",
+          "publicDigest": "91ce06bd7f2ee5ec0300be9ee74adca92d4e9bfda6d7422a9e4cb086a212a35a"
+        },
+        {
+          "at": 159999,
+          "act": "tick",
+          "effective": 1700000159999,
+          "reported": 1700000159999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-1",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000160000,
+            1700000180000,
+            1700000180000
+          ],
+          "victim": null,
+          "recordDigest": null,
+          "publicDigest": "71500c89e162e596c2f80f978abbe450edb02d28abd3f23e1dbc57a5696ef0e1"
+        },
+        {
+          "at": 160000,
+          "act": "tick",
+          "effective": 1700000160000,
+          "reported": 1700000160000,
+          "rows": [
+            [
+              3,
+              "phase-1-close",
+              1700000160000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            18,
+            19,
+            20,
+            21
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000160000,
+            1700000165000,
+            1700000165000
+          ],
+          "victim": 5,
+          "recordDigest": null,
+          "publicDigest": "31cc74db460fc445ccb767dbd5178da72a286e9bb1cdcf756ce164f2c3b916f4"
+        },
+        {
+          "at": 164999,
+          "act": "tick",
+          "effective": 1700000164999,
+          "reported": 1700000164999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-2",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000160000,
+            1700000165000,
+            1700000165000
+          ],
+          "victim": 5,
+          "recordDigest": null,
+          "publicDigest": "a0e9e20acfc1e579bb2b57e081a2edaead4cf455883472181133732411922bb2"
+        },
+        {
+          "at": 165000,
+          "act": "tick",
+          "effective": 1700000165000,
+          "reported": 1700000165000,
+          "rows": [
+            [
+              3,
+              "phase-2-close",
+              1700000165000,
+              "clock"
+            ],
+            [
+              3,
+              "application",
+              1700000165000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            22,
+            23,
+            24,
+            25
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 3,
+          "anchors": [
+            1700000205000,
+            1700000225000,
+            1700000225000
+          ],
+          "victim": null,
+          "recordDigest": "aecdef63465e00fff58e1228a25e15f93663d344fe8dd3aab5910808aac398a8",
+          "publicDigest": "0a78d2f9d1c7245ceb76e6a5f0aec088e88433439528747402b616a4508a18d8"
+        },
+        {
+          "at": 204999,
+          "act": "tick",
+          "effective": 1700000204999,
+          "reported": 1700000204999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-1",
+          "appliedRounds": 3,
+          "anchors": [
+            1700000205000,
+            1700000225000,
+            1700000225000
+          ],
+          "victim": null,
+          "recordDigest": null,
+          "publicDigest": "36d30a757b7a922c260f025a78a15655d843b24e48f3a6fc38a3ccf54cd96d6d"
+        },
+        {
+          "at": 205000,
+          "act": "tick",
+          "effective": 1700000205000,
+          "reported": 1700000205000,
+          "rows": [
+            [
+              4,
+              "phase-1-close",
+              1700000205000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            26,
+            27,
+            28,
+            29
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 3,
+          "anchors": [
+            1700000205000,
+            1700000210000,
+            1700000210000
+          ],
+          "victim": 3,
+          "recordDigest": null,
+          "publicDigest": "e95f2c8a7870dcd96d36a82269f1f654c2cd3a481f6fdc3506da2266b6530c02"
+        },
+        {
+          "at": 209999,
+          "act": "tick",
+          "effective": 1700000209999,
+          "reported": 1700000209999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-2",
+          "appliedRounds": 3,
+          "anchors": [
+            1700000205000,
+            1700000210000,
+            1700000210000
+          ],
+          "victim": 3,
+          "recordDigest": null,
+          "publicDigest": "3f45a277e563cf5115c16e5aa8721af51c85a259a9711372ab9fd82528c9d3a8"
+        },
+        {
+          "at": 210000,
+          "act": "tick",
+          "effective": 1700000210000,
+          "reported": 1700000210000,
+          "rows": [
+            [
+              4,
+              "phase-2-close",
+              1700000210000,
+              "clock"
+            ],
+            [
+              4,
+              "application",
+              1700000210000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "round-applied",
+            "results",
+            "match-finished"
+          ],
+          "seqs": [
+            30,
+            31,
+            32,
+            33
+          ],
+          "stage": "finished",
+          "appliedRounds": 4,
+          "anchors": null,
+          "victim": null,
+          "recordDigest": "453486b7c1c3701e1ea31f093e8c25a6d6b0c167a36d0b7552aa0128ce31498d",
+          "publicDigest": "8b51de3834c2ca0ee1b3a994e914c8147fa25c5685c2c81ad96fc31422865c94"
+        }
+      ],
+      "eventsDigest": "8346c3df18a9ff2ec155317ee561f8e28a9682bd1d6cf98e9cbbfec3f2f723b9"
+    },
+    "manual": {
+      "timing": "manual",
+      "secret": "ascending-00-1f",
+      "matchId": "ASjg9PrifgfxGkMn",
+      "creation": {
+        "events": [
+          "schedule"
+        ],
+        "seqs": [
+          1
+        ],
+        "lastSeq": 1,
+        "publicDigest": "162b5a5b6252a927cf767dbf7de1e82c8235ae11e0ce6c17a07f6586032f25ad"
+      },
+      "actions": [
+        {
+          "at": 7000,
+          "act": "phase-1-close",
+          "effective": 1700000007000,
+          "reported": 1700000007000,
+          "rows": [
+            [
+              1,
+              "phase-1-close",
+              1700000007000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 0,
+          "anchors": null,
+          "victim": 2,
+          "recordDigest": null,
+          "publicDigest": "6a98c16cd52b5e2b233f355ad9dc13d46f8c24cac629a468a634e9fc00c1922d"
+        },
+        {
+          "at": 14000,
+          "act": "phase-2-close",
+          "effective": 1700000014000,
+          "reported": 1700000014000,
+          "rows": [
+            [
+              1,
+              "phase-2-close",
+              1700000014000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            6,
+            7
+          ],
+          "stage": "locked",
+          "appliedRounds": 0,
+          "anchors": null,
+          "victim": 2,
+          "recordDigest": null,
+          "publicDigest": "36f3ffff4e562b9e6685475d7408f96d30a46e997e213b7ea037aeadd2e87567"
+        },
+        {
+          "at": 21000,
+          "act": "application",
+          "effective": 1700000021000,
+          "reported": 1700000021000,
+          "rows": [
+            [
+              1,
+              "application",
+              1700000021000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            8,
+            9,
+            10
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 1,
+          "anchors": null,
+          "victim": null,
+          "recordDigest": "cdc24075bd759cf50cb68ad19ef38bd5d6c81d9b22e606352e955b998d2b31f8",
+          "publicDigest": "81553fc5e07e2595763510854d1b4876da091fe4e1466f7b4c84dbfb3aad8c02"
+        },
+        {
+          "at": 28000,
+          "act": "phase-1-close",
+          "effective": 1700000028000,
+          "reported": 1700000028000,
+          "rows": [
+            [
+              2,
+              "phase-1-close",
+              1700000028000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            11,
+            12,
+            13,
+            14
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 1,
+          "anchors": null,
+          "victim": 3,
+          "recordDigest": null,
+          "publicDigest": "0099cdc44fa04433d5703dad8f1f76a403f3c925511dde5bf5d05ae85b33edfb"
+        },
+        {
+          "at": 35000,
+          "act": "phase-2-close",
+          "effective": 1700000035000,
+          "reported": 1700000035000,
+          "rows": [
+            [
+              2,
+              "phase-2-close",
+              1700000035000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            15,
+            16
+          ],
+          "stage": "locked",
+          "appliedRounds": 1,
+          "anchors": null,
+          "victim": 3,
+          "recordDigest": null,
+          "publicDigest": "bf60927c0e46f119b1a8ea3b996dd8dd89fce147e1fea50596b033310a93daa3"
+        },
+        {
+          "at": 42000,
+          "act": "application",
+          "effective": 1700000042000,
+          "reported": 1700000042000,
+          "rows": [
+            [
+              2,
+              "application",
+              1700000042000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            17,
+            18,
+            19
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 2,
+          "anchors": null,
+          "victim": null,
+          "recordDigest": "86ba7e4bbd138140a34a28f0df7235323053ad6a02818cedd7510d6c2c5a3770",
+          "publicDigest": "bf8b63f822897853f4bd4698910a901a31e20f43734ecf8e34f8445627e516bf"
+        },
+        {
+          "at": 49000,
+          "act": "phase-1-close",
+          "effective": 1700000049000,
+          "reported": 1700000049000,
+          "rows": [
+            [
+              3,
+              "phase-1-close",
+              1700000049000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            20,
+            21,
+            22,
+            23
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 2,
+          "anchors": null,
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "9bbc84df5624a8840b3d13f94053f873d525836befc3807e7bce77b51f6e70ff"
+        },
+        {
+          "at": 56000,
+          "act": "phase-2-close",
+          "effective": 1700000056000,
+          "reported": 1700000056000,
+          "rows": [
+            [
+              3,
+              "phase-2-close",
+              1700000056000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            24,
+            25
+          ],
+          "stage": "locked",
+          "appliedRounds": 2,
+          "anchors": null,
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "c21ffb19f1670a8a20bf5a233564dcadc95adbc976b54760dc362f24a80b21db"
+        },
+        {
+          "at": 63000,
+          "act": "application",
+          "effective": 1700000063000,
+          "reported": 1700000063000,
+          "rows": [
+            [
+              3,
+              "application",
+              1700000063000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            26,
+            27,
+            28
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 3,
+          "anchors": null,
+          "victim": null,
+          "recordDigest": "91791820ce0df1ea7a2811bed889a7cadd4aeb263e8c6c5c4527b38600ba64f1",
+          "publicDigest": "4770dceffbc9dddfa5075a853543d55de2c02a1498534e24220a614d9b053b39"
+        },
+        {
+          "at": 70000,
+          "act": "phase-1-close",
+          "effective": 1700000070000,
+          "reported": 1700000070000,
+          "rows": [
+            [
+              4,
+              "phase-1-close",
+              1700000070000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            29,
+            30,
+            31,
+            32
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 3,
+          "anchors": null,
+          "victim": 5,
+          "recordDigest": null,
+          "publicDigest": "c5857350aaa475720c558a0830ee46160a2cefb2d2394261c437ec6377d40fe8"
+        },
+        {
+          "at": 77000,
+          "act": "phase-2-close",
+          "effective": 1700000077000,
+          "reported": 1700000077000,
+          "rows": [
+            [
+              4,
+              "phase-2-close",
+              1700000077000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            33,
+            34
+          ],
+          "stage": "locked",
+          "appliedRounds": 3,
+          "anchors": null,
+          "victim": 5,
+          "recordDigest": null,
+          "publicDigest": "837f39dacfb70f33a48511ea8b95218c84512d019fc9a48b68b0564092ac0c51"
+        },
+        {
+          "at": 84000,
+          "act": "application",
+          "effective": 1700000084000,
+          "reported": 1700000084000,
+          "rows": [
+            [
+              4,
+              "application",
+              1700000084000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "match-finished"
+          ],
+          "seqs": [
+            35,
+            36,
+            37
+          ],
+          "stage": "finished",
+          "appliedRounds": 4,
+          "anchors": null,
+          "victim": null,
+          "recordDigest": "ad1d876ce8dc9bfb4b7c5d2ac1556eba3ce6009fd321cd6a20445403f89d0e8b",
+          "publicDigest": "74728d301a52d5eabaed00d46e58b5b439e005c8b84fa6ed3142bea57794fc21"
+        }
+      ],
+      "eventsDigest": "cc4de249dcb98f43e9271c899d92237c5f9f65302c0aeefb869acf3bb5a22efb"
+    },
+    "mid-round-advances": {
+      "timing": {
+        "i": 120,
+        "l1": 30,
+        "l2": 10
+      },
+      "secret": "all-a5",
+      "matchId": "ASjg9PrifgfxGkMn",
+      "creation": {
+        "events": [
+          "schedule"
+        ],
+        "seqs": [
+          1
+        ],
+        "lastSeq": 1,
+        "publicDigest": "fb13217ff1fb60cbc55e44a094e7b889111ba444a95c8705b111805d6d9b9a4a"
+      },
+      "actions": [
+        {
+          "at": 10000,
+          "act": "phase-1-close",
+          "effective": 1700000010000,
+          "reported": 1700000010000,
+          "rows": [
+            [
+              1,
+              "phase-1-close",
+              1700000010000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000080000,
+            1700000040000,
+            1700000050000
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "8af62d4d712891e285fd6bb2ac3e33e49b3cf920c48eed1eb25699d81a34d5dd"
+        },
+        {
+          "at": 20000,
+          "act": "phase-2-close",
+          "effective": 1700000020000,
+          "reported": 1700000020000,
+          "rows": [
+            [
+              1,
+              "phase-2-close",
+              1700000020000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            6,
+            7
+          ],
+          "stage": "locked",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000080000,
+            1700000040000,
+            1700000030000
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "d07aa7a49faa885a6b54f5f3b6b227e45763313b42a5239b38bf82ed92ecdffb"
+        },
+        {
+          "at": 29999,
+          "act": "tick",
+          "effective": 1700000029999,
+          "reported": 1700000029999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "locked",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000080000,
+            1700000040000,
+            1700000030000
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "6a1905d206d186b7d36b4f93ad6bf2cbe9743ad106dc0b08fce65e599f8f3f5d"
+        },
+        {
+          "at": 30000,
+          "act": "tick",
+          "effective": 1700000030000,
+          "reported": 1700000030000,
+          "rows": [
+            [
+              1,
+              "application",
+              1700000030000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            8,
+            9,
+            10
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000110000,
+            1700000140000,
+            1700000150000
+          ],
+          "victim": null,
+          "recordDigest": "75390e1fea942dd5996bf943a69a56c80d632aff739b46cfd7a26aebc04a49c9",
+          "publicDigest": "f1ce058b939706e31ff6db8229fec9713e23515bc1769909f8a99952689d93c6"
+        },
+        {
+          "at": 110000,
+          "act": "tick",
+          "effective": 1700000110000,
+          "reported": 1700000110000,
+          "rows": [
+            [
+              2,
+              "phase-1-close",
+              1700000110000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            11,
+            12,
+            13,
+            14
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000110000,
+            1700000140000,
+            1700000150000
+          ],
+          "victim": 2,
+          "recordDigest": null,
+          "publicDigest": "745df7a2f246ca2c38f4b8e60f3a24585bdad38ddf977e82e0c70d61a03cf6ce"
+        },
+        {
+          "at": 120000,
+          "act": "phase-2-close",
+          "effective": 1700000120000,
+          "reported": 1700000120000,
+          "rows": [
+            [
+              2,
+              "phase-2-close",
+              1700000120000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            15,
+            16
+          ],
+          "stage": "locked",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000110000,
+            1700000140000,
+            1700000130000
+          ],
+          "victim": 2,
+          "recordDigest": null,
+          "publicDigest": "44cd2bbe6c947036627828bb9045c808250a5dfb35201cdfb47b95b3bb2e37aa"
+        },
+        {
+          "at": 125000,
+          "act": "application",
+          "effective": 1700000125000,
+          "reported": 1700000125000,
+          "rows": [
+            [
+              2,
+              "application",
+              1700000125000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            17,
+            18,
+            19
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000205000,
+            1700000235000,
+            1700000245000
+          ],
+          "victim": null,
+          "recordDigest": "49336650d2c36822da9add5bf745f2adf96b83fc5ab395fcb9090cde0b176603",
+          "publicDigest": "8e04babab9b3ade2eb4cf5e9bb5ac3c1d3b79761d979097aa4bd318ef4d99418"
+        },
+        {
+          "at": 205000,
+          "act": "tick",
+          "effective": 1700000205000,
+          "reported": 1700000205000,
+          "rows": [
+            [
+              3,
+              "phase-1-close",
+              1700000205000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            20,
+            21,
+            22,
+            23
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000205000,
+            1700000210000,
+            1700000220000
+          ],
+          "victim": 5,
+          "recordDigest": null,
+          "publicDigest": "8fb2dbcfce34f1f705dca5b57c7c7716aecd752d19d96a67ee0172fcb1b98d25"
+        },
+        {
+          "at": 210000,
+          "act": "tick",
+          "effective": 1700000210000,
+          "reported": 1700000210000,
+          "rows": [
+            [
+              3,
+              "phase-2-close",
+              1700000210000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            24,
+            25
+          ],
+          "stage": "locked",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000205000,
+            1700000210000,
+            1700000220000
+          ],
+          "victim": 5,
+          "recordDigest": null,
+          "publicDigest": "d320679a3bebb3e9e93e7a692b647fbce58eb6a0a78cabd0460204fef7cd0d99"
+        },
+        {
+          "at": 220000,
+          "act": "tick",
+          "effective": 1700000220000,
+          "reported": 1700000220000,
+          "rows": [
+            [
+              3,
+              "application",
+              1700000220000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            26,
+            27,
+            28
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 3,
+          "anchors": [
+            1700000300000,
+            1700000330000,
+            1700000340000
+          ],
+          "victim": null,
+          "recordDigest": "aecdef63465e00fff58e1228a25e15f93663d344fe8dd3aab5910808aac398a8",
+          "publicDigest": "bf6923d191840457564b19a357ce2785594210bf1ef609def085d4a4e57c8887"
+        },
+        {
+          "at": 300000,
+          "act": "tick",
+          "effective": 1700000300000,
+          "reported": 1700000300000,
+          "rows": [
+            [
+              4,
+              "phase-1-close",
+              1700000300000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            29,
+            30,
+            31,
+            32
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 3,
+          "anchors": [
+            1700000300000,
+            1700000305000,
+            1700000315000
+          ],
+          "victim": 3,
+          "recordDigest": null,
+          "publicDigest": "dffb8738388eab37ef8f745c2d9d6445c2ec2e58cb97a511377ee4c33780dccd"
+        },
+        {
+          "at": 305000,
+          "act": "tick",
+          "effective": 1700000305000,
+          "reported": 1700000305000,
+          "rows": [
+            [
+              4,
+              "phase-2-close",
+              1700000305000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            33,
+            34
+          ],
+          "stage": "locked",
+          "appliedRounds": 3,
+          "anchors": [
+            1700000300000,
+            1700000305000,
+            1700000315000
+          ],
+          "victim": 3,
+          "recordDigest": null,
+          "publicDigest": "22250ae733a503639752ca9abc6eca63a73e9a1846ef817e5210727bef885278"
+        },
+        {
+          "at": 315000,
+          "act": "tick",
+          "effective": 1700000315000,
+          "reported": 1700000315000,
+          "rows": [
+            [
+              4,
+              "application",
+              1700000315000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "match-finished"
+          ],
+          "seqs": [
+            35,
+            36,
+            37
+          ],
+          "stage": "finished",
+          "appliedRounds": 4,
+          "anchors": null,
+          "victim": null,
+          "recordDigest": "453486b7c1c3701e1ea31f093e8c25a6d6b0c167a36d0b7552aa0128ce31498d",
+          "publicDigest": "e8d969e2a9b6002a9ff705838b28438d13725b0e5d7627681d18662e70d0449a"
+        }
+      ],
+      "eventsDigest": "6a185187a05eedde5707f5305865e7961a0311a1114083614b9edbcbb0273627"
+    },
+    "downtime-forward-jump": {
+      "timing": {
+        "i": 120,
+        "l1": 30,
+        "l2": 10
+      },
+      "secret": "ascending-00-1f",
+      "matchId": "ASjg9PrifgfxGkMn",
+      "creation": {
+        "events": [
+          "schedule"
+        ],
+        "seqs": [
+          1
+        ],
+        "lastSeq": 1,
+        "publicDigest": "3beff04a7d7e465d447dddb36647f1b306009f244155b227525a0f7ce12e7992"
+      },
+      "actions": [
+        {
+          "at": 80000,
+          "act": "tick",
+          "effective": 1700000080000,
+          "reported": 1700000080000,
+          "rows": [
+            [
+              1,
+              "phase-1-close",
+              1700000080000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000080000,
+            1700000110000,
+            1700000120000
+          ],
+          "victim": 2,
+          "recordDigest": null,
+          "publicDigest": "4797180cd2f01831dde8c00adb66ea41abbf33714069b1c19a6443461e3cfddf"
+        },
+        {
+          "at": 500000,
+          "act": "tick",
+          "effective": 1700000500000,
+          "reported": 1700000500000,
+          "rows": [
+            [
+              1,
+              "phase-2-close",
+              1700000500000,
+              "late"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            6,
+            7
+          ],
+          "stage": "locked",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000080000,
+            1700000110000,
+            1700000510000
+          ],
+          "victim": 2,
+          "recordDigest": null,
+          "publicDigest": "31db5a97bf7ccc31d720b939227a88098da3edfd42c70ba20b2cf79267694329"
+        },
+        {
+          "at": 500000,
+          "act": "tick",
+          "effective": 1700000500000,
+          "reported": 1700000500000,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "locked",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000080000,
+            1700000110000,
+            1700000510000
+          ],
+          "victim": 2,
+          "recordDigest": null,
+          "publicDigest": "31db5a97bf7ccc31d720b939227a88098da3edfd42c70ba20b2cf79267694329"
+        },
+        {
+          "at": 510000,
+          "act": "tick",
+          "effective": 1700000510000,
+          "reported": 1700000510000,
+          "rows": [
+            [
+              1,
+              "application",
+              1700000510000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            8,
+            9,
+            10
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000590000,
+            1700000620000,
+            1700000630000
+          ],
+          "victim": null,
+          "recordDigest": "cdc24075bd759cf50cb68ad19ef38bd5d6c81d9b22e606352e955b998d2b31f8",
+          "publicDigest": "07e116d2bea1e002707ffdf1ad1f0f1239da2d51e1d61dc6acd7a12e9d55222a"
+        },
+        {
+          "at": 1210000,
+          "act": "tick",
+          "effective": 1700001210000,
+          "reported": 1700001210000,
+          "rows": [
+            [
+              2,
+              "phase-1-close",
+              1700001210000,
+              "late"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            11,
+            12,
+            13,
+            14
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000590000,
+            1700001240000,
+            1700001250000
+          ],
+          "victim": 3,
+          "recordDigest": null,
+          "publicDigest": "e43dd82c442b6132f4308d9e0fea90342d5dae9ec7955ab7484d1ed89d976881"
+        },
+        {
+          "at": 1210000,
+          "act": "tick",
+          "effective": 1700001210000,
+          "reported": 1700001210000,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-2",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000590000,
+            1700001240000,
+            1700001250000
+          ],
+          "victim": 3,
+          "recordDigest": null,
+          "publicDigest": "e43dd82c442b6132f4308d9e0fea90342d5dae9ec7955ab7484d1ed89d976881"
+        },
+        {
+          "at": 1240000,
+          "act": "tick",
+          "effective": 1700001240000,
+          "reported": 1700001240000,
+          "rows": [
+            [
+              2,
+              "phase-2-close",
+              1700001240000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            15,
+            16
+          ],
+          "stage": "locked",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000590000,
+            1700001240000,
+            1700001250000
+          ],
+          "victim": 3,
+          "recordDigest": null,
+          "publicDigest": "27102674322c95c2af15bfe2f3a9f81b6ee3c78291b1abb05b27f73efe5c5a34"
+        },
+        {
+          "at": 1250000,
+          "act": "tick",
+          "effective": 1700001250000,
+          "reported": 1700001250000,
+          "rows": [
+            [
+              2,
+              "application",
+              1700001250000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            17,
+            18,
+            19
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 2,
+          "anchors": [
+            1700001330000,
+            1700001360000,
+            1700001370000
+          ],
+          "victim": null,
+          "recordDigest": "86ba7e4bbd138140a34a28f0df7235323053ad6a02818cedd7510d6c2c5a3770",
+          "publicDigest": "616e44ac460a69716d3f618c42473288ffbd29345d6aa2cc55c12094b7872223"
+        },
+        {
+          "at": 1331000,
+          "act": "tick",
+          "effective": 1700001331000,
+          "reported": 1700001331000,
+          "rows": [
+            [
+              3,
+              "phase-1-close",
+              1700001330000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            20,
+            21,
+            22,
+            23
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 2,
+          "anchors": [
+            1700001330000,
+            1700001360000,
+            1700001370000
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "b0f84786f54b889c96aab9a681af74d97b082551c14c0af1ea07a9378c3de572"
+        },
+        {
+          "at": 1361001,
+          "act": "tick",
+          "effective": 1700001361001,
+          "reported": 1700001361001,
+          "rows": [
+            [
+              3,
+              "phase-2-close",
+              1700001361001,
+              "late"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            24,
+            25
+          ],
+          "stage": "locked",
+          "appliedRounds": 2,
+          "anchors": [
+            1700001330000,
+            1700001360000,
+            1700001371001
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "b3af2fff3002ae2c27d08496e9fb7dd3dec5a8fb1687e14d1a13cef3ac09ad55"
+        },
+        {
+          "at": 1371000,
+          "act": "tick",
+          "effective": 1700001371000,
+          "reported": 1700001371000,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "locked",
+          "appliedRounds": 2,
+          "anchors": [
+            1700001330000,
+            1700001360000,
+            1700001371001
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "e070e110f419a86351f0eddfadda7caa6b45d3e8c034ec4058d44278f10983c4"
+        },
+        {
+          "at": 1371001,
+          "act": "tick",
+          "effective": 1700001371001,
+          "reported": 1700001371001,
+          "rows": [
+            [
+              3,
+              "application",
+              1700001371001,
+              "clock"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            26,
+            27,
+            28
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 3,
+          "anchors": [
+            1700001451001,
+            1700001481001,
+            1700001491001
+          ],
+          "victim": null,
+          "recordDigest": "91791820ce0df1ea7a2811bed889a7cadd4aeb263e8c6c5c4527b38600ba64f1",
+          "publicDigest": "bc39706b629522edac922b8fdc0504cc5dfa45031e3101b47a875cc95eac4c41"
+        },
+        {
+          "at": 1451001,
+          "act": "tick",
+          "effective": 1700001451001,
+          "reported": 1700001451001,
+          "rows": [
+            [
+              4,
+              "phase-1-close",
+              1700001451001,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            29,
+            30,
+            31,
+            32
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 3,
+          "anchors": [
+            1700001451001,
+            1700001456001,
+            1700001466001
+          ],
+          "victim": 5,
+          "recordDigest": null,
+          "publicDigest": "51eb5031b6eeb4749a83a52b8700cab70a11551bcd534e52ecbfd86f4853f762"
+        },
+        {
+          "at": 1456001,
+          "act": "tick",
+          "effective": 1700001456001,
+          "reported": 1700001456001,
+          "rows": [
+            [
+              4,
+              "phase-2-close",
+              1700001456001,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            33,
+            34
+          ],
+          "stage": "locked",
+          "appliedRounds": 3,
+          "anchors": [
+            1700001451001,
+            1700001456001,
+            1700001466001
+          ],
+          "victim": 5,
+          "recordDigest": null,
+          "publicDigest": "f7e2b5ff17368dafd4143e8eb139a07165e33b60fad62318f0a3071f8331a0ca"
+        },
+        {
+          "at": 1466001,
+          "act": "tick",
+          "effective": 1700001466001,
+          "reported": 1700001466001,
+          "rows": [
+            [
+              4,
+              "application",
+              1700001466001,
+              "clock"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "match-finished"
+          ],
+          "seqs": [
+            35,
+            36,
+            37
+          ],
+          "stage": "finished",
+          "appliedRounds": 4,
+          "anchors": null,
+          "victim": null,
+          "recordDigest": "ad1d876ce8dc9bfb4b7c5d2ac1556eba3ce6009fd321cd6a20445403f89d0e8b",
+          "publicDigest": "3e2120d3b9f16b2718bfe6f2be7208197575c9aaa6c063aa236f41dbf18e3330"
+        }
+      ],
+      "eventsDigest": "931f69b44f5d26560379146987d2d2b2fd1cc1cf7dab7eb091c128ba61a49047"
+    },
+    "backward-jump": {
+      "timing": {
+        "i": 120,
+        "l1": 30,
+        "l2": 10
+      },
+      "secret": "all-a5",
+      "matchId": "ASjg9PrifgfxGkMn",
+      "creation": {
+        "events": [
+          "schedule"
+        ],
+        "seqs": [
+          1
+        ],
+        "lastSeq": 1,
+        "publicDigest": "fb13217ff1fb60cbc55e44a094e7b889111ba444a95c8705b111805d6d9b9a4a"
+      },
+      "actions": [
+        {
+          "at": 80000,
+          "act": "tick",
+          "effective": 1700000080000,
+          "reported": 1700000080000,
+          "rows": [
+            [
+              1,
+              "phase-1-close",
+              1700000080000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000080000,
+            1700000110000,
+            1700000120000
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "9a24a1275ddb02fe59eb5361f65615a0dc6ab6139bde355665be6592c11bb2c5"
+        },
+        {
+          "at": -3520000,
+          "act": "tick",
+          "effective": 1700000080000,
+          "reported": 1700000080000,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-2",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000080000,
+            1700000110000,
+            1700000120000
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "9a24a1275ddb02fe59eb5361f65615a0dc6ab6139bde355665be6592c11bb2c5"
+        },
+        {
+          "at": -3510000,
+          "act": "phase-2-close",
+          "effective": 1700000080000,
+          "reported": 1700000080000,
+          "rows": [
+            [
+              1,
+              "phase-2-close",
+              1700000080000,
+              "manual"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            6,
+            7
+          ],
+          "stage": "locked",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000080000,
+            1700000110000,
+            1700000090000
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "6d637b30f54559481d8b739b24503ea29cedb92c45b029a3ac6b5060025b5861"
+        },
+        {
+          "at": -3500000,
+          "act": "tick",
+          "effective": 1700000080000,
+          "reported": 1700000080000,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "locked",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000080000,
+            1700000110000,
+            1700000090000
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "6d637b30f54559481d8b739b24503ea29cedb92c45b029a3ac6b5060025b5861"
+        },
+        {
+          "at": 89999,
+          "act": "tick",
+          "effective": 1700000089999,
+          "reported": 1700000089999,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "locked",
+          "appliedRounds": 0,
+          "anchors": [
+            1700000080000,
+            1700000110000,
+            1700000090000
+          ],
+          "victim": 4,
+          "recordDigest": null,
+          "publicDigest": "7d4f30e38873cae2b3e8154b2d0fa493c3085417f8b77e88d669df9e5685b7aa"
+        },
+        {
+          "at": 90000,
+          "act": "tick",
+          "effective": 1700000090000,
+          "reported": 1700000090000,
+          "rows": [
+            [
+              1,
+              "application",
+              1700000090000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            8,
+            9,
+            10
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000170000,
+            1700000200000,
+            1700000210000
+          ],
+          "victim": null,
+          "recordDigest": "75390e1fea942dd5996bf943a69a56c80d632aff739b46cfd7a26aebc04a49c9",
+          "publicDigest": "550ec0a86380a9e1a647b186b9b6e0038d80d26e50a95a32ba15183f0785b276"
+        },
+        {
+          "at": 170000,
+          "act": "tick",
+          "effective": 1700000170000,
+          "reported": 1700000170000,
+          "rows": [
+            [
+              2,
+              "phase-1-close",
+              1700000170000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            11,
+            12,
+            13,
+            14
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000170000,
+            1700000200000,
+            1700000210000
+          ],
+          "victim": 2,
+          "recordDigest": null,
+          "publicDigest": "719cde346f258eadaca1bd34a73d5bf03d8912e71623290e0a870687988ddc2c"
+        },
+        {
+          "at": 200000,
+          "act": "tick",
+          "effective": 1700000200000,
+          "reported": 1700000200000,
+          "rows": [
+            [
+              2,
+              "phase-2-close",
+              1700000200000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            15,
+            16
+          ],
+          "stage": "locked",
+          "appliedRounds": 1,
+          "anchors": [
+            1700000170000,
+            1700000200000,
+            1700000210000
+          ],
+          "victim": 2,
+          "recordDigest": null,
+          "publicDigest": "284dd2be06d373a5b4bfc48d21289505417e6d769cfd9dcf30f5a705f2817e07"
+        },
+        {
+          "at": 210000,
+          "act": "tick",
+          "effective": 1700000210000,
+          "reported": 1700000210000,
+          "rows": [
+            [
+              2,
+              "application",
+              1700000210000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            17,
+            18,
+            19
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000290000,
+            1700000320000,
+            1700000330000
+          ],
+          "victim": null,
+          "recordDigest": "49336650d2c36822da9add5bf745f2adf96b83fc5ab395fcb9090cde0b176603",
+          "publicDigest": "106d4bfe22b4a34877d00c559be19066ee70437bac3dd02d215546375cb38ea5"
+        },
+        {
+          "at": 290000,
+          "act": "tick",
+          "effective": 1700000290000,
+          "reported": 1700000290000,
+          "rows": [
+            [
+              3,
+              "phase-1-close",
+              1700000290000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            20,
+            21,
+            22,
+            23
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000290000,
+            1700000295000,
+            1700000305000
+          ],
+          "victim": 5,
+          "recordDigest": null,
+          "publicDigest": "1931bd577f39bbffa6747189155425b49e680d48122650d6b5ff1bf9aa172405"
+        },
+        {
+          "at": -3310000,
+          "act": "tick",
+          "effective": 1700000290000,
+          "reported": 1700000290000,
+          "rows": [],
+          "events": [],
+          "seqs": [],
+          "stage": "phase-2",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000290000,
+            1700000295000,
+            1700000305000
+          ],
+          "victim": 5,
+          "recordDigest": null,
+          "publicDigest": "1931bd577f39bbffa6747189155425b49e680d48122650d6b5ff1bf9aa172405"
+        },
+        {
+          "at": 295000,
+          "act": "tick",
+          "effective": 1700000295000,
+          "reported": 1700000295000,
+          "rows": [
+            [
+              3,
+              "phase-2-close",
+              1700000295000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            24,
+            25
+          ],
+          "stage": "locked",
+          "appliedRounds": 2,
+          "anchors": [
+            1700000290000,
+            1700000295000,
+            1700000305000
+          ],
+          "victim": 5,
+          "recordDigest": null,
+          "publicDigest": "b025af95a3bdb3a3657dc7a5532391376a1eeda359c22d51f6a5947544a08412"
+        },
+        {
+          "at": 305000,
+          "act": "tick",
+          "effective": 1700000305000,
+          "reported": 1700000305000,
+          "rows": [
+            [
+              3,
+              "application",
+              1700000305000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            26,
+            27,
+            28
+          ],
+          "stage": "phase-1",
+          "appliedRounds": 3,
+          "anchors": [
+            1700000385000,
+            1700000415000,
+            1700000425000
+          ],
+          "victim": null,
+          "recordDigest": "aecdef63465e00fff58e1228a25e15f93663d344fe8dd3aab5910808aac398a8",
+          "publicDigest": "445d168bf8f3f3e9267b92b0fcddb259d8ebf55ccdad7ea2d147134a1fd154b4"
+        },
+        {
+          "at": 385000,
+          "act": "tick",
+          "effective": 1700000385000,
+          "reported": 1700000385000,
+          "rows": [
+            [
+              4,
+              "phase-1-close",
+              1700000385000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "victim-revealed",
+            "results",
+            "schedule"
+          ],
+          "seqs": [
+            29,
+            30,
+            31,
+            32
+          ],
+          "stage": "phase-2",
+          "appliedRounds": 3,
+          "anchors": [
+            1700000385000,
+            1700000390000,
+            1700000400000
+          ],
+          "victim": 3,
+          "recordDigest": null,
+          "publicDigest": "f2a22d20c9dbc4228a01799a956262ff2fe9c604dc1c25559f48e50ba95617e6"
+        },
+        {
+          "at": 390000,
+          "act": "tick",
+          "effective": 1700000390000,
+          "reported": 1700000390000,
+          "rows": [
+            [
+              4,
+              "phase-2-close",
+              1700000390000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "phase-closed",
+            "schedule"
+          ],
+          "seqs": [
+            33,
+            34
+          ],
+          "stage": "locked",
+          "appliedRounds": 3,
+          "anchors": [
+            1700000385000,
+            1700000390000,
+            1700000400000
+          ],
+          "victim": 3,
+          "recordDigest": null,
+          "publicDigest": "01dbd7e26d52d5875d16ce322bb6af135c980a1eac66aaca085402c601f734f5"
+        },
+        {
+          "at": 400000,
+          "act": "tick",
+          "effective": 1700000400000,
+          "reported": 1700000400000,
+          "rows": [
+            [
+              4,
+              "application",
+              1700000400000,
+              "clock"
+            ]
+          ],
+          "events": [
+            "round-applied",
+            "results",
+            "match-finished"
+          ],
+          "seqs": [
+            35,
+            36,
+            37
+          ],
+          "stage": "finished",
+          "appliedRounds": 4,
+          "anchors": null,
+          "victim": null,
+          "recordDigest": "453486b7c1c3701e1ea31f093e8c25a6d6b0c167a36d0b7552aa0128ce31498d",
+          "publicDigest": "25eaea38f610824bee89aeb45b328e733d809df9502398855978a2a21725d980"
+        }
+      ],
+      "eventsDigest": "fc4ce981e1cecceaf64e98b4f312b74f6b97d2d6e91475dea91b6609bc660fe7"
+    }
+  }
+}
