@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { encodeEvent } from '@mbrg/protocol';
 import type { LeaderboardRow } from '@mbrg/protocol';
+import { STRINGS } from '../src/core/strings';
 import type { LiveModel } from '../src/core/live-model';
 import {
   initialPlay,
@@ -106,6 +107,10 @@ describe('FR-401 FR-402 the prediction block', () => {
     expect(hud(initialPlay, m, { joined: false }).predict).toBeUndefined();
     const noted = hud(withNotice(initialPlay, 'Solo estás mirando'), m, { joined: false }).predict!;
     expect(noted.notice).toBe('Solo estás mirando');
+    // FR-471: the notice that repeats the panel's own line is not drawn a second time.
+    const same = hud(withNotice(initialPlay, STRINGS.predictNoneNotJoined), m, { joined: false }).predict!;
+    expect(same.line).toBe(STRINGS.predictNoneNotJoined);
+    expect(same.notice).toBeUndefined();
     expect(noted.choices).toStrictEqual([]);
     const replay = { ...m, applied: 3, displayed: 2, held: new Map(m.held).set(3, m.held.get(0)!) };
     const behind = hud(initialPlay, replay).predict!;

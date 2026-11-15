@@ -9,7 +9,8 @@ export type SceneMessage = 'both' | 'need-match' | 'bad-match';
 /** What the page address chooses (FR-306). */
 export type SceneChoice =
   | { kind: 'debug' }
-  | { kind: 'live'; matchId: string }
+  /** `spectate` is present (true) only for a spectator link (`spectate=1`, FR-470). */
+  | { kind: 'live'; matchId: string; spectate?: true }
   /** The start screen (spec 010 FR-366): no match and no seed in a production build, or the start parameter. */
   | { kind: 'start' }
   | { kind: 'message'; error: SceneMessage };
@@ -28,9 +29,9 @@ export function chooseScene(search: string, dev: boolean): SceneChoice {
   if (params.has('seed') && matches.length > 0) return { kind: 'message', error: 'both' };
   if (matches.length > 0) {
     const id = matches[0];
-    return matches.length === 1 && id !== undefined && MATCH_ID.test(id)
-      ? { kind: 'live', matchId: id }
-      : { kind: 'message', error: 'bad-match' };
+    if (matches.length !== 1 || id === undefined || !MATCH_ID.test(id)) return { kind: 'message', error: 'bad-match' };
+    const spectate = params.getAll('spectate');
+    return spectate.length === 1 && spectate[0] === '1' ? { kind: 'live', matchId: id, spectate: true } : { kind: 'live', matchId: id };
   }
   if (params.has('start') && !params.has('seed')) return { kind: 'start' };
   if (dev) return { kind: 'debug' };
@@ -97,8 +98,9 @@ export function readLiveAddress(search: string, applied: number, image: ImageSiz
 }
 
 /** The address text of a displayed live scene: the match id, the round and the camera (x, y with 1 decimal, zoom with 3). */
-export function formatLiveAddress(matchId: string, round: number, cam: Camera): string {
-  return `?match=${matchId}&round=${round}&x=${cam.x.toFixed(1)}&y=${cam.y.toFixed(1)}&zoom=${cam.scale.toFixed(3)}`;
+export function formatLiveAddress(matchId: string, round: number, cam: Camera, spectate = false): string {
+  const base = `?match=${matchId}&round=${round}&x=${cam.x.toFixed(1)}&y=${cam.y.toFixed(1)}&zoom=${cam.scale.toFixed(3)}`;
+  return spectate ? `${base}&spectate=1` : base;
 }
 
 /** The Spanish notice of a problem; `shown` is the round displayed instead (N). */

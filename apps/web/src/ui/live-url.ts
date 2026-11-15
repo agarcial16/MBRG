@@ -7,6 +7,6 @@ export interface HistoryLike {
   replaceState(data: unknown, unused: string, url?: string | null): void;
 }
 
-export function syncLiveAddress(matchId: string, round: number, camera: Camera, history: HistoryLike = globalThis.history): void {
-  history.replaceState(null, '', formatLiveAddress(matchId, round, camera));
+export function syncLiveAddress(matchId: string, round: number, camera: Camera, history: HistoryLike = globalThis.history, spectate = false): void {
+  history.replaceState(null, '', formatLiveAddress(matchId, round, camera, spectate));
 }

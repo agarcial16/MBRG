@@ -6,7 +6,8 @@ import { errorText } from '../core/live-text';
 
 export interface EnterActions {
   readonly debug: (() => Promise<unknown>) | undefined;
-  live(matchId: string): void;
+  /** `spectate` is true for a spectator link (`spectate=1`): the scene opens with no door and no player (FR-470). */
+  live(matchId: string, spectate?: boolean): void;
   /** The start screen of the single entry page. */
   start(): void;
   message(text: string): void;
@@ -14,7 +15,7 @@ export interface EnterActions {
 
 export async function enter(search: string, dev: boolean, actions: EnterActions): Promise<void> {
   const choice = chooseScene(search, dev);
-  if (choice.kind === 'live') return actions.live(choice.matchId);
+  if (choice.kind === 'live') return actions.live(choice.matchId, choice.spectate === true);
   if (choice.kind === 'start') return actions.start();
   if (choice.kind === 'debug') {
     if (actions.debug !== undefined) await actions.debug();

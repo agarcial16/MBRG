@@ -28,7 +28,13 @@ export function playNets(): { readonly net: PlayNet; readonly live: LiveNet } {
 /** The page address without query or fragment (the links are built from it). */
 const pageUrl = (): string => `${window.location.origin}${window.location.pathname}`;
 
-export function startMatchEntry(matchId: string): void {
+export function startMatchEntry(matchId: string, spectate = false): void {
+  // FR-470: a spectator link opens the scene at once. The stored player (if any) is left untouched and not used for this link.
+  if (spectate) {
+    showMap();
+    startLiveScene(matchId, undefined, true);
+    return;
+  }
   const storage = window.localStorage;
   // A personal link: the player is stored and the fragment leaves the address (it is never sent, and it is not kept in the history).
   adoptFragment(storage, matchId, window.location.hash);
@@ -36,7 +42,7 @@ export function startMatchEntry(matchId: string): void {
   const { net, live } = playNets();
   const watch = (who?: PlayerCredentials): void => {
     showMap();
-    startLiveScene(matchId, who);
+    startLiveScene(matchId, who, spectate);
   };
   void (async () => {
     const read = await live.readPublic(matchId);
