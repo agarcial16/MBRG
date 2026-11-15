@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import webManifestRaw from '../package.json?raw';
 import lockRaw from '../../../package-lock.json?raw';
+import { botOwnedEntries } from './helpers/lock-owners';
 
 // The dependency set of spec 005 (merged at 2f6f25c): spec 006 adds none. Spec 008 adds only its internal workspace
 // @mbrg/protocol to the viewer (M5, decision H4 and D30: no third-party package).
@@ -41,9 +42,10 @@ describe('spec 006 dependencies', () => {
 
   it('NFR-42 the lockfile lists the same packages and versions as at spec 005', () => {
     const lock = JSON.parse(lockRaw) as { packages: Record<string, { version?: string }> };
-    // Spec 008 adds its own workspaces and their links only (NFR-53); the 005 entries are unchanged.
+    // Spec 008 adds its own workspaces and their links only (NFR-53), spec 012 the bot workspace and discord.js with what only they need; the 005 entries are unchanged.
+    const bot = botOwnedEntries(lock.packages);
     const keys = Object.keys(lock.packages)
-      .filter((k) => !SPEC_008_ENTRY.test(k))
+      .filter((k) => !SPEC_008_ENTRY.test(k) && !bot.has(k))
       .sort();
     expect(keys).toHaveLength(LOCK_ENTRIES_005);
     const text = keys.map((k) => `${k}@${lock.packages[k]!.version ?? ''}`).join('\n');
