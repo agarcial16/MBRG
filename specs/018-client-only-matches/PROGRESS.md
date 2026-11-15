@@ -4,6 +4,7 @@ Per-task log (what changed, tests run and results, what is untested, next step) 
 State: spec approved (2026-11-15); plan and tasks written, awaiting the user's approval. No task started.
 
 ## Changed existing tests and goldens (NFR-102)
+- T1.3: `packages/protocol/test/public.test.ts` (key list pin gains `clientOnly` after `playerCount`), `packages/protocol/test/encode.test.ts` (`MATCH_SUMMARY_KEYS` pin gains `clientOnly`; summary keys test splits open/client-only): FR-501 adds the optional member.
 - T1.1: `packages/protocol/test/errors.test.ts` (ERROR_ORDER now 28 entries), `apps/server/test/http-status.test.ts` (new kind pinned, length 28), `apps/server/test/config-unchanged.test.ts` (011 list compared without `joins-closed`): the kind list gains `joins-closed` by FR-496.
 
 ## Task log
@@ -12,3 +13,6 @@ State: spec approved (2026-11-15); plan and tasks written, awaiting the user's a
 
 ### T1.2 — joinPolicy in the creation body (done)
 `CREATION_FIELDS` gains `joinPolicy`; `JOIN_POLICIES`/`JoinPolicy` exported; `readCreation` checks it after `requestId` and before unknown fields and the timing rules (so an invalid-timing body already has a valid `joinPolicy`), and returns it in the value only when present. Tests first: `read.test.ts` (4 new), `canonical.test.ts` (1 new). Finding: the HTTP body parser is `JSON.parse`, which collapses duplicate members, so the spec's "duplicate" refusal cannot live in the reader; moved to T3.2 (creation route only) in tasks-M1/M3. Until M3 the server accepts `joinPolicy` and ignores it (not shipped before M3). `npm test` 5438 passed, typecheck green, protected paths clean. Next: T1.3.
+
+### T1.3 — clientOnly in views and summaries (done)
+`PublicMatch.clientOnly?: true` after `playerCount` in `PUBLIC_MATCH_KEYS`; `MatchSummary.clientOnly?: true` last in `MATCH_SUMMARY_KEYS`. Encoders write it only for `true` and refuse any other value; `readPublicMatch` refuses `false`, `"true"`, `1`, `null`. Tests first (6 red): public, encode, decode. Finding: there is no match-list decoder in the protocol package (only the encoder), so FR-503's decoder refusal covers `readPublicMatch` only; a summary decoder does not exist and is not added (out of scope). Existing 008/011 SHA pins stay green (bytes of open views unchanged). `npm test` 5444 passed, typecheck green, protected paths clean. Next: T1.4.

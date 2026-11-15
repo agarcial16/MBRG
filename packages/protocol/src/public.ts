@@ -125,6 +125,7 @@ interface Checked {
   lastSeq: number;
   reportedTime: number;
   playerCount?: number;
+  clientOnly?: true;
   schedule?: PublicSchedule;
   victim?: PublicVictim;
   winner?: number;
@@ -165,6 +166,12 @@ function check(input: unknown): Checked {
 
   // The player count: required before a start (a lobby that never started is counted), optional once the match runs.
   if (has(o, 'playerCount') || lobbyStage) out.playerCount = intField(o, 'playerCount', 0, 'view');
+
+  // Spec 018 FR-501: present only as `true` (a client-only match); `false` and every other value are refused.
+  if (has(o, 'clientOnly')) {
+    if (o.clientOnly !== true) bad('clientOnly is not true');
+    out.clientOnly = true;
+  }
 
   // FR-288 and FR-254: the victim fields only after the phase-1 close of the pending round (never in finished).
   const revealStage = out.stage === 'phase-2' || out.stage === 'locked';
@@ -215,6 +222,7 @@ export function encodePublicMatch(view: PublicMatch): string {
     `"reportedTime":${m.reportedTime}`,
   ];
   if (m.playerCount !== undefined) parts.push(`"playerCount":${m.playerCount}`);
+  if (m.clientOnly === true) parts.push('"clientOnly":true');
   if (m.schedule !== undefined) parts.push(`"schedule":{"c1":${m.schedule.c1},"c2":${m.schedule.c2},"a":${m.schedule.a}}`);
   if (m.victim !== undefined) {
     const v = m.victim;

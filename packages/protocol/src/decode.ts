@@ -233,6 +233,7 @@ export function readPublicMatch(input: unknown): Decoded<PublicMatch> {
       const count = m.has('playerCount') ? m.get('playerCount', int(0)) : undefined;
       if (count === undefined && (stage === 'lobby' || stage === 'expired')) refuse(m.path('playerCount'));
       if (count !== undefined) view.playerCount = count;
+      if (m.has('clientOnly')) view.clientOnly = m.get('clientOnly', (v, f) => (v === true ? true : refuse(f)));
       const sched = optional(m, 'schedule', isRunning(stage) && clock !== 'manual', schedule);
       if (sched !== undefined) view.schedule = sched;
       // The victim fields: required in phase-2 and locked, optional after a reveal in halted, never elsewhere.

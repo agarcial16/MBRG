@@ -81,7 +81,7 @@ describe('the key lists of the replies', () => {
     expect([...STEP_INFO_KEYS]).toStrictEqual(['round', 'kind', 'instant', 'cause']);
     expect([...PREDICTION_REPLY_KEYS]).toStrictEqual(['kind', 'round', 'choice', 'version']);
     expect([...OWN_PREDICTION_KEYS]).toStrictEqual(['playerId', 'kind', 'round', 'choice', 'version']);
-    expect([...MATCH_SUMMARY_KEYS]).toStrictEqual(['matchId', 'mapId', 'stage', 'appliedRounds', 'totalRounds', 'createdAt']);
+    expect([...MATCH_SUMMARY_KEYS]).toStrictEqual(['matchId', 'mapId', 'stage', 'appliedRounds', 'totalRounds', 'createdAt', 'clientOnly']);
     expect([...STATE_REPLY_KEYS]).toStrictEqual(['round', 'owners', 'stateDigest', 'reportedTime']);
     expect([...RECORD_REPLY_KEYS]).toStrictEqual(['round', 'eliminated', 'absorber', 'transferred']);
     expect([...PAGE_KEYS]).toStrictEqual(['items', 'next']);
@@ -101,7 +101,8 @@ describe('the wire encoders', () => {
     expect(Object.keys((JSON.parse(encodeAdvance(advance)) as { step: object }).step)).toStrictEqual([...STEP_INFO_KEYS]);
     expect(keysOf(encodePrediction({ version: 1, choice: 4, round: 2, kind: 'victim' }))).toStrictEqual([...PREDICTION_REPLY_KEYS]);
     expect(keysOf(encodeOwnPrediction(own))).toStrictEqual([...OWN_PREDICTION_KEYS]);
-    expect(keysOf(encodeMatchSummary(summary))).toStrictEqual([...MATCH_SUMMARY_KEYS]);
+    expect(keysOf(encodeMatchSummary(summary))).toStrictEqual(MATCH_SUMMARY_KEYS.filter((k) => k !== 'clientOnly'));
+    expect(keysOf(encodeMatchSummary({ ...summary, clientOnly: true }))).toStrictEqual([...MATCH_SUMMARY_KEYS]);
     expect(keysOf(encodeState(state))).toStrictEqual([...STATE_REPLY_KEYS]);
     expect(keysOf(encodeRecord(record))).toStrictEqual([...RECORD_REPLY_KEYS]);
     expect(keysOf(encodePage({ items: [record], next: 'abc' }, encodeRecord))).toStrictEqual([...PAGE_KEYS]);
@@ -284,5 +285,15 @@ describe('the join reply and the players list item', () => {
         expect(message).not.toContain(token);
       }
     }
+  });
+});
+
+describe('clientOnly in a match summary (spec 018)', () => {
+  it('FR-501 the member is written last and only when true; a summary without it keeps its bytes', () => {
+    expect(encodeMatchSummary({ ...summary, clientOnly: true })).toBe(`${encodeMatchSummary(summary).slice(0, -1)},"clientOnly":true}`);
+  });
+
+  it('FR-503 the summary encoder refuses clientOnly of false or of any other value', () => {
+    for (const bad of [false, 'true', 1, null]) expect(() => encodeMatchSummary({ ...summary, clientOnly: bad } as never), JSON.stringify(bad)).toThrow(RangeError);
   });
 });

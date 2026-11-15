@@ -122,6 +122,8 @@ export interface PublicMatch {
   readonly reportedTime: number;
   /** Required in `lobby` and `expired`; optional elsewhere, and absent means the 008 bytes (a whole number >= 0). */
   readonly playerCount?: number;
+  /** Present, and `true`, exactly when the match admits only the players of its creating client (spec 018 FR-501). */
+  readonly clientOnly?: true;
   /** Present exactly while the match is running and its timing is not `manual`. */
   readonly schedule?: PublicSchedule;
   /** Present in `phase-2` and `locked`, and in `halted` when the halting round's victim was revealed (FR-288). */
@@ -148,6 +150,7 @@ export const PUBLIC_MATCH_KEYS = [
   'lastSeq',
   'reportedTime',
   'playerCount',
+  'clientOnly',
   'schedule',
   'victim',
   'winner',
@@ -311,6 +314,8 @@ export interface MatchSummary {
   readonly appliedRounds: number;
   readonly totalRounds: number;
   readonly createdAt: number;
+  /** Present, and `true`, exactly for a client-only match (spec 018 FR-501). */
+  readonly clientOnly?: true;
 }
 
 /** The state at an applied round j <= N with its state digest and the reported time of the read (FR-302). */
@@ -411,7 +416,7 @@ export const ADVANCE_REPLY_KEYS = ['result', 'step', 'match'] as const;
 export const STEP_INFO_KEYS = ['round', 'kind', 'instant', 'cause'] as const;
 export const PREDICTION_REPLY_KEYS = ['kind', 'round', 'choice', 'version'] as const;
 export const OWN_PREDICTION_KEYS = ['playerId', 'kind', 'round', 'choice', 'version'] as const;
-export const MATCH_SUMMARY_KEYS = ['matchId', 'mapId', 'stage', 'appliedRounds', 'totalRounds', 'createdAt'] as const;
+export const MATCH_SUMMARY_KEYS = ['matchId', 'mapId', 'stage', 'appliedRounds', 'totalRounds', 'createdAt', 'clientOnly'] as const;
 export const STATE_REPLY_KEYS = ['round', 'owners', 'stateDigest', 'reportedTime'] as const;
 export const RECORD_REPLY_KEYS = ['round', 'eliminated', 'absorber', 'transferred'] as const;
 export const PAGE_KEYS = ['items', 'next'] as const;
