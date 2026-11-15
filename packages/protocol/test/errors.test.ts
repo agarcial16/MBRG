@@ -17,15 +17,15 @@ import {
 const FR_301 = [
   'rate-limited', 'unknown-path', 'method-not-allowed', 'too-large', 'invalid-request', 'invalid-player-id',
   'forbidden', 'request-id-reused', 'unknown-match', 'unknown-map', 'map-validation', 'too-few-factions',
-  'invalid-timing', 'too-many-matches', 'match-halted', 'match-finished', 'name-taken', 'match-full', 'match-started', 'match-expired', 'step-mismatch', 'round-not-applied',
+  'invalid-timing', 'too-many-matches', 'joins-closed', 'match-halted', 'match-finished', 'name-taken', 'match-full', 'match-started', 'match-expired', 'step-mismatch', 'round-not-applied',
   'stale-cursor', 'prediction-closed', 'forced-absorber', 'invalid-choice', 'unavailable',
 ];
 
 describe('error kinds', () => {
-  it('FR-301 ERROR_ORDER equals the fixed list: 26 kinds plus the map-validation group, 27 entries', () => {
+  it('FR-301 ERROR_ORDER equals the fixed list: 27 kinds plus the map-validation group, 28 entries (joins-closed added by spec 018)', () => {
     expect([...ERROR_ORDER]).toStrictEqual(FR_301);
-    expect(ERROR_ORDER).toHaveLength(27);
-    expect(new Set(ERROR_ORDER).size).toBe(27);
+    expect(ERROR_ORDER).toHaveLength(28);
+    expect(new Set(ERROR_ORDER).size).toBe(28);
   });
 
   it('FR-301 the forced-absorber kind sits right after prediction-closed and right before invalid-choice', () => {
@@ -145,5 +145,16 @@ describe('the unified error replies (C6)', () => {
     for (const reply of [stepMismatch('locked', 1), roundNotApplied(1), rateLimited(3), errorReply('invalid-timing', ['a', 'b'])]) {
       for (const key of Object.keys(reply)) expect(ERROR_REPLY_KEYS as readonly string[]).toContain(key);
     }
+  });
+});
+
+describe('joins-closed (spec 018)', () => {
+  it('FR-496 joins-closed sits right after too-many-matches and right before match-halted, with no other member', () => {
+    const at = ERROR_ORDER.indexOf('joins-closed');
+    expect(ERROR_ORDER[at - 1]).toBe('too-many-matches');
+    expect(ERROR_ORDER[at + 1]).toBe('match-halted');
+    expect(firstError(['match-halted', 'joins-closed'])).toBe('joins-closed');
+    expect(errorReply('joins-closed')).toStrictEqual({ kind: 'joins-closed' });
+    expect(() => errorReply('joins-closed', ['a', 'b'])).toThrow(RangeError);
   });
 });

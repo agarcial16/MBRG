@@ -19,6 +19,7 @@ export const ERROR_ORDER = [
   'too-few-factions',
   'invalid-timing',
   'too-many-matches',
+  'joins-closed',
   'match-halted',
   'match-finished',
   'name-taken',
