@@ -1,5 +1,5 @@
 # Spec 016 — Spectator link and one "only watching" line
-Status: approved by the user on 2026-11-15. Tier: Light SDD (UI, apps/web only). Depends on 013. Ids: FR-470 and FR-471 (FR-451..469 are taken by spec 012 on its branch).
+Status: implemented (approved 2026-11-15; merged in #61). Tier: Light SDD (UI, apps/web only). Depends on 013. Ids: FR-470 and FR-471 (FR-451..469 are taken by spec 012 on its branch).
 
 ## Goal
 The Discord bot posts a link for people who only want to watch. Opening it must show the live scene at once, with no name door and no player created. Separately, a spectator who taps the map sees the sentence "Solo estás mirando: únete a una partida para predecir." twice in the "Tu predicción" panel (once plain, once in red); it must show once.
