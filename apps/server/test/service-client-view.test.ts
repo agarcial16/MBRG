@@ -80,7 +80,7 @@ describe('every public view is built through the flag', () => {
     expect([...service.matchAll(/\bpublicOf\(/g)]).toHaveLength(1);
     const calls = service.split('\n').filter((l) => /\bpublicView\(/.test(l) && !/const publicView/.test(l));
     expect(calls.length).toBeGreaterThan(0);
-    for (const call of calls) expect(call, call).toMatch(/flagOf\(|clientOnly|, false\)/);
+    for (const call of calls) expect(call, call).toMatch(/flagOf\(|clientOnly|, false\)|policy\.policy === 'client'/);
   });
 
   it('FR-501 the only views built outside service/ are the advance replies of the core, flagged by the service', () => {

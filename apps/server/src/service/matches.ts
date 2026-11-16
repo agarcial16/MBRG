@@ -62,6 +62,7 @@ import type {
   CursorKey,
   CursorList,
   ErrorReply,
+  JoinPolicy,
   JoinReply,
   LeaderboardRow,
   MatchEvent,
@@ -105,6 +106,8 @@ import { isMapFileName, mapForStep } from './maps';
 import type { MapCatalog, MapFile } from './maps';
 import { publicConfigOf } from './public-config';
 import { checkPublicCreation } from './publiccreate';
+import { creationPolicy } from '../core/policy';
+import type { CreationPolicyDecision } from '../core/policy';
 import type { Scheduler, SchedulerHandle } from './scheduler';
 import type { Settings } from './settings';
 
@@ -128,6 +131,11 @@ export interface CreateRequest {
 export interface PublicCreateRequest {
   readonly source: string;
   readonly body: unknown;
+  /**
+   * A valid client credential of the caller (spec 018 FR-491): its text (only a digest is kept) and the namespace of the
+   * configured credential. Only this makes `joinPolicy: 'client'` possible; the body never names a namespace.
+   */
+  readonly client?: { readonly credential: string; readonly namespace: string };
 }
 
 /** The path text of a start in the canonical content of FR-282 (the HTTP layer of M4 uses the same text). */
@@ -1001,7 +1009,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
    * The public creation after the shape and memo checks; runs inside the transaction and writes only on success. The order
    * is the plan's (section 8): map in the public list, bounds, map package, cap, then the draws and the writes.
    */
-  const decidePublic = (mapId: string, timing: Timing, now: number, made: (m: Committed & { reported: number }) => void): CreateOutcome => {
+  const decidePublic = (mapId: string, timing: Timing, now: number, policy: Extract<CreationPolicyDecision, { ok: true }>, made: (m: Committed & { reported: number }) => void): CreateOutcome => {
     const rules = settings.publicCreation;
     const refused = checkPublicCreation(rules, mapId, timing);
     if (refused !== undefined) return failure(refused);
@@ -1020,10 +1028,12 @@ export function createMatchService(options: ServiceOptions): MatchService {
     const view = { ...created.view, matchId, commitment: commitmentOf(secret) };
     const reported = reportedTime(effectiveInstant(now, view.lastStepMs), 0);
     const first = lobbyEvents(view, reported);
-    const reply: CreationReply = { matchId, match: publicView(first.view, reported, undefined, undefined, false), hostToken };
+    const reply: CreationReply = { matchId, match: publicView(first.view, reported, undefined, undefined, policy.policy === 'client'), hostToken };
     encodePublicMatch(reply.match); // the public data must be encodable before anything is stored
     store.insertMatch({ match: first.view, secret, hostTokenDigest: credentialDigest(hostToken) });
     store.insertLobby({ matchId, public: true, expiresMs: now + rules.lobbyExpiryHours * HOUR_MS });
+    // Spec 018 FR-491: the owning namespace is stored in the same transaction as the match, after it (the foreign key).
+    if (policy.policy === 'client') store.insertClientMatch(matchId, policy.namespace);
     store.appendEvents(matchId, first.events);
     made({ view: first.view, events: first.events, reported });
     return { ok: true, reply };
@@ -1038,10 +1048,18 @@ export function createMatchService(options: ServiceOptions): MatchService {
       const mapId = (read.ok ? read.value.mapId : body.mapId) as string;
       const timing = (read.ok ? read.value.timing : body.timing) as Timing;
       const requestId = (read.ok ? read.value.requestId : body.requestId) as string;
+      // Spec 018: `joinPolicy` is already shape-checked (the reader checks it before the timing rules). `forbidden` for a client
+      // policy without a client credential comes before the memo and every public rule: nothing is drawn or stored (FR-492).
+      const requested = body.joinPolicy as JoinPolicy | undefined;
+      const policy = creationPolicy(requested, request.client === undefined ? { role: 'other' } : { role: 'client', namespace: request.client.namespace }, false);
+      if (!policy.ok) return failure(policy.error);
 
       // The scope is the digest of the source: the same id from another source is another creation, and no operator scope is reused.
       const scope: MemoScope = { credentialDigest: credentialDigest(`public:${request.source}`), match: null };
-      const contentDigest = sha256Ascii(canonicalBody('POST', CREATION_PATH, request.body));
+      // A client that names a joinPolicy puts its credential digest into the content: another client behind the same source
+      // repeating the body is `request-id-reused` and never replays this host token (FR-495). Other bodies keep the 011 digest.
+      const canonical = canonicalBody('POST', CREATION_PATH, request.body);
+      const contentDigest = sha256Ascii(request.client !== undefined && requested !== undefined ? `${canonical}:${credentialDigest(request.client.credential)}` : canonical);
       const now = wholeMs(clock.now());
       const fresh: { value?: Committed & { reported: number }; memoAt?: number } = {};
       const unavailable = { ok: false as const, error: errorReply('unavailable') };
@@ -1055,7 +1073,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
             );
             if (memo.decision === 'replay') return memo.reply;
             if (memo.decision === 'request-id-reused') return failure(memo.error);
-            const result = decidePublic(mapId, timing, now, (made) => (fresh.value = made));
+            const result = decidePublic(mapId, timing, now, policy, (made) => (fresh.value = made));
             // Only a creation is memoised: a refusal stores nothing (FR-370), so the same id may retry once a cap has room.
             if (result.ok) {
               store.memoPut(scope, requestId, { contentDigest, reply: result, createdMs: now });
@@ -1198,6 +1216,9 @@ export function createMatchService(options: ServiceOptions): MatchService {
       const timing = (read.ok ? read.value.timing : body.timing) as Timing;
       const requestId = (read.ok ? read.value.requestId : body.requestId) as string;
       const timingError = read.ok ? undefined : read.error;
+      // Spec 018 FR-493: the operator path never creates a client-only match; the member is refused whatever its value (shape stage).
+      const refusedPolicy = creationPolicy(body.joinPolicy as JoinPolicy | undefined, { role: 'other' }, true);
+      if (!refusedPolicy.ok) return failure(refusedPolicy.error);
 
       if (typeof request.credential !== 'string' || !sameDigest(credentialDigest(request.credential), operatorDigest)) return failure(errorReply('forbidden'));
 
