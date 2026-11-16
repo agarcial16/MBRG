@@ -2,24 +2,21 @@
 // pure function from that state and the live model to the data the panel draws. The shell (`ui/play-session.ts`) owns the calls and
 // the timers; every transition of the state and every sentence is here. No DOM, no network, no token.
 import type { LeaderboardRow, OwnPrediction, PlayerListItem, PlayerResult, PredictionReply } from '@mbrg/protocol';
+import { boardOwnName, boardPlayers, boardRankOf, boardReady, boardScored, boardView, emptyBoard, type BoardState, type BoardView } from './board-model';
 import { estimateAt, type LiveModel } from './live-model';
 import { emptyLobby, lobbyAfterFrame, lobbyAfterPlayers, type LobbyModel } from './lobby-model';
 import { countdownTime, scheduleOf } from './live-text';
 import type { FactionName } from './live-view';
 import { bookAfterReply, bookFromOwn, emptyBook, offerOf, offerText, sentFor, sentText, type Book, type Offer } from './predict-model';
 import {
-  boardPage,
   championLine,
   chipParts,
   chipText,
-  completeBoard,
   latestScored,
-  rankOf,
   resultFor,
   resultView,
   scoredKey,
   winnersView,
-  type BoardPage,
   type ResultView,
   type Scored,
   type WinnersView,
@@ -33,29 +30,31 @@ export interface PlayState {
   readonly scores: { readonly total: number; readonly items: readonly PlayerResult[]; readonly name: string | undefined } | undefined;
   /** The scored phase the results panel talks about. */
   readonly scored: Scored | undefined;
-  readonly rows: readonly LeaderboardRow[] | undefined;
-  /** FR-432: every player who joined (players read plus `player-joined` events). */
+  /** FR-432: the `player-joined` frames read (dedup, join order). */
   readonly lobby: LobbyModel;
-  readonly boardPage: number;
+  /** Spec 019: the leaderboard read page by page, what the screen asked for and the state of the reads. */
+  readonly board: BoardState;
   /** The names that guessed a scored phase right, by `round:phase`. */
   readonly winners: ReadonlyMap<string, readonly string[]>;
   readonly expanded: ReadonlySet<string>;
   readonly winnersPage: ReadonlyMap<string, number>;
 }
 
-export const initialPlay: PlayState = {
+/** The state of a session; `me` is the viewer's player id, '' for a spectator. */
+export const initialPlayFor = (me: string): PlayState => ({
   book: emptyBook,
   sending: false,
   notice: undefined,
   scores: undefined,
   scored: undefined,
-  rows: undefined,
   lobby: emptyLobby,
-  boardPage: 0,
+  board: emptyBoard(me),
   winners: new Map(),
   expanded: new Set(),
   winnersPage: new Map(),
-};
+});
+
+export const initialPlay: PlayState = initialPlayFor('');
 
 export const withOwn = (state: PlayState, items: readonly OwnPrediction[]): PlayState => ({ ...state, book: bookFromOwn(items) });
 /** FR-401: the server stored the choice; FR-404 the notice of an earlier failure goes away. */
@@ -68,13 +67,12 @@ export function withScores(state: PlayState, scores: NonNullable<PlayState['scor
   // An earlier phase named by a `results` event wins over the rows' latest: a slow start read must not move the panel back.
   return { ...state, scores, scored: scored ?? state.scored ?? latestScored(scores.items) };
 }
-export const withBoard = (state: PlayState, rows: readonly LeaderboardRow[]): PlayState => ({ ...state, rows });
-/** FR-432: the players list as read (the same read the lobby makes). */
-export const withPlayers = (state: PlayState, items: readonly PlayerListItem[]): PlayState => ({ ...state, lobby: lobbyAfterPlayers(state.lobby, items) });
+/** Spec 019: the board state after a reducer of `board-model` (a read, a scroll, a search). */
+export const withBoardState = (state: PlayState, board: BoardState): PlayState => (board === state.board ? state : { ...state, board });
 /** FR-432: an event frame; a `player-joined` adds the player at once, any other frame returns the same state. */
 export function withJoined(state: PlayState, data: unknown): PlayState {
   const next = lobbyAfterFrame(state.lobby, data);
-  return next.outcome === 'joined' ? { ...state, lobby: next.model } : state;
+  return next.outcome === 'joined' ? { ...state, lobby: next.model, board: boardPlayers(state.board, next.model.players) } : state;
 }
 export const withWinners = (state: PlayState, scored: Scored, names: readonly string[]): PlayState => ({ ...state, winners: new Map(state.winners).set(scoredKey(scored), names) });
 export function toggleWinners(state: PlayState, key: string): PlayState {
@@ -83,7 +81,6 @@ export function toggleWinners(state: PlayState, key: string): PlayState {
   return { ...state, expanded, winnersPage: new Map(state.winnersPage).set(key, 0) };
 }
 export const pageWinners = (state: PlayState, key: string, delta: number): PlayState => ({ ...state, winnersPage: new Map(state.winnersPage).set(key, Math.max(0, (state.winnersPage.get(key) ?? 0) + delta)) });
-export const pageBoard = (state: PlayState, delta: number): PlayState => ({ ...state, boardPage: Math.max(0, state.boardPage + delta) });
 
 export interface ChoiceView {
   readonly faction: number;
@@ -117,7 +114,8 @@ export interface PlayHud {
   readonly chipParts: { readonly name: string; readonly stats: string } | undefined;
   readonly predict: PredictView | undefined;
   readonly result: ResultView | undefined;
-  readonly board: BoardPage | undefined;
+  /** Spec 019: the board for the screen; undefined until something was read. */
+  readonly board: BoardView | undefined;
   /** FR-448: the player who wins the finished match, for the state card. */
   readonly champion: { readonly text: string; readonly you: boolean } | undefined;
   /** FR-407: the lines under the chronicle entry of each round. */
@@ -145,10 +143,9 @@ export const offerFor = (model: LiveModel, joined: boolean, revealing: boolean):
 export function playHud(input: PlayInput): PlayHud {
   const { state, model, player, factions } = input;
   const nameOf = (faction: number): string => factions.find((f) => f.id === faction)?.name ?? String(faction);
-  // FR-432: the server's rows plus every joined player (0 points); nothing to show until a read or a join gave something.
-  const rows = state.rows === undefined && state.lobby.players.length === 0 ? undefined : completeBoard(state.rows ?? [], state.lobby.players);
-  const rank = player === undefined || rows === undefined ? undefined : rankOf(rows, player.playerId);
-  const myName = player === undefined ? undefined : (state.scores?.name ?? rows?.find((r) => r.playerId === player.playerId)?.name ?? localName(player.playerId));
+  // Spec 019: the player's rank and name come from the rows read; a row the list does not hold yet shows what the player read says.
+  const rank = player === undefined ? undefined : boardRankOf(state.board);
+  const myName = player === undefined ? undefined : (state.scores?.name ?? boardOwnName(state.board) ?? localName(player.playerId));
   const chipTotal = state.scored === undefined ? undefined : state.scores?.total;
   const chip = player === undefined || myName === undefined ? undefined : chipText(myName, chipTotal, rank);
   const parts = player === undefined || myName === undefined ? undefined : chipParts(myName, chipTotal, rank);
@@ -183,8 +180,8 @@ export function playHud(input: PlayInput): PlayHud {
     const view = winnersView(phase, names, state.expanded.has(key), state.winnersPage.get(key) ?? 0);
     lines.set(round, [...(lines.get(round) ?? []), { key, phase, view }].sort((a, b) => a.phase - b.phase));
   }
-  const board = rows === undefined ? undefined : boardPage(rows,player?.playerId ?? '', state.boardPage, 10, myName === undefined ? undefined : { name: myName, total: state.scores?.total ?? 0 });
-  const champion = model.stage === 'finished' && rows !== undefined ? championLine(rows, player?.playerId ?? '') : undefined;
+  const board = boardReady(state.board) ? boardView(state.board, myName === undefined ? undefined : { name: myName, total: state.scores?.total ?? 0 }) : undefined;
+  const champion = model.stage === 'finished' && boardReady(state.board) ? championLine(boardScored(state.board), player?.playerId ?? '') : undefined;
   return { chip, chipParts: parts, predict, result, board, champion, winners: lines };
 }
 

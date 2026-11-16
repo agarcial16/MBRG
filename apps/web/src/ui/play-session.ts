@@ -2,20 +2,34 @@
 // fill. Thin: every decision (what may be chosen, the body, the sentences, the lines shown) is in `core/predict-model`, `core/results-model`
 // and `core/play-view`; this file runs the calls and keeps the state. The player token goes only to `PlayNet` (as `Authorization`) and is
 // never logged, put in an address or kept anywhere but the browser storage the door already filled.
+import {
+  boardAfterFailure,
+  boardAfterPage,
+  boardBegin,
+  boardCancel,
+  boardFrozen,
+  boardGoMine,
+  boardJumped,
+  boardQuery,
+  boardRefresh,
+  boardRetry,
+  boardWant,
+  emptyBoard,
+  nextFetch,
+  type BoardData,
+} from '../core/board-model';
 import type { LiveModel } from '../core/live-model';
 import { noOfferText, pickFor, repeatsPick, submitFailure, type InFlight } from '../core/predict-model';
 import {
-  initialPlay,
+  initialPlayFor,
   offerFor,
-  pageBoard,
   pageWinners,
   playHud,
   toggleWinners,
-  withBoard,
+  withBoardState,
   withJoined,
   withNotice,
   withOwn,
-  withPlayers,
   withReply,
   withScores,
   withSending,
@@ -62,11 +76,11 @@ export interface PlaySession {
 }
 
 export function createPlaySession(deps: PlaySessionDeps): PlaySession {
-  let state: PlayState = initialPlay;
+  let state: PlayState = initialPlayFor(deps.player?.playerId ?? '');
   let model: LiveModel | undefined;
   let hold: TourHold = { revealing: false, absorbing: false, finalised: false };
   /** FR-449: the scores, rows and winners as they stood when no tour was running; a tour shows these, never what a read brought in meanwhile. */
-  let settled: Pick<PlayState, 'scores' | 'scored' | 'rows' | 'winners'> | undefined;
+  let settled: (Pick<PlayState, 'scores' | 'scored' | 'winners'> & { readonly board: BoardData }) | undefined;
   const due: Scored[] = [];
   const asked = new Set<string>();
   const forcedRounds = new Set<number>();
@@ -85,10 +99,40 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
       const mine = await deps.net.playerResults(deps.matchId, deps.player.playerId);
       if (mine.ok) state = withScores(state, mine.value, scored);
     }
-    const board = await deps.net.leaderboard(deps.matchId);
-    if (board.ok) state = withBoard(state, board.value);
+    // Spec 019 FR-510: the loaded window of the board is read again from the first page, as many rows as the screen needs.
+    state = withBoardState(state, boardRefresh(state.board));
     deps.changed();
+    void pump();
   }
+
+  let pumping = false;
+  /** Spec 019 FR-508/FR-509: the board reads the model asks for, one after another; none starts while a tour holds the scores back. */
+  async function pump(): Promise<void> {
+    if (pumping) return;
+    pumping = true;
+    try {
+      for (;;) {
+        if (hold.revealing || hold.absorbing || hold.finalised === true) return;
+        const next = nextFetch(state.board);
+        if (next === undefined) return;
+        state = withBoardState(state, boardBegin(state.board));
+        deps.changed();
+        const read = next.what === 'roster' ? await deps.net.playersPage(deps.matchId, next.cursor) : await deps.net.leaderboardPage(deps.matchId, next.cursor);
+        state = withBoardState(state, read.ok ? boardAfterPage(state.board, next, read.value) : boardAfterFailure(state.board, next, read.outcome));
+        deps.changed();
+      }
+    } finally {
+      pumping = false;
+    }
+  }
+
+  /** A board input of the screen (scroll, search, buttons): the model changes and the reads it now needs run. */
+  const board = (next: PlayState['board']): void => {
+    if (next === state.board) return;
+    state = withBoardState(state, next);
+    deps.changed();
+    void pump();
+  };
 
   /** `fresh`: a `results` event just announced the phase, so an earlier refusal no longer counts. */
   async function readWinners(scored: Scored, fresh = false): Promise<void> {
@@ -103,6 +147,7 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
   /** Reads that are due and allowed: nothing runs while the victim or the absorber is still being revealed (FR-409, FR-322), nor during the finalised beat. */
   function flush(): void {
     if (hold.revealing || hold.absorbing || hold.finalised === true) return;
+    void pump();
     const latest = due.splice(0);
     for (const scored of latest) void readWinners(scored, true);
     if (latest.length > 0) void readScores(latest[latest.length - 1]);
@@ -117,9 +162,7 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
       const own = await deps.net.ownPredictions(deps.matchId, deps.player.token, deps.player.playerId.slice(deps.player.playerId.indexOf(':') + 1));
       if (own.ok) state = withOwn(state, own.value);
     }
-    // FR-432: the players list, once; later joins arrive as `player-joined` frames (see `onFrame`), with no further read.
-    const roster = await deps.net.players(deps.matchId);
-    if (roster.ok) state = withPlayers(state, roster.value);
+    // FR-432: the players who joined come as `player-joined` frames (see `onFrame`) and, for the 0-point rows, as roster pages read on demand (spec 019).
     await readScores(undefined);
   }
 
@@ -144,7 +187,12 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
   return {
     handlers: {
       onPick: (faction) => pick(faction),
-      onBoardPage: (delta) => set(pageBoard(state, delta)),
+      onBoardWant: (last) => board(boardWant(state.board, last)),
+      onBoardQuery: (text) => board(boardQuery(state.board, text)),
+      onBoardMine: () => board(boardGoMine(state.board)),
+      onBoardCancel: () => board(boardCancel(state.board)),
+      onBoardRetry: () => board(boardRetry(state.board)),
+      onBoardJumped: () => board(boardJumped(state.board)),
       onWinnersToggle: (key) => set(toggleWinners(state, key)),
       onWinnersPage: (key, delta) => set(pageWinners(state, key, delta)),
       fillPersonal: (parent) => {
@@ -168,8 +216,8 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
       }
       flush();
       const quiet = !tour.revealing && !tour.absorbing && tour.finalised !== true;
-      if (quiet) settled = { scores: state.scores, scored: state.scored, rows: state.rows, winners: state.winners };
-      const shown: PlayState = quiet ? state : { ...state, scores: settled?.scores, scored: settled?.scored, rows: settled?.rows, winners: settled?.winners ?? state.winners };
+      if (quiet) settled = { scores: state.scores, scored: state.scored, board: state.board.data, winners: state.winners };
+      const shown: PlayState = quiet ? state : { ...state, scores: settled?.scores, scored: settled?.scored, board: boardFrozen(state.board, settled?.board ?? emptyBoard(state.board.ui.me).data), winners: settled?.winners ?? state.winners };
       return playHud({ state: shown, model: next, player: deps.player, factions: deps.factions, revealing: tour.revealing, at, forcedRounds });
     },
     onFrame(data) {

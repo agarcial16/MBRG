@@ -17,7 +17,9 @@ import type { LivePanelView } from '../core/live-view';
 import type { UnitRect } from '../core/minimap';
 import type { NavAction } from '../core/navigation';
 import type { PlayHud, PredictView, WinnersLine } from '../core/play-view';
-import type { BoardPage, ResultView } from '../core/results-model';
+import type { ResultView } from '../core/results-model';
+import type { BoardView } from '../core/board-model';
+import { createBoardPanel, type BoardPanel } from './board-panel';
 import { STRINGS, fillTemplate } from '../core/strings';
 import type { BannerView } from '../core/round-banner';
 import { PANEL_CSS } from './live-panel-style';
@@ -50,7 +52,13 @@ export interface LivePanelHandlers {
 export interface PlayHandlers {
   /** FR-401: a faction of the HUD bar was chosen; it is sent at once. */
   onPick(faction: number): void;
-  onBoardPage(delta: number): void;
+  /** Spec 019: the board list shows rows up to this index; a search text; the buttons of the board; the focus moved to the jump row. */
+  onBoardWant(last: number): void;
+  onBoardQuery(text: string): void;
+  onBoardMine(): void;
+  onBoardCancel(): void;
+  onBoardRetry(): void;
+  onBoardJumped(): void;
   onWinnersToggle(key: string): void;
   onWinnersPage(key: string, delta: number): void;
   /** FR-397: fills the box of the personal link (once, when the player chip is first opened). */
@@ -563,33 +571,24 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     for (const line of outcome.lines) el('p', 'hud-line', resultBox).textContent = line;
   };
 
-  let boardSig = '';
   function boardVisible(): void {
     rightColumn.hidden = layout === 'phone' ? false : !hasBoard;
   }
-  const renderBoard = (board: BoardPage | undefined): void => {
-    hasBoard = board !== undefined && (board.rows.length > 0 || board.mine !== undefined);
+  // Spec 019: the board is built once; each refresh only hands it the new view, which redraws only what changed (NFR-105, NFR-107).
+  let boardPanel: BoardPanel | undefined;
+  const renderBoard = (board: BoardView | undefined): void => {
+    hasBoard = board !== undefined;
     boardVisible();
-    const sig = JSON.stringify(board ?? null);
-    if (sig === boardSig) return;
-    boardSig = sig;
-    rightColumn.replaceChildren();
-    el('div', 'hud-title', rightColumn).textContent = STRINGS.boardTitle;
-    if (board === undefined || (board.rows.length === 0 && board.mine === undefined)) {
-      el('p', 'hud-note', rightColumn).textContent = STRINGS.boardEmpty;
-      return;
-    }
-    const list = el('ol', 'hud-board', rightColumn);
-    const rowOf = (parent: HTMLElement, rank: number | undefined, name: string, total: number, me: boolean): void => {
-      const item = el('li', me ? 'hud-boardrow me' : 'hud-boardrow', parent);
-      if (me) item.setAttribute('aria-current', 'true');
-      el('span', 'hud-num', item).textContent = rank === undefined ? STRINGS.boardNoRank : String(rank);
-      el('span', 'hud-boardname', item).textContent = me ? fillTemplate(STRINGS.boardYou, { name }) : name;
-      el('span', 'hud-num', item).textContent = String(total);
-    };
-    for (const row of board.rows) rowOf(list, row.rank, row.name, row.total, row.me);
-    if (board.mine !== undefined) rowOf(el('ol', 'hud-board hud-board-mine', rightColumn), board.mine.rank, board.mine.name, board.mine.total, true);
-    if (board.pages > 1) pager(rightColumn, board.page, board.pages, (delta) => handlers.play?.onBoardPage(delta));
+    if (board === undefined) return;
+    boardPanel ??= createBoardPanel(rightColumn, {
+      want: (last) => handlers.play?.onBoardWant(last),
+      query: (text) => handlers.play?.onBoardQuery(text),
+      mine: () => handlers.play?.onBoardMine(),
+      cancel: () => handlers.play?.onBoardCancel(),
+      retry: () => handlers.play?.onBoardRetry(),
+      jumped: () => handlers.play?.onBoardJumped(),
+    });
+    boardPanel.render(board);
   };
 
   // The strip is rebuilt only when the rounds or the displayed round change (a rebuild every second would drop the keyboard focus).

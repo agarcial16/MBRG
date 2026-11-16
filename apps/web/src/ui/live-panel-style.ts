@@ -249,9 +249,23 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="desk"] .hud-command:has(.hud-predict:not([hidden])) > .hud-stage { display: none; }
 .hud-seal[data-empty="true"] { visibility: hidden; }
 .hud-right { position: absolute; right: 12px; top: 70px; width: 238px; box-sizing: border-box; max-height: calc(100vh - 340px); overflow: auto; padding: 12px 14px; }
-.hud-board { list-style: none; margin: 6px 0 0; padding: 0; }
-.hud-boardrow { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; padding: 3px 0; font-size: 13px; border-bottom: 1px solid var(--hud-wood2); }
-.hud-boardrow.me { color: var(--hud-gilt); font-weight: 600; position: sticky; top: 0; bottom: 0; background: var(--hud-wood); }
+/* the board (spec 019): a column with a fixed height, the list scrolls inside it and is drawn by window (rows are placed by transform) */
+.hud-right:has(.hud-boardscroll) { display: flex; flex-direction: column; height: calc(100vh - 340px); max-height: 640px; min-height: 280px; overflow: hidden; }
+.hud-boardtools { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+.hud-boardtools .hud-boardsearch { flex: 1 1 auto; min-width: 0; margin: 0; }
+.hud-boardmine { flex: none; padding: 0 6px; min-height: 36px; font-size: 12px; }
+.hud-boardstatus { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
+.hud-boardstatus[hidden], .hud-boardtools [hidden], .hud-right [hidden] { display: none; }
+.hud-boardstatus .hud-note { flex: 1 1 auto; min-width: 0; }
+.hud-boardscroll { position: relative; flex: 1 1 auto; min-height: 132px; margin-top: 6px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+.hud-boardscroll:focus-visible { outline: 2px solid var(--hud-gilt); outline-offset: -2px; }
+.hud-boardspacer { position: relative; width: 100%; }
+.hud-boardlayer { position: absolute; inset: 0; }
+.hud-boardrow { box-sizing: border-box; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 8px; height: 44px; padding: 0 4px; font-size: 13px; border-bottom: 1px solid var(--hud-wood2); }
+.hud-boardlayer .hud-boardrow { position: absolute; left: 0; right: 0; top: 0; }
+.hud-boardrow:focus-visible { outline: 2px solid var(--hud-gilt); outline-offset: -2px; }
+.hud-boardrow.me { color: var(--hud-gilt); font-weight: 600; background: var(--hud-wood); }
+.hud-boardextra { display: flex; justify-content: center; color: var(--hud-muted); }
 .hud-boardname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hud-pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
 .hud-winners { margin-top: 3px; font-size: 12px; color: var(--hud-muted); }
@@ -293,8 +307,13 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="phone"] .hud-command[data-offer="closed"]:has(.hud-result:not([hidden])) > .hud-victim { display: none; }
 .hud[data-layout="phone"] .hud-command[data-offer="closed"]:has(.hud-result:not([hidden])) > .hud-predict { display: none; }
 /* the ranking scrolls with its pane; the own row stays pinned at the bottom of it */
-.hud[data-layout="phone"] .hud-board-mine { position: sticky; bottom: 0; background: var(--hud-dock); }
-.hud-board-mine { margin-top: 0; border-top: 1px solid var(--hud-gilt-dim); }
+.hud[data-layout="phone"] .hud-board-mine { background: var(--hud-dock); }
+.hud-board-mine { flex: none; margin-top: 0; border-top: 1px solid var(--hud-gilt-dim); }
+/* on a phone the board fills the pane of the dock (the tab already names it), the list takes what the search row leaves */
+.hud[data-layout="phone"] .hud-right:has(.hud-boardscroll) { height: calc(var(--hud-pane-h) - 12px); max-height: none; min-height: 0; overflow: hidden; }
+.hud[data-layout="phone"] .hud-right:has(.hud-boardscroll) > .hud-title { display: none; }
+.hud[data-layout="phone"] .hud-boardscroll { flex: 1 1 0; min-height: 44px; margin-top: 2px; }
+.hud[data-layout="phone"] .hud-boardmine, .hud[data-layout="phone"] .hud-boardcancel { min-height: 44px; }
 
 /* messages of the address */
 .hud-messages { color: var(--hud-ember); font-size: 13px; }
