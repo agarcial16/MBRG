@@ -103,24 +103,33 @@ describe('FR-465 countdown texts', () => {
   });
 });
 
-describe('FR-467 final leaderboard text', () => {
+describe('FR-478 final leaderboard embed', () => {
   const finished: MatchEvent = { type: 'match-finished', seq: 9, winner: 3, matchSecret: hex, rule: 'rule', reportedTime: 1 };
-  const row = (rank: number): LeaderboardRow => ({ rank, playerId: `discord:${700 + rank}`, total: 20 - rank, correctVictims: 0, correctAbsorbers: 0, correctWinner: 0 });
+  const row = (rank: number): LeaderboardRow => ({ rank, playerId: `discord:${700 + rank}`, total: 40 - rank, correctVictims: 0, correctAbsorbers: 0, correctWinner: 0 });
   const ctx = { follow: entry(), names };
 
-  it('FR-467 a finished match asks for the board and posts the winner, then the first ten rows', () => {
+  it('FR-478 a finished match asks for the whole board and posts the winner, then page 1 of the public leaderboard', () => {
     expect(needOf(finished, entry())).toEqual({ type: 'board' });
     const out = buildAnnouncement(finished, ctx, { board: Array.from({ length: 12 }, (_, i) => row(i + 1)) });
+    expect(out).toHaveLength(2);
     expect(out[0]?.text).toContain('Francia');
-    const board = out.slice(1).map((m) => m.text).join('\n');
-    expect(board).toContain('1. <@701> - 19 pts');
-    expect(board).toContain('10. <@710> - 10 pts');
-    expect(board).not.toContain('<@711>');
+    const board = out[1];
+    expect(board?.embed?.description).toContain('1. <@701> - 39 pts');
+    expect(board?.embed?.description).toContain('10. <@710> - 30 pts');
+    expect(board?.embed?.description).not.toContain('<@711>');
+    expect(board?.embed?.footer).toBe('Página 1/2');
+    expect(board?.buttons).toHaveLength(2);
+    // The final post has no asker: its tag has only the match, and no "Tu puesto" line.
+    expect(board?.board).toEqual({ matchId: 'm1' });
+    expect(board?.embed?.fields).toEqual([]);
     expect(JSON.stringify(out)).not.toContain(hex);
   });
 
-  it('FR-467 with no points at all only the winner is posted', () => {
-    expect(buildAnnouncement(finished, ctx, { board: [] })).toHaveLength(1);
+  it('FR-478 with no points at all the board embed says so and has no buttons; without a board read only the winner is posted', () => {
+    const out = buildAnnouncement(finished, ctx, { board: [] });
+    expect(out).toHaveLength(2);
+    expect(out[1]?.embed?.description).toBe('Todavía no hay puntos.');
+    expect(out[1]?.buttons).toEqual([]);
     expect(buildAnnouncement(finished, ctx)).toHaveLength(1);
   });
 });

@@ -5,7 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { decide } from '../../src/core/actions';
 import type { Interaction } from '../../src/core/actions';
+import { parseCustomId } from '../../src/core/custom-ids';
 import type { OutMessage, Reply } from '../../src/core/model';
+import { createBoards, registerSent } from '../../src/io/boards';
+import type { Boards } from '../../src/io/boards';
 import { createFollower, createNames } from '../../src/io/follower';
 import type { Follower, Poster } from '../../src/io/follower';
 import { createHandler } from '../../src/io/handler';
@@ -30,6 +33,11 @@ export interface Edited {
   readonly message: OutMessage;
 }
 
+export interface Disabled {
+  readonly channelId: string;
+  readonly messageId: string;
+}
+
 /** The countdown timer of a test bot: nothing runs by itself, `fire()` is one tick of every running timer. */
 export interface Ticker {
   /** Timers set and not yet cancelled. */
@@ -46,6 +54,19 @@ export interface Bot {
   readonly edits: Edited[];
   readonly ticker: Ticker;
   readonly logs: string[];
+  /** The leaderboard messages that page, with a clock and timers the test moves by hand (spec 017). */
+  readonly boards: Boards;
+  readonly disables: Disabled[];
+  /** The clock of the boards, in ms. */
+  clock: number;
+  /** Runs the pending 5-minute timers of the boards (`elapse` also moves the clock first). */
+  elapse(ms: number): void;
+  /** While true a disable edit fails. */
+  failDisables: boolean;
+  /** What the shell does after it sent a reply as message `messageId`: remember a leaderboard that pages. */
+  sent(reply: Reply, messageId: string, channelId?: string): void;
+  /** A press on a leaderboard button of message `messageId`, as the shell reads it. */
+  press(messageId: string, customId: string, who: Who): Promise<Reply>;
   /** The next `n` posts fail (a Discord outage). */
   failPosts: number;
   /** While true every edit fails. */
@@ -82,7 +103,41 @@ export function boot(fake: Fake, statePath: string, options: { posts?: Posted[];
   const timers = new Set<() => void>();
   const periods: number[] = [];
   const ticker: Ticker = { active: () => timers.size, fire: () => [...timers].forEach((tick) => tick()), periods };
+  const pendingTimers = new Map<number, { at: number; fn: () => void }>();
+  let timerId = 0;
+  const disables: Disabled[] = [];
+  const boards = createBoards({
+    now: () => bot.clock,
+    after: (ms, fn) => {
+      const id = (timerId += 1);
+      pendingTimers.set(id, { at: bot.clock + ms, fn });
+      return () => pendingTimers.delete(id);
+    },
+    disable: async (channelId, messageId) => {
+      if (bot.failDisables) throw new Error('discord down');
+      disables.push({ channelId, messageId });
+    },
+  });
   const bot: Bot = {
+    boards,
+    disables,
+    clock: 1_000_000,
+    failDisables: false,
+    elapse(ms) {
+      bot.clock += ms;
+      for (const [id, t] of [...pendingTimers]) {
+        if (t.at <= bot.clock) {
+          pendingTimers.delete(id);
+          t.fn();
+        }
+      }
+    },
+    sent: (reply, messageId, channelId = CHANNEL) => registerSent(boards, channelId, messageId, reply.type === 'channel' ? reply.messages[0] : undefined),
+    press: (messageId, customId, who) => {
+      const id = parseCustomId(customId);
+      const known = id?.type === 'board' ? boards.lookup(messageId) : undefined;
+      return bot.run({ type: 'board-press', customId, userId: who.userId, entry: known, now: bot.clock }, who);
+    },
     store,
     posts,
     edits,
@@ -104,6 +159,10 @@ export function boot(fake: Fake, statePath: string, options: { posts?: Posted[];
       posts.push({ channelId, message });
       return `message-${posts.length}`;
     },
+    async disable(channelId, messageId) {
+      if (bot.failDisables) throw new Error('discord down');
+      disables.push({ channelId, messageId });
+    },
     async edit(channelId, messageId, message) {
       if (bot.failEdits) throw new Error('discord down');
       if (bot.slowEdits) await new Promise((resolve) => setTimeout(resolve, 40));
@@ -115,9 +174,9 @@ export function boot(fake: Fake, statePath: string, options: { posts?: Posted[];
     periods.push(ms);
     return () => timers.delete(tick);
   };
-  const follower = createFollower({ baseUrl: fake.url, client, store, poster, names, viewerUrl: options.viewerUrl, log: (code) => logs.push(code), sleep: () => new Promise((resolve) => setTimeout(resolve, 10)), every });
+  const follower = createFollower({ baseUrl: fake.url, client, store, poster, boards, names, viewerUrl: options.viewerUrl, log: (code) => logs.push(code), sleep: () => new Promise((resolve) => setTimeout(resolve, 10)), every });
   let n = 0;
-  const handler = createHandler({ client, store, follower, names, viewerUrl: options.viewerUrl, newRequestId: () => `request-${(n += 1)}` });
+  const handler = createHandler({ client, store, follower, names, newRequestId: () => `request-${(n += 1)}` });
   Object.assign(bot, {
     follower,
     run: (interaction: Interaction, who: Who = MANAGER) => {

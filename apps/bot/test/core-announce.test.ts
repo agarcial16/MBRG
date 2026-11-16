@@ -1,9 +1,9 @@
-import type { LeaderboardRow, MatchEvent } from '@mbrg/protocol';
+import type { MatchEvent } from '@mbrg/protocol';
 import { describe, expect, it } from 'vitest';
-import { advanceFollow, boardLink, buildAnnouncement, endsFollowing, lobbyMessage, needOf, viewerLink } from '../src/core/announce';
+import { advanceFollow, buildAnnouncement, endsFollowing, lobbyMessage, needOf, viewerLink } from '../src/core/announce';
 import { START_ID, PREDICT_ID, parseCustomId, pickId, findId } from '../src/core/custom-ids';
 import { nameBook, readFactionNames } from '../src/core/names';
-import { boardMessages, summarizeWinners, userIdOf, winnersText } from '../src/core/results';
+import { summarizeWinners, userIdOf, winnersText } from '../src/core/results';
 import { emptyState, follow, followedOf, parseState, serializeState, unfollow } from '../src/core/state';
 import type { Followed } from '../src/core/state';
 
@@ -134,46 +134,6 @@ describe('FR-456 who guessed right', () => {
     expect(needOf(applied(), entry())).toEqual({ type: 'left', round: 2 });
     expect(needOf(schedule('phase-1'), entry())).toEqual({ type: 'none' });
     expect(buildAnnouncement(r1, ctx(), { winners: summarizeWinners(ids(2)) })[0]?.text).toContain('<@1001>');
-  });
-});
-
-describe('FR-457 leaderboard text', () => {
-  const row = (rank: number, playerId: string, total: number, name?: string): LeaderboardRow =>
-    ({ rank, playerId, total, correctVictims: 0, correctAbsorbers: 0, correctWinner: 0, ...(name === undefined ? {} : { name }) });
-
-  it('FR-457 lists rank, mention and points of the first ten', () => {
-    const rows = Array.from({ length: 14 }, (_, i) => row(i + 1, `discord:${500 + i}`, 100 - i));
-    const out = boardMessages(rows);
-    const text = out.map((m) => m.text).join('\n');
-    expect(text).toContain('1. <@500> - 100 pts');
-    expect(text).toContain('10. <@509> - 91 pts');
-    expect(text).not.toContain('<@510>');
-  });
-
-  it('FR-457 an empty board says so; a web player shows its name', () => {
-    expect(boardMessages([])[0]?.text).toBe('Todavía no hay puntos.');
-    expect(boardMessages([row(1, 'player:abc', 5, 'Eva')])[0]?.text).toContain('1. Eva - 5 pts');
-  });
-
-  it('FR-468 the own row is the last line after the first ten (and before the link); an own row already inside the ten is not repeated', () => {
-    const rows = Array.from({ length: 10 }, (_, i) => row(i + 1, `discord:${500 + i}`, 100 - i));
-    const own = row(23, 'discord:777', 40);
-    const lines = boardMessages(rows, { own, link: 'https://v.example/?match=m1&spectate=1' }).map((m) => m.text).join('\n').split('\n');
-    expect(lines.slice(-2)).toEqual(['Tu puesto: 23. <@777> - 40 pts', 'Clasificación completa: https://v.example/?match=m1&spectate=1']);
-    expect(lines).toHaveLength(1 + 10 + 2);
-    const inside = boardMessages(rows, { own: rows[3] as LeaderboardRow }).map((m) => m.text).join('\n');
-    expect(inside).not.toContain('Tu puesto');
-    expect(boardMessages(rows).map((m) => m.text).join('\n')).not.toContain('http');
-  });
-
-  it('FR-468 an empty board shows neither the own line nor the link', () => {
-    expect(boardMessages([], { own: row(3, 'discord:777', 4), link: 'https://v.example/' })[0]?.text).toBe('Todavía no hay puntos.');
-  });
-
-  it('FR-468 the full-leaderboard link is the viewer address as a spectator, with the match and no round', () => {
-    expect(boardLink('https://viewer.example/play', 'm1')).toBe('https://viewer.example/play?match=m1&spectate=1');
-    expect(boardLink(undefined, 'm1')).toBeUndefined();
-    expect(boardLink('not an address', 'm1')).toBeUndefined();
   });
 });
 

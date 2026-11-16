@@ -2,12 +2,12 @@
 // pure core; this only calls the server, the state and the follower. A member's first valid prediction makes them a player: there
 // is no join (FR-463), the server creates the `discord:<id>` player from the credential and the local id.
 import type { Action } from '../core/actions';
-import { boardLink, lobbyMessage } from '../core/announce';
+import { lobbyMessage } from '../core/announce';
+import { boardView } from '../core/board';
 import type { Reply } from '../core/model';
 import { matchCandidates } from '../core/text';
 import { paceTiming } from '../core/paces';
 import { chosenText, closedSentence, errorSentence, offerFor, openPhaseOf, resolveText, suggestionsFor } from '../core/predict';
-import { BOARD_SIZE, boardMessages } from '../core/results';
 import { STRINGS } from '../core/strings';
 import type { Followed } from '../core/state';
 import type { NamesProvider, Follower } from './follower';
@@ -19,8 +19,6 @@ export interface HandlerOptions {
   readonly store: StateStore;
   readonly follower: Follower;
   readonly names: NamesProvider;
-  /** The viewer's base address, for the link to the full leaderboard (FR-468); none: no link. */
-  readonly viewerUrl?: string | undefined;
   /** A fresh client request id for a creation (the server remembers it for a retry). */
   readonly newRequestId: () => string;
 }
@@ -73,13 +71,17 @@ export function createHandler(options: HandlerOptions): (action: Action, who: Wh
         // The followed match, or else the last one the channel had (FR-466).
         const shown = entry ?? store.last(who.channelId);
         if (shown === undefined) return text(STRINGS.notFollowing);
-        const rows = await client.leaderboard(shown.matchId, BOARD_SIZE);
+        const rows = await client.leaderboard(shown.matchId);
         if (!rows.ok) return failed(rows.failure);
-        // The asker outside the first ten gets their own row as a last line; a failed search only leaves it out (FR-468).
-        const askerId = `discord:${who.userId}`;
-        const own = rows.value.length >= BOARD_SIZE && !rows.value.some((r) => r.playerId === askerId) ? await client.rankOf(shown.matchId, askerId) : undefined;
-        const link = boardLink(options.viewerUrl, shown.matchId);
-        return { type: 'channel', messages: boardMessages(rows.value, { link, ...(own?.ok === true && own.value !== undefined ? { own: own.value } : {}) }) };
+        // Page 1 for the member who asked: only they page it (FR-477, FR-480).
+        return { type: 'channel', messages: [boardView(rows.value, 1, { matchId: shown.matchId, kind: 'asker', viewerId: who.userId }).message] };
+      }
+      case 'board-page': {
+        // Every press reads the board again: the page is clamped if it changed meanwhile (edge case of the spec).
+        const rows = await client.leaderboard(action.matchId);
+        if (!rows.ok) return failed(rows.failure);
+        const kind = action.mode === 'asker' ? 'asker' : 'private';
+        return { type: 'channel', messages: [boardView(rows.value, action.page, { matchId: action.matchId, kind, viewerId: who.userId }).message] };
       }
       case 'predict-open':
       case 'predict-text':
