@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { JOIN_FIELDS, START_FIELDS, readAdvance, readCreation, readJoin, readStart, readSubmission, type ReadResult } from '../src/index';
+import { CREATION_FIELDS, JOIN_FIELDS, JOIN_POLICIES, START_FIELDS, readAdvance, readCreation, readJoin, readStart, readSubmission, type ReadResult } from '../src/index';
 
 const err = (r: ReadResult<unknown>): string => (r.ok ? 'ok' : `${r.error.kind}:${(r.error.items ?? []).join(',')}`);
 const creation = { mapId: 'dev', timing: { i: 120, l1: 30, l2: 10 }, requestId: 'req-1' };
@@ -217,5 +217,15 @@ describe('creation body joinPolicy (spec 018)', () => {
 
   it('FR-490 joinPolicy is own-property only', () => {
     expect(readCreation(Object.create({ joinPolicy: 'x' }, Object.getOwnPropertyDescriptors(creation)))).toStrictEqual({ ok: true, value: creation });
+  });
+});
+
+describe('the size of the joinPolicy member (spec 018)', () => {
+  it('NFR-103 joinPolicy is one of two short texts read under the existing body limits: no new list, store or length', () => {
+    expect(JOIN_POLICIES).toStrictEqual(['open', 'client']);
+    expect(Math.max(...JOIN_POLICIES.map((p) => p.length))).toBeLessThanOrEqual(6);
+    // A long text is refused as a value, never read or stored; the 4,096-byte body limit is the server's and is not raised here.
+    expect(err(readCreation({ ...creation, joinPolicy: 'client'.repeat(1000) }))).toBe('invalid-request:joinPolicy');
+    expect(CREATION_FIELDS).toStrictEqual(['mapId', 'timing', 'requestId', 'joinPolicy']);
   });
 });

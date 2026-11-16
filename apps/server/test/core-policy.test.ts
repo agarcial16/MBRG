@@ -63,3 +63,17 @@ describe('submission policy', () => {
     expect(refused).toStrictEqual({ ok: false, error: { kind: 'forbidden' } });
   });
 });
+
+describe('the policy decisions are pure functions', () => {
+  it('NFR-104 the same parameters give the same answer, nothing is changed, and the answer needs no store, clock or random source', () => {
+    const caller: PolicyCaller = Object.freeze({ role: 'client', namespace: 'discord' });
+    for (let i = 0; i < 3; i++) {
+      expect(creationPolicy('client', caller, false)).toStrictEqual({ ok: true, policy: 'client', namespace: 'discord' });
+      expect(joinPolicy('discord')).toStrictEqual({ ok: false, error: errorReply('joins-closed') });
+      expect(submitPolicy('discord', caller)).toStrictEqual({ ok: true });
+    }
+    expect(creationPolicy.length).toBe(3);
+    expect(joinPolicy.length).toBe(1);
+    expect(submitPolicy.length).toBe(2);
+  });
+});

@@ -155,3 +155,18 @@ describe('joins on a client-only match', () => {
     expect((await join(h, match.matchId, 'Ana', 'r-9')).text).toBe(errorBody('unknown-match'));
   });
 });
+
+describe('the contract for the viewer', () => {
+  it('FR-504 a client-only match shows clientOnly true to the viewer, and a join it still sends is joins-closed so it can fall back to watching', async () => {
+    const h = await start();
+    const match = await createClientOnly(h);
+    const view = await request(h.port, { path: `/matches/${match.matchId}` });
+    expect(view.status).toBe(200);
+    expect((view.json() as { clientOnly?: boolean }).clientOnly).toBe(true);
+    const refused = await join(h, match.matchId, 'Visitor', 'v-1');
+    expect([refused.status, refused.text]).toStrictEqual([403, errorBody('joins-closed')]);
+    // The open match shows no member, so the viewer shows the name door as before.
+    const open = await createOpen(h);
+    expect('clientOnly' in ((await request(h.port, { path: `/matches/${open.matchId}` })).json() as object)).toBe(false);
+  });
+});
