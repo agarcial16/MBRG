@@ -1,5 +1,5 @@
 # Spec 017 — Bot embeds and paged leaderboard
-Status: approved by the user on 2026-11-15. Tier: Light SDD (Discord bot; no server change). Builds on 012 (implemented). Ids continue 016: FR-472 onwards, NFR-92 onwards.
+Status: implemented (approved 2026-11-15; hand-tested on Discord 2026-11-16; merged in #64). Tier: Light SDD (Discord bot; no server change). Builds on 012 (implemented). Ids continue 016: FR-472 onwards, NFR-92 onwards.
 
 ## Context and goal
 The bot's announcements are plain text, and the leaderboard shows only 10 rows with a viewer link. This spec makes the announcements Discord embeds that highlight who matters, and replaces the 10-row text board with a paged embed. Players predict; they never control the match. Nothing about a future round is ever shown (012 NFR-88).
