@@ -36,7 +36,7 @@ If a channel overrides the permissions of the bot role, grant **Embed Links** an
 ## What members see
 
 - Each announcement (round opened, victim revealed, round applied, scored phase, match finished, match halted) is an embed with its
-  own color; the bot's avatar is the thumbnail. Mentions never ping.
+  own color and no image. Mentions never ping.
 - `/mbrg board` posts the leaderboard in the channel, 10 rows per page, with **Anterior** and **Siguiente**. Only the member who ran
   the command can page it; anyone else gets a private sentence. After 5 minutes its buttons are disabled.
 - When a match finishes the bot posts the winner and then the public leaderboard (page 1). Any member can press its buttons and

@@ -8,7 +8,7 @@
 - `core/send-mode.ts` (new): embed or text, and one warning per channel (FR-475). `core/limits.ts`: `fitEmbed` cuts to Discord's limits (NFR-94).
 - `core/actions.ts`: `board-press` interaction -> `board-page` action: the asker pages in place, another member gets a private sentence, the final post (no asker) gives each presser a new private page, expired or unknown message gives "caduco" (FR-480, FR-481). `core/custom-ids.ts`: `mbrg:bd:<p|n>:<page>` (public) and `mbrg:bm:<p|n>:<page>:<match>` (private pages).
 - `io/boards.ts` (new): in-memory registry by message id with injected clock and timer; 5 minutes after posting it asks the poster to disable the buttons once, a failed edit is ignored. `io/follower.ts` registers the final post; `io/handler.ts` serves `board` and `board-page`; `io/server-client.ts`: `leaderboard(matchId)` now reads every page (`rankOf` and the 10-row read are gone).
-- `discord/translate.ts`, `discord/shell.ts`: embed payloads (avatar thumbnail, no ping), Embed Links read per channel, in-place `update` delivery, `disable` that edits only the components. `main.ts` wires the registry.
+- `discord/translate.ts`, `discord/shell.ts`: embed payloads (no image, no ping), Embed Links read per channel, in-place `update` delivery, `disable` that edits only the components. `main.ts` wires the registry.
 - The "Clasificacion completa" viewer link and its string are removed (FR-482). All new sentences are in `core/strings.ts` (FR-484; the ASCII scan and the dead-string scan still pass).
 - `apps/bot/README.md` (new): operator guide with the invite instructions, including Embed Links (FR-476).
 
@@ -26,7 +26,7 @@
 
 ### Untested on real Discord (hand run needed)
 - That the permission read (`permissionsFor(...).has(EmbedLinks)`) matches what Discord enforces, and that an interaction reply (board press, `/mbrg board`) with embeds behaves the same with and without Embed Links.
-- The rendering: colors, thumbnail (avatar URL), footer, mentions inside embeds (name shown, no ping, a member who left shows as unknown).
+- The rendering: colors, footer, mentions inside embeds (name shown, no ping, a member who left shows as unknown).
 - The in-place edit of the public board (`deferUpdate` + `editReply`) and the private page of the final post (new ephemeral reply, then edit of that ephemeral message by its own buttons).
 - The 5-minute disable (fetch message, set `disabled` on every component, edit) and the Read Message History need.
 - Editing the countdown on an embed message (content cleared, embed kept), and the switch embed <-> text when the permission changes between edits.

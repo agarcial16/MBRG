@@ -9,7 +9,7 @@ export interface EmbedField {
   readonly value: string;
 }
 
-/** A Discord embed as plain data (spec 017 FR-472). The only image is the bot's avatar as thumbnail, which the shell adds: no image field here. */
+/** A Discord embed as plain data (spec 017 FR-472). No image of any kind: there is no image field here. */
 export interface EmbedSpec {
   readonly color: number;
   readonly title: string;

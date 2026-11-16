@@ -91,16 +91,17 @@ describe('spec 017 embeds in payloads', () => {
     buttons: [{ type: 'custom', customId: PREDICT_ID, label: 'Predecir', style: 'primary' }],
   };
 
-  it('FR-472 an embed goes with its color, fields and footer and the bot avatar as the only image; no image, video or map', () => {
-    const e = embedPayload(embedMessage.embed as NonNullable<OutMessage['embed']>, 'https://cdn.example/bot.png');
-    expect(e).toEqual({ title: 'Ronda 1 abierta', color: 7, description: 'Hola <@42>', fields: [{ name: 'Victima', value: '**A**' }], footer: { text: 'Pagina 1/2' }, thumbnail: { url: 'https://cdn.example/bot.png' } });
+  it('FR-472 an embed goes with its color, fields and footer and no image of any kind: no thumbnail, image, video or map', () => {
+    const e = embedPayload(embedMessage.embed as NonNullable<OutMessage['embed']>);
+    expect(e).toEqual({ title: 'Ronda 1 abierta', color: 7, description: 'Hola <@42>', fields: [{ name: 'Victima', value: '**A**' }], footer: { text: 'Pagina 1/2' } });
     expect(embedPayload({ color: 1, title: 't', fields: [] })).toEqual({ title: 't', color: 1 });
     expect(Object.keys(e)).not.toContain('image');
     expect(Object.keys(e)).not.toContain('video');
+    expect(Object.keys(e)).not.toContain('thumbnail');
   });
 
   it('FR-472 in embed mode the message is the embed and its buttons, with the text cleared; mentions never ping (NFR-94)', () => {
-    const p = messagePayload(embedMessage, { mode: 'embed', avatarUrl: 'https://cdn.example/bot.png' });
+    const p = messagePayload(embedMessage, { mode: 'embed' });
     expect(p.content).toBe('');
     expect(p.embeds).toHaveLength(1);
     expect(p.allowedMentions).toEqual({ parse: [] });

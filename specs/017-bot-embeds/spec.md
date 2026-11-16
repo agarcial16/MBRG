@@ -13,7 +13,7 @@ The bot's announcements are plain text, and the leaderboard shows only 10 rows w
 - US-2. As a member, I want to page the whole leaderboard and always see my own rank.
 
 ## Functional requirements
-- FR-472: THE SYSTEM SHALL post every event announcement of 012 FR-453 and FR-456 as an embed with a color per message type (round opened, victim revealed, round applied, scored phase, match finished, match halted), a title and fields; the bot's own avatar is the only image (thumbnail); no map image or animation.
+- FR-472: THE SYSTEM SHALL post every event announcement of 012 FR-453 and FR-456 as an embed with a color per message type (round opened, victim revealed, round applied, scored phase, match finished, match halted), a title and fields; no image of any kind (no thumbnail, no avatar, no map image, no animation). Changed 2026-11-16 by the user after the hand run: the default avatar thumbnail was too big and distracting.
 - FR-473: THE SYSTEM SHALL highlight in the embeds: the victim (revealed and applied), the absorber (applied), the members who guessed right (mentions, at most 10 then "and N more", 012 FR-456) and the final winner.
 - FR-474: THE SYSTEM SHALL keep the Predict flow of 012 FR-453, FR-454, FR-465 working in the open-phase embed: one Predict button, the viewer link button, the per-second countdown label and the disabled "cerrado" state; editing the countdown never changes the embed text.
 - FR-475: IF the bot lacks the channel permission Embed Links, THEN THE SYSTEM SHALL post the same announcement as the plain text of 012 and log one operator warning per channel (no member data); it SHALL NOT drop the announcement.

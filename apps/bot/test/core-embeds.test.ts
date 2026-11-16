@@ -58,7 +58,7 @@ describe('FR-472 every announcement is an embed with a color per type', () => {
     expect(out[0]?.text).toContain('Quedan 4 facciones');
   });
 
-  it('FR-472 no image: an embed spec has no image, video or map field (the bot avatar is added by the shell as the thumbnail)', () => {
+  it('FR-472 no image: an embed spec has no image, video or map field (nor a thumbnail)', () => {
     for (const { embed } of all) expect(Object.keys(embed ?? {}).sort()).toEqual(expect.arrayContaining(['color', 'fields', 'title']));
     for (const { embed } of all) expect(JSON.stringify(embed)).not.toMatch(/image|video|http/i);
   });

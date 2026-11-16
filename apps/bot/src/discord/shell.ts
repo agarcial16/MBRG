@@ -57,7 +57,7 @@ export function createShell(options: ShellOptions): Shell {
     if (decision.warned) warned.add(channelId);
     else warned.delete(channelId);
     if (decision.warn) options.log('embed-links-missing');
-    return { mode: decision.mode, avatarUrl: client.user?.displayAvatarURL({ extension: 'png', size: 128 }) };
+    return { mode: decision.mode };
   }
 
   const poster: Poster = {

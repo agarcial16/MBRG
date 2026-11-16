@@ -49,16 +49,15 @@ const buttonOf = (button: ButtonSpec) =>
 /** The components of a message: its buttons in rows of at most five. */
 export const componentsOf = (buttons: readonly ButtonSpec[]) => rowsOf(buttons).map((row) => ({ type: ACTION_ROW, components: row.map(buttonOf) }));
 
-/** How a message is sent: as an embed (the bot may embed) or as the plain text of 012 (FR-475); the avatar is the thumbnail of every embed (FR-472). */
+/** How a message is sent: as an embed (the bot may embed) or as the plain text of 012 (FR-475). */
 export interface View {
   readonly mode: 'embed' | 'text';
-  readonly avatarUrl?: string | undefined;
 }
 
 const TEXT_VIEW: View = { mode: 'text' };
 
-/** An embed as the API takes it, cut to Discord's limits (NFR-94); the only image is the bot's avatar. */
-export function embedPayload(spec: EmbedSpec, avatarUrl?: string) {
+/** An embed as the API takes it, cut to Discord's limits (NFR-94); no image of any kind (FR-472). */
+export function embedPayload(spec: EmbedSpec) {
   const e = fitEmbed(spec);
   return {
     title: e.title,
@@ -66,7 +65,6 @@ export function embedPayload(spec: EmbedSpec, avatarUrl?: string) {
     ...(e.description === undefined ? {} : { description: e.description }),
     ...(e.fields.length === 0 ? {} : { fields: e.fields.map((f) => ({ name: f.name, value: f.value })) }),
     ...(e.footer === undefined ? {} : { footer: { text: e.footer } }),
-    ...(avatarUrl === undefined ? {} : { thumbnail: { url: avatarUrl } }),
   };
 }
 
@@ -78,7 +76,7 @@ export function embedPayload(spec: EmbedSpec, avatarUrl?: string) {
 export function messagePayload(message: OutMessage, view: View = TEXT_VIEW) {
   const components = componentsOf(message.buttons);
   const extra = components.length === 0 ? {} : { components };
-  if (message.embed !== undefined && view.mode === 'embed') return { content: '', embeds: [embedPayload(message.embed, view.avatarUrl)], allowedMentions: { parse: [] as string[] }, ...extra };
+  if (message.embed !== undefined && view.mode === 'embed') return { content: '', embeds: [embedPayload(message.embed)], allowedMentions: { parse: [] as string[] }, ...extra };
   return { content: message.text, ...(message.embed === undefined ? {} : { embeds: [] as never[] }), allowedMentions: { parse: [] as string[] }, ...extra };
 }
 
