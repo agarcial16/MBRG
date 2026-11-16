@@ -1,0 +1,18 @@
+### M2 — Storage (5 / 5)
+Plan section 3. Depends on M1. Highest-risk milestone (R1): persistence.
+
+- [x] **T2.1. Schema v3 and `TABLES`.** FR-506, NFR-103
+  - Files: `apps/server/src/store/schema.ts`, `apps/server/test/store-open.test.ts`.
+  - Done when: tests (red first) pin `SCHEMA_VERSION = 3`, `SCHEMA_V3_ADDITIONS` as the single `client_matches` table (primary key `match_id` referencing `matches`, `namespace` text not null) and `TABLES` with `client_matches`; a new file opens at `user_version` 3 with the table present and the SQL of every other table identical to the committed text.
+- [x] **T2.2. In-place upgrade from version 1 and 2.** FR-506
+  - Files: `apps/server/src/store/sqlite.ts`, tests `apps/server/test/service-v1-database.test.ts` (its `userVersion` expectation 2 becomes 3; listed in PROGRESS), new `apps/server/test/store-upgrade-v3.test.ts`.
+  - Done when: from a closed v1 file and from a closed v2 file holding matches, lobbies, players, predictions and memo rows, opening upgrades to 3 in one transaction; a hash of every row of every pre-existing table, `meta` included, is the same before and after (no row rewritten; `meta.schema_version` keeps its old value, plan section 3); the fixtures are the committed v1 file and a v2 file made by the 011 code path; `cutBackToV1` also drops `client_matches`; `store-open.test.ts` (lines about the v1 upgrade: `userVersion` 3 and `meta` `[1]` after upgrade, `[3]` for new files) is updated and listed in PROGRESS, with `service-v1-database.test.ts`; every existing match reads open (`getClientNamespace` is `undefined`); a failure injected mid-upgrade rolls back and leaves the file at its old version; `user_version` 4 is refused `unknown-schema-version`.
+- [x] **T2.3. Store methods `insertClientMatch` and `getClientNamespace`.** FR-491, FR-494, FR-506
+  - Files: `apps/server/src/store/{store,sqlite,faults}.ts`, test `apps/server/test/store-client-matches.test.ts` (and `store-ops`/`store-errors` if they enumerate the interface).
+  - Done when: insert then read gives the namespace; a second insert for the same match is refused and changes nothing; a match without a row reads `undefined`; both run inside `transaction` and roll back with it; the fault wrapper counts the write (and `lobby-durability.test.ts`'s `WRITES` list gains `insertClientMatch`); the namespace appears in no other read of a populated store; a client-only match keeps its row across closing and reopening the file; `purgeExpired` of an expired client-only lobby after its retention deletes the `client_matches` row, the lobby and the match without a foreign-key failure, and the memo purge in the same transaction still runs (test with a client-only and an open expired lobby together).
+- [x] **T2.4. No mutation path.** FR-494, NFR-103
+  - Files: `apps/server/test/store-client-matches.test.ts`.
+  - Done when: a source scan of `apps/server/src` finds `client_matches` only in `INSERT`, `SELECT` and `CREATE` statements and in the single `DELETE` of `purgeExpired` (no `UPDATE`, `REPLACE`, `ALTER`, no other `DELETE`), the `Store` interface has no method that changes or removes a row of it, and a test runs lobby start, steps, a halt and an expiry on a client-only fixture and shows the row identical afterwards.
+- [x] **T2.5. Match list carries the flag.** FR-501
+  - Files: `apps/server/src/store/sqlite.ts` (`listMatches`: LEFT JOIN), `store.ts`, `apps/server/test/store-reads.test.ts`.
+  - Done when: `listMatches` returns `clientOnly: true` for matches with a row and no member for the others; keyset order and limits unchanged (existing tests green, one more with a mixed list across a page boundary); `EXPLAIN QUERY PLAN` shows the join uses the primary key.

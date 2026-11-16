@@ -75,6 +75,8 @@ export const withFaults = (store: Store, plan: FaultPlan): Store => {
       return store.runningMatchIds();
     },
     insertLobby: (lobby) => (write(), store.insertLobby(lobby)),
+    insertClientMatch: (matchId, namespace) => (write(), store.insertClientMatch(matchId, namespace)),
+    getClientNamespace: (matchId) => store.getClientNamespace(matchId),
     getLobby: (matchId) => store.getLobby(matchId),
     markStarted: (matchId, nowMs) => (write(), store.markStarted(matchId, nowMs)),
     markExpired: (matchId, nowMs) => (write(), store.markExpired(matchId, nowMs)),

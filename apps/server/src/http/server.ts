@@ -391,7 +391,16 @@ export const productionRoutes = (service: MatchService, settings: ServerSettings
     decide: (ctx) =>
       ctx.identity.role === 'operator'
         ? replyOf(service.create({ credential: ctx.token, body: ctx.body }), 201, encodeCreation)
-        : replyOf(service.createPublic({ source: ctx.source, body: ctx.body }), 201, encodeCreation),
+        : replyOf(
+            service.createPublic({
+              source: ctx.source,
+              body: ctx.body,
+              // Spec 018 FR-491: a valid client credential (never a body member) lets the creation be client-only.
+              ...(ctx.identity.role === 'client' && ctx.token !== undefined ? { client: { credential: ctx.token, namespace: ctx.identity.namespace } } : {}),
+            }),
+            201,
+            encodeCreation,
+          ),
   },
   {
     method: 'POST',

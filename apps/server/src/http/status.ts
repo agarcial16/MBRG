@@ -21,6 +21,7 @@ export const STATUS_OF_KIND: Readonly<Record<ErrorKind, number>> = Object.freeze
   'too-few-factions': 422,
   'invalid-timing': 422,
   'too-many-matches': 409,
+  'joins-closed': 403,
   'match-halted': 409,
   'match-finished': 409,
   'name-taken': 409,

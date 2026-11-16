@@ -1,5 +1,6 @@
 // The bot's client of the MBRG server (spec 012). Public reads carry no credential; the `discord` client credential goes only in
-// the Authorization header of a prediction, and a host token only in that of a start (NFR-89). Every reply is read by the
+// the Authorization header of a prediction and of a creation (spec 018 FR-505: the match is created client-only), and a host token
+// only in that of a start (NFR-89). Every reply is read by the
 // protocol's strict readers; anything unreadable is "the server is down" (no value is ever echoed into a message or a log).
 import { readErrorReply, readLeaderboardPage, readPredictionReply, readPublicConfig, readPublicMatch, readStateReply } from '@mbrg/protocol';
 import type { CreationBody, ErrorReply, LeaderboardRow, PredictionKind, PredictionReply, PublicConfig, PublicMatch } from '@mbrg/protocol';
@@ -82,7 +83,8 @@ export function createServerClient(options: ClientOptions): ServerClient {
 
   return {
     config: () => call('GET', '/config', decoded(readPublicConfig)),
-    create: (body) => call('POST', '/matches', readCreated, undefined, body),
+    // Spec 018 FR-505: the match is client-only (only this community's players can predict in it) and the `discord` credential says whose.
+    create: (body) => call('POST', '/matches', readCreated, options.credential, { ...body, joinPolicy: 'client' }),
     start: (matchId, hostToken) => call('POST', `/matches/${enc(matchId)}/start`, decoded(readPublicMatch), hostToken, {}),
     match: (matchId) => call('GET', `/matches/${enc(matchId)}`, decoded(readPublicMatch)),
     async livingAt(matchId, round) {

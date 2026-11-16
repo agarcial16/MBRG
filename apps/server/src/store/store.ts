@@ -203,6 +203,14 @@ export interface Store {
    * match, a missing match or an expiry that is not a non-negative whole number is refused (`invalid-write`).
    */
   insertLobby(lobby: { readonly matchId: string; readonly public: boolean; readonly expiresMs: number }): void;
+  /**
+   * Stores the owning namespace of a client-only match (spec 018 FR-491), in the creation transaction right after `insertMatch`.
+   * A missing match, a second row for a match, an empty namespace or a call outside a transaction is refused (`invalid-write`).
+   * There is no method that changes or removes it: the policy lives and dies with its match (`purgeExpired`, FR-494).
+   */
+  insertClientMatch(matchId: string, namespace: string): void;
+  /** The owning namespace of a client-only match, or undefined for an open match (also every match of a file written before version 3). */
+  getClientNamespace(matchId: string): string | undefined;
   /** The lobby row of a match, or undefined (an operator match has none). */
   getLobby(matchId: string): StoredLobby | undefined;
   /**

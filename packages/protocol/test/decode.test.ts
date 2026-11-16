@@ -496,3 +496,19 @@ describe('FR-384 the readers of the join reply and the players page', () => {
     expect(field(readJoinReply(inheriting) as { ok: boolean; field?: string })).toBe('playerId');
   });
 });
+
+describe('clientOnly in the public view reader (spec 018)', () => {
+  it('FR-503 reads clientOnly true back, in every stage, and an open view has no member', () => {
+    for (const [name, view] of Object.entries(views)) {
+      expect(readPublicMatch(roundTrip(encodePublicMatch({ ...view, clientOnly: true }))), name).toStrictEqual({ ok: true, value: { ...view, clientOnly: true } });
+      expect(readPublicMatch(roundTrip(encodePublicMatch(view))), name).toStrictEqual({ ok: true, value: view });
+    }
+  });
+
+  it('FR-503 refuses clientOnly of false, "true", 1 and null', () => {
+    for (const bad of [false, 'true', 1, null, 0]) {
+      const r = readPublicMatch({ ...(JSON.parse(encodePublicMatch(base)) as object), clientOnly: bad });
+      expect(r, JSON.stringify(bad)).toStrictEqual({ ok: false, field: 'clientOnly' });
+    }
+  });
+});

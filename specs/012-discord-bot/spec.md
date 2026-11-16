@@ -45,7 +45,7 @@ The server already offers everything a chat client needs: public matches, a lobb
 
 ## Non-functional requirements
 - NFR-88 (Secrecy): the bot holds nothing about a future round: it reads only public data and events, and a test with a planted secret in a fake server proves no message contains it.
-- NFR-89 (Privacy): the Discord token, the `discord` credential, host tokens and Discord ids never appear in a log, a commit or a message other than the mention of that member; the stored state keeps host tokens only for followed matches.
+- NFR-89 (Privacy; spec 018 FR-505 adds the creation request to the places that carry the `discord` credential, as a bearer): the Discord token, the `discord` credential, host tokens and Discord ids never appear in a log, a commit or a message other than the mention of that member; the stored state keeps host tokens only for followed matches.
 - NFR-90 (Testability): the decisions (event to message, press to submission, command to action) are pure functions tested with Vitest without Discord; only a thin shell touches the Discord library.
 - NFR-91 (Limits): Discord's own limits (3 s to answer an interaction, 5 buttons per row, 2,000 characters per message) are handled: long lists are cut, answers are deferred when needed.
 

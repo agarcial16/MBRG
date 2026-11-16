@@ -8,7 +8,7 @@ import type { StoredPrediction } from '../core/predictions';
 import type { PlayerTotals, ResultRow, ScorablePrediction } from '../core/scoring';
 import type { Anchors } from '../core/time';
 import type { CoreMatch } from '../core/view';
-import { SCHEMA_V1, SCHEMA_V2_ADDITIONS, SCHEMA_VERSION, TABLES } from './schema';
+import { SCHEMA_V1, SCHEMA_V2_ADDITIONS, SCHEMA_V3_ADDITIONS, SCHEMA_VERSION, TABLES } from './schema';
 import {
   LOBBY_RETENTION_MS,
   NameTakenError,
@@ -165,7 +165,8 @@ const timingText = (timing: Timing): string => JSON.stringify(timing);
  * columns only.
  */
 export const READ_SQL = {
-  listMatches: 'SELECT id, map_id, stage, n, t, created_ms FROM matches WHERE (created_ms, id) > (?, ?) ORDER BY created_ms, id LIMIT ?',
+  listMatches:
+    'SELECT m.id, m.map_id, m.stage, m.n, m.t, m.created_ms, c.match_id IS NOT NULL AS client_only FROM matches m LEFT JOIN client_matches c ON c.match_id = m.id WHERE (m.created_ms, m.id) > (?, ?) ORDER BY m.created_ms, m.id LIMIT ?',
   recordsAfter: 'SELECT round, eliminated, absorber, transferred_json FROM records WHERE match_id = ? AND round > ? ORDER BY round LIMIT ?',
   // The namespace is a range of player ids [`<ns>:`, `<ns>;`) (';' follows ':'), never a LIKE pattern; one local id is an
   // equality. The winner has round 0, so (player id, round, kind) is the order key of protocol page.ts.
@@ -228,9 +229,9 @@ const sameFixedFields = (a: CoreMatch, b: CoreMatch): boolean =>
  * Opens (and, for a new file, creates) the store. `path` is a file path or `:memory:`.
  * PRAGMAs (PD9): exclusive locking, write-ahead log on a file, synchronous FULL, foreign keys ON. An immediate
  * write transaction at open takes the lock, so a second connection or process fails here with `database-locked`.
- * `user_version` 0 is a new file (schemas 1 and 2 created in that same transaction); 1 is a file written by the 008 code (the
- * tables of version 2 are added and the version set in that same transaction, no existing table or row is touched,
- * FR-391); 2 opens as it is; any other value is refused.
+ * `user_version` 0 is a new file (schemas 1, 2 and 3 created in that same transaction); 1 is a file written by the 008 code and
+ * 2 one written by the 011 code (the tables of the later versions are added and the version set in that same transaction,
+ * no existing table or row is touched, FR-391, FR-506); 3 opens as it is; any other value is refused.
  */
 export const openStore = (path: string): Store => {
   let db: DatabaseSync;
@@ -255,11 +256,13 @@ export const openStore = (path: string): Store => {
       if (version === 0) {
         for (const statement of SCHEMA_V1) db.exec(statement);
         for (const statement of SCHEMA_V2_ADDITIONS) db.exec(statement);
+        for (const statement of SCHEMA_V3_ADDITIONS) db.exec(statement);
         db.prepare('INSERT INTO meta (schema_version) VALUES (?)').run(SCHEMA_VERSION);
         db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
-      } else if (version === 1) {
-        for (const statement of SCHEMA_V2_ADDITIONS) db.exec(statement);
-        db.prepare('UPDATE meta SET schema_version = ?').run(SCHEMA_VERSION);
+      } else if (version === 1 || version === 2) {
+        // Storage is only added (FR-506): no row of an existing table is written, `meta` included (nothing reads it).
+        if (version === 1) for (const statement of SCHEMA_V2_ADDITIONS) db.exec(statement);
+        for (const statement of SCHEMA_V3_ADDITIONS) db.exec(statement);
         db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
       } else if (version !== SCHEMA_VERSION) {
         throw new StoreError('unknown-schema-version', `the database has schema version ${version}; this server supports version ${SCHEMA_VERSION}`);
@@ -470,6 +473,17 @@ export const openStore = (path: string): Store => {
       if (one('SELECT 1 AS found FROM lobbies WHERE match_id = ?', lobby.matchId) !== undefined) throw invalid(`the match ${lobby.matchId} already has a lobby row`);
       run('INSERT INTO lobbies (match_id, public, expires_ms, started_ms, expired_ms) VALUES (?, ?, ?, NULL, NULL)', lobby.matchId, lobby.public ? 1 : 0, lobby.expiresMs);
     },
+    insertClientMatch(matchId: string, namespace: string): void {
+      requireTransaction();
+      if (typeof namespace !== 'string' || namespace.length === 0) throw invalid('the namespace of a client match is a non-empty text');
+      if (one('SELECT 1 AS found FROM matches WHERE id = ?', matchId) === undefined) throw invalid(`the match ${matchId} does not exist`);
+      if (one('SELECT 1 AS found FROM client_matches WHERE match_id = ?', matchId) !== undefined) throw invalid(`the match ${matchId} already has a client row`);
+      run('INSERT INTO client_matches (match_id, namespace) VALUES (?, ?)', matchId, namespace);
+    },
+    getClientNamespace(matchId: string): string | undefined {
+      const row = one('SELECT namespace FROM client_matches WHERE match_id = ?', matchId);
+      return row === undefined ? undefined : str(row, 'namespace');
+    },
     getLobby(matchId: string): StoredLobby | undefined {
       const row = one('SELECT match_id, public, expires_ms, started_ms, expired_ms FROM lobbies WHERE match_id = ?', matchId);
       return row === undefined ? undefined : lobbyOf(row);
@@ -497,7 +511,7 @@ export const openStore = (path: string): Store => {
       const ids = all('SELECT match_id FROM lobbies WHERE expired_ms IS NOT NULL AND started_ms IS NULL AND ? - expired_ms > ? ORDER BY match_id', now, LOBBY_RETENTION_MS).map((r) => str(r, 'match_id'));
       for (const matchId of ids) {
         // Children first: every table that refers to the match, then the lobby row, then the match.
-        for (const table of ['results', 'predictions', 'steps', 'records', 'events', 'states', 'players', 'lobbies']) {
+        for (const table of ['results', 'predictions', 'steps', 'records', 'events', 'states', 'players', 'lobbies', 'client_matches']) {
           run(`DELETE FROM ${table} WHERE match_id = ?`, matchId);
         }
         run('DELETE FROM matches WHERE id = ?', matchId);
@@ -620,7 +634,8 @@ export const openStore = (path: string): Store => {
       return all(READ_SQL.listMatches, afterMs, afterId, limit).map((r) => {
         const stage = str(r, 'stage');
         if (!STAGES.includes(stage)) throw corrupt(`unknown stage ${stage}`);
-        return { matchId: str(r, 'id'), mapId: str(r, 'map_id'), stage: stage as MatchSummary['stage'], appliedRounds: num(r, 'n'), totalRounds: num(r, 't'), createdAt: num(r, 'created_ms') };
+        const summary = { matchId: str(r, 'id'), mapId: str(r, 'map_id'), stage: stage as MatchSummary['stage'], appliedRounds: num(r, 'n'), totalRounds: num(r, 't'), createdAt: num(r, 'created_ms') };
+        return num(r, 'client_only') === 1 ? { ...summary, clientOnly: true as const } : summary;
       });
     },
     recordsAfter(matchId: string, round: number, limit: number): StoredRecord[] {

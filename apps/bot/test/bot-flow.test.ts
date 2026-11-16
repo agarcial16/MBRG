@@ -47,7 +47,7 @@ async function createAndStart(fake: Fake, bot: Bot): Promise<void> {
 }
 
 describe('FR-451 create', () => {
-  it('FR-451 creates a public match without a credential, follows it and answers with the lobby message and a Start button', async () => {
+  it('FR-451 creates a public match (client-only, with the discord credential since spec 018), follows it and answers with the lobby message and a Start button', async () => {
     const { fake, bot } = await world();
     const reply = await bot.run(manager({ pace: 'fast' }));
     expect(reply.type).toBe('channel');
@@ -56,8 +56,8 @@ describe('FR-451 create', () => {
     expect(reply.messages[0]?.text).toContain('europe');
     expect(reply.messages[0]?.buttons).toEqual([{ type: 'custom', customId: START_ID, label: 'Iniciar', style: 'success' }]);
     const creation = fake.requests.find((r) => r.method === 'POST' && r.path === '/matches');
-    expect(creation?.bearer).toBeUndefined();
-    expect(creation?.body).toEqual({ mapId: 'europe', timing: { i: 30, l1: 10, l2: 5 }, requestId: 'request-1' });
+    expect(creation?.bearer).toBe(CREDENTIAL);
+    expect(creation?.body).toEqual({ mapId: 'europe', timing: { i: 30, l1: 10, l2: 5 }, requestId: 'request-1', joinPolicy: 'client' });
     expect(bot.store.get(CHANNEL)).toMatchObject({ matchId: MATCH_ID, mapId: 'europe', hostToken: HOST_TOKEN, lastSeq: 1 });
     await waitFor(() => fake.streamCount() === 1);
     expect(fake.requests.find((r) => r.path.endsWith('/events'))?.lastEventId).toBe('1');
@@ -455,7 +455,7 @@ describe('NFR-89 privacy', () => {
     // The credential travels only in the Authorization header of a prediction, a host token only in that of the start.
     for (const request of fake.requests) {
       expect(JSON.stringify(request.body ?? '')).not.toMatch(/PLANTED/);
-      if (request.bearer === CREDENTIAL) expect(request.path.endsWith('/predictions')).toBe(true);
+      if (request.bearer === CREDENTIAL) expect(request.path.endsWith('/predictions') || (request.method === 'POST' && request.path === '/matches')).toBe(true);
       if (request.bearer === HOST_TOKEN) expect(request.path.endsWith('/start')).toBe(true);
     }
     // The match is over: the host token is no longer kept.

@@ -193,7 +193,8 @@ export function encodeMatchSummary(reply: MatchSummary): string {
     appliedRounds: int('summary.appliedRounds', 0),
     totalRounds: int('summary.totalRounds', 1),
     createdAt: int('summary.createdAt', 0),
-  });
+    clientOnly: (v) => (v === true ? 'true' : bad('summary.clientOnly is not true')),
+  }, ['clientOnly']);
 }
 
 /** The state at an applied round: owners as [territory, faction] pairs in map order. */

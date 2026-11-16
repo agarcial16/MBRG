@@ -40,7 +40,36 @@ export function parseBodyBytes(bytes: Uint8Array): BodyParse {
     return invalidBody();
   }
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return invalidBody();
+  // Spec 018 FR-490: `JSON.parse` keeps the last of two equal members, so a repeated `joinPolicy` is refused here, by name.
+  if (repeatsMember(text, 'joinPolicy')) return { kind: 'error', error: errorReply('invalid-request', ['joinPolicy']) };
   return { kind: 'body', value: value as Record<string, unknown> };
+}
+
+/**
+ * Whether the top-level object of a JSON text (already known to parse) names `member` more than once. Only the member names at
+ * depth 1 are looked at: a text inside a value, or inside a nested object, is never a member of the top level.
+ */
+export function repeatsMember(text: string, member: string): boolean {
+  let depth = 0;
+  let expectKey = false;
+  let seen = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charAt(i);
+    if (c === '"') {
+      let j = i + 1;
+      while (j < text.length && text.charAt(j) !== '"') j += text.charAt(j) === '\\' ? 2 : 1;
+      if (depth === 1 && expectKey) {
+        if ((JSON.parse(text.slice(i, j + 1)) as string) === member) seen += 1;
+        expectKey = false;
+      }
+      i = j;
+    } else if (c === '{' || c === '[') {
+      depth += 1;
+      expectKey = depth === 1 && c === '{';
+    } else if (c === '}' || c === ']') depth -= 1;
+    else if (c === ',' && depth === 1) expectKey = true;
+  }
+  return seen > 1;
 }
 
 /** The declared `Content-Length`, or undefined when there is none (the parser of Node refuses a malformed one). */

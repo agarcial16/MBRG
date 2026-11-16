@@ -62,6 +62,7 @@ import type {
   CursorKey,
   CursorList,
   ErrorReply,
+  JoinPolicy,
   JoinReply,
   LeaderboardRow,
   MatchEvent,
@@ -105,6 +106,8 @@ import { isMapFileName, mapForStep } from './maps';
 import type { MapCatalog, MapFile } from './maps';
 import { publicConfigOf } from './public-config';
 import { checkPublicCreation } from './publiccreate';
+import { creationPolicy, joinPolicy, submitPolicy } from '../core/policy';
+import type { CreationPolicyDecision } from '../core/policy';
 import type { Scheduler, SchedulerHandle } from './scheduler';
 import type { Settings } from './settings';
 
@@ -128,6 +131,11 @@ export interface CreateRequest {
 export interface PublicCreateRequest {
   readonly source: string;
   readonly body: unknown;
+  /**
+   * A valid client credential of the caller (spec 018 FR-491): its text (only a digest is kept) and the namespace of the
+   * configured credential. Only this makes `joinPolicy: 'client'` possible; the body never names a namespace.
+   */
+  readonly client?: { readonly credential: string; readonly namespace: string };
 }
 
 /** The path text of a start in the canonical content of FR-282 (the HTTP layer of M4 uses the same text). */
@@ -461,10 +469,14 @@ const failure = (error: ErrorReply): CreateOutcome => ({ ok: false, error });
 /**
  * The public data of a view: `publicOf` with the player count of the match when the caller knows it (spec 011 plan P5:
  * always present for a lobby or an expired lobby, otherwise only once the match has players). A view built before any join
- * has no count of its own: a lobby then shows 0.
+ * has no count of its own: a lobby then shows 0. The flag of a client-only match (spec 018) is a required parameter, so no view
+ * can be built without saying it.
  */
-const publicView = (view: CoreMatch, reportedTime: number, matchSecret?: string, playerCount?: number): PublicMatch =>
-  publicOf(playerCount === undefined ? view : { ...view, playerCount }, reportedTime, matchSecret);
+const publicView = (view: CoreMatch, reportedTime: number, matchSecret: string | undefined, playerCount: number | undefined, clientOnly: boolean): PublicMatch => {
+  const plain = publicOf(playerCount === undefined ? view : { ...view, playerCount }, reportedTime, matchSecret);
+  // Spec 018 FR-501: `clientOnly: true` exactly for a client-only match, never `false`. Every public view is built here.
+  return clientOnly ? { ...plain, clientOnly: true } : plain;
+};
 
 const HOUR_MS = 3_600_000;
 
@@ -931,11 +943,15 @@ export function createMatchService(options: ServiceOptions): MatchService {
   const isRound = (round: unknown, min: number): boolean => typeof round === 'number' && Number.isSafeInteger(round) && round >= min;
   /** The stored match of an id; a match id that is not a text is no match (`unknown-match`). */
   const storedMatch = (matchId: unknown): StoredMatch | undefined => (typeof matchId === 'string' ? store.getMatch(matchId) : undefined);
+  /** Whether a stored match is client-only (spec 018): a row of the owning namespace exists. The namespace itself never leaves the policy checks. */
+  const flagOf = (matchId: string): boolean => store.getClientNamespace(matchId) !== undefined;
+  /** A view built by the core (the advance replies) with the flag of its match. */
+  const flagged = (match: PublicMatch): PublicMatch => (flagOf(match.matchId) ? { ...match, clientOnly: true } : match);
   /** The public data of a stored match now, remembering the reported time sent (FR-302). */
   const publicNow = (stored: StoredMatch): PublicMatch => {
     const { reported } = timesOf(stored.match);
     remember(stored.match.matchId, reported);
-    return publicView(stored.match, reported, stored.match.stage === 'finished' ? secretHex(stored.secret) : undefined, store.playerCount(stored.match.matchId));
+    return publicView(stored.match, reported, stored.match.stage === 'finished' ? secretHex(stored.secret) : undefined, store.playerCount(stored.match.matchId), flagOf(stored.match.matchId));
   };
   /** A page size outside 1 to 500 never comes from `readPageQuery`: a programming error of the caller. */
   const checkPageSize = (limit: number): void => {
@@ -981,7 +997,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
     const view = { ...created.view, matchId, commitment: commitmentOf(secret) };
     const reported = reportedTime(effectiveInstant(now, view.lastStepMs), 0);
     const first = creationEvents(view, reported);
-    const reply: CreationReply = { matchId, match: publicOf(first.view, reported), hostToken };
+    const reply: CreationReply = { matchId, match: publicView(first.view, reported, undefined, undefined, false), hostToken };
     encodePublicMatch(reply.match); // the public data must be encodable before anything is stored
     store.insertMatch({ match: first.view, secret, hostTokenDigest: credentialDigest(hostToken) });
     store.appendEvents(matchId, first.events);
@@ -993,7 +1009,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
    * The public creation after the shape and memo checks; runs inside the transaction and writes only on success. The order
    * is the plan's (section 8): map in the public list, bounds, map package, cap, then the draws and the writes.
    */
-  const decidePublic = (mapId: string, timing: Timing, now: number, made: (m: Committed & { reported: number }) => void): CreateOutcome => {
+  const decidePublic = (mapId: string, timing: Timing, now: number, policy: Extract<CreationPolicyDecision, { ok: true }>, made: (m: Committed & { reported: number }) => void): CreateOutcome => {
     const rules = settings.publicCreation;
     const refused = checkPublicCreation(rules, mapId, timing);
     if (refused !== undefined) return failure(refused);
@@ -1012,10 +1028,12 @@ export function createMatchService(options: ServiceOptions): MatchService {
     const view = { ...created.view, matchId, commitment: commitmentOf(secret) };
     const reported = reportedTime(effectiveInstant(now, view.lastStepMs), 0);
     const first = lobbyEvents(view, reported);
-    const reply: CreationReply = { matchId, match: publicView(first.view, reported), hostToken };
+    const reply: CreationReply = { matchId, match: publicView(first.view, reported, undefined, undefined, policy.policy === 'client'), hostToken };
     encodePublicMatch(reply.match); // the public data must be encodable before anything is stored
     store.insertMatch({ match: first.view, secret, hostTokenDigest: credentialDigest(hostToken) });
     store.insertLobby({ matchId, public: true, expiresMs: now + rules.lobbyExpiryHours * HOUR_MS });
+    // Spec 018 FR-491: the owning namespace is stored in the same transaction as the match, after it (the foreign key).
+    if (policy.policy === 'client') store.insertClientMatch(matchId, policy.namespace);
     store.appendEvents(matchId, first.events);
     made({ view: first.view, events: first.events, reported });
     return { ok: true, reply };
@@ -1030,10 +1048,18 @@ export function createMatchService(options: ServiceOptions): MatchService {
       const mapId = (read.ok ? read.value.mapId : body.mapId) as string;
       const timing = (read.ok ? read.value.timing : body.timing) as Timing;
       const requestId = (read.ok ? read.value.requestId : body.requestId) as string;
+      // Spec 018: `joinPolicy` is already shape-checked (the reader checks it before the timing rules). `forbidden` for a client
+      // policy without a client credential comes before the memo and every public rule: nothing is drawn or stored (FR-492).
+      const requested = body.joinPolicy as JoinPolicy | undefined;
+      const policy = creationPolicy(requested, request.client === undefined ? { role: 'other' } : { role: 'client', namespace: request.client.namespace }, false);
+      if (!policy.ok) return failure(policy.error);
 
       // The scope is the digest of the source: the same id from another source is another creation, and no operator scope is reused.
       const scope: MemoScope = { credentialDigest: credentialDigest(`public:${request.source}`), match: null };
-      const contentDigest = sha256Ascii(canonicalBody('POST', CREATION_PATH, request.body));
+      // A client that names a joinPolicy puts its credential digest into the content: another client behind the same source
+      // repeating the body is `request-id-reused` and never replays this host token (FR-495). Other bodies keep the 011 digest.
+      const canonical = canonicalBody('POST', CREATION_PATH, request.body);
+      const contentDigest = sha256Ascii(request.client !== undefined && requested !== undefined ? `${canonical}:${credentialDigest(request.client.credential)}` : canonical);
       const now = wholeMs(clock.now());
       const fresh: { value?: Committed & { reported: number }; memoAt?: number } = {};
       const unavailable = { ok: false as const, error: errorReply('unavailable') };
@@ -1047,7 +1073,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
             );
             if (memo.decision === 'replay') return memo.reply;
             if (memo.decision === 'request-id-reused') return failure(memo.error);
-            const result = decidePublic(mapId, timing, now, (made) => (fresh.value = made));
+            const result = decidePublic(mapId, timing, now, policy, (made) => (fresh.value = made));
             // Only a creation is memoised: a refusal stores nothing (FR-370), so the same id may retry once a cap has room.
             if (result.ok) {
               store.memoPut(scope, requestId, { contentDigest, reply: result, createdMs: now });
@@ -1100,7 +1126,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
         store.markStarted(matchId, decision.view.lastStepMs);
         store.appendEvents(matchId, decision.events);
         done.committed = { view: decision.view, events: decision.events };
-        const result: StartOutcome = { ok: true, reply: { match: publicView(decision.view, times.reported, undefined, store.playerCount(matchId)) } };
+        const result: StartOutcome = { ok: true, reply: { match: publicView(decision.view, times.reported, undefined, store.playerCount(matchId), flagOf(matchId)) } };
         // Only a start is memoised: a refusal (started, expired, a cap) stores nothing.
         if (requestId !== undefined) {
           store.memoPut(memoScope, requestId, { contentDigest: content, reply: result, createdMs: now });
@@ -1141,6 +1167,10 @@ export function createMatchService(options: ServiceOptions): MatchService {
               if (memo.decision === 'request-id-reused') return { ok: false, error: memo.error };
               const stored = store.getMatch(matchId);
               if (stored === undefined) return { ok: false, error: errorReply('unknown-match') };
+              // Spec 018 FR-496: right after the match is found, before every stage, cap and name rule, so the reply is the same
+              // for every join on a client-only match and shows nothing of its names, cap or stage. Nothing is stored or drawn.
+              const closed = joinPolicy(store.getClientNamespace(matchId));
+              if (!closed.ok) return { ok: false, error: closed.error };
               const times = timesOf(stored.match);
               done.reported = times.reported;
               // A lobby at or after its expiry instant is expired by its own rule, whether or not the wake-up has run yet (FR-372).
@@ -1155,7 +1185,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
 
               const playerId = playerIdOf(PLAYER_NAMESPACE, newPlayerLocalId(random));
               const playerToken = newPlayerToken(random);
-              const reply: JoinReply = { playerId, name, playerToken, match: publicView(decision.view, times.reported, undefined, count + 1) };
+              const reply: JoinReply = { playerId, name, playerToken, match: publicView(decision.view, times.reported, undefined, count + 1, false) };
               encodeJoinReply(reply); // the reply must be encodable before anything is stored
               const events: MatchEvent[] = [{ type: 'player-joined', seq: decision.seq, playerId, name }];
               store.insertPlayer({ matchId, playerId, name, nameKey: key, tokenDigest: credentialDigest(playerToken), joinedSeq: decision.seq, joinedMs: now });
@@ -1190,6 +1220,9 @@ export function createMatchService(options: ServiceOptions): MatchService {
       const timing = (read.ok ? read.value.timing : body.timing) as Timing;
       const requestId = (read.ok ? read.value.requestId : body.requestId) as string;
       const timingError = read.ok ? undefined : read.error;
+      // Spec 018 FR-493: the operator path never creates a client-only match; the member is refused whatever its value (shape stage).
+      const refusedPolicy = creationPolicy(body.joinPolicy as JoinPolicy | undefined, { role: 'other' }, true);
+      if (!refusedPolicy.ok) return failure(refusedPolicy.error);
 
       if (typeof request.credential !== 'string' || !sameDigest(credentialDigest(request.credential), operatorDigest)) return failure(errorReply('forbidden'));
 
@@ -1294,11 +1327,11 @@ export function createMatchService(options: ServiceOptions): MatchService {
           return { ok: false, error: decision.error };
         }
         const final = withFinish(stored, decision.outcome, times.reported);
-        if (final.steps.length === 0 && final.events.length === 0) return { ok: true, reply: decision.reply };
+        if (final.steps.length === 0 && final.events.length === 0) return { ok: true, reply: { ...decision.reply, match: flagged(decision.reply.match) } };
         persist(matchId, final);
         done.committed = { view: final.view, events: final.events };
         // The finished public data needs the secret and the event number of `match-finished`: the shell builds it (FR-246).
-        const match = final.view.stage === 'finished' ? publicOf(final.view, times.reported, secretHex(stored.secret)) : decision.reply.match;
+        const match = final.view.stage === 'finished' ? publicView(final.view, times.reported, secretHex(stored.secret), undefined, flagOf(matchId)) : flagged(decision.reply.match);
         return { ok: true, reply: { ...decision.reply, match } };
       }
     },
@@ -1329,6 +1362,10 @@ export function createMatchService(options: ServiceOptions): MatchService {
       // FR-292: a storage failure rolls the prediction and its memo back together: nothing is reported as accepted.
       const outcome = orUnavailable((): SubmitOutcome => store.transaction((): SubmitOutcome => {
         const now = wholeMs(clock.now());
+        // Spec 018 FR-497: on a client-only match only a client credential of the owning namespace goes on. `forbidden` comes
+        // before the memo (FR-301 puts it before `request-id-reused`), the cutoff and every stage rule, and stores nothing.
+        const allowed = submitPolicy(typeof matchId === 'string' ? store.getClientNamespace(matchId) : undefined, isPlayerCaller(client) ? { role: 'other' } : { role: 'client', namespace: client.namespace });
+        if (!allowed.ok) return { ok: false, error: allowed.error };
         if (body.requestId !== undefined) {
           const memoStored = store.memoGet(scope, body.requestId);
           const memo = decideMemo<SubmitOutcome>(
@@ -1425,7 +1462,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
       const { limit, after } = request;
       checkPageSize(limit);
       // Only the summary fields are copied, whatever else a row could hold (no secret, digest or state, FR-281 (a)).
-      const summary = (s: MatchSummary): MatchSummary => ({ matchId: s.matchId, mapId: s.mapId, stage: s.stage, appliedRounds: s.appliedRounds, totalRounds: s.totalRounds, createdAt: s.createdAt });
+      const summary = (s: MatchSummary): MatchSummary => ({ matchId: s.matchId, mapId: s.mapId, stage: s.stage, appliedRounds: s.appliedRounds, totalRounds: s.totalRounds, createdAt: s.createdAt, ...(s.clientOnly === true ? { clientOnly: true as const } : {}) });
       return read(() => ({ ok: true, reply: pageFrom('matches', store.listMatches(after, limit + 1), limit, summary, (s) => [s.createdAt, s.matchId]) }));
     },
 

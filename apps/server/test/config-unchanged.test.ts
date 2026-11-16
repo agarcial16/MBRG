@@ -81,7 +81,8 @@ describe('spec 014 leaves the existing wire as it was', () => {
   });
 
   it('FR-420 the error kinds and the 30 settings variables are the ones of spec 011', () => {
-    expect([...ERROR_ORDER]).toStrictEqual(ERROR_KINDS_BEFORE);
+    expect([...ERROR_ORDER].filter((kind) => kind !== 'joins-closed')).toStrictEqual(ERROR_KINDS_BEFORE);
+    expect(ERROR_ORDER.indexOf('joins-closed')).toBe(ERROR_ORDER.indexOf('too-many-matches') + 1);
     expect([...SETTING_VARIABLES]).toStrictEqual(SETTING_VARIABLES_BEFORE);
     expect(SETTING_VARIABLES).toHaveLength(30);
   });

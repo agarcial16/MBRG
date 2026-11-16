@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { JOIN_FIELDS, START_FIELDS, readAdvance, readCreation, readJoin, readStart, readSubmission, type ReadResult } from '../src/index';
+import { CREATION_FIELDS, JOIN_FIELDS, JOIN_POLICIES, START_FIELDS, readAdvance, readCreation, readJoin, readStart, readSubmission, type ReadResult } from '../src/index';
 
 const err = (r: ReadResult<unknown>): string => (r.ok ? 'ok' : `${r.error.kind}:${(r.error.items ?? []).join(',')}`);
 const creation = { mapId: 'dev', timing: { i: 120, l1: 30, l2: 10 }, requestId: 'req-1' };
@@ -194,5 +194,38 @@ describe('submission body reader', () => {
     expect(err(readSubmission({ ...victim, playerId: 'a:b', requestId: 'a b' }))).toBe('invalid-request:requestId');
     expect(err(readSubmission({ ...victim, playerId: 'a:b', extra: 1 }))).toBe('invalid-request:extra');
     expect(err(readSubmission({ ...victim, playerId: 'a:b', faction: 'x' }))).toBe('invalid-request:faction');
+  });
+});
+
+describe('creation body joinPolicy (spec 018)', () => {
+  it('FR-490 accepts joinPolicy open and client, and absent means no member in the value', () => {
+    for (const joinPolicy of ['open', 'client']) expect(readCreation({ ...creation, joinPolicy })).toStrictEqual({ ok: true, value: { ...creation, joinPolicy } });
+    expect(readCreation(creation)).toStrictEqual({ ok: true, value: creation });
+  });
+
+  it('FR-490 refuses every other value or type with invalid-request naming joinPolicy', () => {
+    for (const bad of ['Open', 'CLIENT', 'operator', '', ' open', 5, true, null, undefined, [], ['client'], {}, { v: 'client' }]) {
+      expect(err(readCreation({ ...creation, joinPolicy: bad })), JSON.stringify(bad)).toBe('invalid-request:joinPolicy');
+    }
+  });
+
+  it('FR-490 a body failing only on the timing rules has already passed the joinPolicy check; an invalid joinPolicy wins over them', () => {
+    const slow = { ...creation, timing: { i: 1, l1: 1, l2: 1 } };
+    expect(readCreation({ ...slow, joinPolicy: 'client' })).toMatchObject({ ok: false, error: { kind: 'invalid-timing' } });
+    expect(err(readCreation({ ...slow, joinPolicy: 'x' }))).toBe('invalid-request:joinPolicy');
+  });
+
+  it('FR-490 joinPolicy is own-property only', () => {
+    expect(readCreation(Object.create({ joinPolicy: 'x' }, Object.getOwnPropertyDescriptors(creation)))).toStrictEqual({ ok: true, value: creation });
+  });
+});
+
+describe('the size of the joinPolicy member (spec 018)', () => {
+  it('NFR-103 joinPolicy is one of two short texts read under the existing body limits: no new list, store or length', () => {
+    expect(JOIN_POLICIES).toStrictEqual(['open', 'client']);
+    expect(Math.max(...JOIN_POLICIES.map((p) => p.length))).toBeLessThanOrEqual(6);
+    // A long text is refused as a value, never read or stored; the 4,096-byte body limit is the server's and is not raised here.
+    expect(err(readCreation({ ...creation, joinPolicy: 'client'.repeat(1000) }))).toBe('invalid-request:joinPolicy');
+    expect(CREATION_FIELDS).toStrictEqual(['mapId', 'timing', 'requestId', 'joinPolicy']);
   });
 });

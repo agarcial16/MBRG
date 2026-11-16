@@ -63,7 +63,7 @@ describe('the public view type', () => {
   it('NFR-47 (b) the key list of the public view is pinned exactly', () => {
     expect([...PUBLIC_MATCH_KEYS]).toStrictEqual([
       'matchId', 'mapId', 'mapDigest', 'totalRounds', 'timing', 'commitment', 'stage', 'appliedRounds', 'state',
-      'stateDigest', 'lastSeq', 'reportedTime', 'playerCount', 'schedule', 'victim', 'winner', 'matchSecret', 'haltReason',
+      'stateDigest', 'lastSeq', 'reportedTime', 'playerCount', 'clientOnly', 'schedule', 'victim', 'winner', 'matchSecret', 'haltReason',
     ]);
     expect([...PUBLIC_VICTIM_KEYS]).toStrictEqual(['round', 'victim', 'candidates', 'living', 'revealedAt', 'c2', 'a', 'forced', 'seq']);
   });
@@ -340,5 +340,20 @@ describe('schedule order by stage (FR-244 shifts, FR-254)', () => {
     expect(() => encodes({ ...phase2, schedule: { c1: 1, c2: 9, a: 4 } })).toThrow(RangeError);
     expect(() => encodes({ ...locked, schedule: { c1: 1, c2: 2, a: 1.5 } })).toThrow(RangeError);
     expect(() => encodes({ ...locked, schedule: { c1: -1, c2: 2, a: 3 } })).toThrow(RangeError);
+  });
+});
+
+describe('clientOnly in the public view (spec 018)', () => {
+  it('FR-501 a view with clientOnly true writes it right after playerCount (or reportedTime), and an open view keeps its exact bytes', () => {
+    const text = encodePublicMatch({ ...base, clientOnly: true });
+    expect(text).toBe(encodePublicMatch(base).replace('"schedule"', '"clientOnly":true,"schedule"'));
+    expect(Object.keys(JSON.parse(text) as object)).toStrictEqual(PUBLIC_MATCH_KEYS.filter((k) => k !== 'playerCount' && k in (JSON.parse(text) as object)));
+    const counted = encodePublicMatch({ ...base, playerCount: 3, clientOnly: true });
+    expect(counted).toContain('"playerCount":3,"clientOnly":true,"schedule"');
+    expect(encodePublicMatch(structuredClone(base))).toBe(encodePublicMatch(base));
+  });
+
+  it('FR-503 the encoder refuses clientOnly of false or of any other value', () => {
+    for (const bad of [false, 'true', 1, null, 0, {}]) expect(() => encodes({ ...base, clientOnly: bad }), JSON.stringify(bad)).toThrow(RangeError);
   });
 });

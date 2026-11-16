@@ -21,6 +21,7 @@ const PINNED: Readonly<Record<ErrorKind, number>> = {
   'too-few-factions': 422,
   'invalid-timing': 422,
   'too-many-matches': 409,
+  'joins-closed': 403,
   'match-halted': 409,
   'match-finished': 409,
   'name-taken': 409,
@@ -38,7 +39,7 @@ const PINNED: Readonly<Record<ErrorKind, number>> = {
 
 describe('http status table', () => {
   it('FR-301 (status table) every kind of ERROR_ORDER has exactly the status of plan 18.4', () => {
-    expect(ERROR_ORDER).toHaveLength(27);
+    expect(ERROR_ORDER).toHaveLength(28);
     expect(Object.keys(PINNED).sort()).toStrictEqual([...ERROR_ORDER].sort());
     for (const kind of ERROR_ORDER) expect(statusOf(kind), kind).toBe(PINNED[kind]);
     expect(Object.keys(STATUS_OF_KIND).sort()).toStrictEqual([...ERROR_ORDER].sort());

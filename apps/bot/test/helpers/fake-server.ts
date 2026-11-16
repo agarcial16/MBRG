@@ -42,6 +42,8 @@ export interface Fake {
   /** Rows of the phase results by `${round}/${phase}`. */
   results: Map<string, ResultRow[]>;
   leaderboard: { rank: number; playerId: string; total: number; name?: string }[];
+  /** The error every creation gets, when set (an older server refusing `joinPolicy`, a cap); otherwise it is accepted. */
+  createError: { status: number; body: unknown } | undefined;
   /** The error every prediction gets, when set; otherwise it is accepted. */
   submitError: { status: number; body: unknown } | undefined;
   /** While true the server refuses every connection and request (a crash). */
@@ -102,6 +104,7 @@ export async function startFake(options: FakeOptions = {}): Promise<Fake> {
 
       if (path === '/config') return json(res, 200, { maps: ['europe', 'asia'], minInterval: 30, maxInterval: 3600, minPhase1: 10, minPhase2: 5, maxPlayers: 50, enabled: true });
       if (path === '/matches' && req.method === 'POST') {
+        if (state.createError !== undefined) return json(res, state.createError.status, state.createError.body);
         events.length = 0;
         events.push({ type: 'schedule', seq: 1, stage: 'lobby', reportedTime: 1000 });
         state.match = baseMatch({ lastSeq: 1 });
@@ -171,6 +174,7 @@ export async function startFake(options: FakeOptions = {}): Promise<Fake> {
     results: new Map<string, ResultRow[]>(),
     leaderboard: [],
     submitError: undefined,
+    createError: undefined,
     down: false,
     pageSize: 500,
     predictions: [],

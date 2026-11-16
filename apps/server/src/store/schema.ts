@@ -1,12 +1,13 @@
-// Schema version 1 (spec 008 FR-291, plan section 4) and its additions of version 2 (spec 011 FR-391, plan section 3).
+// Schema version 1 (spec 008 FR-291, plan section 4) and its additions of version 2 (spec 011 FR-391, plan section 3) and
+// version 3 (spec 018 FR-506, plan section 3).
 // Instants are INTEGER milliseconds. The absorber and the pending state have no column outside `records` (plan PD11); no
 // column holds a credential text (PD12): the host token is stored as a digest and memo scopes are digests too.
 // Version 2 only ADDS tables: `matches` and every other table of version 1 keep their definition, so a file written by
 // the 008 code opens unchanged (no data migration).
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
-export const TABLES = ['meta', 'matches', 'states', 'records', 'steps', 'predictions', 'results', 'events', 'memo', 'lobbies', 'players'] as const;
+export const TABLES = ['meta', 'matches', 'states', 'records', 'steps', 'predictions', 'results', 'events', 'memo', 'lobbies', 'players', 'client_matches'] as const;
 
 /** Every statement is idempotent; the caller runs them all inside one transaction. */
 export const SCHEMA_V1: readonly string[] = [
@@ -127,4 +128,17 @@ export const SCHEMA_V2_ADDITIONS: readonly string[] = [
   // The counts of the open lobbies and of the public running matches read the lobbies by these columns.
   'CREATE INDEX IF NOT EXISTS lobbies_by_state ON lobbies (public, started_ms, expired_ms)',
   'CREATE INDEX IF NOT EXISTS players_by_token ON players (token_digest)',
+];
+
+/**
+ * The table of version 3 (spec 018 plan section 3): one row for every client-only match, holding the namespace of the client
+ * credential that created it. No row means an open match, so a file of version 1 or 2 reads every match as open and no existing
+ * row is rewritten. The only deletion is the purge of the match itself (`purgeExpired`). Idempotent, run inside the
+ * transaction of the version change.
+ */
+export const SCHEMA_V3_ADDITIONS: readonly string[] = [
+  `CREATE TABLE IF NOT EXISTS client_matches (
+    match_id TEXT NOT NULL PRIMARY KEY REFERENCES matches (id),
+    namespace TEXT NOT NULL
+  )`,
 ];
