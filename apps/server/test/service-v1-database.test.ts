@@ -19,14 +19,14 @@ import type { Harness } from './helpers/service-harness';
 const V1_FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'v1-database.db');
 const S = 1000;
 
-/** Rewrites a closed version 2 file as a version 1 file: the v2 tables dropped, `meta` and `user_version` back to 1. */
+/** Rewrites a closed version 2 file as a version 1 file: the v2 and v3 tables dropped and `user_version` back to 1 (`meta` is not rewritten by any upgrade since spec 018, so it is left as it is). */
 const cutBackToV1 = (file: string): void => {
   const db = new DatabaseSync(file);
   try {
     db.exec('BEGIN');
+    db.exec('DROP TABLE client_matches');
     db.exec('DROP TABLE players');
     db.exec('DROP TABLE lobbies');
-    db.exec('UPDATE meta SET schema_version = 1');
     db.exec('PRAGMA user_version = 1');
     db.exec('COMMIT');
   } finally {
@@ -55,7 +55,7 @@ describe('a database written before the lobby tables', () => {
       copyFileSync(V1_FIXTURE, file);
       const h = harnessOn(file, START_MS + 10_000);
       try {
-        expect(h.store.settings().userVersion).toBe(2);
+        expect(h.store.settings().userVersion).toBe(3);
         const a = h.service.publicMatch('AAAAAAAAAAAAAAAA');
         const b = h.service.publicMatch('BBBBBBBBBBBBBBBB');
         expect(a).toMatchObject({ stage: 'phase-2', appliedRounds: 1, lastSeq: 3 });
@@ -103,7 +103,7 @@ describe('a database written before the lobby tables', () => {
       copyFileSync(base, old);
       cutBackToV1(old);
       expect(withRawDb(old, (db) => Number(db.prepare('PRAGMA user_version').get()?.user_version))).toBe(1);
-      expect(withRawDb(old, (db) => db.prepare("SELECT name FROM sqlite_master WHERE name IN ('lobbies', 'players')").all())).toStrictEqual([]);
+      expect(withRawDb(old, (db) => db.prepare("SELECT name FROM sqlite_master WHERE name IN ('lobbies', 'players', 'client_matches')").all())).toStrictEqual([]);
 
       const outcome = (file: string): { events: string; results: string; publicMatch: string; dump: string } => {
         const h = harnessOn(file, START_MS + 80 * S);
@@ -124,9 +124,9 @@ describe('a database written before the lobby tables', () => {
       expect(b.publicMatch).toBe(a.publicMatch);
       // Scored: the run is not vacuous.
       expect(JSON.parse(a.results).players['web:p1'].items.length).toBeGreaterThan(0);
-      // The stored rows end equal, the upgrade included (both files are version 2 now).
+      // The stored rows end equal, the upgrade included (both files are version 3 now).
       expect(withRawDb(old, dumpRows) === withRawDb(native, dumpRows)).toBe(true);
-      expect(withRawDb(old, (db) => Number(db.prepare('PRAGMA user_version').get()?.user_version))).toBe(2);
+      expect(withRawDb(old, (db) => Number(db.prepare('PRAGMA user_version').get()?.user_version))).toBe(3);
     });
   });
 });
