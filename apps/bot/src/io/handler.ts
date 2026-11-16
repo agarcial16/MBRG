@@ -29,7 +29,15 @@ export interface Who {
 }
 
 const text = (value: string): Reply => ({ type: 'text', text: value });
-const failed = (failure: Failure): Reply => text(failure.type === 'down' ? STRINGS.serverDown : errorSentence(failure.error));
+/**
+ * The reply to a failure. For a creation (`creating`), a server that does not know `joinPolicy` (an older one: `invalid-request` naming
+ * it) is "the server is unavailable": the bot never retries as an open match (spec 018 FR-505).
+ */
+const failed = (failure: Failure, creating = false): Reply => {
+  if (failure.type === 'down') return text(STRINGS.serverDown);
+  if (creating && failure.error.kind === 'invalid-request' && failure.error.items?.includes('joinPolicy') === true) return text(STRINGS.serverDown);
+  return text(errorSentence(failure.error));
+};
 
 export function createHandler(options: HandlerOptions): (action: Action, who: Who) => Promise<Reply> {
   const { client, store, follower, names } = options;
@@ -51,7 +59,7 @@ export function createHandler(options: HandlerOptions): (action: Action, who: Wh
         if (!config.value.enabled) return text(STRINGS.createDisabled);
         if (!config.value.maps.includes(action.mapId)) return text(STRINGS.unknownMap);
         const made = await client.create({ mapId: action.mapId, timing: paceTiming(action.pace, config.value), requestId: options.newRequestId() });
-        if (!made.ok) return failed(made.failure);
+        if (!made.ok) return failed(made.failure, true);
         // Two creations at once in one channel: the second finds the channel taken and creates nothing more.
         if (store.get(who.channelId) !== undefined) return text(STRINGS.alreadyFollowing);
         const { matchId, hostToken, match } = made.value;

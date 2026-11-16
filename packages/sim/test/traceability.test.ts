@@ -115,14 +115,13 @@ const PENDING_014: readonly string[] = [
 
 /** Ids of spec 014 already closed by the tasks that traced them (T2: FR-416, the public config encoder, decoder and golden; T3: FR-414, the service reads the public config from the settings; T4: FR-413, FR-418, FR-419, the route GET /config; T5: FR-415, the public config holds no private value, FR-417, the same bytes for any state, NFR-81, the mutation table of the output, NFR-83, the read touches no storage, clock or random; T6: FR-421, a creation inside the published config is never refused; T7: FR-420, the existing wire unchanged, NFR-82, this ledger closed). */
 /**
- * Ids of spec 018 (client-only matches; FR-490..FR-506, NFR-100..NFR-104) whose tests are not written yet. FR-505 (the bot opt-in)
- * is the last milestone (M5) and leaves this list empty when its test names it.
+ * Ids of spec 018 (client-only matches; FR-490..FR-506, NFR-100..NFR-104) whose tests are not written yet: none (M5 closed FR-505).
  */
-const PENDING_018: readonly string[] = ['FR-505'];
+const PENDING_018: readonly string[] = [];
 
-/** Ids of spec 018 closed by M1 to M4 (the 21 others): the protocol, the store, the service and HTTP, the twin and the secrecy scan. */
+/** Ids of spec 018 closed (M1 to M4: the protocol, the store, the service and HTTP, the twin and the secrecy scan; M5: FR-505, the bot). */
 const DONE_018: readonly string[] = [
-  'FR-490', 'FR-491', 'FR-492', 'FR-493', 'FR-494', 'FR-495', 'FR-496', 'FR-497', 'FR-498', 'FR-499', 'FR-500', 'FR-501', 'FR-502', 'FR-503', 'FR-504', 'FR-506',
+  'FR-490', 'FR-491', 'FR-492', 'FR-493', 'FR-494', 'FR-495', 'FR-496', 'FR-497', 'FR-498', 'FR-499', 'FR-500', 'FR-501', 'FR-502', 'FR-503', 'FR-504', 'FR-505', 'FR-506',
   'NFR-100', 'NFR-101', 'NFR-102', 'NFR-103', 'NFR-104',
 ];
 
@@ -977,13 +976,13 @@ describe('traceability', () => {
     expect(DONE_014.slice(0, 5)).toStrictEqual(['FR-416', 'FR-414', 'FR-413', 'FR-418', 'FR-419']);
   });
 
-  it('the 22 ids of spec 018 are pinned: 21 closed, the bot opt-in pending until its test names it, and every one is a spec id', () => {
+  it('the 22 ids of spec 018 are pinned: all closed, none pending, and every one is a spec id', () => {
     const literal = [
       ...Array.from({ length: 17 }, (_, i) => `FR-${490 + i}`),
       ...Array.from({ length: 5 }, (_, i) => `NFR-${100 + i}`),
     ];
-    expect(DONE_018).toHaveLength(21);
-    expect(PENDING_018).toStrictEqual(['FR-505']);
+    expect(DONE_018).toHaveLength(22);
+    expect(PENDING_018).toStrictEqual([]);
     expect([...PENDING_018, ...DONE_018].sort()).toStrictEqual([...literal].sort());
     for (const id of literal) expect(expected, id).toContain(id);
     const used = tracedIds(testSources);
