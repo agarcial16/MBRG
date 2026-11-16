@@ -37,9 +37,8 @@ function fakeNet(script: {
     create: no,
     join: no,
     start: no,
-    async players(matchId) {
-      calls.push({ name: 'players', args: [matchId] });
-      return { ok: true, value: script.players ?? [] };
+    async players() {
+      return no();
     },
     async submit(matchId, token, body) {
       calls.push({ name: 'submit', args: [matchId, token, body] });
@@ -55,9 +54,13 @@ function fakeNet(script: {
       calls.push({ name: 'playerResults', args: [matchId, playerId] });
       return { ok: true, value: { total: 10, items: script.results ?? [], name: 'Ana' } };
     },
-    async leaderboard(matchId) {
-      calls.push({ name: 'leaderboard', args: [matchId] });
-      return { ok: true, value: script.rows ?? [] };
+    async leaderboardPage(matchId, cursor) {
+      calls.push({ name: 'leaderboard', args: [matchId, cursor] });
+      return { ok: true, value: { items: script.rows ?? [] } };
+    },
+    async playersPage(matchId, cursor) {
+      calls.push({ name: 'players', args: [matchId, cursor] });
+      return { ok: true, value: { items: script.players ?? [] } };
     },
     async winners(matchId, round, phase) {
       calls.push({ name: 'winners', args: [matchId, round, phase] });
@@ -263,6 +266,9 @@ describe('FR-404 a refused or failed submission', () => {
   });
 });
 
+const rowsOf = (view: { count: number; at(i: number): { rank: number | undefined; name: string; total: number; me: boolean } } | undefined) =>
+  Array.from({ length: view?.count ?? 0 }, (_, i) => (view as { at(i: number): { rank: number | undefined; name: string; total: number; me: boolean } }).at(i));
+
 describe('FR-406 FR-407 results, leaderboard and winners', () => {
   const rows: LeaderboardRow[] = [
     { rank: 1, playerId: 'player:zz', total: 30, correctVictims: 3, correctAbsorbers: 0, correctWinner: 0, name: 'Zed' },
@@ -286,11 +292,11 @@ describe('FR-406 FR-407 results, leaderboard and winners', () => {
     expect(hud.chip).toBe('Ana · 10 pts · 2.º');
     expect(hud.chipParts).toStrictEqual({ name: 'Ana', stats: ' · 10 pts · 2.º' });
     expect(hud.result!.right).toBe(true);
-    expect(hud.board!.rows.map((r) => [r.name, r.me])).toStrictEqual([['Zed', false], ['Ana', true]]);
+    expect(rowsOf(hud.board).map((r) => [r.name, r.me])).toStrictEqual([['Zed', false], ['Ana', true]]);
     expect(calls.filter((c) => c.name === 'winners').some((c) => c.args[1] === 1 && c.args[2] === 1)).toBe(true);
   });
 
-  it('FR-432 the players list is read once at the start; a player-joined frame adds a 0-point row with no request', async () => {
+  it('FR-432 the players list is read on demand after the scored rows; a player-joined frame adds a 0-point row with no request', async () => {
     const roster: PlayerListItem[] = [
       { playerId: 'player:zz', name: 'Zed', joinedSeq: 1 },
       { playerId: ME.playerId, name: 'Ana', joinedSeq: 2 },
@@ -301,13 +307,13 @@ describe('FR-406 FR-407 results, leaderboard and winners', () => {
     session.view(model, 0, idle);
     await tick();
     await tick();
-    expect(session.view(model, 0, idle).board!.rows.map((r) => [r.rank, r.name, r.total, r.me])).toStrictEqual([[1, 'Zed', 30, false], [2, 'Ana', 0, true]]);
+    expect(rowsOf(session.view(model, 0, idle).board).map((r) => [r.rank, r.name, r.total, r.me])).toStrictEqual([[1, 'Zed', 30, false], [2, 'Ana', 0, true]]);
     const before = calls.length;
     const changed = changes.count;
     session.onFrame(JSON.parse(encodeEvent({ type: 'player-joined', seq: 50, playerId: 'player:Nw3_x-9.Qz1k', name: 'Newbie' })));
     expect(changes.count).toBeGreaterThan(changed);
     expect(calls.length).toBe(before);
-    expect(session.view(model, 0, idle).board!.rows.map((r) => [r.rank, r.name, r.total])).toStrictEqual([[1, 'Zed', 30], [2, 'Ana', 0], [2, 'Newbie', 0]]);
+    expect(rowsOf(session.view(model, 0, idle).board).map((r) => [r.rank, r.name, r.total])).toStrictEqual([[1, 'Zed', 30], [2, 'Ana', 0], [2, 'Newbie', 0]]);
     session.onFrame(JSON.parse(encodeEvent({ type: 'player-joined', seq: 50, playerId: 'player:Nw3_x-9.Qz1k', name: 'Newbie' })));
     expect(calls.filter((c) => c.name === 'players')).toHaveLength(1);
   });
@@ -420,6 +426,9 @@ describe('FR-406 FR-407 results, leaderboard and winners', () => {
     expect(during.chipParts!.stats).toBe(' · 0 pts');
     const absorbing = session.view(model, 0, { revealing: false, absorbing: true });
     expect(absorbing.result).toBeUndefined();
+    session.view(model, 0, idle);
+    await tick();
+    await tick();
     const after = session.view(model, 0, idle);
     expect(after.result!.right).toBe(true);
     expect(after.chipParts).toStrictEqual({ name: 'Ana', stats: ' · 10 pts · 2.º' });

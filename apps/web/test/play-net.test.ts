@@ -212,25 +212,37 @@ describe('FR-401 FR-402 FR-404 submitting and reading the own predictions', () =
 });
 
 describe('FR-406 FR-407 results, leaderboard and winners reads', () => {
-  it('FR-406 the player results and the leaderboard are credential-free GETs over all pages', async () => {
+  it('FR-406 the player results are read over all pages and the leaderboard one page at a time, both credential-free', async () => {
     const r = (round: number): PlayerResult => ({ kind: 'victim', round, choice: 2, correct: true, points: 10 });
     const row = (rank: number, id: string): LeaderboardRow => ({ rank, playerId: id, total: 10, correctVictims: 1, correctAbsorbers: 0, correctWinner: 0, name: `N${rank}` });
     const { fetch, seen } = fake([
       ok(encodePlayerResults({ playerId: PLAYER, total: 20, items: [r(1)], next: 'P1', name: 'Ana' })),
       ok(encodePlayerResults({ playerId: PLAYER, total: 25, items: [r(2)] })),
-      ok(encodePage({ items: [row(1, 'player:a'), row(2, 'player:b')] }, encodeLeaderboardRow)),
+      ok(encodePage({ items: [row(1, 'player:a'), row(2, 'player:b')], next: 'C1' }, encodeLeaderboardRow)),
+      ok(encodePage({ items: [row(3, 'player:c')] }, encodeLeaderboardRow)),
+      refused('stale-cursor', 409),
+      ok(encodePage({ items: [{ playerId: 'player:a', name: 'Ana', joinedSeq: 1 }] }, encodePlayerListItem)),
     ]);
     const net = createPlayNet({ base: BASE, fetch });
     const scores = await net.playerResults(MATCH_ID, PLAYER);
     expect(scores.ok && scores.value.total).toBe(20);
     expect(scores.ok && scores.value.items.map((i) => i.round)).toStrictEqual([1, 2]);
     expect(scores.ok && scores.value.name).toBe('Ana');
-    const board = await net.leaderboard(MATCH_ID);
-    expect(board.ok && board.value.map((x) => x.name)).toStrictEqual(['N1', 'N2']);
+    const board = await net.leaderboardPage(MATCH_ID, undefined);
+    expect(board.ok && board.value.items.map((x) => x.name)).toStrictEqual(['N1', 'N2']);
+    expect(board.ok && board.value.next).toBe('C1');
+    const more = await net.leaderboardPage(MATCH_ID, 'C1');
+    expect(more.ok && more.value.items.map((x) => x.name)).toStrictEqual(['N3']);
+    expect(await net.leaderboardPage(MATCH_ID, 'old')).toMatchObject({ ok: false, outcome: 'stale-cursor' });
+    const roster = await net.playersPage(MATCH_ID, undefined);
+    expect(roster.ok && roster.value.items.map((x) => x.name)).toStrictEqual(['Ana']);
     expect(seen.map((x) => x.url)).toStrictEqual([
       `${BASE}/matches/${MATCH_ID}/players/${PLAYER}/results?limit=500`,
       `${BASE}/matches/${MATCH_ID}/players/${PLAYER}/results?limit=500&cursor=P1`,
       `${BASE}/matches/${MATCH_ID}/leaderboard?limit=500`,
+      `${BASE}/matches/${MATCH_ID}/leaderboard?limit=500&cursor=C1`,
+      `${BASE}/matches/${MATCH_ID}/leaderboard?limit=500&cursor=old`,
+      `${BASE}/matches/${MATCH_ID}/players?limit=500`,
     ]);
     for (const x of seen) expect(x.headers).toStrictEqual({});
     expect(await net.playerResults(MATCH_ID, 'nope')).toMatchObject({ ok: false, outcome: 'invalid-player-id' });

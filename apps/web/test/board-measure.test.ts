@@ -1,10 +1,10 @@
 // Measurement plan of spec 019 (a manual run, skipped in `npm test`): `MBRG_MEASURE=1 npx vitest run apps/web/test/board-measure.test.ts`.
-// BEFORE: the whole leaderboard and roster read in pages of 500, merged, sorted, ranked and paged in memory.
+// BEFORE (commit 7875e0d): the whole leaderboard and roster read in pages of 500, merged, sorted, ranked and paged in memory.
+// AFTER (spec 019): one page on open, a page merged without sorting, the window of rows computed by `windowOf`.
 import { describe, it } from 'vitest';
-import { completeBoard, boardPage } from '../src/core/results-model';
-import { createPlayNet } from '../src/ui/live-net';
+import { boardAfterPage, boardBegin, boardRefresh, boardView, emptyBoard, nextFetch } from '../src/core/board-model';
+import { windowOf } from '../src/core/board-window';
 import { boardServer, synthetic } from './helpers/board-server';
-import { MATCH_ID } from './helpers/scripted-match';
 
 const median = (xs: number[]): number => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] as number;
 const time = (run: () => void, times = 9): number => {
@@ -17,25 +17,47 @@ const time = (run: () => void, times = 9): number => {
   return Number(median(out).toFixed(3));
 };
 
-describe.skipIf(process.env.MBRG_MEASURE !== '1')('measurement: today\'s board', () => {
+describe.skipIf(process.env.MBRG_MEASURE !== '1')('measurement: the windowed board', () => {
   it('prints the table', async () => {
     const table: Record<string, unknown>[] = [];
-    for (const n of [20, 200, 1000, 10000]) {
+    for (const n of [1000, 10000]) {
       const server = boardServer(synthetic(n));
-      const net = createPlayNet({ base: 'http://fake', fetch: (url, init) => server.fetch(url, init) });
-      const board = await net.leaderboard(MATCH_ID);
-      const roster = await net.players(MATCH_ID);
-      if (!board.ok || !roster.ok) throw new Error('read failed');
-      const bytes = server.requests.reduce((sum, r) => sum + r.bytes, 0);
-      const merged = completeBoard(board.value, roster.value);
-      table.push({
-        n,
-        requests: server.requests.length,
-        kb: Math.round(bytes / 1024),
-        mergeMs: time(() => completeBoard(board.value, roster.value)),
-        pageMs: time(() => boardPage(merged, 'player:p00001', 3)),
-        heapRowsKb: Math.round((JSON.stringify(merged).length) / 1024),
+      let state = boardRefresh(emptyBoard(''));
+      const read = nextFetch(state);
+      if (read === undefined) throw new Error('no read');
+      const response = await server.fetch(`http://fake/matches/m/leaderboard?limit=500`);
+      const page = (await response.json()) as { items: never[]; next?: string };
+      const bytes = server.requests[0]!.bytes;
+      const mergeMs = time(() => boardAfterPage(boardBegin(boardRefresh(emptyBoard(''))), read, page));
+      state = boardAfterPage(boardBegin(state), read, page);
+      const view = boardView(state);
+      const paintMs = time(() => {
+        const w = windowOf(view.count, 3000, 440);
+        for (let i = w.first; i < w.last; i++) view.at(i);
       });
+      table.push({ n, requestsOnOpen: server.requests.length, kbOnOpen: Math.round(bytes / 1024), mergePageMs: mergeMs, windowMs: paintMs, rowsHeld: view.count });
+    }
+    console.table(table);
+  });
+});describe.skipIf(process.env.MBRG_MEASURE !== '1')('measurement: the windowed board', () => {
+  it('prints the table', async () => {
+    const table: Record<string, unknown>[] = [];
+    for (const n of [1000, 10000]) {
+      const server = boardServer(synthetic(n));
+      let state = boardRefresh(emptyBoard(''));
+      const read = nextFetch(state);
+      if (read === undefined) throw new Error('no read');
+      const response = await server.fetch(`http://fake/matches/m/leaderboard?limit=500`);
+      const page = (await response.json()) as { items: never[]; next?: string };
+      const bytes = server.requests[0]!.bytes;
+      const mergeMs = time(() => boardAfterPage(boardBegin(boardRefresh(emptyBoard(''))), read, page));
+      state = boardAfterPage(boardBegin(state), read, page);
+      const view = boardView(state);
+      const paintMs = time(() => {
+        const w = windowOf(view.count, 3000, 440);
+        for (let i = w.first; i < w.last; i++) view.at(i);
+      });
+      table.push({ n, requestsOnOpen: server.requests.length, kbOnOpen: Math.round(bytes / 1024), mergePageMs: mergeMs, windowMs: paintMs, rowsHeld: view.count });
     }
     console.table(table);
   });

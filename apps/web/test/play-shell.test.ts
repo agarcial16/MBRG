@@ -10,13 +10,14 @@ import lobby from '../src/ui/play-lobby.ts?raw';
 import main from '../src/ui/play-main.ts?raw';
 import session from '../src/ui/play-session.ts?raw';
 import panel from '../src/ui/live-panel.ts?raw';
+import boardPanel from '../src/ui/board-panel.ts?raw';
 import input from '../src/ui/input.ts?raw';
 import liveMain from '../src/ui/live-main.ts?raw';
 import entry from '../src/ui/entry.ts?raw';
 import start from '../src/ui/live-start.ts?raw';
 import { codeOnly, languageViolations } from './helpers/scan';
 
-const shells = { 'play-create': create, 'play-dom': dom, 'play-join': join, 'play-lobby': lobby, 'play-main': main, 'play-session': session } as const;
+const shells = { 'board-panel': boardPanel, 'play-create': create, 'play-dom': dom, 'play-join': join, 'play-lobby': lobby, 'play-main': main, 'play-session': session } as const;
 const code = (src: string): string => codeOnly(src.replace(/\/\/.*$/gm, ''));
 
 describe('NFR-77 the player screens speak Spanish through the strings module', () => {
@@ -155,7 +156,9 @@ describe('FR-401 to FR-407 the prediction shells hand their decisions to the pur
 
   it('NFR-77 the rebuilt parts of the panel are rebuilt only when they change, so a countdown does not drop the keyboard focus', () => {
     expect(panel).toContain('predictSig');
-    expect(panel).toContain('boardSig');
+    // The board is built once and redrawn only when the version of its view changes (spec 019 NFR-105, NFR-107).
+    expect(panel).toContain('boardPanel ??= createBoardPanel');
+    expect(boardPanel).toContain('next.version === shown');
     expect(panel).toContain('chronSig');
   });
 });
@@ -262,10 +265,17 @@ describe('second screenshot pass: phone dock and chip', () => {
     expect(panel).toContain("el('span', 'hud-chip-stats', chipButton)");
   });
 
-  it('the ranking scrolls with its pane and the own row stays pinned at the bottom of it', () => {
-    expect(css).toContain('.hud[data-layout="phone"] .hud-board-mine { position: sticky; bottom: 0;');
-    expect(rule('.hud-boardrow.me')).toContain('position: sticky');
-    expect(panel).toContain("'hud-board hud-board-mine'");
+  it('the ranking list scrolls inside its own region and the own row stays pinned under it (spec 019 FR-512)', () => {
+    expect(rule('.hud-boardscroll')).toContain('overflow-y: auto');
+    expect(css).toContain('.hud-board-mine { flex: none;');
+    expect(boardPanel).toContain("'hud-boardrow me hud-board-mine'");
+  });
+
+  it('the board rows are 44 px high and long names are cut with an ellipsis (spec 019 NFR-108)', () => {
+    expect(rule('.hud-boardrow')).toContain('height: 44px');
+    expect(rule('.hud-boardname')).toContain('text-overflow: ellipsis');
+    expect(rule('.hud-boardname')).toContain('min-width: 0');
+    expect(css).toContain('.hud[data-layout="phone"] .hud-boardmine');
   });
 });
 

@@ -304,8 +304,10 @@ export interface PlayNet {
   ownPredictions(matchId: string, playerToken: string, local: string): Promise<PlayRead<OwnPrediction[]>>;
   /** FR-406: the scored predictions of a player (all pages, credential-free). */
   playerResults(matchId: string, playerId: string): Promise<PlayRead<PlayerScores>>;
-  /** FR-406: the leaderboard (all pages, credential-free). */
-  leaderboard(matchId: string): Promise<PlayRead<LeaderboardRow[]>>;
+  /** Spec 019 FR-508: one page of the leaderboard (limit 500), from the first page when `cursor` is undefined; credential-free. A cursor the server no longer knows is the outcome `stale-cursor`. */
+  leaderboardPage(matchId: string, cursor: string | undefined): Promise<PlayRead<Page<LeaderboardRow>>>;
+  /** Spec 019 FR-509: one page of the players list (limit 500), credential-free. */
+  playersPage(matchId: string, cursor: string | undefined): Promise<PlayRead<Page<PlayerListItem>>>;
   /** FR-407: the names of the players who guessed a scored phase right (all pages, credential-free). */
   winners(matchId: string, round: number, phase: 1 | 2): Promise<PlayRead<PhaseWinner[]>>;
 }
@@ -361,6 +363,8 @@ export function createPlayNet(deps: PlayNetDeps): PlayNet {
     }
   }
 
+  const pageQuery = (cursor: string | undefined): string => `limit=500${cursor === undefined ? '' : `&cursor=${encodeURIComponent(cursor)}`}`;
+
   async function pages(matchId: string): Promise<PlayRead<PlayerListItem[]>> {
     const all = await allPages<Page<PlayerListItem>, PlayerListItem>(`/matches/${matchId}/players`, '', {}, readPlayersPage);
     return all.ok ? { ok: true, value: all.value.items } : all;
@@ -401,10 +405,13 @@ export function createPlayNet(deps: PlayNetDeps): PlayNet {
       const all = await allPages<PlayerResultsPage, PlayerResult>(`/matches/${matchId}/players/${playerId}/results`, '', {}, readPlayerResultsPage);
       return all.ok ? { ok: true, value: { total: all.value.first.total, items: all.value.items, name: all.value.first.name } } : all;
     },
-    async leaderboard(matchId) {
+    async leaderboardPage(matchId, cursor) {
       if (!MATCH_ID_TEXT.test(matchId)) return failed('invalid-match');
-      const all = await allPages<Page<LeaderboardRow>, LeaderboardRow>(`/matches/${matchId}/leaderboard`, '', {}, readLeaderboardPage);
-      return all.ok ? { ok: true, value: all.value.items } : all;
+      return call(`/matches/${matchId}/leaderboard?${pageQuery(cursor)}`, {}, readLeaderboardPage);
+    },
+    async playersPage(matchId, cursor) {
+      if (!MATCH_ID_TEXT.test(matchId)) return failed('invalid-match');
+      return call(`/matches/${matchId}/players?${pageQuery(cursor)}`, {}, readPlayersPage);
     },
     async winners(matchId, round, phase) {
       if (!MATCH_ID_TEXT.test(matchId)) return failed('invalid-match');

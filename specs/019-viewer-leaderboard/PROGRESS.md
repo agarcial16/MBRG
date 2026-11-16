@@ -26,3 +26,23 @@ Findings:
 - Paint of a window (the rows in or near the view, patched by key): at most 4 ms median and 8 ms worst of 20 at N = 10,000 in Node (a frame is 16.7 ms, the rest is for the browser).
 - Merge of a loaded page into the model: at most 5 ms per page of 500 at N = 10,000, no sort of the whole list (the server order is kept).
 - The per-second refresh builds or moves no row: 0 DOM writes when nothing changed (counted in the test).
+
+## Task 2 — tests first, then the code
+
+- Pure modules and tests: `core/board-window.ts` (`test/board-window.test.ts`: cap of 60 rows at any size, offsets, scroll-to-row), `core/board-model.ts` (`test/board-model.test.ts`: cursor paging on demand, `stale-cursor` restart, retry with no request loop, ranking with ties across page borders, tail of 0-point players, accent-insensitive search over scored and roster, 20-page cap, go-to-my-place with cancel and cap, secrecy by `boardFrozen`), `test/board-session.test.ts` (the session over the real `PlayNet` and the synthetic server: one page on open, refresh from the first page, stale cursor mid-scroll, hold during a tour, jump, retry, search).
+- Code: `ui/board-panel.ts` (windowed DOM patched by key, search, go-to-my-place, pinned row, loading/retry row, keyboard: the scroller is focusable), CSS in `live-panel-style.ts`, strings, `ui/live-net.ts` (`leaderboardPage`, `playersPage`; the all-pages leaderboard read of the player screen is gone), `ui/play-session.ts` (the read pump; no read while a tour holds), `core/play-view.ts` (`board` state replaces rows/page; no per-second sort), `results-model.ts` (old `boardPage`/`completeBoard` removed with their tests).
+- Decisions: the roster is read lazily, only after every scored row is read (search, scroll to the end, go-to-my-place); the viewer's rank in the pinned row shows "-" until the list holds their row (the server has no rank lookup, out of scope); a read that is still in flight when a refresh starts is dropped; the first read waits while a tour holds (stricter than before).
+- `npm test` all tests green; `npm run typecheck` clean; nothing under server, protocol or bot changed.
+
+### After the change (Node, `MBRG_MEASURE=1 npx vitest run apps/web/test/board-measure.test.ts`)
+| N | requests on open | KB on open | merge of a page (ms) | window of rows (ms) | rows held |
+|---:|---:|---:|---:|---:|---:|
+| 1,000 | 1 (was 4) | 67 (was 189) | 0.09 | <0.01 | 500 |
+| 10,000 | 1 (was 38) | 66 (was 1,922) | 0.09 | <0.01 | 500 |
+
+Browser (debug scene, 1,000 players, spectator and player): DOM of the panel 15 to 76 nodes, 17 to 21 rows at any scroll position (cap 60); a MutationObserver over the panel saw 0 mutations in 3.5 s of per-second HUD ticks; the focus stays on the own row after "Ir a mi puesto" (aria-label "Puesto 51, ... (tú)"); search "MARIA garcia 1" listed the 2 matches with their ranks. All NFR-105 figures are met.
+
+### Visual evidence and what is not verified
+- Desktop 1024 x 640, 1,000 players, fixed scene (seed 7, round 3): top with the own row pinned, own place after "Ir a mi puesto", middle (rank 476, pinned row visible) and a search result were seen in the built-in browser pane and read as correct.
+- 360 px: the pane's screenshot tool was unreliable at that size (tiled or cropped images); the top view with the dock's Ranking tab was seen, and the own-place and search views at 360 px were checked by DOM measurement only (no horizontal scroll, 44 px controls, names with ellipsis and a `title`), not by eye. Not screenshotted: search at 360 px, own place at 360 px.
+- Not verified: real screen reader, touch scrolling on a device, behaviour against the real `apps/server` (only the synthetic server, which mimics its cursor and `stale-cursor`), a 10,000-player run in the browser (Node only).

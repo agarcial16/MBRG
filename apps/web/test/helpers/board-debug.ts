@@ -28,7 +28,7 @@ export async function debugScene(players: number, appliedRounds = 3): Promise<De
         if (parts[2] === 'leaderboard' || (parts[2] === 'players' && parts.length === 3)) return board.fetch(url);
         if (parts[2] === 'players' && parts[4] === 'results') {
           const mine = board.data.rows.find((r) => r.playerId === decodeURIComponent(parts[3] as string));
-          return Promise.resolve(mine === undefined ? json(encodeError({ kind: 'unknown-player' }), 404) : json({ playerId: mine.playerId, total: mine.total, items: [], name: mine.name }));
+          return Promise.resolve(mine === undefined ? json(encodeError({ kind: 'unknown-path' }), 404) : json({ playerId: mine.playerId, total: mine.total, items: [], name: mine.name }));
         }
         if (parts[2] === 'results') return Promise.resolve(json({ round: Number(parts[3]), phase: Number(parts[4]), items: [] }));
         if (parts[2] === 'predictions') return Promise.resolve(json({ items: [] }));
