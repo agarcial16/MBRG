@@ -88,7 +88,7 @@ describe('FR-507 FR-508 FR-509 paging by cursor, on demand', () => {
     expect(view.failed).toBe(true);
     expect(view.count).toBe(500);
     expect(nextFetch(failed.state)).toBeUndefined();
-    expect(nextFetch(boardRetry(failed.state))).toEqual({ what: 'scored', cursor: '1:500' });
+    expect(nextFetch(boardRetry(failed.state))).toMatchObject({ what: 'scored', cursor: '1:500' });
   });
 });
 
@@ -160,7 +160,7 @@ describe('FR-514 order and ranking with ties', () => {
       { rank: 1, playerId: 'player:a', total: 5, correctVictims: 0, correctAbsorbers: 0, correctWinner: 0 },
       { rank: 2, playerId: 'player:b', total: 0, correctVictims: 0, correctAbsorbers: 0, correctWinner: 0 },
     ];
-    let state = boardAfterPage(boardBegin(emptyBoard('')), { what: 'scored', cursor: undefined }, { items: rows });
+    let state = boardAfterPage(boardBegin(emptyBoard('')), { what: 'scored', cursor: undefined, epoch: 0 }, { items: rows });
     state = boardPlayers(state, [{ playerId: 'player:c', name: 'Carla', joinedSeq: 3 }]);
     const view = boardView(state);
     expect(view.at(2)).toMatchObject({ name: 'Carla', total: 0, rank: 2 });
@@ -180,9 +180,35 @@ describe('FR-514 order and ranking with ties', () => {
       { rank: 1, playerId: 'player:Ab3_x', total: 9, correctVictims: 0, correctAbsorbers: 0, correctWinner: 0, name: 'María' },
       { rank: 2, playerId: 'player:Qz1k', total: 7, correctVictims: 0, correctAbsorbers: 0, correctWinner: 0 },
     ];
-    const view = boardView(boardAfterPage(boardBegin(emptyBoard('')), { what: 'scored', cursor: undefined }, { items: rows }));
+    const view = boardView(boardAfterPage(boardBegin(emptyBoard('')), { what: 'scored', cursor: undefined, epoch: 0 }, { items: rows }));
     expect(view.at(0).name).toBe('María');
     expect(view.at(1).name).toBe('Qz1k');
+  });
+});
+
+describe('review fixes', () => {
+  it('NFR-106 typing more characters does not allow more pages for one search', async () => {
+    const { server, state } = await opened(15000);
+    let s = state;
+    let reads = 0;
+    for (const text of ['n', 'no', 'no s', 'no such']) {
+      s = boardQuery(s, text);
+      const done = await drive(s, server);
+      s = done.state;
+      reads += done.reads.length;
+    }
+    expect(reads).toBeLessThanOrEqual(SEEK_PAGE_CAP);
+  });
+
+  it('FR-510 a reply to a read of an earlier refresh is dropped, even a first page', async () => {
+    const { server, state } = await opened(300);
+    const first = nextFetch(boardRefresh(state))!;
+    let s = boardBegin(boardRefresh(state));
+    s = boardRefresh(s);
+    const old = await (await server.fetch('http://fake/matches/m/leaderboard?limit=500')).json();
+    s = boardAfterPage(s, first, old);
+    expect(s.ui.refresh).toBeDefined();
+    expect(s.ui.busy).toBe(false);
   });
 });
 
@@ -204,7 +230,7 @@ describe('FR-513 NFR-106 search by name', () => {
       { playerId: 'player:b', name: 'JOSEFA', joinedSeq: 2 },
       { playerId: 'player:c', name: 'Ana', joinedSeq: 3 },
     ];
-    const state = boardPlayers(boardAfterPage(boardBegin(emptyBoard('')), { what: 'scored', cursor: undefined }, { items: [] }), roster);
+    const state = boardPlayers(boardAfterPage(boardBegin(emptyBoard('')), { what: 'scored', cursor: undefined, epoch: 0 }, { items: [] }), roster);
     expect(matchingRows(state.data, 'jose')).toEqual([0, 1]);
     expect(matchingRows(state.data, 'NUNEZ')).toEqual([0]);
     expect(matchingRows(state.data, ' ñ ')).toEqual([0, 2]);

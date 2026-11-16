@@ -54,6 +54,8 @@ export interface BoardUi {
   readonly failed: boolean;
   /** A reload from the first page in progress; the rows shown stay until it lands (FR-510). */
   readonly refresh: Refresh | undefined;
+  /** Counts the restarts of the reads: a reply to a read of an earlier epoch is dropped. */
+  readonly epoch: number;
   /** The row the screen scrolls to and focuses once, then clears (FR-511). */
   readonly jump: number | undefined;
   /** "Go to my place" ended without finding the row. */
@@ -69,6 +71,7 @@ export interface BoardState {
 export interface PageRead {
   readonly what: 'scored' | 'roster' | 'refresh';
   readonly cursor: string | undefined;
+  readonly epoch: number;
 }
 
 const localName = (playerId: string): string => playerId.slice(playerId.indexOf(':') + 1);
@@ -87,7 +90,7 @@ const emptyData: BoardData = derive({ scored: [], next: undefined, scoredDone: f
 /** A board that read nothing: `me` is the viewer's player id ('' for a spectator). The first call of the shell is `boardRefresh`. */
 export const emptyBoard = (me: string): BoardState => ({
   data: emptyData,
-  ui: { me, want: PAGE_LIMIT, query: '', seek: undefined, busy: false, failed: false, refresh: undefined, jump: undefined, missing: false },
+  ui: { me, want: PAGE_LIMIT, query: '', seek: undefined, busy: false, failed: false, refresh: undefined, epoch: 0, jump: undefined, missing: false },
 });
 
 const withUi = (state: BoardState, ui: Partial<BoardUi>): BoardState => ({ ...state, ui: { ...state.ui, ...ui } });
@@ -107,7 +110,7 @@ export function boardWant(state: BoardState, last: number): BoardState {
 
 /** FR-510: a phase was scored (or the first read): reload the loaded window from the first page; the rows shown stay until the new ones land. */
 export const boardRefresh = (state: BoardState): BoardState =>
-  withUi(state, { refresh: { rows: [], next: undefined, target: Math.max(1, state.ui.want), tries: 0 }, failed: false });
+  withUi(state, { refresh: { rows: [], next: undefined, target: Math.max(1, state.ui.want, loadedCount(state.data)), tries: 0 }, epoch: state.ui.epoch + 1, failed: false });
 
 /** FR-509: the retry control; the failed read is asked again by the next `nextFetch`. */
 export const boardRetry = (state: BoardState): BoardState => (state.ui.failed ? withUi(state, { failed: false }) : state);
@@ -116,7 +119,7 @@ export const boardRetry = (state: BoardState): BoardState => (state.ui.failed ? 
 export function boardQuery(state: BoardState, text: string): BoardState {
   if (text === state.ui.query) return state;
   const blank = text.trim() === '';
-  return withUi(state, { query: text, seek: blank ? undefined : { what: 'search', pages: 0 }, jump: undefined, missing: false });
+  return withUi(state, { query: text, seek: blank ? undefined : { what: 'search', pages: state.ui.seek?.what === 'search' ? state.ui.seek.pages : 0 }, jump: undefined, missing: false });
 }
 
 /** FR-511: "go to my place": the search is cleared, the pages are read until the row is found (at most NFR-106), then `jump` names its index. */
@@ -157,11 +160,11 @@ function needed(state: BoardState): number {
 export function nextFetch(state: BoardState): PageRead | undefined {
   const { ui, data } = state;
   if (ui.busy || ui.failed) return undefined;
-  if (ui.refresh !== undefined) return { what: 'refresh', cursor: ui.refresh.next };
+  if (ui.refresh !== undefined) return { what: 'refresh', cursor: ui.refresh.next, epoch: ui.epoch };
   if (loadedCount(data) >= needed(state)) return undefined;
   if (ui.seek !== undefined && ui.seek.pages >= SEEK_PAGE_CAP) return undefined;
-  if (!data.scoredDone) return { what: 'scored', cursor: data.next };
-  if (!data.rosterDone) return { what: 'roster', cursor: data.rosterNext };
+  if (!data.scoredDone) return { what: 'scored', cursor: data.next, epoch: ui.epoch };
+  if (!data.rosterDone) return { what: 'roster', cursor: data.rosterNext, epoch: ui.epoch };
   return undefined;
 }
 
@@ -177,13 +180,13 @@ function settleSeek(state: BoardState): BoardState {
   return state;
 }
 
-const counted = (ui: BoardUi): Partial<BoardUi> => (ui.seek === undefined ? {} : { seek: { ...ui.seek, pages: ui.seek.pages + 1 } });
+const counted = (ui: BoardUi, read: PageRead): Partial<BoardUi> => (ui.seek === undefined || read.what === 'refresh' ? {} : { seek: { ...ui.seek, pages: ui.seek.pages + 1 } });
 
 /** A page arrived. `read` is what `nextFetch` asked for. */
 export function boardAfterPage(state: BoardState, read: PageRead, page: Page<LeaderboardRow> | Page<PlayerListItem>): BoardState {
   const { data, ui } = state;
   // A reply to a read the state has moved past (a refresh started meanwhile) is dropped.
-  if ((read.what === 'refresh' && ui.refresh?.next !== read.cursor) || (read.what === 'scored' && (ui.refresh !== undefined || data.next !== read.cursor))) return withUi(state, { busy: false });
+  if (read.what !== 'roster' && read.epoch !== ui.epoch) return withUi(state, { busy: false });
   let next: BoardState;
   if (read.what === 'roster') {
     next = boardPlayers(withUi(state, {}), page.items as readonly PlayerListItem[], { next: page.next });
@@ -200,7 +203,7 @@ export function boardAfterPage(state: BoardState, read: PageRead, page: Page<Lea
       next = { ...state, ui: { ...ui, refresh: { ...job, rows, next: page.next } } };
     }
   }
-  return settleSeek(withUi(next, { busy: false, ...counted(ui) }));
+  return settleSeek(withUi(next, { busy: false, ...counted(ui, read) }));
 }
 
 /**
@@ -209,14 +212,14 @@ export function boardAfterPage(state: BoardState, read: PageRead, page: Page<Lea
  */
 export function boardAfterFailure(state: BoardState, read: PageRead, outcome: string): BoardState {
   const { ui } = state;
-  if ((read.what === 'refresh' && ui.refresh?.next !== read.cursor) || (read.what === 'scored' && (ui.refresh !== undefined || state.data.next !== read.cursor))) return withUi(state, { busy: false });
+  if (read.what !== 'roster' && read.epoch !== ui.epoch) return withUi(state, { busy: false });
   if (outcome === 'stale-cursor' && read.what !== 'roster') {
     const tries = (ui.refresh?.tries ?? 0) + 1;
     if (tries > STALE_TRIES) return withUi(state, { busy: false, failed: true });
     const target = Math.max(ui.refresh?.target ?? 1, state.data.scored.length, ui.want);
-    return withUi(state, { busy: false, refresh: { rows: [], next: undefined, target, tries } });
+    return withUi(state, { busy: false, refresh: { rows: [], next: undefined, target, tries }, epoch: ui.epoch + 1 });
   }
-  return withUi(state, { busy: false, failed: true, ...counted(ui) });
+  return withUi(state, { busy: false, failed: true, ...counted(ui, read) });
 }
 
 /** The rank of the viewer when the list holds the row, else undefined. */

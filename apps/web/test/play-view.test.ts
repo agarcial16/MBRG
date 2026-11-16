@@ -30,7 +30,7 @@ const row = (rank: number, playerId: string, total: number, name?: string): Lead
 
 /** The state with the first page of the leaderboard read (spec 019), as the session does. */
 const withBoard = (state: PlayState, rows: readonly LeaderboardRow[], next?: string): PlayState =>
-  withBoardState(state, boardAfterPage(boardBegin(state.board), { what: 'scored', cursor: undefined }, next === undefined ? { items: rows } : { items: rows, next }));
+  withBoardState(state, boardAfterPage(boardBegin(state.board), { what: 'scored', cursor: undefined, epoch: 0 }, next === undefined ? { items: rows } : { items: rows, next }));
 const withPlayers = (state: PlayState, items: readonly { playerId: string; name: string; joinedSeq: number }[]): PlayState => withBoardState(state, boardPlayers(state.board, items));
 const listed = (state: PlayState, m: LiveModel, extra: { joined?: boolean } = {}) => {
   const view = hud(state, m, extra).board!;
@@ -171,7 +171,7 @@ describe('FR-406 chip, results panel and leaderboard', () => {
   it('FR-432 every joined player is on the board with 0 points, and a new one shows when it joins', async () => {
     const m = await model(1);
     const joined = (n: number, seq: number) => ({ playerId: `player:P${n}b_x-9.Qz1k`, name: `P${n}`, joinedSeq: seq });
-    const finished = (s: PlayState) => withBoardState(s, boardAfterPage(boardBegin(s.board), { what: 'roster', cursor: undefined }, { items: [] }));
+    const finished = (s: PlayState) => withBoardState(s, boardAfterPage(boardBegin(s.board), { what: 'roster', cursor: undefined, epoch: 0 }, { items: [] }));
     let state = finished(withPlayers(withBoard(mine, [row(1, 'player:P1b_x-9.Qz1k', 7, 'P1')]), [joined(1, 1), joined(2, 2)]));
     expect(listed(state, m).map((r) => [r.rank, r.name, r.total])).toStrictEqual([[1, 'P1', 7], [2, 'P2', 0]]);
     state = withJoined(state, JSON.parse(encodeEvent({ type: 'player-joined', seq: 5, playerId: 'player:P3b_x-9.Qz1k', name: 'P3' })));
