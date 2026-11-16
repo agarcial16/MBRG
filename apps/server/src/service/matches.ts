@@ -106,7 +106,7 @@ import { isMapFileName, mapForStep } from './maps';
 import type { MapCatalog, MapFile } from './maps';
 import { publicConfigOf } from './public-config';
 import { checkPublicCreation } from './publiccreate';
-import { creationPolicy } from '../core/policy';
+import { creationPolicy, joinPolicy, submitPolicy } from '../core/policy';
 import type { CreationPolicyDecision } from '../core/policy';
 import type { Scheduler, SchedulerHandle } from './scheduler';
 import type { Settings } from './settings';
@@ -1167,6 +1167,10 @@ export function createMatchService(options: ServiceOptions): MatchService {
               if (memo.decision === 'request-id-reused') return { ok: false, error: memo.error };
               const stored = store.getMatch(matchId);
               if (stored === undefined) return { ok: false, error: errorReply('unknown-match') };
+              // Spec 018 FR-496: right after the match is found, before every stage, cap and name rule, so the reply is the same
+              // for every join on a client-only match and shows nothing of its names, cap or stage. Nothing is stored or drawn.
+              const closed = joinPolicy(store.getClientNamespace(matchId));
+              if (!closed.ok) return { ok: false, error: closed.error };
               const times = timesOf(stored.match);
               done.reported = times.reported;
               // A lobby at or after its expiry instant is expired by its own rule, whether or not the wake-up has run yet (FR-372).
@@ -1358,6 +1362,10 @@ export function createMatchService(options: ServiceOptions): MatchService {
       // FR-292: a storage failure rolls the prediction and its memo back together: nothing is reported as accepted.
       const outcome = orUnavailable((): SubmitOutcome => store.transaction((): SubmitOutcome => {
         const now = wholeMs(clock.now());
+        // Spec 018 FR-497: on a client-only match only a client credential of the owning namespace goes on. `forbidden` comes
+        // before the memo (FR-301 puts it before `request-id-reused`), the cutoff and every stage rule, and stores nothing.
+        const allowed = submitPolicy(typeof matchId === 'string' ? store.getClientNamespace(matchId) : undefined, isPlayerCaller(client) ? { role: 'other' } : { role: 'client', namespace: client.namespace });
+        if (!allowed.ok) return { ok: false, error: allowed.error };
         if (body.requestId !== undefined) {
           const memoStored = store.memoGet(scope, body.requestId);
           const memo = decideMemo<SubmitOutcome>(
