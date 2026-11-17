@@ -219,6 +219,18 @@ describe('FR-401 FR-404 prediction by a tap on the map', () => {
   });
 });
 
+describe('spec 020 FR-522 a spectator of a client-only match', () => {
+  it('FR-522 tapping says predictions are made from Discord', async () => {
+    const { net, calls } = fakeNet();
+    const session = createPlaySession({ matchId: MATCH_ID, net, player: undefined, clientOnly: true, factions, pageUrl: 'https://mbrg.test/', makeId: () => 'req-0123456789abcdef0123456789abcdef', changed: () => undefined });
+    const model = await liveModel(1);
+    session.view(model, 0, idle);
+    session.tap(3);
+    expect(session.view(model, 0, idle).predict!.line).toBe(STRINGS.predictNoneClientOnly);
+    expect(calls.map((c) => c.name)).not.toContain('submit');
+  });
+});
+
 describe('FR-404 a refused or failed submission', () => {
   it('FR-404 the previous choice stays, one sentence shows, and a retry works while the phase is open', async () => {
     let attempt = 0;

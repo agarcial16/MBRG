@@ -15,6 +15,7 @@ import {
   repeatsPick,
   sentFor,
   sentText,
+  spectatorSentence,
   submitFailure,
   territoryCounts,
 } from '../src/core/predict-model';
@@ -233,5 +234,18 @@ describe('repeatsPick (double tap guard)', () => {
   });
   it('is false when there is no offer to repeat', () => {
     expect(repeatsPick({ type: 'none', reason: 'closed' }, 1, book, undefined)).toBe(false);
+  });
+});
+
+describe('spec 020 FR-522 the spectator sentence of a client-only match', () => {
+  it('FR-522 a client-only spectator is told predictions are made from Discord; an open match keeps the old sentence', () => {
+    const none = { type: 'none', reason: 'not-joined' } as const;
+    const names = (f: number): string => String(f);
+    expect(offerText(none, names, true).line).toBe(STRINGS.predictNoneClientOnly);
+    expect(STRINGS.predictNoneClientOnly).toMatch(/Discord/);
+    expect(offerText(none, names).line).toBe(STRINGS.predictNoneNotJoined);
+    expect(offerText(none, names, false).line).toBe(STRINGS.predictNoneNotJoined);
+    expect(spectatorSentence(true)).toBe(STRINGS.predictNoneClientOnly);
+    expect(spectatorSentence(false)).toBe(STRINGS.predictNoneNotJoined);
   });
 });

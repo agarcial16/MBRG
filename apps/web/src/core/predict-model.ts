@@ -140,11 +140,14 @@ export function noOfferText(reason: NoOffer): string {
   }
 }
 
+/** Spec 020 FR-522: what a spectator is told about predicting; in a client-only match the predictions are made from Discord. */
+export const spectatorSentence = (clientOnly: boolean): string => (clientOnly ? STRINGS.predictNoneClientOnly : STRINGS.predictNoneNotJoined);
+
 /** The title and the prompt of an offer, or the sentence that explains why there is none. */
-export function offerText(offer: Offer, nameOf: (faction: number) => string): { readonly title: string; readonly line: string } {
+export function offerText(offer: Offer, nameOf: (faction: number) => string, clientOnly = false): { readonly title: string; readonly line: string } {
   switch (offer.type) {
     case 'none':
-      return { title: STRINGS.predictTitle, line: noOfferText(offer.reason) };
+      return { title: STRINGS.predictTitle, line: offer.reason === 'not-joined' ? spectatorSentence(clientOnly) : noOfferText(offer.reason) };
     case 'victim':
       return { title: STRINGS.predictTitle, line: fillTemplate(STRINGS.predictVictimPrompt, { round: offer.round }) };
     case 'absorber':

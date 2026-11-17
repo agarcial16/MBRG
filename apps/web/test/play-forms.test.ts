@@ -162,3 +162,11 @@ describe('FR-396 the name rule of FR-377 is applied before sending', () => {
     expect(checkName('a'.repeat(24)).ok).toBe(true);
   });
 });
+
+describe('spec 020 FR-523 a refused join of a client-only match', () => {
+  it('FR-523 joins-closed says the match is played from Discord', () => {
+    expect(joinFailure('joins-closed')).toBe(STRINGS.joinClosedDiscord);
+    expect(STRINGS.joinClosedDiscord).toMatch(/Discord/);
+    expect(joinFailure('joins-closed')).not.toBe(STRINGS.joinFailed);
+  });
+});

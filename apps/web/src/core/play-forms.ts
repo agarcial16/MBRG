@@ -118,6 +118,8 @@ export function joinFailure(outcome: string, retryAfter?: number): string {
       return STRINGS.joinNameRule;
     case 'rate-limited':
       return retryAfter === undefined ? STRINGS.createRateLimited : fillTemplate(STRINGS.createRateLimitedWait, { value: retryAfter });
+    case 'joins-closed':
+      return STRINGS.joinClosedDiscord;
     case 'unknown-match':
       return STRINGS.joinUnknown;
     case 'network':

@@ -19,7 +19,7 @@ import {
   type BoardData,
 } from '../core/board-model';
 import type { LiveModel } from '../core/live-model';
-import { noOfferText, pickFor, repeatsPick, submitFailure, type InFlight } from '../core/predict-model';
+import { pickFor, spectatorSentence, repeatsPick, submitFailure, type InFlight } from '../core/predict-model';
 import {
   initialPlayFor,
   offerFor,
@@ -51,6 +51,8 @@ export interface PlaySessionDeps {
   /** The joined player of this browser, or undefined for a spectator. */
   readonly player: PlayerCredentials | undefined;
   readonly factions: readonly FactionName[];
+  /** Spec 020: the public match is client-only. */
+  readonly clientOnly?: boolean;
   readonly pageUrl: string;
   readonly makeId: () => string;
   /** The state changed outside a panel refresh: the scene shows the panel again. */
@@ -170,7 +172,7 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
     if (model === undefined) return;
     const offer = offerFor(model, deps.player !== undefined, hold.revealing);
     const player = deps.player;
-    if (player === undefined) return set(withNotice(state, noOfferText('not-joined')));
+    if (player === undefined) return set(withNotice(state, spectatorSentence(deps.clientOnly === true)));
     const choice = pickFor(offer, faction, player.playerId, deps.makeId());
     if (!choice.ok) return set(withNotice(state, choice.sentence));
     if (repeatsPick(offer, faction, state.book, inFlight)) return;
@@ -218,7 +220,7 @@ export function createPlaySession(deps: PlaySessionDeps): PlaySession {
       const quiet = !tour.revealing && !tour.absorbing && tour.finalised !== true;
       if (quiet) settled = { scores: state.scores, scored: state.scored, board: state.board.data, winners: state.winners };
       const shown: PlayState = quiet ? state : { ...state, scores: settled?.scores, scored: settled?.scored, board: boardFrozen(state.board, settled?.board ?? emptyBoard(state.board.ui.me).data), winners: settled?.winners ?? state.winners };
-      return playHud({ state: shown, model: next, player: deps.player, factions: deps.factions, revealing: tour.revealing, at, forcedRounds });
+      return playHud({ state: shown, model: next, player: deps.player, factions: deps.factions, revealing: tour.revealing, at, forcedRounds, clientOnly: deps.clientOnly });
     },
     onFrame(data) {
       const joined = withJoined(state, data);

@@ -133,6 +133,8 @@ export interface PlayInput {
   readonly at: number;
   /** The rounds whose absorber was forced, remembered by the session: the revealed victim is gone once the round is applied. */
   readonly forcedRounds?: ReadonlySet<number>;
+  /** Spec 020: the match is client-only, so a spectator is told predictions are made from Discord. */
+  readonly clientOnly?: boolean;
 }
 
 const localName = (playerId: string): string => playerId.slice(playerId.indexOf(':') + 1);
@@ -153,7 +155,7 @@ export function playHud(input: PlayInput): PlayHud {
   const offer = offerFor(model, player !== undefined, input.revealing);
   let predict: PredictView | undefined;
   if (player !== undefined || state.notice !== undefined) {
-    const text = offerText(offer, nameOf);
+    const text = offerText(offer, nameOf, input.clientOnly === true);
     const choiceList = offer.type === 'victim' || offer.type === 'absorber' ? offer.choices : [];
     const chosen = sentFor(state.book, offer);
     const open = offer.type === 'victim' || offer.type === 'absorber' || offer.type === 'forced';

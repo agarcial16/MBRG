@@ -140,3 +140,65 @@ export function showLobby(deps: LobbyDeps): void {
   void check();
   void connect();
 }
+
+export interface WaitDeps {
+  readonly matchId: string;
+  readonly live: LiveNet;
+  readonly after: After;
+  /** The match started (or is over): the stream is already closed. */
+  readonly onStarted: () => void;
+  readonly onExpired: () => void;
+}
+
+/**
+ * Spec 020 FR-520: the lobby of a client-only match. One plain sentence, no name field and no button; the scene opens by itself on the
+ * first `schedule` event (or when a public read shows the lobby is over). Same stream and retry as `showLobby`, no player involved.
+ */
+export function showClientOnlyWait(deps: WaitDeps): void {
+  const card = openCard(STRINGS.lobbyTitle, STRINGS.clientOnlyLobbyText);
+  const notice = h('div', 'hud-note', card);
+  notice.setAttribute('role', 'status');
+  let model: LobbyModel = emptyLobby;
+  let finished = false;
+  const control = new AbortController();
+  const leave = (then: () => void): void => {
+    if (finished) return;
+    finished = true;
+    control.abort();
+    then();
+  };
+  const check = async (): Promise<void> => {
+    const read = await deps.live.readPublic(deps.matchId);
+    if (finished || !read.ok) return;
+    const stage = lobbyStageOf(read.value);
+    if (stage === 'expired') return leave(deps.onExpired);
+    if (stage !== 'lobby') return leave(deps.onStarted);
+  };
+  let opened = false;
+  const connect = async (): Promise<void> => {
+    notice.textContent = '';
+    const end = await deps.live.openStream(
+      deps.matchId,
+      { after: model.lastSeq, via: opened ? 'header' : 'parameter' },
+      {
+        opened: () => void (opened = true),
+        bytes: () => undefined,
+        frame: (data) => {
+          const next = lobbyAfterFrame(model, data);
+          model = next.model;
+          if (next.outcome === 'started' || next.outcome === 'ended') leave(deps.onStarted);
+        },
+      },
+      control.signal,
+    );
+    if (finished || end.type === 'aborted') return;
+    notice.textContent = STRINGS.lobbyReconnecting;
+    deps.after(RETRY_MS, () => {
+      void check().then(() => {
+        if (!finished) void connect();
+      });
+    });
+  };
+  void check();
+  void connect();
+}
