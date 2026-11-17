@@ -28,7 +28,7 @@ import { START_MS, creationBody, withTempDir } from './helpers/service-harness';
 
 const HOUR = 3_600_000;
 const S = 1000;
-const WRITES = new Set(['insertMatch', 'updateMatch', 'insertLobby', 'insertClientMatch', 'markStarted', 'markExpired', 'purgeExpired', 'insertPlayer', 'putRecord', 'putStep', 'putPrediction', 'putResults', 'appendEvents', 'memoPut', 'memoPurge']);
+const WRITES = new Set(['insertMatch', 'updateMatch', 'insertLobby', 'insertClientMatch', 'putClientName', 'markStarted', 'markExpired', 'purgeExpired', 'insertPlayer', 'putRecord', 'putStep', 'putPrediction', 'putResults', 'appendEvents', 'memoPut', 'memoPurge']);
 
 interface Box {
   matchId?: string;

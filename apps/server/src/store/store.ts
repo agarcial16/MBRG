@@ -211,6 +211,19 @@ export interface Store {
   insertClientMatch(matchId: string, namespace: string): void;
   /** The owning namespace of a client-only match, or undefined for an open match (also every match of a file written before version 3). */
   getClientNamespace(matchId: string): string | undefined;
+  /**
+   * Stores the display name of a client player of a match (spec 022 FR-531), in the transaction of the accepted prediction: a second
+   * call for the same player replaces the name (the latest accepted name wins, FR-539). A missing match, a joined player id
+   * (`player:`), a malformed id, an empty name, one of more than 24 code points or a call outside a transaction is refused
+   * (`invalid-write`). There is no uniqueness of names (FR-532). The row is deleted only with its match (`purgeExpired`).
+   */
+  putClientName(matchId: string, playerId: string, name: string): void;
+  /**
+   * The display names of client players, by player id, only for those that have a result row in the match (spec 022 FR-535: the
+   * name is visible only where the id already is, so a player who predicted and is not scored yet is never named). A name stored
+   * in another match, or for an id that was not asked, is never returned.
+   */
+  clientNames(matchId: string, ids: readonly string[]): ReadonlyMap<string, string>;
   /** The lobby row of a match, or undefined (an operator match has none). */
   getLobby(matchId: string): StoredLobby | undefined;
   /**

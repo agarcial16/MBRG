@@ -77,6 +77,8 @@ export const withFaults = (store: Store, plan: FaultPlan): Store => {
     insertLobby: (lobby) => (write(), store.insertLobby(lobby)),
     insertClientMatch: (matchId, namespace) => (write(), store.insertClientMatch(matchId, namespace)),
     getClientNamespace: (matchId) => store.getClientNamespace(matchId),
+    putClientName: (matchId, playerId, name) => (write(), store.putClientName(matchId, playerId, name)),
+    clientNames: (matchId, ids) => store.clientNames(matchId, ids),
     getLobby: (matchId) => store.getLobby(matchId),
     markStarted: (matchId, nowMs) => (write(), store.markStarted(matchId, nowMs)),
     markExpired: (matchId, nowMs) => (write(), store.markExpired(matchId, nowMs)),

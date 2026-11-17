@@ -181,7 +181,7 @@ describe('cursors per list (FR-279 (b), (e))', () => {
   it('FR-279 (results lists) the winners cursor is the joined player id alone: nothing else is a key', () => {
     const issued = encodeCursor('phase-winners', ['player:Ab3']);
     expect(readPageQuery('phase-winners', [['cursor', issued], ['limit', '2']])).toStrictEqual({ ok: true, value: { limit: 2, after: ['player:Ab3'], extra: {} } });
-    for (const key of [[], ['p1'], ['web:a'], ['player:'], ['player:a:b'], [3], ['player:a', 'player:b'], ['Player:a'], [`player:${'x'.repeat(65)}`]]) {
+    for (const key of [[], ['p1'], ['web:a:b'], ['player:'], ['player:a:b'], [3], ['player:a', 'player:b'], ['Player:a'], [`player:${'x'.repeat(65)}`]]) {
       expect(() => encodeCursor('phase-winners', key as never), JSON.stringify(key)).toThrow(RangeError);
     }
     // The other lists refuse it and it refuses theirs (the cross-list matrix above covers every pair).

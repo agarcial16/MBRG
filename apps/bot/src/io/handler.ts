@@ -4,6 +4,7 @@
 import type { Action } from '../core/actions';
 import { lobbyMessage } from '../core/announce';
 import { boardView } from '../core/board';
+import { cleanDisplayName } from '../core/display-name';
 import type { Reply } from '../core/model';
 import { matchCandidates } from '../core/text';
 import { paceTiming } from '../core/paces';
@@ -28,6 +29,8 @@ export interface HandlerOptions {
 export interface Who {
   readonly channelId: string;
   readonly userId: string;
+  /** What Discord shows for the member in this server (spec 022 FR-537); the handler cleans it before it leaves. Never logged or stored. */
+  readonly displayName?: string;
 }
 
 const text = (value: string): Reply => ({ type: 'text', text: value });
@@ -44,8 +47,10 @@ const failed = (failure: Failure, creating = false): Reply => {
 export function createHandler(options: HandlerOptions): (action: Action, who: Who) => Promise<Reply> {
   const { client, store, follower, names } = options;
 
-  async function submit(entry: Followed, userId: string, kind: 'victim' | 'absorber', round: number, faction: number): Promise<Reply> {
-    const sent = await client.submit(entry.matchId, { kind, round, faction, playerId: userId });
+  async function submit(entry: Followed, who: Who, kind: 'victim' | 'absorber', round: number, faction: number): Promise<Reply> {
+    // The display name goes with every prediction so a change is picked up (spec 022 FR-537, FR-539); nothing valid left: none is sent.
+    const name = cleanDisplayName(who.displayName);
+    const sent = await client.submit(entry.matchId, { kind, round, faction, playerId: who.userId, ...(name === undefined ? {} : { name }) });
     if (!sent.ok) return failed(sent.failure);
     return text(chosenText(await names.get(entry.mapId), faction));
   }
@@ -107,10 +112,10 @@ export function createHandler(options: HandlerOptions): (action: Action, who: Wh
         // A window typed for another phase than the open one (the phase moved on) finds nothing to choose from.
         if (action.do === 'find' && (open.kind !== action.kind || open.round !== action.round)) return text(STRINGS.errClosed);
         const resolved = resolveText(open, book, typed.text);
-        return resolved.type === 'one' ? submit(entry, who.userId, open.kind, open.round, resolved.faction) : resolved.reply;
+        return resolved.type === 'one' ? submit(entry, who, open.kind, open.round, resolved.faction) : resolved.reply;
       }
       case 'choose':
-        return entry === undefined ? text(STRINGS.notFollowing) : submit(entry, who.userId, action.kind, action.round, action.faction);
+        return entry === undefined ? text(STRINGS.notFollowing) : submit(entry, who, action.kind, action.round, action.faction);
       case 'suggest': {
         if (action.option === 'map') {
           const config = await client.config();

@@ -48,9 +48,9 @@ const metaOf = (file: string): number[] => withRawDb(file, (db) => db.prepare('S
 const tablesOf = (file: string): string[] =>
   withRawDb(file, (db) => db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all().map((r) => String(r.name)));
 
-describe('the upgrade to schema version 3 (spec 018)', () => {
-  it('FR-506 the schema version is 3', () => {
-    expect(SCHEMA_VERSION).toBe(3);
+describe('the upgrade to schema version 3 and on to 4 (spec 018 and 022)', () => {
+  it('FR-506 the schema version is 4', () => {
+    expect(SCHEMA_VERSION).toBe(4);
   });
 
   for (const [label, prepare, before] of [
@@ -66,14 +66,14 @@ describe('the upgrade to schema version 3 (spec 018)', () => {
         const metaBefore = metaOf(file);
         const store = openStore(file);
         try {
-          expect(store.settings().userVersion).toBe(3);
+          expect(store.settings().userVersion).toBe(4);
           expect(store.tables()).toContain('client_matches');
           for (const matchId of ['AAAAAAAAAAAAAAAA', 'BBBBBBBBBBBBBBBB']) expect(store.getClientNamespace(matchId), matchId).toBeUndefined();
           expect(store.listMatches(undefined, 10).map((m) => m.clientOnly)).toStrictEqual([undefined, undefined]);
         } finally {
           store.close();
         }
-        expect(version(file)).toBe(3);
+        expect(version(file)).toBe(4);
         expect(metaOf(file)).toStrictEqual(metaBefore);
         expect(tablesOf(file)).toContain('client_matches');
         // The dump lists every table: the old rows are the same text, and the new table is empty.
@@ -100,11 +100,11 @@ describe('the upgrade to schema version 3 (spec 018)', () => {
     });
   }
 
-  it('FR-506 a file of version 4 is refused unknown-schema-version and left untouched', () => {
+  it('FR-506 a file of version 5 is refused unknown-schema-version and left untouched', () => {
     withTempDir((dir) => {
       const file = join(dir, 'new.sqlite');
       const raw = new DatabaseSync(file);
-      raw.exec('CREATE TABLE foreign_data (k INTEGER); PRAGMA user_version = 4');
+      raw.exec('CREATE TABLE foreign_data (k INTEGER); PRAGMA user_version = 5');
       raw.close();
       let code = 'no error';
       try {
@@ -113,7 +113,7 @@ describe('the upgrade to schema version 3 (spec 018)', () => {
         if (error instanceof StoreError) code = error.code;
       }
       expect(code).toBe('unknown-schema-version');
-      expect(version(file)).toBe(4);
+      expect(version(file)).toBe(5);
     });
   });
 

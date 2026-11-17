@@ -373,7 +373,7 @@ export function readLeaderboardPage(input: unknown): Decoded<Page<LeaderboardRow
 
 const phaseWinner: Reader<PhaseWinner> = (v, f) =>
   object(v, f, PHASE_WINNER_KEYS, (m) => ({
-    playerId: m.get('playerId', textWhere(isJoinedPlayerId)),
+    playerId: m.get('playerId', textWhere(isPlayerId)),
     name: m.get('name', nameOf),
   }));
 

@@ -106,6 +106,7 @@ import { isMapFileName, mapForStep } from './maps';
 import type { MapCatalog, MapFile } from './maps';
 import { publicConfigOf } from './public-config';
 import { checkPublicCreation } from './publiccreate';
+import { submissionName, withClientNames } from '../core/client-name';
 import { creationPolicy, joinPolicy, submitPolicy } from '../core/policy';
 import type { CreationPolicyDecision } from '../core/policy';
 import type { Scheduler, SchedulerHandle } from './scheduler';
@@ -972,6 +973,12 @@ export function createMatchService(options: ServiceOptions): MatchService {
     const name = names.get(playerId);
     return name === undefined ? {} : { name };
   };
+  /**
+   * The names of these players in one match: those who joined by name, then the display names of client players (spec 022 FR-533).
+   * A client name is returned only for a player with a result row (FR-535); the three result reads and the leaderboard are the only
+   * callers, and the winners read gets its names from the store query.
+   */
+  const namesOf = (matchId: string, ids: readonly string[]): ReadonlyMap<string, string> => withClientNames(store.playerNames(matchId, ids), store.clientNames(matchId, ids));
   const recordReply = (r: StoredRecord): RecordReply => ({ round: r.round, eliminated: r.eliminated, absorber: r.absorber, transferred: [...r.transferred] });
 
   /** Everything after the shape, credential and memo checks; runs inside the transaction and writes only on success. */
@@ -1366,6 +1373,9 @@ export function createMatchService(options: ServiceOptions): MatchService {
         // before the memo (FR-301 puts it before `request-id-reused`), the cutoff and every stage rule, and stores nothing.
         const allowed = submitPolicy(typeof matchId === 'string' ? store.getClientNamespace(matchId) : undefined, isPlayerCaller(client) ? { role: 'other' } : { role: 'client', namespace: client.namespace });
         if (!allowed.ok) return { ok: false, error: allowed.error };
+        // Spec 022 FR-531: a display name is for a client credential; a player token with one is refused (plan PD1) before the memo.
+        const named = submissionName(isPlayerCaller(client) ? { role: 'other' } : { role: 'client', namespace: client.namespace }, body.name);
+        if (named.action === 'refuse') return { ok: false, error: named.error };
         if (body.requestId !== undefined) {
           const memoStored = store.memoGet(scope, body.requestId);
           const memo = decideMemo<SubmitOutcome>(
@@ -1384,6 +1394,8 @@ export function createMatchService(options: ServiceOptions): MatchService {
           const decision = decideSubmission(stored.match, { submission, effective, ...(row === undefined ? {} : { stored: row }) });
           if (decision.ok) {
             if (decision.store !== undefined) store.putPrediction(matchId, playerId, decision.store);
+            // The name of an accepted submission follows its prediction in the same transaction; the latest accepted name wins (FR-531, FR-539).
+            if (named.action === 'store') store.putClientName(matchId, playerId, named.name);
             result = { ok: true, reply: decision.reply };
           } else {
             result = { ok: false, error: decision.error };
@@ -1556,7 +1568,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
         const id = stored.match.matchId;
         const rows = store.phaseResultsAfter(id, phase === 1 ? 'victim' : 'absorber', round, after === undefined ? undefined : after[0], limit + 1);
         // The names of the players of this page who joined by name, found by player id inside the match; the others have no member.
-        const names = store.playerNames(id, rows.slice(0, limit).map((r) => r.playerId));
+        const names = namesOf(id, rows.slice(0, limit).map((r) => r.playerId));
         const page = pageFrom('phase-results', rows, limit, (r) => ({ playerId: r.playerId, choice: r.choice, correct: r.correct, points: r.points, ...nameOf(names, r.playerId) }), (r) => [r.playerId]);
         const applied = round <= stored.match.appliedRounds;
         const record = applied ? store.recordsAfter(id, round - 1, 1)[0] : undefined;
@@ -1597,7 +1609,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
         const id = stored.match.matchId;
         const rows = store.playerResultsAfter(id, playerId, after, limit + 1);
         const page = pageFrom('player-results', rows, limit, (r) => ({ kind: r.kind, ...(r.kind === 'winner' ? {} : { round: r.round }), choice: r.choice, correct: r.correct, points: r.points }), (r) => [r.round, r.kind]);
-        return { ok: true, reply: { playerId, total: store.playerTotal(id, playerId), ...page, ...nameOf(store.playerNames(id, [playerId]), playerId) } };
+        return { ok: true, reply: { playerId, total: store.playerTotal(id, playerId), ...page, ...nameOf(namesOf(id, [playerId]), playerId) } };
       });
     },
 
@@ -1612,7 +1624,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
         if (after !== undefined && after[0] !== generation) return { ok: false, error: errorReply('stale-cursor') };
         const ranked = rankLeaderboard(store.leaderboardTotals(stored.match.matchId));
         const page = pageOf(ranked, (e): readonly [number, string] => [e.rank, e.playerId], after === undefined ? undefined : [after[1], after[2]], limit);
-        const names = store.playerNames(stored.match.matchId, page.items.map((e) => e.playerId));
+        const names = namesOf(stored.match.matchId, page.items.map((e) => e.playerId));
         const items = page.items.map((e): LeaderboardRow => ({ rank: e.rank, playerId: e.playerId, total: e.total, correctVictims: e.correctVictims, correctAbsorbers: e.correctAbsorbers, correctWinner: e.correctWinner, ...nameOf(names, e.playerId) }));
         return { ok: true, reply: page.next === undefined ? { items } : { items, next: encodeCursor('leaderboard', [generation, page.next[0], page.next[1]]) } };
       });

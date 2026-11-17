@@ -15,6 +15,15 @@ const SHORT = 1;
 /** The message flag that makes a reply visible only to the member. */
 export const EPHEMERAL = 64;
 
+/**
+ * What Discord shows for a member in the channel (spec 022 FR-537): the nickname in this server when they have one, else their
+ * global display name, else their username. Plain values in, text or nothing out; an empty text counts as absent.
+ */
+export function displayNameOf(source: { readonly nick?: string | null; readonly globalName?: string | null; readonly username?: string | null }): string | undefined {
+  for (const candidate of [source.nick, source.globalName, source.username]) if (typeof candidate === 'string' && candidate !== '') return candidate;
+  return undefined;
+}
+
 /** The core interaction of a slash command, from the subcommand name and its text options. */
 export function fromCommand(sub: string, options: { readonly map?: string | null; readonly pace?: string | null; readonly faction?: string | null }, canManage: boolean, userId: string): Interaction | undefined {
   switch (sub) {

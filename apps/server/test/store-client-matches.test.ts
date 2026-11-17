@@ -194,7 +194,7 @@ describe('no path changes or removes a client match row', () => {
 
   it('FR-494 the Store interface has no method that changes or removes a client match', () => {
     const text = readFileSync(join(SRC, 'store', 'store.ts'), 'utf8');
-    const methods = [...text.matchAll(/^\s+(\w*[cC]lient\w*)[(<]/gm)].map((m) => m[1]);
+    const methods = [...text.matchAll(/^\s+(\w*[cC]lient\w*)[(<]/gm)].map((m) => m[1]).filter((name) => name !== 'putClientName' && name !== 'clientNames');
     expect(methods.sort()).toStrictEqual(['getClientNamespace', 'insertClientMatch']);
   });
 });

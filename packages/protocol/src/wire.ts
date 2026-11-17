@@ -44,6 +44,8 @@ export interface SubmissionBody {
   /** The local player id (no namespace: the server builds the player id from the credential). */
   readonly playerId: string;
   readonly requestId?: string;
+  /** The display name of a client player (spec 022 FR-530): read with the name rule, NFC and trimmed. Absent when not sent. */
+  readonly name?: string;
 }
 
 /** Documented field order of each body (FR-296): the first failing field in this order is named. */
@@ -55,7 +57,7 @@ export type JoinPolicy = (typeof JOIN_POLICIES)[number];
 export const ADVANCE_FIELDS = ['round', 'step', 'requestId'] as const;
 export const START_FIELDS = ['requestId'] as const;
 export const JOIN_FIELDS = ['name', 'requestId'] as const;
-export const SUBMISSION_FIELDS = ['kind', 'round', 'faction', 'playerId', 'requestId'] as const;
+export const SUBMISSION_FIELDS = ['kind', 'round', 'faction', 'playerId', 'requestId', 'name'] as const;
 
 /**
  * Stages of a match (spec Definitions "Stage"). `lobby` (created, not started) and `expired` (never started, closed) have

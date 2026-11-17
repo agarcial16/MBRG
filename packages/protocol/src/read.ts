@@ -112,6 +112,8 @@ export function readSubmission(input: unknown): ReadResult<SubmissionBody> {
   if (!own(o, 'faction') || !isFaction(o.faction)) return fail('invalid-request', 'faction');
   if (!own(o, 'playerId') || typeof o.playerId !== 'string') return fail('invalid-request', 'playerId');
   if (requestIdProblem(o, false)) return fail('invalid-request', 'requestId');
+  const name = own(o, 'name') ? readName(o.name) : undefined;
+  if (name !== undefined && !name.ok) return fail('invalid-request', 'name');
   const extra = firstUnknown(o, SUBMISSION_FIELDS);
   if (extra !== undefined) return fail('invalid-request', extra);
   if (!isLocalId(o.playerId)) return fail('invalid-player-id', 'playerId');
@@ -123,6 +125,7 @@ export function readSubmission(input: unknown): ReadResult<SubmissionBody> {
       faction: o.faction,
       playerId: o.playerId,
       ...(own(o, 'requestId') ? { requestId: o.requestId as string } : {}),
+      ...(name !== undefined && name.ok ? { name: name.name } : {}),
     },
   };
 }
