@@ -1,5 +1,5 @@
 # Spec 020 — Viewer closes the join door of client-only matches
-Status: approved by the user on 2026-11-17 (OQ1 and OQ2 as proposed). Tier: Light SDD (viewer only: no change under `packages/` or `apps/server`). Depends on 018 (`clientOnly`, `joins-closed`) and 016 (spectator link). Ids continue 019: FR-519 onwards, NFR-109 onwards.
+Status: implemented (approved 2026-11-17, OQ1 and OQ2 as proposed; hand-tested 2026-11-17; merged in #69). Tier: Light SDD (viewer only: no change under `packages/` or `apps/server`). Depends on 018 (`clientOnly`, `joins-closed`) and 016 (spectator link). Ids continue 019: FR-519 onwards, NFR-109 onwards.
 
 ## Goal
 A match created from Discord is client-only (018): the server refuses every join from outside the Discord client. Today the viewer still shows the "join with a name" screen for such a match, and only after the user types a name does it fail with a generic sentence. This spec makes the viewer read `clientOnly` and never offer a door that the server will close.
