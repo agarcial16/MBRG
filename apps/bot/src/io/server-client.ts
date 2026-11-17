@@ -25,6 +25,8 @@ export interface Submission {
   readonly faction: number;
   /** The local player id: the member's Discord user id (the server builds `discord:<id>`). */
   readonly playerId: string;
+  /** The member's display name, already cleaned to the server's name rule (spec 022 FR-537); absent when nothing valid remains. */
+  readonly name?: string;
 }
 
 export interface ServerClient {
@@ -93,7 +95,7 @@ export function createServerClient(options: ClientOptions): ServerClient {
     },
     factions: (mapId) => call('GET', `/maps/${enc(mapId)}/presentation.json`, (json) => readFactionNames(json)),
     submit: (matchId, s) =>
-      call('POST', `/matches/${enc(matchId)}/predictions`, decoded(readPredictionReply), options.credential, { kind: s.kind, round: s.round, faction: s.faction, playerId: s.playerId }),
+      call('POST', `/matches/${enc(matchId)}/predictions`, decoded(readPredictionReply), options.credential, { kind: s.kind, round: s.round, faction: s.faction, playerId: s.playerId, ...(s.name === undefined ? {} : { name: s.name }) }),
     async correctPlayers(matchId, round, phase) {
       const ids: string[] = [];
       let cursor: string | undefined;

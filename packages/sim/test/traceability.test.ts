@@ -127,14 +127,14 @@ const DONE_018: readonly string[] = [
 ];
 
 /**
- * Ids of spec 022 (display names for client players; FR-530..FR-539, NFR-112..NFR-116) whose tests are not written yet: FR-537
- * (the bot sends the cleaned name, M6) and FR-538 (the viewer shows it, M7). Each of those tasks moves its id to DONE_022.
+ * Ids of spec 022 (display names for client players; FR-530..FR-539, NFR-112..NFR-116) whose tests are not written yet: FR-538
+ * (the viewer shows the name, M7). That task moves its id to DONE_022.
  */
-const PENDING_022: readonly string[] = ['FR-537', 'FR-538'];
+const PENDING_022: readonly string[] = ['FR-538'];
 
-/** Ids of spec 022 closed (M1 to M5: the protocol, the pure decisions, the storage, the service, the twin and secrecy tests). */
+/** Ids of spec 022 closed (M1 to M5: the protocol, the pure decisions, the storage, the service, the twin and secrecy tests; M6: FR-537, the bot). */
 const DONE_022: readonly string[] = [
-  'FR-530', 'FR-531', 'FR-532', 'FR-533', 'FR-534', 'FR-535', 'FR-536', 'FR-539',
+  'FR-530', 'FR-531', 'FR-532', 'FR-533', 'FR-534', 'FR-535', 'FR-536', 'FR-537', 'FR-539',
   'NFR-112', 'NFR-113', 'NFR-114', 'NFR-115', 'NFR-116',
 ];
 
@@ -1006,13 +1006,13 @@ describe('traceability', () => {
     for (const id of DONE_018) expect(used.has(id), id).toBe(true);
   });
 
-  it('the 15 ids of spec 022 are pinned: two pending until the bot and the viewer, the others closed', () => {
+  it('the 15 ids of spec 022 are pinned: one pending until the viewer, the others closed', () => {
     const literal = [
       ...Array.from({ length: 10 }, (_, i) => `FR-${530 + i}`),
       ...Array.from({ length: 5 }, (_, i) => `NFR-${112 + i}`),
     ];
-    expect(DONE_022).toHaveLength(13);
-    expect(PENDING_022).toStrictEqual(['FR-537', 'FR-538']);
+    expect(DONE_022).toHaveLength(14);
+    expect(PENDING_022).toStrictEqual(['FR-538']);
     expect([...PENDING_022, ...DONE_022].sort()).toStrictEqual([...literal].sort());
     for (const id of literal) expect(expected, id).toContain(id);
     const used = tracedIds(testSources);

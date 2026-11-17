@@ -16,7 +16,7 @@ import type { Boards } from '../io/boards';
 import type { Poster } from '../io/follower';
 import type { Who } from '../io/handler';
 import type { Action } from '../core/actions';
-import { EPHEMERAL, MODAL_FIELD, commandDefinitions, fromAutocomplete, fromBoardButton, fromButton, fromCommand, fromModal, fromSelect, messagePayload, modalPayload, replyPayload, withButtonsDisabled } from './translate';
+import { EPHEMERAL, MODAL_FIELD, commandDefinitions, displayNameOf, fromAutocomplete, fromBoardButton, fromButton, fromCommand, fromModal, fromSelect, messagePayload, modalPayload, replyPayload, withButtonsDisabled } from './translate';
 import type { View } from './translate';
 
 export interface ShellOptions {
@@ -126,7 +126,9 @@ export function createShell(options: ShellOptions): Shell {
     const core = await interactionOf(i);
     if (core === undefined || channelId === null) return;
     const action = decide(core, options.following(channelId), options.info(channelId));
-    const who: Who = { channelId, userId: i.user.id };
+    const nick = (i.member as { nickname?: string | null; nick?: string | null } | null)?.nickname ?? (i.member as { nick?: string | null } | null)?.nick;
+    const displayName = displayNameOf({ nick, globalName: i.user.globalName, username: i.user.username });
+    const who: Who = { channelId, userId: i.user.id, ...(displayName === undefined ? {} : { displayName }) };
     if (i.isAutocomplete()) {
       const reply = await options.handle(action, who);
       await i.respond(reply.type === 'suggest' ? [...reply.choices] : []);
