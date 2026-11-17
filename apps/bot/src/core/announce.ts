@@ -77,10 +77,22 @@ const withLink = (buttons: ButtonSpec[], url: string | undefined): ButtonSpec[] 
 
 const predictButton: ButtonSpec = { type: 'custom', customId: PREDICT_ID, label: STRINGS.predictButton, style: 'primary' };
 
-/** The lobby message of a created match: name (its id), map and the Start button (FR-451). */
-export const lobbyMessage = (matchId: string, mapId: string): OutMessage => ({
+/** The lobby link (spec 021 FR-527): only the match id, NOT spectator-marked, so the viewer shows its waiting screen. */
+export function lobbyLink(base: string | undefined, matchId: string): string | undefined {
+  if (base === undefined) return undefined;
+  try {
+    const url = new URL(base);
+    url.searchParams.set('match', matchId);
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+/** The lobby message of a created match: name (its id), map, the Start button (FR-451) and the viewer link (spec 021 FR-526). */
+export const lobbyMessage = (matchId: string, mapId: string, viewerUrl?: string): OutMessage => ({
   text: fill(STRINGS.lobby, { match: matchId, map: mapId }),
-  buttons: [{ type: 'custom', customId: START_ID, label: STRINGS.startButton, style: 'success' }],
+  buttons: withLink([{ type: 'custom', customId: START_ID, label: STRINGS.startButton, style: 'success' }], lobbyLink(viewerUrl, matchId)),
 });
 
 /** The messages of one event, in order (none for an event the channel is not told about). */

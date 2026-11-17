@@ -46,7 +46,7 @@ async function main(): Promise<void> {
   });
   disable = shell.poster.disable;
   const follower = createFollower({ baseUrl: config.serverUrl, client, store, poster: shell.poster, boards, names, viewerUrl: config.viewerUrl, log });
-  handle = createHandler({ client, store, follower, names, newRequestId: randomUUID });
+  handle = createHandler({ client, store, follower, names, newRequestId: randomUUID, viewerUrl: config.viewerUrl });
 
   process.on('unhandledRejection', () => log('unhandled'));
   const shutdown = (): void => {

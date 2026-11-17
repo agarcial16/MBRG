@@ -21,6 +21,8 @@ export interface HandlerOptions {
   readonly names: NamesProvider;
   /** A fresh client request id for a creation (the server remembers it for a retry). */
   readonly newRequestId: () => string;
+  /** The viewer's base address for the lobby link (spec 021); none: no link. */
+  readonly viewerUrl?: string | undefined;
 }
 
 export interface Who {
@@ -65,7 +67,7 @@ export function createHandler(options: HandlerOptions): (action: Action, who: Wh
         const { matchId, hostToken, match } = made.value;
         store.set(who.channelId, { matchId, mapId: match.mapId, hostToken, lastSeq: match.lastSeq, appliedRounds: 0, forcedRound: 0, creatorId: who.userId });
         follower.follow(who.channelId);
-        return { type: 'channel', messages: [lobbyMessage(matchId, match.mapId)] };
+        return { type: 'channel', messages: [lobbyMessage(matchId, match.mapId, options.viewerUrl)] };
       }
       case 'start': {
         if (entry === undefined) return text(STRINGS.notFollowing);
