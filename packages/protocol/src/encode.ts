@@ -367,7 +367,7 @@ function encodePhaseWinner(v: unknown): string {
   const o = objectOf(v, 'phase winner', PHASE_WINNER_KEYS);
   noInherited(o, 'phase winner', PHASE_WINNER_KEYS);
   return write(o, 'phase winner', PHASE_WINNER_KEYS, {
-    playerId: joinedPlayerId('phase winner.playerId'),
+    playerId: text('phase winner.playerId', isPlayerId),
     name: nameText('phase winner.name'),
   });
 }

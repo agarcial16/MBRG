@@ -1,18 +1,18 @@
-### M3 — Storage (0 / 5)
+### M3 — Storage (5 / 5)
 Plan section 4. Depends on M2. Highest-risk milestone (R1, R2): persistence and secrecy; planner and reviewer on Opus.
 
-- [ ] **T3.1. Schema v4 and `TABLES`.** FR-536
+- [x] **T3.1. Schema v4 and `TABLES`.** FR-536
   - Files: `apps/server/src/store/schema.ts`, `apps/server/test/store-open.test.ts`.
   - Done when (red first): tests pin `SCHEMA_VERSION = 4`, `SCHEMA_V4_ADDITIONS` as the single `client_names` table (primary key `(match_id, player_id)`, `match_id` referencing `matches`, `name` text not null, no other index or key) and `TABLES` with `client_names`; a new file opens at `user_version` 4 with the table present and the SQL of every other table identical to the committed text; `main.ts --check` expects 4; `store-open.test.ts` expectations for version 3 become 4 and are listed in PROGRESS.
-- [ ] **T3.2. In-place upgrade from version 1, 2 and 3.** FR-536
+- [x] **T3.2. In-place upgrade from version 1, 2 and 3.** FR-536
   - Files: `apps/server/src/store/sqlite.ts`, tests `apps/server/test/store-upgrade-v4.test.ts` (new), `store-upgrade-v3.test.ts` and `service-v1-database.test.ts` (their end version 3 becomes 4; listed in PROGRESS; `cutBackToV1` also drops `client_names`).
   - Done when: from a closed v1, v2 and v3 file holding matches, lobbies, players, predictions, results, memo rows and (v3) a client-only match, opening upgrades to 4 in one transaction; a hash of every row of every pre-existing table, `meta` included, is the same before and after (`meta.schema_version` keeps its old value, as 018); every existing match reads as before; a failure injected mid-upgrade rolls back and leaves the file at its old version; `user_version` 5 is refused `unknown-schema-version`; the v3 fixture is made by the 018 code path (or the committed file), not by hand-written SQL of the new table.
-- [ ] **T3.3. `putClientName` and `clientNames` (scored only).** FR-531, FR-533, FR-535, NFR-112
+- [x] **T3.3. `putClientName` and `clientNames` (scored only).** FR-531, FR-533, FR-535, NFR-112
   - Files: `apps/server/src/store/{store,sqlite,faults}.ts`, tests `apps/server/test/store-client-names.test.ts` (new), `lobby-durability.test.ts` (`putClientName` joins its write list).
   - Done when: `putClientName` needs a transaction, refuses a missing match, a `player:` id, a malformed id, an empty or over-24-code-point name; a second call for the same player replaces the name and leaves one row; rolls back with its transaction; the fault wrapper counts it as a write; `clientNames(matchId, ids)` returns the name only for ids that have a `results` row in that match: a planted name of an id with no results (predicted, not scored) is never returned, nor the name of another match, nor of an id not asked; more than the group size of ids works as `playerNames` does; the store methods are the only code touching the table (T3.5 scans it).
-- [ ] **T3.4. Winners join.** FR-533
+- [x] **T3.4. Winners join.** FR-533
   - Files: `apps/server/src/store/sqlite.ts` (`winnersAfter`), test `apps/server/test/store-client-names.test.ts`, `http-winners.test.ts` stays green unchanged.
   - Done when: the query reads `results r LEFT JOIN players p LEFT JOIN client_names c` and returns `COALESCE(p.name, c.name)` for rows where it is not null; a client winner with a name appears, a client winner without a name stays out as today, a player winner is as before; keyset and limit unchanged; a store without client names returns exactly the rows of the old query (compared on a fixture); mutation proof: turning a left join into an inner join fails a test.
-- [ ] **T3.5. Purge and no stray access.** FR-536, NFR-112, NFR-113
+- [x] **T3.5. Purge and no stray access.** FR-536, NFR-112, NFR-113
   - Files: `apps/server/src/store/sqlite.ts` (the purge list), test `apps/server/test/store-client-names.test.ts`.
   - Done when: `purgeExpired` of an expired lobby holding a client name deletes its `client_names` rows with the match without a foreign-key failure, the memo purge in the same transaction still runs, an unrelated match keeps its rows (test with a client-only and an open expired lobby together); a source scan of `apps/server/src` finds `client_names` only in the `CREATE` of the schema, the one `INSERT ... ON CONFLICT DO UPDATE`, the two reading statements (`clientNames`, `winnersAfter`) and the single purge `DELETE` (no `REPLACE`, `ALTER`, other `UPDATE` or `DELETE`); the `Store` interface has exactly the two methods for it.

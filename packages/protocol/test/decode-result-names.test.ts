@@ -71,7 +71,7 @@ describe('NFR-51 (protocol readers) the readers of names in the results and of t
     ['a winners item with a choice', () => readPhaseWinnersPage({ ...winnersText, items: [{ ...winnersText.items[0], choice: 3 }] }), 'items[0].choice'],
     ['a winners item with points', () => readPhaseWinnersPage({ ...winnersText, items: [{ ...winnersText.items[0], points: 3 }] }), 'items[0].points'],
     ['a winners item without a name', () => readPhaseWinnersPage({ ...winnersText, items: [{ playerId: 'player:Ab3' }] }), 'items[0].name'],
-    ['a winners item with a client player id', () => readPhaseWinnersPage({ ...winnersText, items: [{ playerId: 'web:a', name: 'Ana' }] }), 'items[0].playerId'],
+    ['a winners item with a malformed player id', () => readPhaseWinnersPage({ ...winnersText, items: [{ playerId: 'web:a:b', name: 'Ana' }] }), 'items[0].playerId'],
     ['a winners item with a bad name', () => readPhaseWinnersPage({ ...winnersText, items: [{ playerId: 'player:a', name: 'a<b' }] }), 'items[0].name'],
   ];
   it.each(refusals)('NFR-51 (protocol readers) refused: %s', (_n, read, expected) => {
@@ -81,5 +81,15 @@ describe('NFR-51 (protocol readers) the readers of names in the results and of t
   it('NFR-51 (protocol readers) the winners reader refuses a non-object as body and an inherited member', () => {
     for (const v of [null, undefined, 3, 'x', []]) expect(readPhaseWinnersPage(v)).toStrictEqual({ ok: false, field: 'body' });
     expect(field(readPhaseWinnersPage(Object.create({ items: [], round: 1, phase: 1 }) as object))).toBe('round');
+  });
+});
+
+describe('spec 022: the winners of a phase may be client players', () => {
+  it('a winners item with a client player id is read and written, and its cursor is the player id', async () => {
+    const { encodePhaseWinners, encodeCursor, decodeCursor } = await import('../src/index');
+    const page = { round: 1, phase: 1 as const, items: [{ playerId: 'discord:123', name: 'Ana Lopez' }, { playerId: 'player:Ab3', name: 'Pat' }] };
+    const text = encodePhaseWinners(page);
+    expect(readPhaseWinnersPage(JSON.parse(text))).toStrictEqual({ ok: true, value: page });
+    expect(decodeCursor('phase-winners', encodeCursor('phase-winners', ['discord:123']))).toStrictEqual({ ok: true, value: ['discord:123'] });
   });
 });

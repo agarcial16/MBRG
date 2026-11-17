@@ -4,7 +4,7 @@ Plan: `plan.md`. Spec: `spec.md` (approved 2026-11-17). Status: draft, awaiting 
 ## Milestones
 | Milestone | File | Content | Tasks |
 |---|---|---|---|
-| M1 | `tasks-M1.md` | Protocol: `name` in the submission body, digest pins | 2 |
+| M1 | `tasks-M1.md` | Protocol: `name` in the submission body, digest pins, winners with client ids | 3 |
 | M2 | `tasks-M2.md` | Pure decisions of the server core | 2 |
 | M3 | `tasks-M3.md` | Storage: schema v4, upgrade from v1, v2 and v3, store methods, winners join, purge | 5 |
 | M4 | `tasks-M4.md` | Service and HTTP: submit, reads, replacement, roster untouched | 4 |
@@ -12,7 +12,7 @@ Plan: `plan.md`. Spec: `spec.md` (approved 2026-11-17). Status: draft, awaiting 
 | M6 | `tasks-M6.md` | Bot: name cleaning, Who, every prediction | 3 |
 | M7 | `tasks-M7.md` | Viewer check (tests; no source change expected) | 2 |
 
-22 tasks in 7 milestones, at most 5 each (the per-milestone split is the split the SDD skill asks for above 10).
+23 tasks in 7 milestones, at most 5 each (the per-milestone split is the split the SDD skill asks for above 10).
 
 ## Rules for every task
 - Delivery: this branch (`claude/ecstatic-mahavira-bf3159`, cut from `feat/022-client-display-names`); one PR into `main` at the end of the spec (or per milestone if the branch would pass about 3,000 changed lines); squash merge only with the user's OK typed in this session and CI green. One commit per task: English, one line, conventional prefix, at most 72 characters, ending with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.

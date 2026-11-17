@@ -1,5 +1,5 @@
 import { errorReply } from './errors';
-import { isJoinedPlayerId, isLocalId, isPlayerId } from './ids';
+import { isLocalId, isPlayerId } from './ids';
 import type { ReadResult } from './read';
 import { PREDICTION_KINDS, type PredictionKind } from './wire';
 
@@ -81,7 +81,7 @@ function isKeyOf(list: CursorList, parts: readonly unknown[]): boolean {
     case 'players':
       return parts.length === 1 && isInt(parts[0], 1);
     case 'phase-winners':
-      return parts.length === 1 && isJoinedPlayerId(parts[0]);
+      return parts.length === 1 && isPlayerId(parts[0]);
     default:
       return false;
   }
