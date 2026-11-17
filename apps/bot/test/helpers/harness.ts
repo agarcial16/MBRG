@@ -176,7 +176,7 @@ export function boot(fake: Fake, statePath: string, options: { posts?: Posted[];
   };
   const follower = createFollower({ baseUrl: fake.url, client, store, poster, boards, names, viewerUrl: options.viewerUrl, log: (code) => logs.push(code), sleep: () => new Promise((resolve) => setTimeout(resolve, 10)), every });
   let n = 0;
-  const handler = createHandler({ client, store, follower, names, newRequestId: () => `request-${(n += 1)}` });
+  const handler = createHandler({ client, store, follower, names, newRequestId: () => `request-${(n += 1)}`, viewerUrl: options.viewerUrl });
   Object.assign(bot, {
     follower,
     run: (interaction: Interaction, who: Who = MANAGER) => {

@@ -176,6 +176,31 @@ describe('FR-451 lobby message and ids', () => {
     expect(m.buttons).toEqual([{ type: 'custom', customId: START_ID, label: 'Iniciar', style: 'success' }]);
   });
 
+  it('FR-526 NFR-111 the lobby message adds a viewer link next to Start only with a viewer address', () => {
+    const m = lobbyMessage('abcd1234', 'europe', 'https://viewer.example/');
+    expect(m.buttons).toHaveLength(2);
+    expect(m.buttons[0]).toEqual({ type: 'custom', customId: START_ID, label: 'Iniciar', style: 'success' });
+    expect(m.buttons[1]).toEqual({ type: 'link', url: 'https://viewer.example/?match=abcd1234', label: 'Ver en el visor' });
+    expect(lobbyMessage('abcd1234', 'europe').buttons).toHaveLength(1);
+    expect(lobbyMessage('abcd1234', 'europe', undefined).buttons).toHaveLength(1);
+  });
+
+  it('FR-527 NFR-111 the lobby link has only the match id, no spectate, and keeps a base query', () => {
+    const link = (base: string): URL => {
+      const b = lobbyMessage('abcd1234', 'europe', base).buttons[1];
+      if (b?.type !== 'link') throw new Error('no link');
+      return new URL(b.url);
+    };
+    const plain = link('https://viewer.example/');
+    expect([...plain.searchParams.keys()]).toEqual(['match']);
+    const withQuery = link('https://viewer.example/app?lang=es');
+    expect(withQuery.searchParams.get('lang')).toBe('es');
+    expect(withQuery.searchParams.get('match')).toBe('abcd1234');
+    expect(withQuery.searchParams.has('spectate')).toBe(false);
+    expect(withQuery.searchParams.has('round')).toBe(false);
+    expect(lobbyMessage('abcd1234', 'europe', 'not a url').buttons).toHaveLength(1);
+  });
+
   it('FR-454 custom ids round-trip and refuse anything else', () => {
     expect(parseCustomId(pickId('victim', 3))).toEqual({ type: 'pick', kind: 'victim', round: 3 });
     expect(parseCustomId(findId('absorber', 12))).toEqual({ type: 'find', kind: 'absorber', round: 12 });
