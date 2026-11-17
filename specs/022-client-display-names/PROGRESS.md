@@ -1,7 +1,7 @@
 # Progress 022 — Display names for client players
 Per-task log (what changed, tests run and results, what is untested, next step) and the list of existing tests and goldens changed, with the reason (NFR-114).
 
-State: spec approved (2026-11-17); plan and tasks approved by the user in this session (2026-11-17, PD1 and PD2 as proposed). M1 done.
+State: spec approved (2026-11-17); plan and tasks approved by the user in this session (2026-11-17, PD1 and PD2 as proposed). M1 to M7 done; the hand run and the acceptance are the user's.
 
 ## Changed existing tests and goldens (NFR-114)
 - M1: none (new test files only).
@@ -35,3 +35,9 @@ Full suite 5684 passed, typecheck green, protected paths clean. Next: M6 (bot).
 - T6.2 `displayNameOf` (plain object: server nickname, else global display name, else username) in `discord/translate.ts`; the shell builds `Who.displayName` at the one place `Who` is made; the handler cleans it and `submit` takes `who`; the client body gets `name` only when defined. Tests `discord-display-name` (2), `bot-flow-names` (5): name sent with every prediction, emoji-only and absent give no member, a changed name is sent with the next prediction, two members share a name, a server refusal naming `name` is the generic sentence with one request and no retry (OQ4), the name reaches no log, state file, post, edit or reply, and a source scan keeps `displayName` to the handler, shell and translation. Mutation proofs: name dropped from the body (3 failed), cut length 30 (2), no second trim (2); restored.
 - The existing bot tests are unchanged (the `Who` field is optional). `apps/bot/src/core/announce.ts` is untouched; the handler diff is `Who`, `submit` and its two call sites. Ledger: FR-537 moved to `DONE_022` (14 done, FR-538 pending) in `traceability.test.ts`.
 Full suite and typecheck: see M7 entry. Next: M7 (viewer check).
+
+### M7 - Viewer check (T7.1, T7.2, done)
+Test only: `apps/web/test/client-names-view.test.ts` (7). Rows with a name show it in the board, the own place (`me`, rank), the champion line and the winners line; a row without one still shows the local id; two members with one name are told apart by the rank; the search finds a player by the name (case and accents) and by the id; leaderboard, winners and own-player replies encoded by the protocol with cleaned Discord-style names (spaces, dots, accents, CJK, 24 code points) decode and reach the models intact; a name outside the rule is still refused. No gap found: `apps/web/src` is untouched. Ledger: FR-538 moved to `DONE_022` (15 done, none pending).
+
+## Existing tests changed (summary by milestone, FR-536, FR-533 and the ledger rule)
+- M3: `store-open`, `service-v1-database`, `store-upgrade-v3`, `lobby-durability`, `store-client-matches` (see the M3 entry). M4/T1.3: `decode-result-names`, `page.test`. M5: `traceability.test.ts` (ranges, counts 502/500 become 517/515, the independent list, `PENDING_022`/`DONE_022` and a pin test).

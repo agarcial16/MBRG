@@ -1,5 +1,5 @@
 # Tasks 022 — Display names for client players
-Plan: `plan.md`. Spec: `spec.md` (approved 2026-11-17). Status: draft, awaiting the user's approval of plan and tasks (typed in this chat). One file per milestone; each task is at most 20-30 minutes and ends with tests green, a PROGRESS.md entry and one commit.
+Plan: `plan.md`. Spec: `spec.md` (approved 2026-11-17). Status: approved by the user in this session on 2026-11-17 (PD1 and PD2 as proposed); implemented, pending the user's hand run and acceptance. One file per milestone; each task is at most 20-30 minutes and ends with tests green, a PROGRESS.md entry and one commit.
 
 ## Milestones
 | Milestone | File | Content | Tasks |
