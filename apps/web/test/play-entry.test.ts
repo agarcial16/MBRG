@@ -47,3 +47,28 @@ describe('FR-397 a personal link restores the player in another browser', () => 
     expect(loadPlayer(storage, ID)).toBeUndefined();
   });
 });
+
+describe('spec 020 FR-519 to FR-521 FR-524 a client-only match never opens the join screen', () => {
+  it('FR-519 running: the scene as a spectator, with or without a stored player', () => {
+    expect(entryScreen('running', false, true)).toBe('spectate');
+    expect(entryScreen('running', true, true)).toBe('spectate');
+  });
+
+  it('FR-520 lobby: the plain waiting screen, with or without a stored player', () => {
+    expect(entryScreen('lobby', false, true)).toBe('lobby-wait');
+    expect(entryScreen('lobby', true, true)).toBe('lobby-wait');
+  });
+
+  it('FR-521 over or expired: as for a match with no stored player', () => {
+    expect(entryScreen('ended', false, true)).toBe('closed-ended');
+    expect(entryScreen('ended', true, true)).toBe('closed-ended');
+    expect(entryScreen('expired', false, true)).toBe('closed-expired');
+    expect(entryScreen('expired', true, true)).toBe('closed-expired');
+  });
+
+  it('FR-524 without the flag every combination is what it was', () => {
+    for (const stage of ['lobby', 'running', 'ended', 'expired'] as const) {
+      for (const has of [false, true]) expect(entryScreen(stage, has, false)).toBe(entryScreen(stage, has));
+    }
+  });
+});

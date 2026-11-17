@@ -167,6 +167,7 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials, spec
         net: createPlayNet({ base: origin, fetch: fetch.bind(globalThis) }),
         player,
         factions: names,
+        clientOnly: match.clientOnly === true,
         pageUrl: `${window.location.origin}${window.location.pathname}`,
         makeId: requestId,
         changed: () => runner?.refreshPanel(),

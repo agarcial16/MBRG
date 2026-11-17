@@ -15,7 +15,7 @@ import { after } from './live-timer';
 import { showMessage } from './message';
 import { showMap } from './play-dom';
 import { showJoin, showClosed } from './play-join';
-import { showLobby } from './play-lobby';
+import { showClientOnlyWait, showLobby } from './play-lobby';
 import { requestId } from './web-crypto';
 
 /** The network objects of the player screens, bound to the page's server origin. */
@@ -54,7 +54,7 @@ export function startMatchEntry(matchId: string, spectate = false): void {
     const player = loadPlayer(storage, matchId);
     const host = loadHost(storage, matchId);
     const stage = lobbyStageOf(read.value);
-    const screen = entryScreen(stage, player !== undefined);
+    const screen = entryScreen(stage, player !== undefined, read.value.clientOnly === true);
     const toLobby = (who: PlayerCredentials): void =>
       showLobby({
         matchId, net, live, after, player: who, hostToken: host, pageUrl: pageUrl(), makeId: requestId,
@@ -66,8 +66,13 @@ export function startMatchEntry(matchId: string, spectate = false): void {
         return watch(player);
       case 'lobby':
         return toLobby(player as PlayerCredentials);
+      case 'spectate':
+        // Spec 020 FR-519: a client-only match has no door here; the stored player is not used.
+        return watch(undefined);
+      case 'lobby-wait':
+        return showClientOnlyWait({ matchId, live, after, onStarted: () => watch(undefined), onExpired: () => showClosed(STRINGS.joinExpired, undefined) });
       case 'closed-ended':
-        return showClosed(STRINGS.joinFinished, () => watch(player));
+        return showClosed(STRINGS.joinFinished, () => watch(read.value.clientOnly === true ? undefined : player));
       case 'closed-expired':
         return showClosed(STRINGS.joinExpired, undefined);
       case 'join':

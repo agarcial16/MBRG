@@ -198,6 +198,9 @@ export const STRINGS = {
   joinHalted: 'La partida está detenida.',
   joinUnknown: 'No existe ninguna partida con ese enlace.',
   joinFailed: 'No se ha podido entrar en la partida. Vuelve a intentarlo.',
+  // Client-only matches (spec 020 FR-520, FR-522, FR-523).
+  joinClosedDiscord: 'Esta partida se juega desde Discord: aquí solo puedes mirarla.',
+  clientOnlyLobbyText: 'Esta partida se juega desde Discord y empieza cuando quien la creó la inicie. Esta página se abrirá sola cuando empiece.',
   createTitle: 'Crear una partida',
   createText: 'Elige un mapa y el ritmo. Recibirás un enlace para invitar a otras personas.',
   createMap: 'Mapa',
@@ -251,6 +254,7 @@ export const STRINGS = {
   predictForcedNote: 'El absorbente está forzado: no se elige y no da puntos.',
   predictSent: 'Enviada: {name}',
   predictNoneNotJoined: 'Solo estás mirando: únete a una partida para predecir.',
+  predictNoneClientOnly: 'Solo estás mirando: las predicciones se hacen desde Discord.',
   predictNoneLoading: 'Cargando la partida.',
   predictNoneBehind: 'Estás viendo una ronda anterior: no se puede predecir.',
   predictNoneRevealing: 'Se está revelando la facción caída.',
