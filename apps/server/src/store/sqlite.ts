@@ -1,14 +1,14 @@
 // The SQLite adapter (spec 008 FR-291, FR-292; plan PD9, PD10): the only module that imports `node:sqlite`.
 // It does not depend on the ExperimentalWarning being printed: warnings.ts only hides it where Node prints it.
 import { DatabaseSync } from 'node:sqlite';
-import { isJoinedPlayerId, isLocalId, isNamespace, NAMESPACE_SEPARATOR, PREDICTION_KINDS } from '@mbrg/protocol';
+import { isJoinedPlayerId, isLocalId, isPlayerId, isNamespace, NAMESPACE_SEPARATOR, PREDICTION_KINDS } from '@mbrg/protocol';
 import type { MatchEvent, MatchSummary, PredictionKind, PublicState, PublicVictim, Timing } from '@mbrg/protocol';
 import { MEMO_RETENTION_MS, type MemoScope } from '../core/memo';
 import type { StoredPrediction } from '../core/predictions';
 import type { PlayerTotals, ResultRow, ScorablePrediction } from '../core/scoring';
 import type { Anchors } from '../core/time';
 import type { CoreMatch } from '../core/view';
-import { SCHEMA_V1, SCHEMA_V2_ADDITIONS, SCHEMA_V3_ADDITIONS, SCHEMA_VERSION, TABLES } from './schema';
+import { SCHEMA_V1, SCHEMA_V2_ADDITIONS, SCHEMA_V3_ADDITIONS, SCHEMA_V4_ADDITIONS, SCHEMA_VERSION, TABLES } from './schema';
 import {
   LOBBY_RETENTION_MS,
   NameTakenError,
@@ -183,9 +183,12 @@ export const READ_SQL = {
   // The results reads (M4'): a keyset on the primary key (match, round, kind, player id) for a phase; a player's rows and the
   // leaderboard scan the rows of one match (no index: the schema is unchanged).
   phaseResultsAfter: 'SELECT player_id, choice, correct, points FROM results WHERE match_id = ? AND round = ? AND kind = ? AND player_id > ? ORDER BY player_id LIMIT ?',
-  // Who guessed right (spec 011 FR-386): only the player id and the name; the inner join leaves out every id with no `players` row.
-  winnersAfter: `SELECT r.player_id AS player_id, p.name AS name FROM results r JOIN players p ON p.match_id = r.match_id AND p.player_id = r.player_id
-    WHERE r.match_id = ? AND r.round = ? AND r.kind = ? AND r.correct = 1 AND r.player_id > ? ORDER BY r.player_id LIMIT ?`,
+  // Who guessed right (spec 011 FR-386): only the player id and the name; an id with neither a `players` row nor a client name is left out
+  // (spec 022 FR-533: a client player is named by `client_names`, and only a player with a result row is listed at all).
+  winnersAfter: `SELECT r.player_id AS player_id, COALESCE(p.name, c.name) AS name FROM results r
+    LEFT JOIN players p ON p.match_id = r.match_id AND p.player_id = r.player_id
+    LEFT JOIN client_names c ON c.match_id = r.match_id AND c.player_id = r.player_id
+    WHERE r.match_id = ? AND r.round = ? AND r.kind = ? AND r.correct = 1 AND r.player_id > ? AND COALESCE(p.name, c.name) IS NOT NULL ORDER BY r.player_id LIMIT ?`,
   playerResultsAfter: 'SELECT kind, round, choice, correct, points FROM results WHERE match_id = ? AND player_id = ? AND (round, kind) > (?, ?) ORDER BY round, kind LIMIT ?',
   playerTotal: 'SELECT COALESCE(SUM(points), 0) AS total FROM results WHERE match_id = ? AND player_id = ?',
   leaderboardTotals: `SELECT player_id, SUM(points) AS total,
@@ -257,12 +260,14 @@ export const openStore = (path: string): Store => {
         for (const statement of SCHEMA_V1) db.exec(statement);
         for (const statement of SCHEMA_V2_ADDITIONS) db.exec(statement);
         for (const statement of SCHEMA_V3_ADDITIONS) db.exec(statement);
+        for (const statement of SCHEMA_V4_ADDITIONS) db.exec(statement);
         db.prepare('INSERT INTO meta (schema_version) VALUES (?)').run(SCHEMA_VERSION);
         db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
-      } else if (version === 1 || version === 2) {
+      } else if (version === 1 || version === 2 || version === 3) {
         // Storage is only added (FR-506): no row of an existing table is written, `meta` included (nothing reads it).
         if (version === 1) for (const statement of SCHEMA_V2_ADDITIONS) db.exec(statement);
-        for (const statement of SCHEMA_V3_ADDITIONS) db.exec(statement);
+        if (version !== 3) for (const statement of SCHEMA_V3_ADDITIONS) db.exec(statement);
+        for (const statement of SCHEMA_V4_ADDITIONS) db.exec(statement);
         db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
       } else if (version !== SCHEMA_VERSION) {
         throw new StoreError('unknown-schema-version', `the database has schema version ${version}; this server supports version ${SCHEMA_VERSION}`);
@@ -484,6 +489,27 @@ export const openStore = (path: string): Store => {
       const row = one('SELECT namespace FROM client_matches WHERE match_id = ?', matchId);
       return row === undefined ? undefined : str(row, 'namespace');
     },
+    putClientName(matchId: string, playerId: string, name: string): void {
+      requireTransaction();
+      if (!isPlayerId(playerId) || isJoinedPlayerId(playerId)) throw invalid('a client player id is <namespace>:<local id>, never player:<local id>');
+      if (typeof name !== 'string' || name.length === 0 || [...name].length > 24) throw invalid('a client name is 1 to 24 code points');
+      if (one('SELECT 1 AS found FROM matches WHERE id = ?', matchId) === undefined) throw invalid(`the match ${matchId} does not exist`);
+      run('INSERT INTO client_names (match_id, player_id, name) VALUES (?, ?, ?) ON CONFLICT (match_id, player_id) DO UPDATE SET name = excluded.name', matchId, playerId, name);
+    },
+    clientNames(matchId: string, ids: readonly string[]): ReadonlyMap<string, string> {
+      for (const id of ids) if (typeof id !== 'string') throw new RangeError('a player id is a text');
+      const names = new Map<string, string>();
+      const wanted = [...new Set(ids)];
+      for (let from = 0; from < wanted.length; from += NAME_IDS_PER_QUERY) {
+        const group = wanted.slice(from, from + NAME_IDS_PER_QUERY);
+        const marks = group.map(() => '?').join(', ');
+        // Only a player with a result row in this match (scored) is named: the name is visible where the id already is (FR-535).
+        const sql = `SELECT c.player_id, c.name FROM client_names c WHERE c.match_id = ? AND c.player_id IN (${marks})
+          AND EXISTS (SELECT 1 FROM results r WHERE r.match_id = c.match_id AND r.player_id = c.player_id)`;
+        for (const row of all(sql, matchId, ...group)) names.set(str(row, 'player_id'), str(row, 'name'));
+      }
+      return names;
+    },
     getLobby(matchId: string): StoredLobby | undefined {
       const row = one('SELECT match_id, public, expires_ms, started_ms, expired_ms FROM lobbies WHERE match_id = ?', matchId);
       return row === undefined ? undefined : lobbyOf(row);
@@ -511,7 +537,7 @@ export const openStore = (path: string): Store => {
       const ids = all('SELECT match_id FROM lobbies WHERE expired_ms IS NOT NULL AND started_ms IS NULL AND ? - expired_ms > ? ORDER BY match_id', now, LOBBY_RETENTION_MS).map((r) => str(r, 'match_id'));
       for (const matchId of ids) {
         // Children first: every table that refers to the match, then the lobby row, then the match.
-        for (const table of ['results', 'predictions', 'steps', 'records', 'events', 'states', 'players', 'lobbies', 'client_matches']) {
+        for (const table of ['results', 'predictions', 'steps', 'records', 'events', 'states', 'players', 'lobbies', 'client_matches', 'client_names']) {
           run(`DELETE FROM ${table} WHERE match_id = ?`, matchId);
         }
         run('DELETE FROM matches WHERE id = ?', matchId);
