@@ -8,7 +8,7 @@ import type { PolicyCaller } from '../src/core/policy';
 const client: PolicyCaller = { role: 'client', namespace: 'discord' };
 const player: PolicyCaller = { role: 'other' };
 
-describe('submission name decision', () => {
+describe('FR-531 FR-532 NFR-116 submission name decision', () => {
   it('no name: nothing to do for any caller', () => {
     expect(submissionName(client, undefined)).toStrictEqual({ action: 'none' });
     expect(submissionName(player, undefined)).toStrictEqual({ action: 'none' });
@@ -24,7 +24,7 @@ describe('submission name decision', () => {
   });
 });
 
-describe('merging names', () => {
+describe('FR-533 NFR-116 merging names', () => {
   it('returns a new map with player names first and client names for ids not present', () => {
     const players = new Map([['player:a', 'Ana']]);
     const clients = new Map([['discord:1', 'Bea'], ['player:a', 'Other']]);

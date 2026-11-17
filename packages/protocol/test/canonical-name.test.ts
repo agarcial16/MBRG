@@ -6,7 +6,7 @@ const path = '/matches/abc/predictions';
 const body = { kind: 'victim', round: 1, faction: 5, playerId: 'a' };
 const sha = (text: string): string => createHash('sha256').update(text, 'ascii').digest('hex');
 
-describe('submission content with the optional name', () => {
+describe('NFR-114 FR-530 submission content with the optional name', () => {
   it('a body without name keeps the text and digest of the code before the member existed', () => {
     const text = canonicalBody('POST', path, { ...body, requestId: 'r1' });
     expect(text).toBe('"POST" "/matches/abc/predictions" {"faction":5,"kind":"victim","playerId":"a","round":1}');

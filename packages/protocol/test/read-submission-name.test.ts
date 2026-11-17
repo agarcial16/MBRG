@@ -4,7 +4,7 @@ import { SUBMISSION_FIELDS, readSubmission, type ReadResult } from '../src/index
 const err = (r: ReadResult<unknown>): string => (r.ok ? 'ok' : `${r.error.kind}:${(r.error.items ?? []).join(',')}`);
 const victim = { kind: 'victim', round: 1, faction: 5, playerId: 'a' };
 
-describe('submission body: optional member name', () => {
+describe('FR-530 submission body: optional member name', () => {
   it('the field list gains name after the old members', () => {
     expect([...SUBMISSION_FIELDS]).toStrictEqual(['kind', 'round', 'faction', 'playerId', 'requestId', 'name']);
   });

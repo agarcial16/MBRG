@@ -80,7 +80,7 @@ const codeOf = (action: () => unknown): string => {
 const row = (playerId: string, correct: boolean, round = 1): ResultRow => ({ playerId, kind: 'absorber', round, choice: 1, correct, points: correct ? 3 : 0 });
 const nameRows = (store: Store, matchId: string): [string, string][] => [...store.clientNames(matchId, ['discord:1', 'discord:2', 'discord:3']).entries()];
 
-describe('putClientName', () => {
+describe('FR-531 FR-539 putClientName', () => {
   it('stores a name and a second call replaces it, leaving one row', () => {
     withStore((store) => {
       putRunning(store, id('A'));
@@ -137,7 +137,7 @@ describe('putClientName', () => {
   });
 });
 
-describe('clientNames reads only scored players', () => {
+describe('FR-535 NFR-112 clientNames reads only scored players', () => {
   it('a name of a player with no result row is never returned, nor one of another match or of an id not asked', () => {
     withStore((store) => {
       putRunning(store, id('A'));
@@ -174,7 +174,7 @@ describe('clientNames reads only scored players', () => {
   });
 });
 
-describe('winnersAfter with client names', () => {
+describe('FR-533 winnersAfter with client names', () => {
   const join = (store: Store, matchId: string, playerId: string, name: string, seq: number): void =>
     store.transaction(() => store.insertPlayer({ matchId, playerId, name, nameKey: name.toLowerCase(), tokenDigest: DIGEST(String(seq)), joinedSeq: seq, joinedMs: T0 }));
 
@@ -210,7 +210,7 @@ describe('winnersAfter with client names', () => {
   });
 });
 
-describe('purge and access', () => {
+describe('FR-536 NFR-113 purge and access', () => {
   it('the purge of an expired lobby deletes its names with the match and keeps those of another match', () => {
     const dir = mkdtempSync(join(tmpdir(), 'mbrg-names-'));
     try {

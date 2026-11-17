@@ -84,7 +84,7 @@ describe('NFR-51 (protocol readers) the readers of names in the results and of t
   });
 });
 
-describe('spec 022: the winners of a phase may be client players', () => {
+describe('FR-533 spec 022: the winners of a phase may be client players', () => {
   it('a winners item with a client player id is read and written, and its cursor is the player id', async () => {
     const { encodePhaseWinners, encodeCursor, decodeCursor } = await import('../src/index');
     const page = { round: 1, phase: 1 as const, items: [{ playerId: 'discord:123', name: 'Ana Lopez' }, { playerId: 'player:Ab3', name: 'Pat' }] };

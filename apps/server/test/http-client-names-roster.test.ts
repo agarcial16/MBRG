@@ -8,7 +8,7 @@ afterEach(closeAllServers);
 
 const PLANTED = 'Zq Planted Name';
 
-describe('client names leave the roster and the events alone', () => {
+describe('FR-534 FR-532 client names leave the roster and the events alone', () => {
   it('with a stored client name the roster, the match, the list and the events equal a run without names, before and after scoring', async () => {
     const named = await begin(true);
     const plain = await begin(true);

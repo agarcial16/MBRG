@@ -23,7 +23,7 @@ const everyone = async (rig: Rig, names: boolean): Promise<string[]> => {
   return locals;
 };
 
-describe('reads carry the display name of a scored client player', () => {
+describe('FR-533 FR-535 reads carry the display name of a scored client player', () => {
   it('the leaderboard, the phase results, the winners and the own-player read show the name after scoring', async () => {
     const rig = await begin(true);
     const locals = await everyone(rig, true);

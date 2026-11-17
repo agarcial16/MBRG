@@ -57,7 +57,7 @@ const makeV3 = (file: string): void => {
 const version = (file: string): number => withRawDb(file, (db) => Number(db.prepare('PRAGMA user_version').get()?.user_version));
 const metaOf = (file: string): number[] => withRawDb(file, (db) => db.prepare('SELECT schema_version FROM meta').all().map((r) => Number(r.schema_version)));
 
-describe('schema version 4 (spec 022)', () => {
+describe('FR-536 schema version 4 (spec 022)', () => {
   it('the version is 4 and the one new table is client_names with the key (match, player)', () => {
     expect(SCHEMA_VERSION).toBe(4);
     expect(SCHEMA_V4_ADDITIONS).toHaveLength(1);

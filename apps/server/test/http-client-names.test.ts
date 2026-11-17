@@ -8,7 +8,7 @@ import { creationBody } from './helpers/service-harness';
 
 afterEach(closeAllServers);
 
-describe('submitting a display name', () => {
+describe('FR-530 FR-531 FR-532 submitting a display name', () => {
   it('the reply of a submission with a name is the reply without it, and the name shows on the leaderboard once scored', async () => {
     const withName = await begin(true);
     const plain = await begin(true);
@@ -97,7 +97,7 @@ describe('submitting a display name', () => {
   });
 });
 
-describe('replacing the name and the limits', () => {
+describe('FR-539 NFR-115 replacing the name and the limits', () => {
   it('a later accepted prediction with another name replaces it, even when the prediction itself is unchanged', async () => {
     const rig = await begin(true);
     expect((await predict(rig, 'p1', { name: 'Old Name' })).status).toBe(200);
