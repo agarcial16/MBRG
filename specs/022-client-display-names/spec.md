@@ -1,5 +1,5 @@
 # Spec 022 — Display names for client players
-Status: approved by the user on 2026-11-17 (OQ1 to OQ4 as proposed; the name is the member display name in the server). Tier: Full SDD (touches the protocol, the server, persistence and the secrecy of scoring). Depends on 008, 011, 012, 013, 018 and 019 (implemented). Ids continue 021: FR-530 onwards, NFR-112 onwards.
+Status: implemented (approved 2026-11-17; hand-tested 2026-11-17; merged in #71) -- approved with (OQ1 to OQ4 as proposed; the name is the member display name in the server). Tier: Full SDD (touches the protocol, the server, persistence and the secrecy of scoring). Depends on 008, 011, 012, 013, 018 and 019 (implemented). Ids continue 021: FR-530 onwards, NFR-112 onwards.
 
 ## Context and goal
 A player created by a client credential (the Discord bot) is only `discord:<id>`: the server stores a prediction under that id and creates no `players` row, so it has no name and the viewer shows the number (019 `localName`). The goal is that the leaderboard, the winners and the own-place row of the viewer show the Discord display name of the member, without opening the roster early and without changing open (`player:`) matches.

@@ -1,5 +1,5 @@
 # Spec 021 — Viewer link in the bot's lobby message
-Status: approved by the user on 2026-11-17 (OQ1 as proposed). Tier: Light SDD (the Discord bot only: no change under `packages/`, `apps/server` or `apps/web`). Depends on 012, 016, 017 and 020 (implemented). Ids continue 020: FR-526 onwards, NFR-111 onwards.
+Status: implemented (approved 2026-11-17, OQ1 as proposed; hand-tested 2026-11-17; merged in #70). Tier: Light SDD (the Discord bot only: no change under `packages/`, `apps/server` or `apps/web`). Depends on 012, 016, 017 and 020 (implemented). Ids continue 020: FR-526 onwards, NFR-111 onwards.
 
 ## Goal
 `/mbrg create` posts a lobby message with the match id and a Start button, but no way to open the match in the viewer; the link only appears with the first round. A creator who wants to open the viewer before pressing Start has to copy the id by hand. This spec adds the "Ver en el visor" link button to the lobby message.
