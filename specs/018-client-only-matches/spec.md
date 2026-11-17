@@ -1,5 +1,5 @@
 # Spec 018 — Client-only matches
-Status: approved by the user on 2026-11-15. Tier: Full SDD (touches the server, the protocol, persistence and the secrecy review). Depends on 008, 011, 012, 014 and 016 (implemented). Ids: FR-490 onwards, NFR-100 onwards (FR-480..484 and NFR-92..94 belong to spec 017).
+Status: implemented (approved 2026-11-15; hand-tested 2026-11-16; merged in #66). Tier: Full SDD (touches the server, the protocol, persistence and the secrecy review). Depends on 008, 011, 012, 014 and 016 (implemented). Ids: FR-490 onwards, NFR-100 onwards (FR-480..484 and NFR-92..94 belong to spec 017).
 
 ## Context and goal
 A match the Discord bot creates goes through public creation (011 FR-369), so it is open: anyone who opens the web viewer on it meets the name door and can join as a named `player:`, then predict beside the Discord members. The community that created the match wants it to stay theirs. This spec adds a per-match join policy chosen once at creation: a match created through a client credential may be marked **client-only**, so only that client's players can predict in it, while everybody can still watch it (every public read and the event stream stay public). The default stays open, so old matches, old clients and the web flow behave exactly as before.

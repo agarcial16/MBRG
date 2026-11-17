@@ -1,5 +1,5 @@
 # Spec 019 — Viewer leaderboard at scale
-Status: approved by the user on 2026-11-16
+Status: implemented (approved 2026-11-16; reviewed by the user on screenshots 2026-11-16; merged in #67)
 Tier: Light SDD (UI only; one page). Amends spec 013 FR-406 (leaderboard in the right column) without changing its secrecy rules (FR-449).
 
 ## Context and goal
