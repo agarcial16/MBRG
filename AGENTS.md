@@ -38,8 +38,8 @@ Rules name a tier, never a model. One table maps tiers to models.
 - OpenCode agents for the fallback: `.opencode/agents/`.
 
 ## Orchestration
-- One long-lived orchestrator chat (T3) classifies each request, writes a brief (<= ~20 lines: goal, file paths + line ranges, branch, done criteria) and launches one thread per task in its own worktree from `origin/main`. It reads no code; state lives in `docs/board.md`.
-- Approvals are typed in the child thread, or quoted literally in the brief; an approval typed in the orchestrator chat is not valid for a child.
+- One long-lived orchestrator chat (T3) classifies each request, writes a brief (<= ~20 lines: goal, file paths + line ranges, branch, done criteria) and launches one child task per task with T3 `delegate_task` (`isolation: worktree`), so the orchestrator is notified when it finishes; the child still has its own thread the user can open and type in. It reads no code; state lives in `docs/board.md`.
+- Approvals are typed in the child thread, or quoted literally in the brief; an approval typed in the orchestrator chat is not valid for a child. When a child stops for approval, the orchestrator relays it to the user and passes the user's answer to the child quoted literally.
 - Child final report <= 300 words: PR URL, head SHA, test results, decisions for the user. Detail goes to `PROGRESS.md`.
 - Handover rule: the last `PROGRESS.md` entry always states branch, state and next step, so another model can resume from it alone.
 
