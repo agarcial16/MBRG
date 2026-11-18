@@ -1,7 +1,7 @@
-### M1 — Key at creation and schema v5 (0 / 4)
+### M1 — Key at creation and schema v5 (1 / 4)
 Plan sections 1, 2, 6 (PD2, PD6). No dependency.
 
-- [ ] **T1.1. Ledger and `community` in the creation body.** FR-546, NFR-120
+- [x] **T1.1. Ledger and `community` in the creation body.** FR-546, NFR-120
   - Files: `packages/sim/test/traceability.test.ts` (ranges FR-545..562, FR-573, NFR-117..122; `PENDING_024`), `packages/protocol/src/wire.ts`, `read.ts`, `apps/server/src/http/body.ts`, tests in `packages/protocol/test/` and `apps/server/test/http-body*.test.ts`.
   - Done when (red first): a body with 64 lowercase hex `community` returns it (member present only when sent); uppercase, 63/65 characters, non-hex, non-string are `invalid-request` naming `community`; a repeated member is refused by name; a body without it returns exactly the old value and `canonicalBody` and its digest equal the literals pinned from `main`; the ledger is green with the ids pending.
 - [ ] **T1.2. Creation policy with the key.** FR-545

@@ -69,7 +69,7 @@ export type {
   StateReply,
 } from './wire';
 export type { ErrorKind, ErrorReply } from './errors';
-export { NAMESPACE_SEPARATOR, PLAYER_NAMESPACE, isCredentialText, isJoinedPlayerId, isLocalId, isMapId, isNamespace, isPlayerId, playerIdOf } from './ids';
+export { NAMESPACE_SEPARATOR, PLAYER_NAMESPACE, isCommunityKey, isCredentialText, isJoinedPlayerId, isLocalId, isMapId, isNamespace, isPlayerId, playerIdOf } from './ids';
 export { NAME_MAX, nameKey, readName } from './names';
 export type { NameResult } from './names';
 export { MAX_INTERVAL_SECONDS, readTiming, readTimingShape, timingRuleFailures } from './timing';

@@ -1,5 +1,5 @@
 import { errorReply, type ErrorReply } from './errors';
-import { isLocalId, isMapId } from './ids';
+import { isCommunityKey, isLocalId, isMapId } from './ids';
 import { readName } from './names';
 import { readTimingShape, timingRuleFailures } from './timing';
 import {
@@ -41,7 +41,7 @@ const isOneOf = <T extends string>(list: readonly T[], v: unknown): v is T => ty
 /** True when the request id is missing (and required) or present and outside the FR-297 set. */
 const requestIdProblem = (o: Body, required: boolean): boolean => (own(o, 'requestId') ? !isLocalId(o.requestId) : required);
 
-/** Creation body `{ mapId, timing, requestId, joinPolicy? }` (FR-231, FR-233, FR-296, spec 018 FR-490). */
+/** Creation body `{ mapId, timing, requestId, joinPolicy?, community? }` (FR-231, FR-233, FR-296, spec 018 FR-490, spec 024 FR-546). */
 export function readCreation(input: unknown): ReadResult<CreationBody> {
   const o = bodyOf(input);
   if (o === undefined) return fail('invalid-request', 'body');
@@ -51,13 +51,20 @@ export function readCreation(input: unknown): ReadResult<CreationBody> {
   if (!timing.ok) return fail('invalid-request', timing.field);
   if (requestIdProblem(o, true)) return fail('invalid-request', 'requestId');
   if (own(o, 'joinPolicy') && !isOneOf<JoinPolicy>(JOIN_POLICIES, o.joinPolicy)) return fail('invalid-request', 'joinPolicy');
+  if (own(o, 'community') && !isCommunityKey(o.community)) return fail('invalid-request', 'community');
   const extra = firstUnknown(o, CREATION_FIELDS);
   if (extra !== undefined) return fail('invalid-request', extra);
   const failed = timingRuleFailures(timing.value);
   if (failed.length > 0) return { ok: false, error: errorReply('invalid-timing', failed) };
   return {
     ok: true,
-    value: { mapId: o.mapId, timing: timing.value, requestId: o.requestId as string, ...(own(o, 'joinPolicy') ? { joinPolicy: o.joinPolicy as JoinPolicy } : {}) },
+    value: {
+      mapId: o.mapId,
+      timing: timing.value,
+      requestId: o.requestId as string,
+      ...(own(o, 'joinPolicy') ? { joinPolicy: o.joinPolicy as JoinPolicy } : {}),
+      ...(own(o, 'community') ? { community: o.community as string } : {}),
+    },
   };
 }
 

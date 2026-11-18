@@ -17,6 +17,8 @@ export interface CreationBody {
   readonly requestId: string;
   /** Absent means `open` (spec 018 FR-490). */
   readonly joinPolicy?: JoinPolicy;
+  /** The community key of the Discord server that creates the match (spec 024 FR-545): 64 lowercase hexadecimal characters. */
+  readonly community?: string;
 }
 
 export interface AdvanceBody {
@@ -49,7 +51,7 @@ export interface SubmissionBody {
 }
 
 /** Documented field order of each body (FR-296): the first failing field in this order is named. */
-export const CREATION_FIELDS = ['mapId', 'timing', 'requestId', 'joinPolicy'] as const;
+export const CREATION_FIELDS = ['mapId', 'timing', 'requestId', 'joinPolicy', 'community'] as const;
 
 /** Who may join a match (spec 018 FR-490): `open` is the 011 behaviour, `client` admits only the creating client's players. */
 export const JOIN_POLICIES = ['open', 'client'] as const;

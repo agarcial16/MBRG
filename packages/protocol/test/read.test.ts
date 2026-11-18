@@ -226,6 +226,6 @@ describe('the size of the joinPolicy member (spec 018)', () => {
     expect(Math.max(...JOIN_POLICIES.map((p) => p.length))).toBeLessThanOrEqual(6);
     // A long text is refused as a value, never read or stored; the 4,096-byte body limit is the server's and is not raised here.
     expect(err(readCreation({ ...creation, joinPolicy: 'client'.repeat(1000) }))).toBe('invalid-request:joinPolicy');
-    expect(CREATION_FIELDS).toStrictEqual(['mapId', 'timing', 'requestId', 'joinPolicy']);
+    expect(CREATION_FIELDS).toStrictEqual(['mapId', 'timing', 'requestId', 'joinPolicy', 'community']);
   });
 });
