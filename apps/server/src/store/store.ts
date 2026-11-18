@@ -117,6 +117,24 @@ export interface StoredWinner {
   readonly name: string;
 }
 
+/** One ranking source row (spec 025 FR-564): the aggregate of one player in one counted match, as the store reads it. */
+export interface RankingSourceRow {
+  readonly matchId: string;
+  readonly finishedAt: number;
+  readonly playerId: string;
+  readonly points: number;
+  readonly correct: number;
+  readonly scored: number;
+}
+
+/** One name a counted match stored (spec 025 FR-563): a source row of the shown-name rule. */
+export interface RankingNameRow {
+  readonly matchId: string;
+  readonly finishedAt: number;
+  readonly playerId: string;
+  readonly name: string;
+}
+
 /** One stored result of one player: the winner has round 0. */
 export interface StoredPlayerResult {
   readonly kind: PredictionKind;
@@ -303,6 +321,19 @@ export interface Store {
   historyAfter(community: string, namespace: string, settledBefore: number, head: HistoryKey | undefined, after: HistoryKey | undefined, limit: number): HistoryMatch[];
   /** How many matches `historyAfter` would list with no `after` and no limit: the snapshot total of a walk (FR-549). */
   historyCount(community: string, namespace: string, settledBefore: number, head: HistoryKey | undefined): number;
+  /**
+   * The ranking source rows of a community (spec 025 FR-564): one aggregate per (match, player) of the same matches
+   * `historyAfter` reads (finished, of the key and the namespace, no newer than `head`), with the match id, the finish
+   * instant, the player id, the summed points, the correct rows and the scored rows, in history order. ONE statement,
+   * no page limit: the whole snapshot of the community, whatever the stored matches (NFR-125).
+   */
+  rankingResults(community: string, namespace: string, head: HistoryKey | undefined): RankingSourceRow[];
+  /**
+   * Every name the counted matches of the same scope stored (spec 025 FR-563, the shown-name rule's source): the match
+   * id, the finish instant, the player id and the name, in history order. Names of matches in any other stage are never
+   * read (NFR-123). ONE statement, no page limit (NFR-125).
+   */
+  rankingNames(community: string, namespace: string, head: HistoryKey | undefined): RankingNameRow[];
   /** The records of the rounds above `round`, in round order, at most `limit` (FR-279). */
   recordsAfter(matchId: string, round: number, limit: number): StoredRecord[];
   /**
