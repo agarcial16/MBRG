@@ -13,3 +13,4 @@ tools/build-map/out/
 .claude/settings.local.json
 .taste-skill/
 .agents/
+.vitest/

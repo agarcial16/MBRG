@@ -1,10 +1,10 @@
 # Spec 010 — Interface revamp (the match screen)
-Status: approved (by the user on 2026-10-27, Light SDD). Tier: Light SDD (UI, visual design). Depends on 008 and 009 (implemented). Ids continue 009: FR-356 to FR-368, NFR-65 to NFR-71.
+Status: implemented (approved by the user on 2026-10-27; closed 2026-11-18). Open items carried over: NFR-68, NFR-69, NFR-71 (see PROGRESS.md). Tier: Light SDD (UI, visual design). Depends on 008 and 009 (implemented). Ids continue 009: FR-356 to FR-368, NFR-65 to NFR-71.
 
 ## Goal
 One coherent visual system for the live match screen, on desktop and phone: the map fills the screen and a historic-RTS style HUD frames it at the edges (no floating sheet). The spec fixes the layout, the visual tokens, the states and basic accessibility. It adds the places where the player's rank, points and prediction will appear, but their data and behaviour belong to spec 011 (play in the browser). The bot is spec 012.
 
-The reference is the clickable mockup `specs/010-interface-revamp/mockup/hist.html` (open it through a local web server; the map photo and the parchment image sit beside it). The user accepted it as the first concept on 2026-10-27. Where the mockup and this text differ, this text wins.
+The reference is the clickable mockup `specs/archive/010-interface-revamp/mockup/hist.html` (open it through a local web server; the map photo and the parchment image sit beside it). The user accepted it as the first concept on 2026-10-27. Where the mockup and this text differ, this text wins.
 
 ## User decisions (chat, 2026-10-27)
 - Direction: RTS-like HUD with an old, historic touch (campaign diary, wax seal for "already predicted", parchment). Rounds as plain numbers, not Roman numerals.
