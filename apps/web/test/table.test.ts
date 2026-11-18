@@ -1,5 +1,5 @@
 // The dark table (spec 015): the pure parameters and geometry of the background and the edge fade, and the rules of the stylesheet that
-// use them. Pixels were checked in the browser (specs/015-visual-refresh/screens); here the numbers and the rules that must not drift.
+// use them. Pixels were checked in the browser (specs/archive/015-visual-refresh/screens); here the numbers and the rules that must not drift.
 import { describe, expect, it } from 'vitest';
 import { mapToScreen, type Camera, type ImageSize, type Viewport } from '../src/core/camera';
 import { contrastRatio, TOKENS } from '../src/core/hud-tokens';

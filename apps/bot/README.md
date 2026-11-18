@@ -1,7 +1,7 @@
 # MBRG Discord bot (operator guide)
 
 The bot lets a Discord channel follow one public MBRG match: it announces each round as an embed, members predict with buttons,
-and `/mbrg board` shows a paged leaderboard. Specs: `specs/012-discord-bot` and `specs/017-bot-embeds`.
+and `/mbrg board` shows a paged leaderboard. Specs: `specs/archive/012-discord-bot` and `specs/archive/017-bot-embeds`.
 
 ## Run
 
