@@ -29,6 +29,7 @@ Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random
 - Approvals typed in the orchestrator chat are not accepted by child threads: type them in the child or quote them in the brief.
 - Never junction/symlink `node_modules` or workspace folders into a worktree (a forced remove followed the links and deleted real files).
 - E2E screenshots without a desktop browser: headless Chrome `--screenshot --window-size=W,H` (a file:// URL is fine), but measure the page first (`--dump-dom` + a title-writing probe script) — window height is a guess otherwise.
+- Worktrees: `npm install` creates junctions in `node_modules/@mbrg` (workspaces). Before deleting a worktree, delete those junctions first (link only), then the folder; never `git worktree remove --force` and never `gh pr merge --delete-branch` while the branch's worktree exists (gh removes it and follows the links).
 
 ## Glossary
 Territory (map unit, province) · Faction (owner of territories) · Round (one elimination) · Match (seeded full game).
