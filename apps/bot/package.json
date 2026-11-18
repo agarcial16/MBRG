@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "tsx src/main.ts"
+    "start": "tsx src/main.ts",
+    "e2e": "tsx test/e2e/run.ts"
   },
   "dependencies": {
     "@mbrg/protocol": "*",

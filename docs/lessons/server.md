@@ -7,6 +7,7 @@ Read before touching the server, the protocol, scoring or the store.
 - Playable matches (spec 011): operator matches have no lobby; forced round phase 2 = min(L1, F), A earlier; client namespace `player` is reserved; the plain token lives only in the 24 h memo row (the table keeps the digest); public matches are never `manual` (the hand run uses a long clock timing + host `advance`); only named players appear in who-guessed-right; open-lobby cap at creation, public-running cap at start.
 - Server default forced phase is 5 s (`DEFAULT_FORCED_PHASE_SECONDS`); the test server uses `MBRG_FORCED_PHASE_SECONDS=10` and the user keeps 10 s for now. Making 10 s the default needs a Full-SDD spec.
 - A relative `MBRG_MAPS` path resolves from `apps/server` (npm workspace cwd): use an absolute path or the server answers `map-validation`/`invalid-map`.
+- `startServer` of the test helpers builds TWO fake schedulers on the same fake clock: the hub's (exposed as `harness.scheduler`, heartbeats only) and the service's (`harness.base.scheduler`, where the match steps are armed). Driving the clock through the wrong one moves nothing; the e2e harness (spec 023) uses `base.scheduler`.
 
 ## Lessons: tests and traceability
 - Twins keep ONE secret (the commitment is public) and differ by round seeds, so they run in process.
