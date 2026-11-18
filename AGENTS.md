@@ -52,6 +52,7 @@ Rules name a tier, never a model. One table maps tiers to models.
 - Run `npm test` and `npm run typecheck` before every commit.
 - Visual tasks are not done without reviewed screenshots of the debug scene (fixed seed + round).
 - Future rounds must never reach the client.
+- Visual checks (viewer, embed previews, mobile view): save a small set of screenshots (desktop + mobile of the affected area) under `.claude/review/<task>/` (gitignored) and post them in your own thread chat as Markdown images with the absolute path, one short caption each: `![caption](C:/abs/path.png)`. Posting a path costs no tokens: do not Read images back unless you need to check them yourself.
 
 ## Boundaries
 - ✅ Always: follow the approved spec; after each task append to `specs/<id>/PROGRESS.md` (what changed, tests run and results, what is untested, next step); keep tests green.

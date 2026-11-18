@@ -3,7 +3,7 @@ Durable decisions, limits and lessons; no per-task diary (that is `specs/<id>/PR
 
 ## State
 Specs 001-022 implemented. Branch from `main`, PR into `main`.
-Next candidates: test automation (one start command + fake Discord at handler level; never drive real Discord: ToS, bots cannot press buttons or run slash commands); Discord names in the viewer (server); per-server history; deployment guide.
+Next candidates: e2e test automation (next, Light SDD: one start command + fake Discord at handler level; never drive real Discord: ToS, bots cannot press buttons or run slash commands); deployment guide; per-server history.
 
 ## Game
 Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random alive faction dies; a random neighbor takes all its territories; repeat until one remains. Players predict; they never control.

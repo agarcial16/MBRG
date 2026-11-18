@@ -16,6 +16,7 @@ Review it as a very professional QA and list: (1) ambiguities, (2) contradiction
 2. Run `npm run typecheck`.
 3. Go through the spec FR by FR: which test covers it and its result. Verify interface FRs in the browser with screenshots of the debug scene, including the mobile view (your tools have no browser: for interface FRs, say so and the coordinator adds it for that call).
 4. Check the done criteria and docs/constitution.md (especially determinism in shared/sim and no future rounds reaching the client).
+5. Visual checks: save a small set of screenshots (desktop + mobile of the affected area) under `.claude/review/<task>/` (gitignored) and post them in your own thread chat as Markdown images with the absolute path, one short caption each (`![caption](C:/abs/path.png)`). Do not Read images back unless you need to check them yourself.
 
 Reply in at most ~300 words (detail only for blockers).
 
