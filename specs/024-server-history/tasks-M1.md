@@ -1,4 +1,4 @@
-### M1 — Key at creation and schema v5 (3 / 4)
+### M1 — Key at creation and schema v5 (4 / 4)
 Plan sections 1, 2, 6 (PD2, PD6). No dependency.
 
 - [x] **T1.1. Ledger and `community` in the creation body.** FR-546, NFR-120
@@ -10,6 +10,6 @@ Plan sections 1, 2, 6 (PD2, PD6). No dependency.
 - [x] **T1.3. Schema v5 and community storage.** FR-560, FR-547
   - Files: `apps/server/src/store/schema.ts`, `sqlite.ts`, `store.ts`, `faults.ts` if it lists writes, store tests.
   - Done when: a fresh file is v5 with `communities` and its index; v1, v2, v3 and v4 files upgrade in place with no row of an existing table rewritten (row digests of every old table equal before and after); a v6 file is refused; `insertCommunity` refuses a missing match, a second row, a malformed key and a call outside a transaction (`invalid-write`); the store has no method that changes or removes a row; `purgeExpired` removes the row with its expired lobby and keeps it for a started match.
-- [ ] **T1.4. Key stored at creation (service and HTTP).** FR-545, FR-547 (restart part)
+- [x] **T1.4. Key stored at creation (service and HTTP).** FR-545, FR-547 (restart part)
   - Files: `apps/server/src/service/matches.ts` (`createPublic`/`decidePublic`), `apps/server/test/http-client-create.test.ts` or a new `http-community-create.test.ts`.
   - Done when (real server): a client creation with a key stores one row in the same transaction as the match (a `failWrite` inside the transaction leaves neither); a refused creation stores nothing; a memo replay with the same body returns the same reply and writes nothing; the same `requestId` with a different key is `request-id-reused`; after a restart the row is unchanged (closed-file read); creation replies and events carry no key (byte scan).

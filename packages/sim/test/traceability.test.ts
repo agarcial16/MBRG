@@ -144,13 +144,13 @@ const DONE_022: readonly string[] = [
  * A partial id (NFR-120 here) stays pending until its last task; its parts are named in the titles that trace them.
  */
 const PENDING_024: readonly string[] = [
-  'FR-545', 'FR-547', 'FR-548', 'FR-549', 'FR-550', 'FR-551', 'FR-552', 'FR-553', 'FR-554', 'FR-555', 'FR-556', 'FR-557', 'FR-558', 'FR-559',
+  'FR-548', 'FR-549', 'FR-550', 'FR-551', 'FR-552', 'FR-553', 'FR-554', 'FR-555', 'FR-556', 'FR-557', 'FR-558', 'FR-559',
   'FR-561', 'FR-562', 'FR-573',
   'NFR-117', 'NFR-118', 'NFR-119', 'NFR-120', 'NFR-121', 'NFR-122',
 ];
 
-/** Ids of spec 024 closed (T1.1: FR-546, the community key of the creation body; T1.3: FR-560, schema version 5). */
-const DONE_024: readonly string[] = ['FR-546', 'FR-560'];
+/** Ids of spec 024 closed (T1.1: FR-546, the community key of the creation body; T1.3: FR-560, schema version 5; T1.4: FR-545 and FR-547, the key stored at creation and kept). */
+const DONE_024: readonly string[] = ['FR-546', 'FR-560', 'FR-545', 'FR-547'];
 
 const DONE_014: readonly string[] = ['FR-416', 'FR-414', 'FR-413', 'FR-418', 'FR-419', 'FR-415', 'FR-417', 'NFR-81', 'NFR-83', 'FR-421', 'FR-420', 'NFR-82'];
 
