@@ -27,6 +27,9 @@ import {
   PREDICTION_KINDS,
   PREDICTION_REPLY_KEYS,
   PUBLIC_CONFIG_KEYS,
+  RANKING_ASKER_KEYS,
+  RANKING_PAGE_KEYS,
+  RANKING_ROW_KEYS,
   RECORD_REPLY_KEYS,
   STAGES,
   STATE_REPLY_KEYS,
@@ -48,6 +51,7 @@ import {
   type PlayerResultsPage,
   type PredictionReply,
   type PublicConfig,
+  type RankingPage,
   type RecordReply,
   type StateReply,
 } from './wire';
@@ -403,6 +407,79 @@ export function encodeHistoryPage(page: HistoryPage): string {
     ['next'],
   );
   if ((o.items as unknown[]).length > (o.total as number)) bad('history page.items outnumber total');
+  return out;
+}
+
+/** The statistics of one ranking row or of the asker (spec 025 FR-564): whole numbers, `won <= played <= scored`. */
+function checkRankingStats(what: string, points: number, correct: number, scored: number, played: number, won: number): void {
+  if (played > scored) bad(`${what}.played exceeds ${what}.scored`);
+  if (won > played) bad(`${what}.won exceeds ${what}.played`);
+  void points;
+  void correct;
+}
+
+/** One row of the ranking (spec 025 FR-563): a namespaced player id, the shown name when stored, and the statistics of FR-564. */
+function encodeRankingRow(v: unknown): string {
+  const o = objectOf(v, 'ranking row', RANKING_ROW_KEYS);
+  noInherited(o, 'ranking row', RANKING_ROW_KEYS);
+  const out = write(
+    o,
+    'ranking row',
+    RANKING_ROW_KEYS,
+    {
+      playerId: text('ranking row.playerId', isPlayerId),
+      name: nameText('ranking row.name'),
+      points: int('ranking row.points', 0),
+      correct: int('ranking row.correct', 0),
+      scored: int('ranking row.scored', 0),
+      played: int('ranking row.played', 0),
+      won: int('ranking row.won', 0),
+    },
+    ['name'],
+  );
+  checkRankingStats('ranking row', o.points as number, o.correct as number, o.scored as number, o.played as number, o.won as number);
+  return out;
+}
+
+/** The asker of a ranking page (spec 025 FR-567): `{ played: false }` alone or their statistics with an optional rank, nothing else. */
+function encodeRankingAsker(v: unknown): string {
+  const o = objectOf(v, 'ranking asker', RANKING_ASKER_KEYS);
+  noInherited(o, 'ranking asker', RANKING_ASKER_KEYS);
+  // `played` is the number of matches played in the statistics form and the `false` mark of the no-row form.
+  if (o.played === false) {
+    if (Object.keys(o).length !== 1) bad('ranking asker holds played false alone');
+    return '{"played":false}';
+  }
+  const out = write(
+    o,
+    'ranking asker',
+    RANKING_ASKER_KEYS,
+    {
+      points: int('ranking asker.points', 0),
+      correct: int('ranking asker.correct', 0),
+      scored: int('ranking asker.scored', 0),
+      played: int('ranking asker.played', 0),
+      won: int('ranking asker.won', 0),
+      rank: int('ranking asker.rank', 1),
+    },
+    ['rank'],
+  );
+  checkRankingStats('ranking asker', o.points as number, o.correct as number, o.scored as number, o.played as number, o.won as number);
+  return out;
+}
+
+/** One page of the ranking of a community (spec 025 FR-565): `items`, the snapshot `total`, `next` and the `asker` when present. */
+export function encodeRankingPage(page: RankingPage): string {
+  const o = objectOf(page, 'ranking page', RANKING_PAGE_KEYS);
+  noInherited(o, 'ranking page', RANKING_PAGE_KEYS);
+  const out = write(
+    o,
+    'ranking page',
+    RANKING_PAGE_KEYS,
+    { items: encodeListOf('ranking page', encodeRankingRow), total: int('ranking page.total', 0), next: text('ranking page.next'), asker: encodeRankingAsker },
+    ['next', 'asker'],
+  );
+  if ((o.items as unknown[]).length > (o.total as number)) bad('ranking page.items outnumber total');
   return out;
 }
 

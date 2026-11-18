@@ -23,6 +23,9 @@ import {
   PUBLIC_CONFIG_KEYS,
   PUBLIC_MATCH_KEYS,
   PUBLIC_VICTIM_KEYS,
+  RANKING_ASKER_KEYS,
+  RANKING_PAGE_KEYS,
+  RANKING_ROW_KEYS,
   RECORD_REPLY_KEYS,
   STAGES,
   STATE_REPLY_KEYS,
@@ -46,6 +49,9 @@ import {
   type PublicSchedule,
   type PublicState,
   type PublicVictim,
+  type RankingAsker,
+  type RankingPage,
+  type RankingRow,
   type RecordReply,
   type StateReply,
   type Timing,
@@ -424,6 +430,60 @@ export function readHistoryPage(input: unknown): Decoded<HistoryPage> {
       const total = m.get('total', int(0));
       if (items.length > total) refuse(m.path('total'));
       return m.has('next') ? { items, total, next: m.get('next', text) } : { items, total };
+    }),
+  );
+}
+
+/** The statistics of one ranking row or of the asker (spec 025 FR-564): `won <= played <= scored`. */
+const rankingStats = (m: Members): { points: number; correct: number; scored: number; played: number; won: number } => {
+  const points = m.get('points', int(0));
+  const correct = m.get('correct', int(0));
+  const scored = m.get('scored', int(0));
+  const played = m.get('played', int(0));
+  const won = m.get('won', int(0));
+  if (played > scored) refuse(m.path('played'));
+  if (won > played) refuse(m.path('won'));
+  return { points, correct, scored, played, won };
+};
+
+const rankingRow: Reader<RankingRow> = (v, f) =>
+  object(v, f, RANKING_ROW_KEYS, (m) => {
+    const playerId = m.get('playerId', textWhere(isPlayerId));
+    const name = m.has('name') ? m.get('name', nameOf) : undefined;
+    return { playerId, ...(name === undefined ? {} : { name }), ...rankingStats(m) };
+  });
+
+/** The asker's statistics (with an optional rank) or `{ played: false }` alone, and nothing else. */
+const rankingAsker: Reader<RankingAsker> = (v, f) =>
+  object(v, f, RANKING_ASKER_KEYS, (m) => {
+    // `played` is the number of matches played in the statistics form and the `false` mark of the no-row form.
+    const played = m.has('played')
+      ? m.get('played', (x, ff) => (x === false || isInt(x, 0) ? x : refuse(ff)))
+      : undefined;
+    if (played === false) {
+      for (const k of ['points', 'correct', 'scored', 'won', 'rank'] as const) if (m.has(k)) refuse(m.path(k));
+      return { played: false };
+    }
+    if (typeof played !== 'number') return refuse(m.path('played'));
+    const points = m.get('points', int(0));
+    const correct = m.get('correct', int(0));
+    const scored = m.get('scored', int(0));
+    const won = m.get('won', int(0));
+    if (played > scored) refuse(m.path('played'));
+    if (won > played) refuse(m.path('won'));
+    const stats = { points, correct, scored, played, won };
+    return m.has('rank') ? { ...stats, rank: m.get('rank', int(1)) } : stats;
+  });
+
+/** A page of the ranking of a community: `items`, the snapshot `total` (at least the items), `next` and the `asker` when present. */
+export function readRankingPage(input: unknown): Decoded<RankingPage> {
+  return run(() =>
+    object(input, '', RANKING_PAGE_KEYS, (m) => {
+      const items = m.get('items', list(rankingRow));
+      const total = m.get('total', int(0));
+      if (items.length > total) refuse(m.path('total'));
+      const base = m.has('next') ? { items, total, next: m.get('next', text) } : { items, total };
+      return m.has('asker') ? { ...base, asker: m.get('asker', rankingAsker) } : base;
     }),
   );
 }

@@ -10,6 +10,8 @@ import {
   JOIN_FIELDS,
   JOIN_POLICIES,
   PREDICTION_KINDS,
+  RANKING_FIELDS,
+  RANKING_ORDERS,
   START_FIELDS,
   STEP_KINDS,
   SUBMISSION_FIELDS,
@@ -18,6 +20,7 @@ import {
   type JoinBody,
   type JoinPolicy,
   type PredictionKind,
+  type RankingOrder,
   type StartBody,
   type StepKind,
   type SubmissionBody,
@@ -108,6 +111,59 @@ export function readHistoryRequest(input: unknown): ReadResult<HistoryRequest> {
     ok: true,
     value: {
       community: o.community,
+      ...(own(o, 'playerId') ? { playerId: o.playerId as string } : {}),
+      limit,
+      ...(after === undefined ? {} : { after }),
+    },
+  };
+}
+
+/** A read ranking request (spec 025 FR-568 of 024 FR-573): `order` already holds the default and `after` is the decoded cursor key. */
+export interface RankingRequest {
+  readonly community: string;
+  readonly order: RankingOrder;
+  readonly playerId?: string;
+  readonly limit: number;
+  readonly after?: CursorKey<'ranking'>;
+}
+
+/**
+ * Ranking request body `{ community, order?, playerId?, limit?, cursor? }` (spec 025, by FR-568 of 024 FR-573). The community
+ * key, the order (one of the four words, `points` by default), the asker's local player id, the page size (a whole number
+ * 1 to 500, default 100) and the cursor travel only in the body. The first failing member in that order is named; an unknown
+ * member is named last (the first in sorted order). A player id that is a text but not a local id is `invalid-player-id`,
+ * after every structural check (the FR-301 order). The cursor comes back decoded as `after`.
+ */
+export function readRankingRequest(input: unknown): ReadResult<RankingRequest> {
+  const o = bodyOf(input);
+  if (o === undefined) return fail('invalid-request', 'body');
+  if (!own(o, 'community') || !isCommunityKey(o.community)) return fail('invalid-request', 'community');
+  let order: RankingOrder = 'points';
+  if (own(o, 'order')) {
+    if (!isOneOf<RankingOrder>(RANKING_ORDERS, o.order)) return fail('invalid-request', 'order');
+    order = o.order;
+  }
+  if (own(o, 'playerId') && typeof o.playerId !== 'string') return fail('invalid-request', 'playerId');
+  let limit = PAGE_LIMIT_DEFAULT;
+  if (own(o, 'limit')) {
+    if (typeof o.limit !== 'number' || !Number.isSafeInteger(o.limit) || o.limit < 1 || o.limit > PAGE_LIMIT_MAX) return fail('invalid-request', 'limit');
+    limit = o.limit;
+  }
+  let after: CursorKey<'ranking'> | undefined;
+  if (own(o, 'cursor')) {
+    if (typeof o.cursor !== 'string') return fail('invalid-request', 'cursor');
+    const decoded = decodeCursor('ranking', o.cursor);
+    if (!decoded.ok) return decoded;
+    after = decoded.value;
+  }
+  const extra = firstUnknown(o, RANKING_FIELDS);
+  if (extra !== undefined) return fail('invalid-request', extra);
+  if (own(o, 'playerId') && !isLocalId(o.playerId)) return fail('invalid-player-id', 'playerId');
+  return {
+    ok: true,
+    value: {
+      community: o.community,
+      order,
       ...(own(o, 'playerId') ? { playerId: o.playerId as string } : {}),
       limit,
       ...(after === undefined ? {} : { after }),

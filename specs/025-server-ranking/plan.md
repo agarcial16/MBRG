@@ -3,7 +3,7 @@ Spec: `spec.md` (approved 2026-11-18). Status: draft (presented 2026-11-19). Mil
 
 ## 1. Files and responsibilities
 - `packages/protocol/src/read.ts`, `wire.ts`: `readRankingRequest` (body `{ community, order?, playerId?, limit?, cursor? }`; `order` one of `points` (default), `correct`, `wins`, `accuracy`; `playerId` is the local id, as the 008 own-predictions read). FR-563 (shape part), FR-565 (shape part), FR-573.
-- `packages/protocol/src/page.ts`: cursor list `ranking`, key `[headFinishedAt, headMatchId, segment, primary, points, playerId]`. FR-565 (cursor part).
+- `packages/protocol/src/page.ts`: cursor list `ranking`, key `[headFinishedAt, headMatchId, localId]` — an identity keyset (see PD3). FR-565 (cursor part).
 - `packages/protocol/src/encode.ts`, `decode.ts`: `RankingRow`, `RankingPage` (008 page shape plus `total`), `asker`. FR-563 (wire part), FR-567 (wire part).
 - `apps/server/src/store/sqlite.ts`, `store.ts`: `rankingResults(key, namespace, head)`, `rankingNames(key, namespace, head)`; no schema change. FR-564 (read part), NFR-125 (store part).
 - `apps/server/src/core/ranking.ts` (new, pure): statistics, won rule, shown name, order, ranks, keyset slice, asker row. FR-563 to FR-567.
@@ -31,7 +31,7 @@ Spec: `spec.md` (approved 2026-11-18). Status: draft (presented 2026-11-19). Mil
 ## 5. Decisions (discarded alternative)
 - PD1 Ranking computed at read time from `results`; no aggregate table. Discarded: a stored per-community aggregate (a schema change, forbidden by NFR-125, and a new write in the pinned step transactions).
 - PD2 Two statements per request (results, names), aggregation in the pure core. Discarded: per-match read loops (the statement count would grow with the community) and full SQL aggregation (the won rule and the shown-name rule would stop being pure, NFR-126).
-- PD3 One cursor list `ranking` with a segment flag in the key. Discarded: a second list for the accuracy tail (two cursors to keep consistent inside one walk).
+- PD3 Identity keyset: the cursor names the snapshot head and the local id of the row the page ended on; inside a snapshot the rows, their statistics and every order are frozen (a counted match is immutable and a newer one is excluded by the head bound), so the local id identifies the row's place in any order. Discarded: the row's order values in the key (the longest such key overflows the 256-character cursor limit) and a second list for the accuracy tail (two cursors to keep consistent inside one walk).
 - PD4 Order words only in the bot (`puntos`, `aciertos`, `victorias`, `precisión`); the wire takes the enum. Discarded: Spanish words on the wire (the protocol stays language-neutral).
 - PD5 Accuracy compared as exact fractions (cross-multiplied). Discarded: floating point (equal accuracies of different fractions could drift) and rounded percentages (199/200 would tie with 99/100).
 - PD6 The cursor stack lives in the bot's memory per message, as 024 PD5.

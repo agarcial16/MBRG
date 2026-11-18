@@ -16,8 +16,8 @@ export const PAGE_LIMIT_DEFAULT = 100;
 export const PAGE_LIMIT_MAX = 500;
 export const CURSOR_MAX_LENGTH = 256;
 
-/** The list tags: the three of M3a, the results lists (phase results, a player's results, the leaderboard), then the players, the winners of a phase and the per-community history (spec 024). */
-export const CURSOR_LISTS = ['matches', 'records', 'predictions', 'phase-results', 'player-results', 'leaderboard', 'players', 'phase-winners', 'history'] as const;
+/** The list tags: the three of M3a, the results lists (phase results, a player's results, the leaderboard), then the players, the winners of a phase, the per-community history (spec 024) and the per-community ranking (spec 025). */
+export const CURSOR_LISTS = ['matches', 'records', 'predictions', 'phase-results', 'player-results', 'leaderboard', 'players', 'phase-winners', 'history', 'ranking'] as const;
 export type CursorList = (typeof CURSOR_LISTS)[number];
 
 /**
@@ -39,6 +39,12 @@ export interface CursorKeys {
   readonly 'phase-winners': readonly [playerId: string];
   /** The snapshot head (newest counted match of the walk) then the last entry of the page: finish instant, match id (spec 024 FR-549). */
   readonly history: readonly [headFinishedAt: number, headMatchId: string, finishedAt: number, matchId: string];
+  /**
+   * The snapshot head then the local player id of the row the page ended on (spec 025 FR-565). An identity keyset: inside a
+   * snapshot the rows, their statistics and every order are frozen (a counted match is immutable and a newer one is excluded by
+   * the head bound), so the local id alone identifies the row's place in any order; the id carries no secret.
+   */
+  readonly ranking: readonly [headFinishedAt: number, headMatchId: string, localId: string];
 }
 export type CursorKey<L extends CursorList> = CursorKeys[L];
 
@@ -92,6 +98,8 @@ function isKeyOf(list: CursorList, parts: readonly unknown[]): boolean {
       // History order is finish instant descending, then match id ascending: the last key cannot be newer than the head.
       return at < headAt || (at === headAt && id >= headId);
     }
+    case 'ranking':
+      return parts.length === 3 && isInt(parts[0], 0) && typeof parts[1] === 'string' && MATCH_ID.test(parts[1]) && isLocalId(parts[2]);
     default:
       return false;
   }
