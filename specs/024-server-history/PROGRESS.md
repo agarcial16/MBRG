@@ -8,3 +8,12 @@
 - Mutation proofs (affected files only): uppercase accepted, unanchored regex, no repeated-member check, no key check, inherited `community` read: each killed by the intended test.
 - Untested here: the creation service/HTTP use of the key (T1.2, T1.4).
 - Next: T1.2 (policy). Branch `feat/024-server-history`.
+
+## M1 T1.2 Creation policy with the key (FR-545, policy part)
+- Changed: `apps/server/src/core/policy.ts`: `creationPolicy(requested, caller, operatorPath, community?)`; the decision of a client policy carries `community` only when a key was given. A key without `joinPolicy: 'client'`, from any non-client caller (player, anonymous, other) or on the operator path is `invalid-request` naming `community`; the operator-path `joinPolicy` error still comes first (field order); a body without a key gets exactly the 018 answers (decision has no `community` member).
+- Decision not in the plan: an anonymous caller asking `joinPolicy: 'client'` WITH a key gets `invalid-request community` (FR-545 "any other creation with a key"), not `forbidden`; without a key it stays `forbidden` (018 FR-492).
+- Tests: `apps/server/test/core-policy.test.ts` +6 titled `FR-545 (policy)`; FR-545 stays pending in the ledger until T1.4 closes the service/HTTP part.
+- Pinned test changed (reason): the NFR-104 test pins `creationPolicy.length` 3 -> 4 (new optional parameter).
+- Mutation proofs (core-policy file only): requested check dropped, caller check dropped, key not carried, error order swapped: each killed by the intended test.
+- Untested here: the service passing the key (T1.4).
+- Next: T1.3 (schema v5). Branch `feat/024-server-history`.
