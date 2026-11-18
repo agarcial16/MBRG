@@ -2,11 +2,13 @@ node_modules/
 dist/
 *.tsbuildinfo
 coverage/
-AGENTS.md
-MEMORY.md
-.claude/
 tools/build-map/out/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
 .env.local
+.claude/review/
+.claude/worktrees/
+.claude/settings.local.json
+.taste-skill/
+.agents/
