@@ -16,3 +16,9 @@
 ## 2. Screenshots and PR
 - Visual check: `npm run e2e` output screenshotted with headless Chrome at exact page height (measured via a temporary DOM probe, since no desktop browser was attached to this session): desktop top, desktop full (900x5110), mobile full (390x5410), saved under `.claude/review/023-e2e-harness/` and posted in the implementing thread.
 - Branch: `feat/023-e2e-harness`. State: implemented, tests + typecheck green, PR open to `main`, not merged. Next step: the Sonnet reviewer checks the PR; after merge, move the spec to `specs/archive/`.
+
+## 3. Review fix: the secrecy checker now bites
+- Blocker (reviewer): the victim/absorber check in `script.ts` compared against `indexOf` of stages not yet started (-1), so it never fired.
+- Fix: `apps/bot/test/e2e/secrecy.ts` (pure `secrecyViolations`, fixed `STAGE_ORDER`, a faction is public from the first stage that reveals it in any role); `script.ts` calls it. New negative self-tests in `e2e.test.ts` (leak in text, embed field, button label; later round; host token) prove it fires.
+- Tests: `npx vitest run apps/bot/test/e2e.test.ts` x2 -> 6 passed; `npm run typecheck` clean. Full suite not rerun.
+- State: branch `feat/023-e2e-harness`, fix UNCOMMITTED in the worktree. Next step: commit + push, re-review blocker 1.

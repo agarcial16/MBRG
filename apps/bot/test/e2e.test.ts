@@ -10,6 +10,7 @@ import { EMBED_COLORS } from '../src/core/embeds';
 import { STRINGS } from '../src/core/strings';
 import { EXPECTED_POST_TEXTS, PLAYERS } from './e2e/plan';
 import { renderEmbedsHtml, renderTranscript } from './e2e/render';
+import { secrecyViolations } from './e2e/secrecy';
 import { playScriptedMatch } from './e2e/script';
 import type { MatchRun } from './e2e/script';
 import { startWorld, VIEWER_URL } from './e2e/world';
@@ -109,5 +110,27 @@ describe('spec 023 e2e: real server + real bot core, Discord faked', () => {
     expect(html).toContain('@Ana');
     expect(html).toContain(STRINGS.boardTitle);
     expect(html).toContain(STRINGS.viewerButton);
+  });
+});
+
+// The checker must bite: each deliberate leak below (text, embed field, button label) has to be reported (FR-541).
+describe('spec 023 e2e: the secrecy checker catches a leak', () => {
+  const plain = (text: string) => ({ text, buttons: [] as never[] });
+  it('names a victim before its reveal, in the text, an embed field or a button label', () => {
+    expect(secrecyViolations('r1:predict1', 1, [plain('Ronda 1 abierta')], 'tok')).toEqual([]);
+    expect(secrecyViolations('r1:predict1', 1, [plain('La víctima será España')], 'tok')).toHaveLength(1);
+    const embed = { text: 'x', buttons: [], embed: { color: 1, title: 't', fields: [{ name: 'Víctima', value: '**Portugal**' }] } };
+    expect(secrecyViolations('r1:predict1', 1, [embed as never], 'tok')).not.toEqual([]);
+    const button = { text: 'x', buttons: [{ type: 'link', url: 'u', label: 'Ver Francia' }] };
+    expect(secrecyViolations('r1:predict1', 1, [button as never], 'tok')).not.toEqual([]);
+  });
+  it('lets a name through once any role has revealed it, and flags a later absorber early', () => {
+    expect(secrecyViolations('r1:reveal', 1, [plain('Ronda 1: la víctima es **Francia**')], 'tok')).toEqual([]);
+    expect(secrecyViolations('r1:predict2', 1, [plain('absorbe Alemania')], 'tok')).not.toEqual([]);
+    expect(secrecyViolations('r2:predict1', 2, [plain('Alemania sigue viva')], 'tok')).toEqual([]);
+  });
+  it('flags a later round number and the host token', () => {
+    expect(secrecyViolations('r1:predict1', 1, [plain('Ronda 2 abierta')], 'tok')).toHaveLength(1);
+    expect(secrecyViolations('r1:predict1', 1, [plain('clave tok')], 'tok')).toHaveLength(1);
   });
 });

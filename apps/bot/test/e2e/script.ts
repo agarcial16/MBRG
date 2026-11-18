@@ -13,7 +13,8 @@ import { STRINGS } from '../../src/core/strings';
 import type { Who } from '../../src/io/handler';
 import { CHANNEL, MANAGER, manager, waitFor } from '../helpers/harness';
 import type { Edited, Posted } from '../helpers/harness';
-import { EXPECTED_POST_TEXTS, PLAN, PLAYERS, SEEDS, factionName } from './plan';
+import { EXPECTED_POST_TEXTS, PLAN, PLAYERS } from './plan';
+import { secrecyViolations } from './secrecy';
 import type { Player } from './plan';
 import type { E2EWorld } from './world';
 import { VIEWER_URL } from './world';
@@ -72,15 +73,11 @@ export async function playScriptedMatch(world: E2EWorld): Promise<MatchRun> {
   const { bot, scheduler, url } = world;
   const entries: RunEntry[] = [];
   const violations: string[] = [];
-  const stageOrder: string[] = [];
-  const stageRound = new Map<string, number>();
   const counts = expectedCounts();
   let checkedPosts = 0;
 
   /** One named stage of the script: run its actions, wait for the exact channel counts, record and check what appeared. */
   async function stage<T>(name: string, round: number, body: () => Promise<T>): Promise<T> {
-    stageOrder.push(name);
-    stageRound.set(name, round);
     const want = counts.get(name);
     if (want === undefined) throw new Error(`the plan has no stage ${name}`);
     const postsBefore = bot.posts.length;
@@ -91,33 +88,11 @@ export async function playScriptedMatch(world: E2EWorld): Promise<MatchRun> {
     await waitFor(() => bot.edits.length === want.edits, 20_000, where);
     bot.posts.slice(postsBefore).forEach((p, i) => entries.push({ kind: 'post', stage: name, message: p.message, messageId: `message-${postsBefore + i + 1}` }));
     for (const e of bot.edits.slice(editsBefore)) entries.push({ kind: 'edit', stage: name, messageId: e.messageId, message: e.message });
-    checkSecrets(name, bot.posts.slice(postsBefore));
+    // FR-541: everything a post of this stage carries must already be public (see secrecy.ts).
+    const made = bot.posts.slice(postsBefore).map((p) => p.message);
+    checkedPosts += made.length;
+    violations.push(...secrecyViolations(name, round, made, entry0?.hostToken));
     return result;
-  }
-
-  /** FR-541: everything a post of this stage carries must already be public. */
-  function checkSecrets(stageName: string, posts: readonly Posted[]): void {
-    const at = stageOrder.indexOf(stageName);
-    const round = stageRound.get(stageName) ?? 0;
-    for (const p of posts) {
-      checkedPosts += 1;
-      const blob = JSON.stringify(p.message);
-      if (entry0 !== undefined && blob.includes(entry0.hostToken)) violations.push(`${stageName}: a channel post carries the host token`);
-      for (const r of PLAN) {
-        const victimName = factionName(r.victim);
-        if (at < stageOrder.indexOf(`r${r.round}:reveal`) && blob.includes(victimName)) {
-          violations.push(`${stageName}: a post names the round ${r.round} victim (${victimName}) before its reveal`);
-        }
-        const absorberName = factionName(r.absorber);
-        const absorberRevealed = r.forced ? `r${r.round}:reveal` : `r${r.round}:applied`;
-        if (at < stageOrder.indexOf(absorberRevealed) && blob.includes(absorberName)) {
-          violations.push(`${stageName}: a post names the round ${r.round} absorber (${absorberName}) before its reveal`);
-        }
-      }
-      for (const found of blob.matchAll(/Ronda (\d+)/g)) {
-        if (Number(found[1]) > round) violations.push(`${stageName}: a post mentions Ronda ${found[1]} while round ${round} is the open one`);
-      }
-    }
   }
 
   /** A member's interaction, recorded as the private reply the member sees. */
