@@ -17,7 +17,6 @@ import { createServerClient } from '../../src/io/server-client';
 import { createStateStore, loadState } from '../../src/io/state-file';
 import type { StateStore } from '../../src/io/state-file';
 import { CREDENTIAL } from './fake-server';
-import type { Fake } from './fake-server';
 
 export const CHANNEL = '777000111222333444';
 export const MANAGER: Who = { channelId: CHANNEL, userId: '900000000000000001' };
@@ -90,12 +89,15 @@ export const tempState = (): { path: string; remove: () => void } => {
   return { path: join(dir, 'state.json'), remove: () => rmSync(dir, { recursive: true, force: true }) };
 };
 
-/** Boots a bot on a state file; booting again on the same file is a restart. `posts` may be shared across boots. */
-export function boot(fake: Fake, statePath: string, options: { posts?: Posted[]; viewerUrl?: string } = {}): Bot {
+/**
+ * Boots a bot on a state file; booting again on the same file is a restart. `posts` may be shared across boots. The server is
+ * only its base address: the fake server of the unit tests or the real server of the e2e harness (spec 023).
+ */
+export function boot(server: { readonly url: string }, statePath: string, options: { posts?: Posted[]; viewerUrl?: string } = {}): Bot {
   const loaded = loadState(statePath);
   if (!loaded.ok) throw new Error('state unreadable');
   const store = createStateStore(statePath, loaded.state);
-  const client = createServerClient({ baseUrl: fake.url, credential: CREDENTIAL, timeoutMs: 1500 });
+  const client = createServerClient({ baseUrl: server.url, credential: CREDENTIAL, timeoutMs: 1500 });
   const names = createNames(client);
   const posts = options.posts ?? [];
   const logs: string[] = [];
@@ -174,7 +176,7 @@ export function boot(fake: Fake, statePath: string, options: { posts?: Posted[];
     periods.push(ms);
     return () => timers.delete(tick);
   };
-  const follower = createFollower({ baseUrl: fake.url, client, store, poster, boards, names, viewerUrl: options.viewerUrl, log: (code) => logs.push(code), sleep: () => new Promise((resolve) => setTimeout(resolve, 10)), every });
+  const follower = createFollower({ baseUrl: server.url, client, store, poster, boards, names, viewerUrl: options.viewerUrl, log: (code) => logs.push(code), sleep: () => new Promise((resolve) => setTimeout(resolve, 10)), every });
   let n = 0;
   const handler = createHandler({ client, store, follower, names, newRequestId: () => `request-${(n += 1)}`, viewerUrl: options.viewerUrl });
   Object.assign(bot, {

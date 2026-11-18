@@ -2,8 +2,8 @@
 Durable decisions, limits and lessons; no per-task diary (that is `specs/<id>/PROGRESS.md`; live work is `docs/board.md`). Area lessons: `docs/lessons/{web,bot,server,map}.md`. Keep <= ~4 KB.
 
 ## State
-Specs 001-022 implemented. Branch from `main`, PR into `main`.
-Next candidates: e2e test automation (next, Light SDD: one start command + fake Discord at handler level; never drive real Discord: ToS, bots cannot press buttons or run slash commands); deployment guide; per-server history.
+Specs 001-023 implemented. Branch from `main`, PR into `main`.
+Next candidates: deployment guide; per-server history.
 
 ## Game
 Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random alive faction dies; a random neighbor takes all its territories; repeat until one remains. Players predict; they never control.
@@ -28,6 +28,7 @@ Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random
 - Node timings are noisy: run perf tests alone; under CPU load tests near 5 s need explicit timeouts. Untracked `.vitest/` is harmless, never commit it.
 - Approvals typed in the orchestrator chat are not accepted by child threads: type them in the child or quote them in the brief.
 - Never junction/symlink `node_modules` or workspace folders into a worktree (a forced remove followed the links and deleted real files).
+- E2E screenshots without a desktop browser: headless Chrome `--screenshot --window-size=W,H` (a file:// URL is fine), but measure the page first (`--dump-dom` + a title-writing probe script) — window height is a guess otherwise.
 
 ## Glossary
 Territory (map unit, province) · Faction (owner of territories) · Round (one elimination) · Match (seeded full game).

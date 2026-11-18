@@ -1,0 +1,228 @@
+// The scripted match of the e2e harness (spec 023 FR-540, FR-541): drives the REAL bot core (interactions in, replies out)
+// and the REAL server's fake clock (the scheduler runs each phase transition at its scheduled instant), records everything
+// the simulated channel shows — posts, edits, private replies — and checks secrecy live: before each stage's posts settle,
+// no post may name a victim or absorber that the server has not revealed yet, carry the host token, or mention a round
+// beyond the one that is open.
+import { readPublicMatch, readLeaderboardPage } from '@mbrg/protocol';
+import type { LeaderboardRow, PublicMatch } from '@mbrg/protocol';
+import { lobbyLink } from '../../src/core/announce';
+import type { Interaction } from '../../src/core/actions';
+import { PREDICT_ID, START_ID, pickId } from '../../src/core/custom-ids';
+import type { OutMessage, Reply } from '../../src/core/model';
+import { STRINGS } from '../../src/core/strings';
+import type { Who } from '../../src/io/handler';
+import { CHANNEL, MANAGER, manager, waitFor } from '../helpers/harness';
+import type { Edited, Posted } from '../helpers/harness';
+import { EXPECTED_POST_TEXTS, PLAN, PLAYERS, SEEDS, factionName } from './plan';
+import type { Player } from './plan';
+import type { E2EWorld } from './world';
+import { VIEWER_URL } from './world';
+
+export type RunEntry =
+  | { readonly kind: 'post'; readonly stage: string; readonly message: OutMessage; readonly messageId: string }
+  | { readonly kind: 'edit'; readonly stage: string; readonly messageId: string; readonly message: OutMessage }
+  | { readonly kind: 'reply'; readonly stage: string; readonly to: string; readonly reply: Reply };
+
+export interface MatchRun {
+  readonly world: E2EWorld;
+  readonly matchId: string;
+  readonly mapId: string;
+  /** The lobby link: the viewer's waiting screen for this match (spec 021). */
+  readonly viewerMatchUrl: string;
+  readonly hostToken: string;
+  readonly entries: readonly RunEntry[];
+  readonly posts: readonly Posted[];
+  readonly edits: readonly Edited[];
+  /** Secrecy violations seen during the run (FR-541); empty when the run is clean. */
+  readonly violations: readonly string[];
+  /** How many channel posts the secrecy checker looked at. */
+  readonly checkedPosts: number;
+  /** The final leaderboard as the server ranks it, with the display names the predictions carried (spec 022). */
+  readonly leaderboard: readonly LeaderboardRow[];
+}
+
+const isLastRound = (round: number): boolean => PLAN[PLAN.length - 1]!.round === round;
+
+/** The posts and edits the channel holds once each stage has settled, derived from the plan the same way the bot walks it. */
+function expectedCounts(): Map<string, { posts: number; edits: number }> {
+  const counts = new Map<string, { posts: number; edits: number }>([
+    ['create', { posts: 0, edits: 0 }],
+    ['start', { posts: 1, edits: 0 }],
+  ]);
+  let posts = 1;
+  let edits = 0;
+  for (const r of PLAN) {
+    counts.set(`r${r.round}:predict1`, { posts, edits });
+    posts += 2; // the reveal and the phase-1 winners
+    edits += 1; // the opened message's Predict button is disabled
+    counts.set(`r${r.round}:reveal`, { posts, edits });
+    if (!r.forced) {
+      counts.set(`r${r.round}:predict2`, { posts, edits });
+      posts += 3 + (isLastRound(r.round) ? 1 : 0); // applied, phase-2 winners, next opened (or finished and board)
+      edits += 1; // the reveal message's Predict button is disabled
+    } else {
+      posts += 2 + (isLastRound(r.round) ? 1 : 0); // applied, next opened (or finished and board)
+    }
+    counts.set(`r${r.round}:applied`, { posts, edits });
+  }
+  return counts;
+}
+
+export async function playScriptedMatch(world: E2EWorld): Promise<MatchRun> {
+  const { bot, scheduler, url } = world;
+  const entries: RunEntry[] = [];
+  const violations: string[] = [];
+  const stageOrder: string[] = [];
+  const stageRound = new Map<string, number>();
+  const counts = expectedCounts();
+  let checkedPosts = 0;
+
+  /** One named stage of the script: run its actions, wait for the exact channel counts, record and check what appeared. */
+  async function stage<T>(name: string, round: number, body: () => Promise<T>): Promise<T> {
+    stageOrder.push(name);
+    stageRound.set(name, round);
+    const want = counts.get(name);
+    if (want === undefined) throw new Error(`the plan has no stage ${name}`);
+    const postsBefore = bot.posts.length;
+    const editsBefore = bot.edits.length;
+    const result = await body();
+    const where = () => `${name}: ${bot.posts.length}/${want.posts} posts, ${bot.edits.length}/${want.edits} edits`;
+    await waitFor(() => bot.posts.length === want.posts, 20_000, where);
+    await waitFor(() => bot.edits.length === want.edits, 20_000, where);
+    bot.posts.slice(postsBefore).forEach((p, i) => entries.push({ kind: 'post', stage: name, message: p.message, messageId: `message-${postsBefore + i + 1}` }));
+    for (const e of bot.edits.slice(editsBefore)) entries.push({ kind: 'edit', stage: name, messageId: e.messageId, message: e.message });
+    checkSecrets(name, bot.posts.slice(postsBefore));
+    return result;
+  }
+
+  /** FR-541: everything a post of this stage carries must already be public. */
+  function checkSecrets(stageName: string, posts: readonly Posted[]): void {
+    const at = stageOrder.indexOf(stageName);
+    const round = stageRound.get(stageName) ?? 0;
+    for (const p of posts) {
+      checkedPosts += 1;
+      const blob = JSON.stringify(p.message);
+      if (entry0 !== undefined && blob.includes(entry0.hostToken)) violations.push(`${stageName}: a channel post carries the host token`);
+      for (const r of PLAN) {
+        const victimName = factionName(r.victim);
+        if (at < stageOrder.indexOf(`r${r.round}:reveal`) && blob.includes(victimName)) {
+          violations.push(`${stageName}: a post names the round ${r.round} victim (${victimName}) before its reveal`);
+        }
+        const absorberName = factionName(r.absorber);
+        const absorberRevealed = r.forced ? `r${r.round}:reveal` : `r${r.round}:applied`;
+        if (at < stageOrder.indexOf(absorberRevealed) && blob.includes(absorberName)) {
+          violations.push(`${stageName}: a post names the round ${r.round} absorber (${absorberName}) before its reveal`);
+        }
+      }
+      for (const found of blob.matchAll(/Ronda (\d+)/g)) {
+        if (Number(found[1]) > round) violations.push(`${stageName}: a post mentions Ronda ${found[1]} while round ${round} is the open one`);
+      }
+    }
+  }
+
+  /** A member's interaction, recorded as the private reply the member sees. */
+  async function interact(stageName: string, player: Player, interaction: Interaction): Promise<Reply> {
+    const who: Who = { channelId: CHANNEL, userId: player.userId, displayName: player.displayName };
+    const reply = await bot.run(interaction, who);
+    entries.push({ kind: 'reply', stage: stageName, to: player.displayName, reply });
+    return reply;
+  }
+
+  const readMatch = async (): Promise<PublicMatch> => {
+    const response = await fetch(`${url}/matches/${encodeURIComponent(matchId)}`);
+    const read = readPublicMatch(await response.json());
+    if (!read.ok) throw new Error('the public match read failed');
+    return read.value;
+  };
+
+  let entry0: { matchId: string; hostToken: string } | undefined;
+
+  // --- The manager creates a client-only match on the dev map; the shell posts the lobby message (FR-540). ---
+  const made = await stage('create', 0, async () => {
+    const reply = await bot.run(manager({ map: 'dev', pace: 'fast' }));
+    await waitFor(() => world.server.streams.openCount() === 1, 20_000, () => 'the follower stream did not open');
+    return reply;
+  });
+  if (made.type !== 'channel') throw new Error(`the creation was not a channel reply: ${made.type}`);
+  bot.sent(made, 'message-0');
+  made.messages.forEach((m, i) => entries.push({ kind: 'post', stage: 'create', message: m, messageId: `message-0-${i}` }));
+  const stored = bot.store.get(CHANNEL);
+  if (stored === undefined) throw new Error('the bot stored no follow entry for the channel');
+  entry0 = { matchId: stored.matchId, hostToken: stored.hostToken };
+  const { matchId, hostToken } = entry0;
+  if (hostToken === '') throw new Error('the bot stored no host token');
+
+  // --- The creator starts it with the Start button; round 1 opens. ---
+  const started = await stage('start', 1, () => bot.run({ type: 'button', customId: START_ID, canManage: true, userId: MANAGER.userId }));
+  if (started.type !== 'text' || started.text !== STRINGS.started) throw new Error(`the start reply was not the started sentence: ${JSON.stringify(started)}`);
+
+  // --- Every round: predictions in the open phases, the clock through the reveal, the close and the application. ---
+  for (const r of PLAN) {
+    await stage(`r${r.round}:predict1`, r.round, async () => {
+      // One member goes through the Predict button first (the select offer is part of what the channel member sees).
+      const first = PLAYERS[0]!;
+      if (r.round === 1) {
+        const offer = await interact(`r1:predict1`, first, { type: 'button', customId: PREDICT_ID, canManage: false, userId: first.userId });
+        if (offer.type !== 'select') throw new Error(`the Predict press offered no select menu: ${JSON.stringify(offer)}`);
+      }
+      for (const p of PLAYERS) {
+        const faction = r.pickVictim[p.userId];
+        if (faction === undefined) continue;
+        const reply = await interact(`r${r.round}:predict1`, p, { type: 'select', customId: pickId('victim', r.round), values: [String(faction)] });
+        if (reply.type !== 'text' || !reply.text.startsWith('Elegido:')) throw new Error(`the victim pick of ${p.displayName} failed: ${JSON.stringify(reply)}`);
+      }
+    });
+
+    await stage(`r${r.round}:reveal`, r.round, async () => {
+      const before = await readMatch();
+      if (before.stage !== 'phase-1' || before.schedule === undefined) throw new Error(`the stage before the reveal of round ${r.round} was ${before.stage}`);
+      scheduler.runTo(before.schedule.c1);
+    });
+
+    if (!r.forced) {
+      await stage(`r${r.round}:predict2`, r.round, async () => {
+        const now = await readMatch();
+        if (now.stage !== 'phase-2' || now.victim === undefined) throw new Error(`the stage before the phase-2 picks of round ${r.round} was ${now.stage}`);
+        for (const p of PLAYERS) {
+          const faction = r.pickAbsorber[p.userId];
+          if (faction === undefined) continue;
+          const reply = await interact(`r${r.round}:predict2`, p, { type: 'select', customId: pickId('absorber', r.round), values: [String(faction)] });
+          if (reply.type !== 'text' || !reply.text.startsWith('Elegido:')) throw new Error(`the absorber pick of ${p.displayName} failed: ${JSON.stringify(reply)}`);
+        }
+      });
+    }
+
+    await stage(`r${r.round}:applied`, isLastRound(r.round) ? r.round : r.round + 1, async () => {
+      const now = await readMatch();
+      if ((now.stage !== 'phase-2' && now.stage !== 'locked') || now.schedule === undefined) throw new Error(`the stage before the application of round ${r.round} was ${now.stage}`);
+      scheduler.runTo(now.schedule.c2);
+      scheduler.runTo(now.schedule.a);
+    });
+  }
+
+  // --- The match is over: nothing more may arrive, the channel is free and the stream closed. ---
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  if (bot.posts.length !== EXPECTED_POST_TEXTS.length) {
+    throw new Error(`stray posts after the match: ${bot.posts.length} of ${EXPECTED_POST_TEXTS.length} expected`);
+  }
+  if (bot.store.get(CHANNEL) !== undefined) throw new Error('the channel still follows the finished match');
+  await waitFor(() => world.server.streams.openCount() === 0, 20_000, () => 'the follower stream did not close at the end');
+
+  const leaderboardResponse = await fetch(`${url}/matches/${encodeURIComponent(matchId)}/leaderboard?limit=500`);
+  const leaderboardRead = readLeaderboardPage(await leaderboardResponse.json());
+  if (!leaderboardRead.ok) throw new Error('the leaderboard read failed');
+
+  return {
+    world,
+    matchId,
+    mapId: 'dev',
+    viewerMatchUrl: lobbyLink(VIEWER_URL, matchId) ?? VIEWER_URL,
+    hostToken,
+    entries,
+    posts: [...bot.posts],
+    edits: [...bot.edits],
+    violations,
+    checkedPosts,
+    leaderboard: leaderboardRead.value.items,
+  };
+}

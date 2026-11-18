@@ -2,6 +2,7 @@ node_modules/
 dist/
 *.tsbuildinfo
 coverage/
+e2e-preview/
 tools/build-map/out/
 *.sqlite
 *.sqlite-wal
