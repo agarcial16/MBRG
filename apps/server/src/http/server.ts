@@ -12,7 +12,7 @@
 //   (an event-stream route also takes a place in the open-stream gauge at stage 1 and hands it to the hub at stage 7)
 //   8 unexpected   any exception: ONE `request-failed` event (name and stage only), then 500 `{"kind":"unavailable"}`
 // The command and read routes are tables of `Route` (router.ts): `productionRoutes` holds the three command routes and the
-// read routes (list, match, states, records, own predictions, map files, and the public config of spec 014); `routes` is the injection point of the pipeline tests
+// read routes (list, match, states, records, own predictions, map files, and the public config of spec 014) and the history read of spec 024 (a POST); `routes` is the injection point of the pipeline tests
 // (it cannot carry a seed source: PD18). A route's `decide` may be asynchronous (a map file is read once per request).
 // Connection hardening is the platform's own (PD21): the four server options below; no custom socket timers.
 
@@ -22,6 +22,7 @@ import type { Readable } from 'node:stream';
 import {
   encodeAdvance,
   encodeCreation,
+  encodeHistoryPage,
   encodeJoinReply,
   encodeLeaderboardRow,
   encodeMatchSummary,
@@ -41,6 +42,7 @@ import {
   isPlayerId,
   rateLimited,
   readCreation,
+  readHistoryRequest,
   readJoin,
   readPageQuery,
   readSubmission,
@@ -401,6 +403,34 @@ export const productionRoutes = (service: MatchService, settings: ServerSettings
             201,
             encodeCreation,
           ),
+  },
+  {
+    // The history of a Discord server (spec 024 FR-549, FR-552, FR-573): a POST so the community key, the asker's id, the page size
+    // and the cursor travel in the body and never in the path or query (no access log can hold them). Only a client credential
+    // reads it; every other caller, a bad credential included, is `forbidden`. Any query text is refused by one constant name,
+    // never by the text sent (it could be the key). Nothing is stored, memoised or logged.
+    method: 'POST',
+    path: '/history',
+    body: 'object',
+    checkQuery: (ctx) => (ctx.query === '' ? undefined : errorReply('invalid-request', ['query'])),
+    shape: (ctx) => {
+      const read = readHistoryRequest(ctx.body);
+      return read.ok ? undefined : read.error;
+    },
+    authorize: (ctx) => (ctx.identity.role === 'client' ? undefined : errorReply('forbidden')),
+    decide: (ctx) => {
+      const caller = ctx.identity;
+      if (caller.role !== 'client') return { kind: 'error', error: errorReply('forbidden') };
+      const read = readHistoryRequest(ctx.body);
+      if (!read.ok) return { kind: 'error', error: read.error };
+      const { community, playerId, limit, after } = read.value;
+      // The namespace is the credential's; the body names none (FR-552).
+      return replyOf(
+        service.history({ namespace: caller.namespace, community, limit, ...(playerId === undefined ? {} : { playerId }), ...(after === undefined ? {} : { after }) }),
+        200,
+        encodeHistoryPage,
+      );
+    },
   },
   {
     method: 'POST',
