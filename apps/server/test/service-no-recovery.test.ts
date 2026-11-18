@@ -25,7 +25,7 @@ describe('no recovery, no name change', () => {
     const h = publicHarness();
     try {
       expect(Object.keys(h.service).sort()).toStrictEqual([
-        'advance', 'close', 'create', 'createPublic', 'eventsAfter', 'hostTokenMatches', 'join', 'leaderboard', 'listMatches', 'mapFile', 'ownPredictions', 'ownPredictionsPage',
+        'advance', 'close', 'create', 'createPublic', 'eventsAfter', 'history', 'hostTokenMatches', 'join', 'leaderboard', 'listMatches', 'mapFile', 'ownPredictions', 'ownPredictionsPage',
         'phaseResults', 'phaseWinners', 'playerResults', 'playerTokenOf', 'players', 'publicConfig', 'publicMatch', 'purgeMemos', 'readPublicMatch', 'recordAt', 'records', 'start', 'startMatch', 'stateAt', 'submit', 'subscribe', 'tick',
       ]);
       // The only methods that take a token: the lookup (answers a player id) and the host check (answers a boolean).

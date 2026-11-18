@@ -43,6 +43,7 @@ import {
   encodeJoinReply,
   encodePublicMatch,
   errorReply,
+  isCommunityKey,
   isJoinedPlayerId,
   isLocalId,
   isNamespace,
@@ -62,6 +63,7 @@ import type {
   CursorKey,
   CursorList,
   ErrorReply,
+  HistoryPage,
   JoinPolicy,
   JoinReply,
   LeaderboardRow,
@@ -84,6 +86,7 @@ import type {
 import type { Clock } from '../clock';
 import { decideAdvance } from '../core/advance';
 import { createLobby, createMatch, creationEvents, lobbyEvents } from '../core/create';
+import { entryOf } from '../core/history';
 import { expireDecision, joinDecision, startDecision } from '../core/lobby';
 import { MEMO_RETENTION_MS, decideMemo, isMemoisable } from '../core/memo';
 import type { MemoScope } from '../core/memo';
@@ -257,6 +260,19 @@ export interface PageRequest<L extends CursorList> {
   readonly after?: CursorKey<L>;
 }
 
+/**
+ * One page request of the history of a community (spec 024 FR-549): `namespace` is the one of the client credential (resolved by
+ * the HTTP layer, never taken from the body), `community` the key of the body, `playerId` the optional LOCAL id of the asker, and
+ * `after` the decoded cursor `[headFinishedAt, headMatchId, finishedAt, matchId]` of the walk (absent for its first page).
+ */
+export interface HistoryRequest {
+  readonly namespace: string;
+  readonly community: string;
+  readonly playerId?: string;
+  readonly limit: number;
+  readonly after?: CursorKey<'history'>;
+}
+
 /** The own predictions of a client (FR-270, FR-281 (h), C3): every player of its namespace, or one local id when given. */
 export type OwnPredictionsPageRequest = PageRequest<'predictions'> &
   (
@@ -414,6 +430,14 @@ export interface MatchService {
    * generation (a phase was scored since) is `stale-cursor`.
    */
   leaderboard(matchId: string, request: PageRequest<'leaderboard'>): ReadOutcome<Page<LeaderboardRow>>;
+  /**
+   * Spec 024 FR-549 to FR-553, FR-561: one page of the history of a community under a client namespace: the finished matches
+   * stored with that key and namespace, newest finish first, each as an entry (public data of the match, its top 5, the asker's
+   * row). The first page fixes the newest match as the head of the walk; the cursor carries it, and every page lists and counts
+   * only matches at or after it, so `total` never changes during a walk. An unknown key or another namespace is `{ items: [],
+   * total: 0 }`. Writes nothing, memoises nothing; the key and the asker are never echoed, logged or kept.
+   */
+  history(request: HistoryRequest): ReadOutcome<HistoryPage>;
   /** FR-300 (host-token check): whether the credential is the host token of the match, by digest comparison; false for an unknown match. */
   hostTokenMatches(matchId: string, credential: string): ReadOutcome<boolean>;
   /**
@@ -1631,6 +1655,35 @@ export function createMatchService(options: ServiceOptions): MatchService {
         const names = namesOf(stored.match.matchId, page.items.map((e) => e.playerId));
         const items = page.items.map((e): LeaderboardRow => ({ rank: e.rank, playerId: e.playerId, total: e.total, correctVictims: e.correctVictims, correctAbsorbers: e.correctAbsorbers, correctWinner: e.correctWinner, ...nameOf(names, e.playerId) }));
         return { ok: true, reply: page.next === undefined ? { items } : { items, next: encodeCursor('leaderboard', [generation, page.next[0], page.next[1]]) } };
+      });
+    },
+
+    history(request: HistoryRequest): ReadOutcome<HistoryPage> {
+      const { namespace, community, playerId, limit, after } = request;
+      checkPageSize(limit);
+      if (!isNamespace(namespace)) throw new RangeError('the namespace of a history read is a client namespace');
+      if (!isCommunityKey(community)) return { ok: false, error: errorReply('invalid-request', ['community']) };
+      if (playerId !== undefined && !isLocalId(playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+      // The asker is a player of the credential's own namespace: the local id never names another one.
+      const askerId = playerId === undefined ? undefined : playerIdOf(namespace, playerId);
+      return read(() => {
+        const rows = store.historyAfter(community, namespace, after === undefined ? undefined : { finishedAt: after[0], matchId: after[1] }, after === undefined ? undefined : { finishedAt: after[2], matchId: after[3] }, limit + 1);
+        const first = rows[0];
+        // The head of the walk: the cursor's, or the newest match of this first page.
+        const head = after !== undefined ? { finishedAt: after[0], matchId: after[1] } : first === undefined ? undefined : { finishedAt: first.finishedAt, matchId: first.matchId };
+        if (head === undefined) return { ok: true, reply: { items: [], total: 0 } };
+        const kept = rows.slice(0, limit);
+        const items = kept.map((row) => {
+          const ranked = rankLeaderboard(store.leaderboardTotals(row.matchId));
+          const topIds = entryOf(row, ranked, new Map()).top.map((r) => r.playerId);
+          return entryOf(row, ranked, store.clientNames(row.matchId, topIds), askerId);
+        });
+        const last = kept[kept.length - 1];
+        const total = store.historyCount(community, namespace, head);
+        return {
+          ok: true,
+          reply: rows.length > limit && last !== undefined ? { items, total, next: encodeCursor('history', [head.finishedAt, head.matchId, last.finishedAt, last.matchId]) } : { items, total },
+        };
       });
     },
 

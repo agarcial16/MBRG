@@ -177,12 +177,14 @@ describe('FR-549 FR-561 (store part) the history reads of the store', () => {
       bad(() => store.historyAfter(KEY_A, namespace, undefined, undefined, 5));
       bad(() => store.historyCount(KEY_A, namespace, undefined));
     }
-    for (const limit of [0, -1, 1.5, Number.NaN, 501, 1000]) bad(() => store.historyAfter(KEY_A, 'discord', undefined, undefined, limit));
+    for (const limit of [0, -1, 1.5, Number.NaN, 502, 1000]) bad(() => store.historyAfter(KEY_A, 'discord', undefined, undefined, limit));
     for (const position of [{ finishedAt: -1, matchId: 'a' }, { finishedAt: 1.5, matchId: 'a' }, { finishedAt: 1, matchId: '' }, { finishedAt: 1 }, null] as never[]) {
       bad(() => store.historyAfter(KEY_A, 'discord', position, undefined, 5));
       bad(() => store.historyAfter(KEY_A, 'discord', undefined, position, 5));
       bad(() => store.historyCount(KEY_A, 'discord', position));
     }
+    // 501 is allowed: a page of 500 and the row that tells whether more follow.
+    expect(store.historyAfter(KEY_A, 'discord', undefined, undefined, 501)).toStrictEqual([]);
     store.close();
   });
 

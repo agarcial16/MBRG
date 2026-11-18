@@ -31,7 +31,7 @@ describe('NFR-114 spec 022 leaves the existing wire and the simulation as they w
     for (const [name, sha] of Object.entries(PINS.files)) expect(hashOf(name), name).toBe(sha);
   });
 
-  it('NFR-114 the production route table is the 19 routes of spec 014 and the public config names nothing of the feature', async () => {
+  it('NFR-114 the production route table is the 19 routes of spec 014 plus the history read of spec 024, and the public config names nothing of the feature', async () => {
     let table: readonly Route[] = [];
     const h = await startServer({
       routes: (service, settings) => {
@@ -39,7 +39,8 @@ describe('NFR-114 spec 022 leaves the existing wire and the simulation as they w
         return table;
       },
     });
-    expect(table).toHaveLength(19);
+    // 19 routes of spec 014 and `POST /history` (spec 024).
+    expect(table).toHaveLength(20);
     const config = await request(h.port, { path: '/config' });
     expect(config.status).toBe(200);
     expect(Object.keys(config.json() as object)).toStrictEqual([...PUBLIC_CONFIG_KEYS]);

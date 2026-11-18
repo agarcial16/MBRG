@@ -711,7 +711,8 @@ export const openStore = (path: string): Store => {
       const [headAt, headId] = checkHistoryKey(head, 'a history head');
       const [afterAt, afterId] = checkHistoryKey(after, 'a history cursor key');
       checkLimit(limit);
-      if (limit > 500) throw new RangeError('a history page holds at most 500 matches');
+      // A page of up to 500 plus the one row that tells whether more follow.
+      if (limit > 501) throw new RangeError('a history read holds at most 501 matches');
       return all(READ_SQL.historyAfter, community, namespace, headAt, headAt, headAt, headId, afterAt, afterAt, afterAt, afterId, limit).map((r) => {
         const winner = optNum(r, 'winner');
         if (winner === null) throw corrupt('a finished match has no winner');

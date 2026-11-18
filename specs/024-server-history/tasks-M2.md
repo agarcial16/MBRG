@@ -1,4 +1,4 @@
-### M2 — History read (3 / 5)
+### M2 — History read (4 / 5)
 Plan sections 3, 4, 5, 6 (PD1, PD3, PD4). Depends on M1.
 
 - [x] **T2.1. Protocol of the history read.** FR-573 (shape part), FR-549 (cursor part), FR-550 (wire part)
@@ -10,7 +10,7 @@ Plan sections 3, 4, 5, 6 (PD1, PD3, PD4). Depends on M1.
 - [x] **T2.3. Store reads.** FR-549, FR-561, NFR-121 (store part)
   - Files: `apps/server/src/store/sqlite.ts`, `store.ts`, store tests.
   - Done when: `historyAfter` and `historyCount` return only `finished` matches of the key and namespace (lobby, expired, running and halted ones of the same key never), in history order, keyset after a key and bounded by a head; `last_step_ms` of a finished match equals the instant of its last `application` step (pinned); `EXPLAIN QUERY PLAN` shows no `SCAN` of `matches`, `results` or `communities`.
-- [ ] **T2.4. Service and route `POST /history`.** FR-549, FR-551, FR-552, FR-553, FR-573
+- [x] **T2.4. Service and route `POST /history`.** FR-549, FR-551, FR-552, FR-553, FR-573
   - Files: `apps/server/src/service/matches.ts`, `apps/server/src/http/server.ts`, new `apps/server/test/http-history.test.ts`.
   - Done when (real server): a client credential reads pages of 5 with `total`; a walk across a match that finishes in between keeps its pages and `total` and never repeats or skips; anonymous, player and operator callers get `forbidden` (same bytes as another forbidden reply); another namespace and an unknown key get `{ items: [], total: 0 }`; a request with any query text is `invalid-request` and nothing in a query is read; nothing is stored or memoised; the request log lines and replies contain no key (log scan).
 - [ ] **T2.5. Twins: secrecy, isolation, compatibility, bounded work.** NFR-117, NFR-118, NFR-119, NFR-120, NFR-121 (bounded work), FR-561
