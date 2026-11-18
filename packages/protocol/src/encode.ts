@@ -7,6 +7,11 @@ import {
   CREATION_REPLY_KEYS,
   EVENT_KEYS,
   HALT_REASONS,
+  HISTORY_ASKER_KEYS,
+  HISTORY_ENTRY_KEYS,
+  HISTORY_PAGE_KEYS,
+  HISTORY_TOP_KEYS,
+  HISTORY_TOP_MAX,
   JOIN_REPLY_KEYS,
   LEADERBOARD_ROW_KEYS,
   MATCH_SUMMARY_KEYS,
@@ -31,6 +36,7 @@ import {
   type AdvanceReply,
   type CreationReply,
   type JoinReply,
+  type HistoryPage,
   type LeaderboardRow,
   type MatchEvent,
   type MatchSummary,
@@ -338,6 +344,66 @@ export function encodePlayerResults(page: PlayerResultsPage): string {
     },
     ['next', 'name'],
   );
+}
+
+/** One row of the top of a history entry (spec 024 FR-550): a namespaced player id, the name when stored, points above 0, rank. */
+function encodeHistoryTop(v: unknown): string {
+  const o = objectOf(v, 'history top', HISTORY_TOP_KEYS);
+  noInherited(o, 'history top', HISTORY_TOP_KEYS);
+  return write(
+    o,
+    'history top',
+    HISTORY_TOP_KEYS,
+    { playerId: text('history top.playerId', isPlayerId), name: nameText('history top.name'), points: int('history top.points', 1), rank: int('history top.rank', 1) },
+    ['name'],
+  );
+}
+
+/** The asker of an entry (FR-551): `{ points, rank }` or `{ played: false }`, nothing else. */
+function encodeHistoryAsker(v: unknown): string {
+  const o = objectOf(v, 'history asker', HISTORY_ASKER_KEYS);
+  noInherited(o, 'history asker', HISTORY_ASKER_KEYS);
+  if (own(o, 'played')) {
+    if (o.played !== false || Object.keys(o).length !== 1) bad('history asker holds played false alone');
+    return '{"played":false}';
+  }
+  return write(o, 'history asker', HISTORY_ASKER_KEYS, { points: int('history asker.points', 0), rank: int('history asker.rank', 1) }, ['played']);
+}
+
+function encodeHistoryEntry(v: unknown): string {
+  const o = objectOf(v, 'history entry', HISTORY_ENTRY_KEYS);
+  noInherited(o, 'history entry', HISTORY_ENTRY_KEYS);
+  const writers: Record<string, (x: unknown) => string> = {
+    matchId: text('history entry.matchId'),
+    mapId: text('history entry.mapId', isMapId),
+    finishedAt: int('history entry.finishedAt', 0),
+    winner: int('history entry.winner', 1),
+    playerCount: int('history entry.playerCount', 0),
+    top: (x) => {
+      if (!Array.isArray(x) || x.length > HISTORY_TOP_MAX) return bad(`history entry.top is not a list of at most ${HISTORY_TOP_MAX} rows`);
+      return `[${(x as unknown[]).map(encodeHistoryTop).join(',')}]`;
+    },
+    more: int('history entry.more', 0),
+    asker: encodeHistoryAsker,
+  };
+  const out = write(o, 'history entry', HISTORY_ENTRY_KEYS, writers, ['asker']);
+  if ((o.top as unknown[]).length + (o.more as number) > (o.playerCount as number)) bad('history entry.top and more exceed playerCount');
+  return out;
+}
+
+/** One page of the history of a community (spec 024 FR-549): `items`, the snapshot `total` (at least the items), then `next` when present. */
+export function encodeHistoryPage(page: HistoryPage): string {
+  const o = objectOf(page, 'history page', HISTORY_PAGE_KEYS);
+  noInherited(o, 'history page', HISTORY_PAGE_KEYS);
+  const out = write(
+    o,
+    'history page',
+    HISTORY_PAGE_KEYS,
+    { items: encodeListOf('history page', encodeHistoryEntry), total: int('history page.total', 0), next: text('history page.next') },
+    ['next'],
+  );
+  if ((o.items as unknown[]).length > (o.total as number)) bad('history page.items outnumber total');
+  return out;
 }
 
 /** One leaderboard row (plan 20.7); a page of rows goes through `encodePage`. */

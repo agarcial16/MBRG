@@ -37,3 +37,16 @@
 - Pinned tests changed in M1 (reasons above): `read.test.ts` (CREATION_FIELDS), `traceability.test.ts` (ranges/totals), `core-policy.test.ts` (`creationPolicy.length`), `store-open.test.ts`, `store-upgrade-v3.test.ts`, `store-upgrade-v4.test.ts`, `service-v1-database.test.ts` (schema 4 -> 5), `src/main.ts --check`.
 - Untested: the history read, the bot (M2, M3). Not run: `CI=1 npm test` (before the PR).
 - State: M1 complete (4 / 4), branch `feat/024-server-history`, pushed. Next: the strong-tier reviewer checks M1; then M2 (history read: protocol, pure core, store reads, service and route, twins).
+
+## M1 review follow-ups (before M2)
+- `plan.md:2` and `tasks.md:2`: status set to `approved (by the user on 2026-11-18)`.
+- `apps/server/test/fixtures/v4-database.db` (new, checked in): built once by the `main` store code (copy of the v1 fixture upgraded to v4 in place by `main`'s `openStore`, then the same extra rows as `makeV4`), not from the current `SCHEMA_V4_ADDITIONS`; `store-upgrade-v5.test.ts` gains a fifth upgrade case on it (rows byte-equal, `communities` empty, one transaction). No new dependency.
+- `insertCommunity`: the redundant `typeof` check dropped (`isCommunityKey` takes `unknown`).
+
+## M2 T2.1 Protocol of the history read (FR-573 shape part, FR-549 cursor part, FR-550 wire part; FR-551 wire part)
+- Changed: `packages/protocol/src/wire.ts` (`HISTORY_FIELDS`, `HistoryTopRow`, `HistoryAsker`, `HistoryEntry`, `HistoryPage`, key lists, `HISTORY_TOP_MAX`), `page.ts` (cursor list `history`, key `[headFinishedAt, headMatchId, finishedAt, matchId]`; a last key newer than the head is refused), `read.ts` (`readHistoryRequest` -> `{ community, playerId?, limit (default 100), after? }`; order community, playerId (non-text), limit, cursor, unknown member, then the local-id charset as `invalid-player-id`), `encode.ts` (`encodeHistoryPage`), `decode.ts` (`readHistoryPage`), `index.ts` exports.
+- Decisions not in the plan: (1) a text player id outside the local-id rule is `invalid-player-id` naming `playerId` (as the submission reader, FR-301 order), a non-text is `invalid-request`; (2) `limit` is a JSON number (a text is refused); (3) wire consistency checks in both directions: top at most 5 rows with points >= 1, `top.length + more <= playerCount`, `items.length <= total`; (4) a cursor whose last key is newer than the head (or ties earlier in match id) is refused.
+- Tests: `packages/protocol/test/history.test.ts` (new, 14). Pinned test changed (reason): `page.test.ts` pins the cursor list tags (8 -> 9, sample keys for `history`).
+- Mutation proofs (history test file): cursor order, tie order, limit bound, non-integer limit, community check, charset check, unknown member, played+points, total/items, top max (decode and encode), more/playerCount, top points >= 1, asker played true: each killed.
+- Tests run: `npx vitest run packages/protocol packages/sim/test/traceability.test.ts` -> 22 files, 555 passed; `npm run typecheck` clean; protected-path diff vs `main` empty. No ledger id moves (all four are partial until T2.2/T2.4).
+- Next: T2.2 (pure history core). Branch `feat/024-server-history`, state: M2 1 / 5.
