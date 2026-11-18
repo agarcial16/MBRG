@@ -3,6 +3,7 @@
 // write runs inside `transaction` (a write outside one throws). No operation takes or returns an absorber outside a
 // record of an applied round, a pending state or a credential text (PD11, PD12).
 import type { MatchEvent, MatchSummary, PredictionKind, PublicState } from '@mbrg/protocol';
+import type { HistoryKey, HistoryMatch } from '../core/history';
 import type { MemoScope } from '../core/memo';
 import type { StoredPrediction } from '../core/predictions';
 import type { PlayerTotals, ResultRow, ScorablePrediction } from '../core/scoring';
@@ -292,6 +293,16 @@ export interface Store {
    * instant then match id (code unit order). Selects the summary columns only: no secret, host-token digest or owners.
    */
   listMatches(after: MatchListKey | undefined, limit: number): MatchSummary[];
+  /**
+   * The history of a community (spec 024 FR-549): the matches whose stored community is `community` (64 lowercase hexadecimal
+   * characters), whose client namespace is `namespace` and whose stage is `finished` (any other stage never), in history order
+   * (finish instant descending, then match id ascending by code unit), strictly after `after` when given and no newer than
+   * `head` when given, at most `limit` (1 to 500). The finish instant is the match's `last_step_ms`: no step follows the last
+   * application. Selects the match id, the map id, that instant and the winner only. The one read of the community storage.
+   */
+  historyAfter(community: string, namespace: string, head: HistoryKey | undefined, after: HistoryKey | undefined, limit: number): HistoryMatch[];
+  /** How many matches `historyAfter` would list with no `after` and no limit: the snapshot total of a walk (FR-549). */
+  historyCount(community: string, namespace: string, head: HistoryKey | undefined): number;
   /** The records of the rounds above `round`, in round order, at most `limit` (FR-279). */
   recordsAfter(matchId: string, round: number, limit: number): StoredRecord[];
   /**

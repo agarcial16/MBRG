@@ -1,4 +1,4 @@
-### M2 — History read (2 / 5)
+### M2 — History read (3 / 5)
 Plan sections 3, 4, 5, 6 (PD1, PD3, PD4). Depends on M1.
 
 - [x] **T2.1. Protocol of the history read.** FR-573 (shape part), FR-549 (cursor part), FR-550 (wire part)
@@ -7,7 +7,7 @@ Plan sections 3, 4, 5, 6 (PD1, PD3, PD4). Depends on M1.
 - [x] **T2.2. Pure history core.** FR-550, FR-551, FR-561 (selection part)
   - Files: `apps/server/src/core/history.ts`, `apps/server/test/core-history.test.ts`, `core-purity.test.ts` (adds the file).
   - Done when: order is finish instant descending then match id; `withinSnapshot` keeps exactly the keys at or after the head; the top 5 holds only rows above 0 points in leaderboard order and `more` counts the rest above 0 (ties at the 5th place included); player count counts 0-point rows; the asker gets their row (0 points included) or `played: false`; a match with only 0-point rows has an empty top 5.
-- [ ] **T2.3. Store reads.** FR-549, FR-561, NFR-121 (store part)
+- [x] **T2.3. Store reads.** FR-549, FR-561, NFR-121 (store part)
   - Files: `apps/server/src/store/sqlite.ts`, `store.ts`, store tests.
   - Done when: `historyAfter` and `historyCount` return only `finished` matches of the key and namespace (lobby, expired, running and halted ones of the same key never), in history order, keyset after a key and bounded by a head; `last_step_ms` of a finished match equals the instant of its last `application` step (pinned); `EXPLAIN QUERY PLAN` shows no `SCAN` of `matches`, `results` or `communities`.
 - [ ] **T2.4. Service and route `POST /history`.** FR-549, FR-551, FR-552, FR-553, FR-573

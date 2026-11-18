@@ -6,6 +6,7 @@ import type { MatchEvent, MatchSummary, PredictionKind, PublicState, PublicVicti
 import { MEMO_RETENTION_MS, type MemoScope } from '../core/memo';
 import type { StoredPrediction } from '../core/predictions';
 import type { PlayerTotals, ResultRow, ScorablePrediction } from '../core/scoring';
+import type { HistoryKey, HistoryMatch } from '../core/history';
 import type { Anchors } from '../core/time';
 import type { CoreMatch } from '../core/view';
 import { SCHEMA_V1, SCHEMA_V2_ADDITIONS, SCHEMA_V3_ADDITIONS, SCHEMA_V4_ADDITIONS, SCHEMA_V5_ADDITIONS, SCHEMA_VERSION, TABLES } from './schema';
@@ -196,10 +197,42 @@ export const READ_SQL = {
     SUM(CASE WHEN kind = 'absorber' AND correct = 1 THEN 1 ELSE 0 END) AS correct_absorbers,
     SUM(CASE WHEN kind = 'winner' AND correct = 1 THEN 1 ELSE 0 END) AS correct_winner
     FROM results WHERE match_id = ? GROUP BY player_id ORDER BY player_id`,
+  // The history reads (spec 024 FR-549, FR-561): the only statements that read `communities`. The key reaches its rows through
+  // `communities_by_key`, each match by its primary key, the namespace by the primary key of `client_matches`; only a finished
+  // match counts. The head ("at or after") and the keyset ("strictly after") are optional (a NULL first parameter turns the
+  // condition off); history order is the finish instant (`last_step_ms`) descending, then the match id ascending.
+  historyAfter: `SELECT m.id AS id, m.map_id AS map_id, m.last_step_ms AS finished_ms, m.winner AS winner
+    FROM communities c INDEXED BY communities_by_key
+    JOIN matches m ON m.id = c.match_id
+    JOIN client_matches cm ON cm.match_id = c.match_id
+    WHERE c.community = ? AND cm.namespace = ? AND m.stage = 'finished'
+      AND (? IS NULL OR m.last_step_ms < ? OR (m.last_step_ms = ? AND m.id >= ?))
+      AND (? IS NULL OR m.last_step_ms < ? OR (m.last_step_ms = ? AND m.id > ?))
+    ORDER BY m.last_step_ms DESC, m.id ASC LIMIT ?`,
+  historyCount: `SELECT COUNT(*) AS n
+    FROM communities c INDEXED BY communities_by_key
+    JOIN matches m ON m.id = c.match_id
+    JOIN client_matches cm ON cm.match_id = c.match_id
+    WHERE c.community = ? AND cm.namespace = ? AND m.stage = 'finished'
+      AND (? IS NULL OR m.last_step_ms < ? OR (m.last_step_ms = ? AND m.id >= ?))`,
 } as const;
 
 const checkLimit = (limit: number): void => {
   if (!Number.isSafeInteger(limit) || limit < 1) throw new RangeError('a read limit is a whole number of at least 1');
+};
+
+const HISTORY_ID = /^[A-Za-z0-9_-]{1,64}$/;
+/** A history position (finish instant, match id) of a read: a whole instant and a match id text. */
+const checkHistoryKey = (key: HistoryKey | undefined, what: string): readonly [number | null, string] => {
+  if (key === undefined) return [null, ''];
+  if (typeof key !== 'object' || key === null || !Number.isSafeInteger(key.finishedAt) || key.finishedAt < 0 || typeof key.matchId !== 'string' || !HISTORY_ID.test(key.matchId)) {
+    throw new RangeError(`${what} is a finish instant and a match id`);
+  }
+  return [key.finishedAt, key.matchId];
+};
+const checkHistoryScope = (community: string, namespace: string): void => {
+  if (!isCommunityKey(community)) throw new RangeError('a community key is 64 lowercase hexadecimal characters');
+  if (!isNamespace(namespace)) throw new RangeError('a history namespace is 1 to 16 characters of a-z and 0-9');
 };
 
 const recordOf = (r: Row): StoredRecord => ({
@@ -672,6 +705,24 @@ export const openStore = (path: string): Store => {
         const summary = { matchId: str(r, 'id'), mapId: str(r, 'map_id'), stage: stage as MatchSummary['stage'], appliedRounds: num(r, 'n'), totalRounds: num(r, 't'), createdAt: num(r, 'created_ms') };
         return num(r, 'client_only') === 1 ? { ...summary, clientOnly: true as const } : summary;
       });
+    },
+    historyAfter(community: string, namespace: string, head: HistoryKey | undefined, after: HistoryKey | undefined, limit: number): HistoryMatch[] {
+      checkHistoryScope(community, namespace);
+      const [headAt, headId] = checkHistoryKey(head, 'a history head');
+      const [afterAt, afterId] = checkHistoryKey(after, 'a history cursor key');
+      checkLimit(limit);
+      if (limit > 500) throw new RangeError('a history page holds at most 500 matches');
+      return all(READ_SQL.historyAfter, community, namespace, headAt, headAt, headAt, headId, afterAt, afterAt, afterAt, afterId, limit).map((r) => {
+        const winner = optNum(r, 'winner');
+        if (winner === null) throw corrupt('a finished match has no winner');
+        return { matchId: str(r, 'id'), mapId: str(r, 'map_id'), finishedAt: num(r, 'finished_ms'), winner };
+      });
+    },
+    historyCount(community: string, namespace: string, head: HistoryKey | undefined): number {
+      checkHistoryScope(community, namespace);
+      const [headAt, headId] = checkHistoryKey(head, 'a history head');
+      const row = one(READ_SQL.historyCount, community, namespace, headAt, headAt, headAt, headId);
+      return row === undefined ? 0 : num(row, 'n');
     },
     recordsAfter(matchId: string, round: number, limit: number): StoredRecord[] {
       if (!Number.isSafeInteger(round) || round < 0) throw new RangeError('a record keyset is a round of at least 0');
