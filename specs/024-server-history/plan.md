@@ -1,5 +1,5 @@
 # Plan 024 — Per-Discord-server match history
-Spec: `spec.md` (approved 2026-11-18). Status: draft, awaiting approval. Milestones: M1 key at creation + schema v5, M2 history read, M3 bot + e2e.
+Spec: `spec.md` (approved 2026-11-18). Status: approved (by the user on 2026-11-18). Milestones: M1 key at creation + schema v5, M2 history read, M3 bot + e2e.
 
 ## 1. Files and responsibilities
 - `packages/protocol/src/wire.ts`, `read.ts`: optional `community` in the creation body (64 lowercase hex), in `CREATION_FIELDS`; `readHistoryRequest` (body `{ community, playerId?, limit?, cursor? }`; `playerId` is the local id, as the 008 own-predictions read). FR-546, FR-573.

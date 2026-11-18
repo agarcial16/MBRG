@@ -12,7 +12,8 @@ import { dumpRows, listColumns, withRawDb } from './helpers/db-scan';
 // storage only: no row of an existing table is written, `meta` included; its matches have no community.
 
 const V1_FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'v1-database.db');
-const DIGEST = (c: string): string => c.repeat(64);
+const V4_FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'v4-database.db');
+const DIGEST =(c: string): string => c.repeat(64);
 
 const withTempDir = (body: (dir: string) => void): void => {
   const dir = mkdtempSync(join(tmpdir(), 'mbrg-v5-'));
@@ -99,6 +100,8 @@ describe('FR-560 schema version 5 (spec 024)', () => {
     ['a version 2 file (011)', makeV2, 2],
     ['a version 3 file (018)', makeV3, 3],
     ['a version 4 file (022)', makeV4, 4],
+    // Built once by the `main` code (schema 4, before spec 024), not from the current SCHEMA_V4_ADDITIONS.
+    ['a version 4 file written by the pre-024 code (fixture)', (file: string) => copyFileSync(V4_FIXTURE, file), 4],
   ] as const) {
     it(`FR-560 ${label} is upgraded in place: every existing row of every table is byte-equal, meta included, and communities is empty`, () => {
       withTempDir((dir) => {

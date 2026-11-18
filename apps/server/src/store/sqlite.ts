@@ -489,7 +489,7 @@ export const openStore = (path: string): Store => {
     },
     insertCommunity(matchId: string, community: string): void {
       requireTransaction();
-      if (typeof community !== 'string' || !isCommunityKey(community)) throw invalid('a community key is 64 lowercase hexadecimal characters');
+      if (!isCommunityKey(community)) throw invalid('a community key is 64 lowercase hexadecimal characters');
       if (one('SELECT 1 AS found FROM matches WHERE id = ?', matchId) === undefined) throw invalid(`the match ${matchId} does not exist`);
       if (one('SELECT 1 AS found FROM communities WHERE match_id = ?', matchId) !== undefined) throw invalid(`the match ${matchId} already has a community row`);
       run('INSERT INTO communities (match_id, community) VALUES (?, ?)', matchId, community);
