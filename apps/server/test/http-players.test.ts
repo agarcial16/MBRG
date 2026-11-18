@@ -74,7 +74,9 @@ describe('http players list: the items', () => {
       expect(reply.text).not.toContain(j.playerToken);
       expect(reply.text).not.toContain(credentialDigest(j.playerToken));
     }
-    expect(reply.text).not.toMatch(/token|digest|prediction|kind|round|faction|victim|winner|score/i);
+    // Exact member names instead of a case-insensitive scan of the text, which random player ids could match by chance.
+    expect(Object.keys(reply.json() as object)).toStrictEqual(['items']);
+    for (const item of itemsOf(reply)) expect(Object.keys(item)).toStrictEqual(['playerId', 'name', 'joinedSeq']);
     // A reader with any Bearer text sees the same bytes: the route asks for no credential.
     const withBearer = await list(h, matchId, '', { authorization: `Bearer ${CLIENT_CREDENTIAL}` });
     const withWrong = await list(h, matchId, '', { authorization: 'Bearer wrong-credential-0123456789abcdef' });

@@ -117,7 +117,15 @@ describe('http lobby public data', () => {
     expect(items).toHaveLength(1);
     expect(Object.keys(items[0]!)).toStrictEqual(['matchId', 'mapId', 'stage', 'appliedRounds', 'totalRounds', 'createdAt']);
     expect(items[0]).toMatchObject({ matchId, stage: 'lobby', appliedRounds: 0 });
-    expect(reply.text).not.toMatch(/playerCount|Zed|Amy|Bob|player:/);
+    // Exact checks: the match id is random base64url, so 3-letter names must not be searched as substrings of the text.
+    expect(reply.text).not.toContain('playerCount');
+    expect(reply.text).not.toContain('player:');
+    const strings: string[] = [];
+    JSON.stringify(items, (_key, value: unknown) => {
+      if (typeof value === 'string') strings.push(value);
+      return value;
+    });
+    for (const name of ['Zed', 'Amy', 'Bob']) expect(strings).not.toContain(name);
   });
 
   it('FR-373 (HTTP) a running match with no players has no playerCount member (the 008 bytes)', async () => {
