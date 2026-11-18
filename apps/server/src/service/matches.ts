@@ -1041,6 +1041,8 @@ export function createMatchService(options: ServiceOptions): MatchService {
     store.insertLobby({ matchId, public: true, expiresMs: now + rules.lobbyExpiryHours * HOUR_MS });
     // Spec 018 FR-491: the owning namespace is stored in the same transaction as the match, after it (the foreign key).
     if (policy.policy === 'client') store.insertClientMatch(matchId, policy.namespace);
+    // Spec 024 FR-545: the community key goes in the same transaction, after the client row; it appears in no reply or event.
+    if (policy.policy === 'client' && policy.community !== undefined) store.insertCommunity(matchId, policy.community);
     store.appendEvents(matchId, first.events);
     made({ view: first.view, events: first.events, reported });
     return { ok: true, reply };
@@ -1058,7 +1060,8 @@ export function createMatchService(options: ServiceOptions): MatchService {
       // Spec 018: `joinPolicy` is already shape-checked (the reader checks it before the timing rules). `forbidden` for a client
       // policy without a client credential comes before the memo and every public rule: nothing is drawn or stored (FR-492).
       const requested = body.joinPolicy as JoinPolicy | undefined;
-      const policy = creationPolicy(requested, request.client === undefined ? { role: 'other' } : { role: 'client', namespace: request.client.namespace }, false);
+      // Spec 024 FR-545: the community key (already shape-checked, FR-546) goes with the client-only policy or is refused by name.
+      const policy = creationPolicy(requested, request.client === undefined ? { role: 'other' } : { role: 'client', namespace: request.client.namespace }, false, body.community as string | undefined);
       if (!policy.ok) return failure(policy.error);
 
       // The scope is the digest of the source: the same id from another source is another creation, and no operator scope is reused.
@@ -1228,7 +1231,8 @@ export function createMatchService(options: ServiceOptions): MatchService {
       const requestId = (read.ok ? read.value.requestId : body.requestId) as string;
       const timingError = read.ok ? undefined : read.error;
       // Spec 018 FR-493: the operator path never creates a client-only match; the member is refused whatever its value (shape stage).
-      const refusedPolicy = creationPolicy(body.joinPolicy as JoinPolicy | undefined, { role: 'other' }, true);
+      // Spec 024 FR-545: the same for a community key, which only a client creation takes.
+      const refusedPolicy = creationPolicy(body.joinPolicy as JoinPolicy | undefined, { role: 'other' }, true, body.community as string | undefined);
       if (!refusedPolicy.ok) return failure(refusedPolicy.error);
 
       if (typeof request.credential !== 'string' || !sameDigest(credentialDigest(request.credential), operatorDigest)) return failure(errorReply('forbidden'));
