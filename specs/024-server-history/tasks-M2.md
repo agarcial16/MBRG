@@ -1,7 +1,7 @@
-### M2 — History read (0 / 5)
+### M2 — History read (1 / 5)
 Plan sections 3, 4, 5, 6 (PD1, PD3, PD4). Depends on M1.
 
-- [ ] **T2.1. Protocol of the history read.** FR-573 (shape part), FR-549 (cursor part), FR-550 (wire part)
+- [x] **T2.1. Protocol of the history read.** FR-573 (shape part), FR-549 (cursor part), FR-550 (wire part)
   - Files: `packages/protocol/src/page.ts` (list `history`), `read.ts` (`readHistoryRequest`), `encode.ts`, `decode.ts`, `wire.ts`, tests in `packages/protocol/test/`.
   - Done when (red first): the request reader accepts `{ community, playerId?, limit?, cursor? }` (limit 1 to 500, default 100; local `playerId`), refuses unknown members and malformed values by name; a `history` cursor round-trips and is refused for another list or a re-encoded text; entries and pages encode and decode (`total` required, `asker` only as `{ points, rank }` or `{ played: false }`), an entry with a member outside the plan is refused.
 - [ ] **T2.2. Pure history core.** FR-550, FR-551, FR-561 (selection part)

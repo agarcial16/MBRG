@@ -80,11 +80,12 @@ describe('cursors per list (FR-279 (b), (e))', () => {
     leaderboard: [[0, 1, 'web:p1'], [12, 3, 'discord:A.b-c_9'], [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 'web:p1']],
     players: [[1], [42], [Number.MAX_SAFE_INTEGER]],
     'phase-winners': [['player:Ab3_x-9.Qz1k'], ['player:a'], ['player:' + 'Z'.repeat(64)]],
+    history: [[10, 'A', 10, 'A'], [1_700_000_009_000, 'HstMatchHEAD0001', 1_700_000_005_000, 'HstMatchLAST0002']],
   };
 
   it('FR-279 (b) the list tags are the three of M3a, the three results lists, the players list and the winners list, and each key round-trips through its cursor', () => {
-    expect([...CURSOR_LISTS]).toStrictEqual(['matches', 'records', 'predictions', 'phase-results', 'player-results', 'leaderboard', 'players', 'phase-winners']);
-    expect(CURSOR_LISTS).toHaveLength(8);
+    expect([...CURSOR_LISTS]).toStrictEqual(['matches', 'records', 'predictions', 'phase-results', 'player-results', 'leaderboard', 'players', 'phase-winners', 'history']);
+    expect(CURSOR_LISTS).toHaveLength(9);
     for (const list of CURSOR_LISTS) {
       for (const key of samples[list]) {
         const text = encodeCursor(list, key as never);
