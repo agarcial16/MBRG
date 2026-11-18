@@ -50,3 +50,11 @@
 - Mutation proofs (history test file): cursor order, tie order, limit bound, non-integer limit, community check, charset check, unknown member, played+points, total/items, top max (decode and encode), more/playerCount, top points >= 1, asker played true: each killed.
 - Tests run: `npx vitest run packages/protocol packages/sim/test/traceability.test.ts` -> 22 files, 555 passed; `npm run typecheck` clean; protected-path diff vs `main` empty. No ledger id moves (all four are partial until T2.2/T2.4).
 - Next: T2.2 (pure history core). Branch `feat/024-server-history`, state: M2 1 / 5.
+
+## M2 T2.2 Pure history core (FR-550, FR-551 core parts; FR-549 order and snapshot parts)
+- Changed: `apps/server/src/core/history.ts` (new, pure): `compareHistory` (finish instant descending, then match id ascending by code unit), `withinSnapshot` (key at or after the head), `entryOf(match, ranked, names, askerId?)` -> `HistoryEntry` (top 5 = first 5 rows above 0 points in leaderboard order; `more` = rows above 0 left out, ties at the 5th place included; player count = every row, 0-point rows too; asker = their row or `{ played: false }`, no member without an asker id; a name only when the map holds one). `core-purity.test.ts` asserts the scan sees `core/history.ts`.
+- Tests: `apps/server/test/core-history.test.ts` (new, 8). Ids in titles are part-named (FR-549 order/snapshot, FR-550/551 core); none closes yet.
+- Mutation proofs (core-history file): order reversed (instant, id), snapshot strict/inverted, top of 6, zeros in the top, `more` counting zeros, count without zeros, ties extending the top, 0-point asker as not played, asker member always present, names ignored: each killed.
+- Tests run: `npx vitest run apps/server/test/core-history.test.ts apps/server/test/core-purity.test.ts` -> 14 passed; typecheck clean.
+- Untested here: the store reads and the winner source (T2.3), the service (T2.4). FR-561 selection part (finished only) is the store's (T2.3).
+- Next: T2.3 (store reads). Branch `feat/024-server-history`, state: M2 2 / 5.
