@@ -1,0 +1,15 @@
+### M2 — Service, route and proofs (0 / 4)
+Plan sections 1, 2, 4 (PD2). Depends on M1.
+
+- [ ] **T2.1. Service ranking read.** FR-564 (service part), FR-565 (walk part), FR-567 (service part), NFR-125 (statement-count pin)
+  - Files: `apps/server/src/service/matches.ts`, service tests.
+  - Done when: `ranking(request)` reads the two store statements bounded by the head of the cursor (a first page takes its head from the newest counted match), builds the statistics, ranks, pages and counts through the core; no write, no memoisation; a storage failure is `unavailable`; the service rechecks the community key and the local id (defence in depth, as the other reads); a counting store wrapper pins the statement count equal with 10 and with 1,000 counted matches.
+- [ ] **T2.2. Route `POST /ranking`.** FR-563, FR-565, FR-566, FR-567, FR-568
+  - Files: `apps/server/src/http/server.ts`, new `apps/server/test/http-ranking.test.ts`, `test/helpers/` (a ranking kit beside the history kit).
+  - Done when (real server): a client credential reads pages of 10 with `total`, every row and the asker checked against the matches' public leaderboards (oracle by another route), in every order; a walk across a match that finishes in between keeps its pages and `total`, never repeats or skips; anonymous, player and operator callers get the `forbidden` bytes (the same bytes as another forbidden reply); another namespace, an unknown key and a cross-namespace cursor get `{ items: [], total: 0 }` (same bytes); a request with any query text is `invalid-request` and nothing in a query is read; nothing is stored or memoised (closed-file dump equal); the request log lines and replies contain no key (log scan); public reads without the key still work; an encoder refusal is a 500.
+- [ ] **T2.3. Twins: secrecy and isolation.** NFR-123, NFR-124 (twin part), FR-568 (secrecy part)
+  - Files: new `apps/server/test/ranking-secrecy.test.ts`, `ranking-isolation.test.ts`.
+  - Done when: with a running match of the same community (predictions stored and scored for some rounds, and a planted 022 name differing from the finished matches' names), every ranking reply before and after each of its steps equals the twin's without it, byte for byte, in every order; two communities x two namespaces never mix; every existing golden and the 008/011/018/022/024 secrecy tests are green and unchanged.
+- [ ] **T2.4. Bounded work and the source scan.** NFR-125 (closed), NFR-124 (source scan part)
+  - Files: new `apps/server/test/ranking-bounds.test.ts`; the source scan test.
+  - Done when: 1,000 counted matches of 10 scored players in one community (and 1,000 in another): the number of store statements per page equals the 10-match case (a counting store wrapper) and the `EXPLAIN QUERY PLAN` of both statements shows index lookups only; a source scan finds `communities` read only by the history and ranking reads; a worst-case page of 10 rows (24-character names, 20-digit ids, every statistic at its widest) answers within the reply body bound.
