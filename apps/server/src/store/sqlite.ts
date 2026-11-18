@@ -1,14 +1,14 @@
 // The SQLite adapter (spec 008 FR-291, FR-292; plan PD9, PD10): the only module that imports `node:sqlite`.
 // It does not depend on the ExperimentalWarning being printed: warnings.ts only hides it where Node prints it.
 import { DatabaseSync } from 'node:sqlite';
-import { isJoinedPlayerId, isLocalId, isPlayerId, isNamespace, NAMESPACE_SEPARATOR, PREDICTION_KINDS } from '@mbrg/protocol';
+import { isCommunityKey, isJoinedPlayerId, isLocalId, isPlayerId, isNamespace, NAMESPACE_SEPARATOR, PREDICTION_KINDS } from '@mbrg/protocol';
 import type { MatchEvent, MatchSummary, PredictionKind, PublicState, PublicVictim, Timing } from '@mbrg/protocol';
 import { MEMO_RETENTION_MS, type MemoScope } from '../core/memo';
 import type { StoredPrediction } from '../core/predictions';
 import type { PlayerTotals, ResultRow, ScorablePrediction } from '../core/scoring';
 import type { Anchors } from '../core/time';
 import type { CoreMatch } from '../core/view';
-import { SCHEMA_V1, SCHEMA_V2_ADDITIONS, SCHEMA_V3_ADDITIONS, SCHEMA_V4_ADDITIONS, SCHEMA_VERSION, TABLES } from './schema';
+import { SCHEMA_V1, SCHEMA_V2_ADDITIONS, SCHEMA_V3_ADDITIONS, SCHEMA_V4_ADDITIONS, SCHEMA_V5_ADDITIONS, SCHEMA_VERSION, TABLES } from './schema';
 import {
   LOBBY_RETENTION_MS,
   NameTakenError,
@@ -261,13 +261,15 @@ export const openStore = (path: string): Store => {
         for (const statement of SCHEMA_V2_ADDITIONS) db.exec(statement);
         for (const statement of SCHEMA_V3_ADDITIONS) db.exec(statement);
         for (const statement of SCHEMA_V4_ADDITIONS) db.exec(statement);
+        for (const statement of SCHEMA_V5_ADDITIONS) db.exec(statement);
         db.prepare('INSERT INTO meta (schema_version) VALUES (?)').run(SCHEMA_VERSION);
         db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
-      } else if (version === 1 || version === 2 || version === 3) {
-        // Storage is only added (FR-506): no row of an existing table is written, `meta` included (nothing reads it).
+      } else if (version >= 1 && version <= 4) {
+        // Storage is only added (FR-506, FR-560): no row of an existing table is written, `meta` included (nothing reads it).
         if (version === 1) for (const statement of SCHEMA_V2_ADDITIONS) db.exec(statement);
-        if (version !== 3) for (const statement of SCHEMA_V3_ADDITIONS) db.exec(statement);
-        for (const statement of SCHEMA_V4_ADDITIONS) db.exec(statement);
+        if (version <= 2) for (const statement of SCHEMA_V3_ADDITIONS) db.exec(statement);
+        if (version <= 3) for (const statement of SCHEMA_V4_ADDITIONS) db.exec(statement);
+        for (const statement of SCHEMA_V5_ADDITIONS) db.exec(statement);
         db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
       } else if (version !== SCHEMA_VERSION) {
         throw new StoreError('unknown-schema-version', `the database has schema version ${version}; this server supports version ${SCHEMA_VERSION}`);
@@ -485,6 +487,13 @@ export const openStore = (path: string): Store => {
       if (one('SELECT 1 AS found FROM client_matches WHERE match_id = ?', matchId) !== undefined) throw invalid(`the match ${matchId} already has a client row`);
       run('INSERT INTO client_matches (match_id, namespace) VALUES (?, ?)', matchId, namespace);
     },
+    insertCommunity(matchId: string, community: string): void {
+      requireTransaction();
+      if (typeof community !== 'string' || !isCommunityKey(community)) throw invalid('a community key is 64 lowercase hexadecimal characters');
+      if (one('SELECT 1 AS found FROM matches WHERE id = ?', matchId) === undefined) throw invalid(`the match ${matchId} does not exist`);
+      if (one('SELECT 1 AS found FROM communities WHERE match_id = ?', matchId) !== undefined) throw invalid(`the match ${matchId} already has a community row`);
+      run('INSERT INTO communities (match_id, community) VALUES (?, ?)', matchId, community);
+    },
     getClientNamespace(matchId: string): string | undefined {
       const row = one('SELECT namespace FROM client_matches WHERE match_id = ?', matchId);
       return row === undefined ? undefined : str(row, 'namespace');
@@ -537,7 +546,7 @@ export const openStore = (path: string): Store => {
       const ids = all('SELECT match_id FROM lobbies WHERE expired_ms IS NOT NULL AND started_ms IS NULL AND ? - expired_ms > ? ORDER BY match_id', now, LOBBY_RETENTION_MS).map((r) => str(r, 'match_id'));
       for (const matchId of ids) {
         // Children first: every table that refers to the match, then the lobby row, then the match.
-        for (const table of ['results', 'predictions', 'steps', 'records', 'events', 'states', 'players', 'lobbies', 'client_matches', 'client_names']) {
+        for (const table of ['results', 'predictions', 'steps', 'records', 'events', 'states', 'players', 'lobbies', 'communities', 'client_matches', 'client_names']) {
           run(`DELETE FROM ${table} WHERE match_id = ?`, matchId);
         }
         run('DELETE FROM matches WHERE id = ?', matchId);

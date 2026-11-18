@@ -55,7 +55,7 @@ const snapshot = (file: string) => {
       tables,
       definitions: own.map((t) => [t, String(db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?").get(t)?.sql)]),
       rows: own.filter((t) => t !== 'meta').map((t) => [t, rowsOf(t)]),
-      newRows: Object.fromEntries(tables.filter((t) => t === 'lobbies' || t === 'players' || t === 'client_matches' || t === 'client_names').map((t) => [t, rowsOf(t).length])),
+      newRows: Object.fromEntries(tables.filter((t) => t === 'lobbies' || t === 'players' || t === 'client_matches' || t === 'client_names' || t === 'communities').map((t) => [t, rowsOf(t).length])),
     };
   } finally {
     db.close();
@@ -63,34 +63,34 @@ const snapshot = (file: string) => {
 };
 
 describe('store open', () => {
-  it('FR-291 an in-memory database gets schema version 4 with every table', () => {
+  it('FR-291 an in-memory database gets schema version 5 with every table', () => {
     const store = openStore(':memory:');
     try {
-      expect(SCHEMA_VERSION).toBe(4);
-      expect(store.settings().userVersion).toBe(4);
-      expect(sorted(store.tables())).toStrictEqual(sorted([...V1_TABLES, 'lobbies', 'players', 'client_matches', 'client_names']));
+      expect(SCHEMA_VERSION).toBe(5);
+      expect(store.settings().userVersion).toBe(5);
+      expect(sorted(store.tables())).toStrictEqual(sorted([...V1_TABLES, 'lobbies', 'players', 'client_matches', 'client_names', 'communities']));
       expect(sorted(TABLES)).toStrictEqual(sorted(store.tables()));
     } finally {
       store.close();
     }
   });
 
-  it('FR-291 a file database gets schema version 4, and reopening it keeps the data', () => {
+  it('FR-291 a file database gets schema version 5, and reopening it keeps the data', () => {
     withTempDir((dir) => {
       const file = join(dir, 'a.sqlite');
       const first = openStore(file);
-      expect(first.settings().userVersion).toBe(4);
+      expect(first.settings().userVersion).toBe(5);
       first.close();
       const raw = new DatabaseSync(file);
       raw.prepare("INSERT INTO memo (scope, request_id, content_digest, reply_json, created_ms) VALUES ('s', 'r', 'd', '{}', 1700000000123)").run();
       raw.close();
       const second = openStore(file);
-      expect(second.settings().userVersion).toBe(4);
+      expect(second.settings().userVersion).toBe(5);
       second.close();
       const check = new DatabaseSync(file);
       try {
         expect(check.prepare('SELECT created_ms FROM memo').all().map((r) => r.created_ms)).toStrictEqual([1_700_000_000_123]);
-        expect(check.prepare('SELECT schema_version FROM meta').all().map((r) => r.schema_version)).toStrictEqual([4]);
+        expect(check.prepare('SELECT schema_version FROM meta').all().map((r) => r.schema_version)).toStrictEqual([5]);
       } finally {
         check.close();
       }
@@ -104,7 +104,7 @@ describe('store open', () => {
       const before = snapshot(file);
       openStore(file).close();
       expect(snapshot(file)).toStrictEqual(before);
-      expect(before.userVersion).toBe(4);
+      expect(before.userVersion).toBe(5);
     });
   });
 
@@ -117,8 +117,8 @@ describe('store open', () => {
       expect(before.tables).toStrictEqual(sorted(V1_TABLES));
       const store = openStore(file);
       try {
-        expect(store.settings().userVersion).toBe(4);
-        expect(sorted(store.tables())).toStrictEqual(sorted([...V1_TABLES, 'lobbies', 'players', 'client_matches', 'client_names']));
+        expect(store.settings().userVersion).toBe(5);
+        expect(sorted(store.tables())).toStrictEqual(sorted([...V1_TABLES, 'lobbies', 'players', 'client_matches', 'client_names', 'communities']));
         // The matches read back as the fixture holds them.
         expect(store.getMatch('AAAAAAAAAAAAAAAA')?.match).toMatchObject({ stage: 'phase-2', appliedRounds: 1, lastSeq: 3, createdAt: 1_700_000_000_123, victim: { victim: 20, round: 2 } });
         expect(store.getMatch('BBBBBBBBBBBBBBBB')?.match).toMatchObject({ stage: 'phase-1', timing: 'manual', anchors: null });
@@ -140,14 +140,14 @@ describe('store open', () => {
         store.close();
       }
       const after = snapshot(file);
-      expect(after.userVersion).toBe(4);
+      expect(after.userVersion).toBe(5);
       // Spec 018 FR-506: the upgrade writes no row of an existing table, `meta` included: it keeps the 1 it had.
       expect(after.meta).toStrictEqual([1]);
       // The definition of every table of version 1 is the one it had (no ALTER), and its rows are byte-equal.
       expect(after.definitions).toStrictEqual(before.definitions);
       expect(after.rows).toStrictEqual(before.rows);
-      expect(after.tables).toStrictEqual(sorted([...V1_TABLES, 'lobbies', 'players', 'client_matches', 'client_names']));
-      expect(after.newRows).toStrictEqual({ lobbies: 0, players: 0, client_matches: 0, client_names: 0 });
+      expect(after.tables).toStrictEqual(sorted([...V1_TABLES, 'lobbies', 'players', 'client_matches', 'client_names', 'communities']));
+      expect(after.newRows).toStrictEqual({ lobbies: 0, players: 0, client_matches: 0, client_names: 0, communities: 0 });
     });
   });
 
@@ -193,7 +193,7 @@ describe('store open', () => {
       fixed.close();
       const store = openStore(file);
       try {
-        expect(store.settings().userVersion).toBe(4);
+        expect(store.settings().userVersion).toBe(5);
         expect(store.getMatch('AAAAAAAAAAAAAAAA')).toBeDefined();
       } finally {
         store.close();
@@ -216,7 +216,7 @@ describe('store open', () => {
 
   it('FR-291 a file with another schema version is refused, untouched and unlocked', () => {
     withTempDir((dir) => {
-      for (const version of [5, 7]) {
+      for (const version of [6, 7]) {
         const file = join(dir, `v${version}.sqlite`);
         const raw = new DatabaseSync(file);
         raw.exec(`CREATE TABLE foreign_data (k INTEGER); PRAGMA user_version = ${version}`);
@@ -256,7 +256,7 @@ describe('store open', () => {
     withTempDir((dir) => {
       const store = openStore(join(dir, 'p.sqlite'));
       try {
-        expect(store.settings()).toStrictEqual({ journalMode: 'wal', synchronous: 'full', foreignKeys: true, lockingMode: 'exclusive', userVersion: 4 });
+        expect(store.settings()).toStrictEqual({ journalMode: 'wal', synchronous: 'full', foreignKeys: true, lockingMode: 'exclusive', userVersion: 5 });
       } finally {
         store.close();
       }
@@ -285,7 +285,7 @@ describe('store open', () => {
         expect(codeOf(() => openStore(file))).toBe('database-locked');
         // The refused attempt did not disturb the holder.
         expect(first.transaction(() => 5)).toBe(5);
-        expect(first.settings().userVersion).toBe(4);
+        expect(first.settings().userVersion).toBe(5);
       } finally {
         first.close();
       }
@@ -302,8 +302,8 @@ describe('store open', () => {
     const one = openStore(':memory:');
     const two = openStore(':memory:');
     try {
-      expect(one.settings().userVersion).toBe(4);
-      expect(two.settings().userVersion).toBe(4);
+      expect(one.settings().userVersion).toBe(5);
+      expect(two.settings().userVersion).toBe(5);
     } finally {
       one.close();
       two.close();
@@ -353,7 +353,7 @@ describe('store transactions and the fault seam', () => {
       // The abort released the lock, as a killed process would.
       const reopened = openStore(file);
       try {
-        expect(reopened.settings().userVersion).toBe(4);
+        expect(reopened.settings().userVersion).toBe(5);
       } finally {
         reopened.close();
       }
