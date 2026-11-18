@@ -1,5 +1,5 @@
 # Spec 024 — Per-Discord-server match history
-Status: draft
+Status: approved (by the user on 2026-11-18)
 Tier: Full SDD (touches server persistence, the protocol and the secrecy of rounds). Depends on 008, 011, 012, 017, 018, 021 and 022 (implemented). Ids continue 023: FR-545 to FR-562 and FR-573, NFR-117 to NFR-122. The server-wide ranking is spec 025 (FR-563 to FR-572), which builds on the community storage of this spec.
 
 Answers of 2026-11-18 (user, via orchestrator): OQ1 A (finished only), OQ2 top 5 + asker's own points, OQ3 ranking as its own spec (025, OQ10 split), OQ4 A (bot only), OQ5 B (bot-side SHA-256), OQ6 keep everything, page over all finished matches, OQ7 A (old matches not listed), OQ8 A (retention as today), OQ9 B (public, 017 paging rules).
