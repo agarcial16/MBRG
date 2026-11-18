@@ -1,13 +1,13 @@
 // Schema version 1 (spec 008 FR-291, plan section 4) and its additions of version 2 (spec 011 FR-391, plan section 3) and
-// version 3 (spec 018 FR-506, plan section 3) and version 4 (spec 022 FR-536, plan section 4).
+// version 3 (spec 018 FR-506, plan section 3), version 4 (spec 022 FR-536, plan section 4) and version 5 (spec 024 FR-560).
 // Instants are INTEGER milliseconds. The absorber and the pending state have no column outside `records` (plan PD11); no
 // column holds a credential text (PD12): the host token is stored as a digest and memo scopes are digests too.
 // Version 2 only ADDS tables: `matches` and every other table of version 1 keep their definition, so a file written by
 // the 008 code opens unchanged (no data migration).
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
-export const TABLES = ['meta', 'matches', 'states', 'records', 'steps', 'predictions', 'results', 'events', 'memo', 'lobbies', 'players', 'client_matches', 'client_names'] as const;
+export const TABLES = ['meta', 'matches', 'states', 'records', 'steps', 'predictions', 'results', 'events', 'memo', 'lobbies', 'players', 'client_matches', 'client_names', 'communities'] as const;
 
 /** Every statement is idempotent; the caller runs them all inside one transaction. */
 export const SCHEMA_V1: readonly string[] = [
@@ -155,4 +155,18 @@ export const SCHEMA_V4_ADDITIONS: readonly string[] = [
     name TEXT NOT NULL,
     PRIMARY KEY (match_id, player_id)
   )`,
+];
+
+/**
+ * The storage of version 5 (spec 024 plan section 2): the community key of the Discord server that created a match, one row
+ * per match, written once in the creation transaction and never changed. No row means no community (every match of an older
+ * file, an open match, an operator match). The index serves the history read (by key, then by match). The only deletion is the
+ * purge of the match itself (`purgeExpired`). Idempotent, run inside the transaction of the version change.
+ */
+export const SCHEMA_V5_ADDITIONS: readonly string[] = [
+  `CREATE TABLE IF NOT EXISTS communities (
+    match_id TEXT NOT NULL PRIMARY KEY REFERENCES matches (id),
+    community TEXT NOT NULL
+  )`,
+  'CREATE INDEX IF NOT EXISTS communities_by_key ON communities (community, match_id)',
 ];

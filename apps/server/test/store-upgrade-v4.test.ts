@@ -58,14 +58,14 @@ const version = (file: string): number => withRawDb(file, (db) => Number(db.prep
 const metaOf = (file: string): number[] => withRawDb(file, (db) => db.prepare('SELECT schema_version FROM meta').all().map((r) => Number(r.schema_version)));
 
 describe('FR-536 schema version 4 (spec 022)', () => {
-  it('the version is 4 and the one new table is client_names with the key (match, player)', () => {
-    expect(SCHEMA_VERSION).toBe(4);
+  it('the version is 5 (spec 024) and the one new table is client_names with the key (match, player)', () => {
+    expect(SCHEMA_VERSION).toBe(5);
     expect(SCHEMA_V4_ADDITIONS).toHaveLength(1);
     expect(TABLES).toContain('client_names');
     withTempDir((dir) => {
       const file = join(dir, 'new.sqlite');
       openStore(file).close();
-      expect(version(file)).toBe(4);
+      expect(version(file)).toBe(5);
       expect(withRawDb(file, (db) => listColumns(db).client_names)).toStrictEqual(['match_id', 'player_id', 'name']);
       const keys = withRawDb(file, (db) => db.prepare('PRAGMA table_info(client_names)').all().map((c) => [String(c.name), Number(c.pk), Number(c.notnull)]));
       expect(keys).toStrictEqual([['match_id', 1, 1], ['player_id', 2, 1], ['name', 0, 1]]);
@@ -88,13 +88,13 @@ describe('FR-536 schema version 4 (spec 022)', () => {
         const metaBefore = metaOf(file);
         const store = openStore(file);
         try {
-          expect(store.settings().userVersion).toBe(4);
+          expect(store.settings().userVersion).toBe(5);
           expect(store.tables()).toContain('client_names');
           expect(store.clientNames('BBBBBBBBBBBBBBBB', ['discord:1'])).toStrictEqual(new Map());
         } finally {
           store.close();
         }
-        expect(version(file)).toBe(4);
+        expect(version(file)).toBe(5);
         expect(metaOf(file)).toStrictEqual(metaBefore);
         const rowsAfter = JSON.parse(withRawDb(file, dumpRows)) as [string, unknown[]][];
         const old = JSON.parse(rowsBefore) as [string, unknown[]][];
@@ -119,14 +119,14 @@ describe('FR-536 schema version 4 (spec 022)', () => {
     });
   }
 
-  it('a file of version 5 is refused and left untouched', () => {
+  it('a file of version 6 is refused and left untouched', () => {
     withTempDir((dir) => {
       const file = join(dir, 'five.sqlite');
       const raw = new DatabaseSync(file);
-      raw.exec('CREATE TABLE foreign_data (k INTEGER); PRAGMA user_version = 5');
+      raw.exec('CREATE TABLE foreign_data (k INTEGER); PRAGMA user_version = 6');
       raw.close();
-      expect(() => openStore(file)).toThrow(/schema version 5/);
-      expect(version(file)).toBe(5);
+      expect(() => openStore(file)).toThrow(/schema version 6/);
+      expect(version(file)).toBe(6);
     });
   });
 });

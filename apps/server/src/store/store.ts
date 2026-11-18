@@ -209,6 +209,13 @@ export interface Store {
    * There is no method that changes or removes it: the policy lives and dies with its match (`purgeExpired`, FR-494).
    */
   insertClientMatch(matchId: string, namespace: string): void;
+  /**
+   * Stores the community key of a match (spec 024 FR-545, FR-547): inside a transaction, after the match, once. A key that is not
+   * 64 lowercase hexadecimal characters, a missing match or a second row is `invalid-write`. There is no read of it here (the
+   * history read of a later task is the only one) and no method that changes or removes it: the row lives and dies with its
+   * match (`purgeExpired`).
+   */
+  insertCommunity(matchId: string, community: string): void;
   /** The owning namespace of a client-only match, or undefined for an open match (also every match of a file written before version 3). */
   getClientNamespace(matchId: string): string | undefined;
   /**

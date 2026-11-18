@@ -1,4 +1,4 @@
-### M1 — Key at creation and schema v5 (2 / 4)
+### M1 — Key at creation and schema v5 (3 / 4)
 Plan sections 1, 2, 6 (PD2, PD6). No dependency.
 
 - [x] **T1.1. Ledger and `community` in the creation body.** FR-546, NFR-120
@@ -7,7 +7,7 @@ Plan sections 1, 2, 6 (PD2, PD6). No dependency.
 - [x] **T1.2. Creation policy with the key.** FR-545
   - Files: `apps/server/src/core/policy.ts`, `apps/server/test/core-policy.test.ts`.
   - Done when: a client credential with `joinPolicy: 'client'` and a key is accepted and the decision carries the key; the key without `joinPolicy: 'client'`, from a player, an anonymous caller or on the operator path is `invalid-request` naming `community`; every 018 policy test is unchanged and green.
-- [ ] **T1.3. Schema v5 and community storage.** FR-560, FR-547
+- [x] **T1.3. Schema v5 and community storage.** FR-560, FR-547
   - Files: `apps/server/src/store/schema.ts`, `sqlite.ts`, `store.ts`, `faults.ts` if it lists writes, store tests.
   - Done when: a fresh file is v5 with `communities` and its index; v1, v2, v3 and v4 files upgrade in place with no row of an existing table rewritten (row digests of every old table equal before and after); a v6 file is refused; `insertCommunity` refuses a missing match, a second row, a malformed key and a call outside a transaction (`invalid-write`); the store has no method that changes or removes a row; `purgeExpired` removes the row with its expired lobby and keeps it for a started match.
 - [ ] **T1.4. Key stored at creation (service and HTTP).** FR-545, FR-547 (restart part)
