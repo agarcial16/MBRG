@@ -146,7 +146,15 @@ describe('players from the lobby to the finished match', () => {
       expect(ids.sort()).toStrictEqual([ana.playerId, bea.playerId, 'web:dan'].sort());
       expect(ids).not.toContain(cy.playerId);
       const text = JSON.stringify(board);
-      for (const secret of [...tokens, 'Cy']) expect(text.includes(secret)).toBe(false);
+      // Tokens are 43 random characters: a substring scan cannot hit them by chance. 'Cy' is 2 characters and the player ids are
+      // random base64url, so it is checked as a whole value (no string in the reply is Cy, her id or her local id), never as a substring.
+      for (const secret of tokens) expect(text.includes(secret)).toBe(false);
+      const strings: string[] = [];
+      JSON.stringify(board, (_key, value: unknown) => {
+        if (typeof value === 'string') strings.push(value);
+        return value;
+      });
+      for (const hidden of ['Cy', cy.playerId, cy.local]) expect(strings).not.toContain(hidden);
       expect(board.reply.items.map((r) => [r.playerId, r.name]).sort()).toStrictEqual([[ana.playerId, 'Ana'], [bea.playerId, 'Bea'], ['web:dan', undefined]].sort());
       for (const p of [ana, bea]) {
         const mine = live.service.playerResults(matchId, p.playerId, { limit: 500 });

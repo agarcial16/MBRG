@@ -9,3 +9,4 @@ Live work, one row per task; the orchestrator updates it, the feature PR closes 
 | Close spec 023 on the board, worktree lesson | small | deepseek-v4.1-flash | chore-close-023 | `chore/close-023` | PR open | user merges |
 | Orchestrator launches tasks with delegate_task | small | deepseek-v4.1-flash | child task | `chore/orchestrator-delegate` | PR open | user merges |
 | Close spec 010, ignore .vitest | small | deepseek-v4.1-flash | child task | `chore/close-010` | PR open | user merges |
+| Test flake fix: short needle `Cy` matched inside random player ids (service-players-flow, lobby-public, players list); package-purity ENOENT not reproduced | small | claude-sonnet-5-5 | child task | `fix/package-purity-flake` | PR open | user reviews and merges |
