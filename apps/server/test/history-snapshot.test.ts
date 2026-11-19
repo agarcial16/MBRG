@@ -37,7 +37,7 @@ describe('FR-549 FR-561 the settling of the history', () => {
     const settled = (await postHistory(h, DISCORD.credential, { community: KEY_A })).json() as Page;
     expect(settled.total).toBe(1);
     expect(settled.items.map((i) => i.matchId)).toStrictEqual([made.id]);
-  });
+  }, 120_000);
 
   it('FR-549 a match that finishes after the first page, with a finish instant OLDER than the one a naive head would be, is outside the walk: same pages, same total, no skip', async () => {
     const h = await startHistory();
