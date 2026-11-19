@@ -1728,12 +1728,14 @@ export function createMatchService(options: ServiceOptions): MatchService {
       // The asker is a player of the credential's own namespace: the local id never names another one.
       const askerId = playerId === undefined ? undefined : playerIdOf(namespace, playerId);
       return read(() => {
-        // The head of the walk (FR-565): the cursor's, or the newest counted match of the community (even one with no scored
-        // results: the shown name may still come from it). No counted match, no rows, whatever the request names.
+        // The head of the walk (FR-565): the cursor's, or the newest SETTLED counted match of the community (even one with no
+        // scored results: the shown name may still come from it) - the same settledBefore as the history read (FR-549), so a
+        // match that finishes after this read sorts newer than the head and can never join the snapshot. No counted match, no
+        // rows, whatever the request names.
         const head =
           after !== undefined
             ? { finishedAt: after[1], matchId: after[2] }
-            : store.historyAfter(community, namespace, undefined, undefined, 1)[0];
+            : store.historyAfter(community, namespace, wholeMs(clock.now()) - TOLERANCE_MS, undefined, undefined, 1)[0];
         if (head === undefined) return { ok: true, reply: { items: [], total: 0 } };
         const rows = store.rankingResults(community, namespace, head);
         // A cursor of another community or namespace names a row this snapshot holds none of (an issued cursor always names one

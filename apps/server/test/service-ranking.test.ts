@@ -17,7 +17,9 @@ import type { Harness } from './helpers/service-harness';
 
 const DIGEST = (c: string): string => c.repeat(64);
 const SECRET = Uint8Array.from({ length: 32 }, (_, i) => (i * 11 + 5) % 256);
-const T0 = 1_712_345_678_901;
+// The harness clock starts at START_MS (1.7e12): the seeded finishes sit safely in the past, more than TOLERANCE_MS behind it,
+// so every counted match is settled when the service reads (024 FR-549).
+const T0 = 1_699_000_000_000;
 const KEY_V = '4f5e6d7c8b9a4f5e6d7c8b9a4f5e6d7c8b9a4f5e6d7c8b9a4f5e6d7c8b9a4f5e';
 const KEY_W = '6d7c8b9a4f5e6d7c8b9a4f5e6d7c8b9a4f5e6d7c8b9a4f5e6d7c8b9a4f5e6d7c';
 const KEY_U = '8b9a4f5e6d7c8b9a4f5e6d7c8b9a4f5e6d7c8b9a4f5e6d7c8b9a4f5e6d7c8b9a';

@@ -57,6 +57,10 @@ describe('NFR-123 the ranking counts only counted matches and reads names only f
     await createCommunityMatch(plain, DISCORD, 'twin-lobby', KEY_A);
     await populateRanking(plain, { scripted: false });
     await populateRanking(withRunning, { scripted: false });
+    // Both clocks move past TOLERANCE_MS so every counted match is settled on both twins before any reference reply is taken
+    // (024 FR-549): the snapshot head must be the same newest counted match, not whichever is still inside the settle window.
+    plain.clock.advance(2000);
+    withRunning.clock.advance(2000);
     // The twin's replies are the reference; the running match's scored rows and planted name sit under the head.
     const reference = new Map<string, string>();
     for (const order of ORDERS) reference.set(order, await singlePage(plain, order));
@@ -85,6 +89,8 @@ describe('NFR-123 the ranking counts only counted matches and reads names only f
     }
     // The comparison detects a change: once counted, the match's scored predictions join u1's statistics and the planted
     // name (the newest counted match stored it) becomes the shown one. The player count does not change: u1 had rows.
+    // The finish must be settled first (024 FR-549): the clock moves past TOLERANCE_MS after the last application.
+    withRunning.clock.advance(2000);
     expect(await singlePage(withRunning, 'points')).not.toBe(reference.get('points'));
     const finished = await walkTexts(withRunning, 'points');
     expect(finished.join('\n')).toContain(PLANTED);

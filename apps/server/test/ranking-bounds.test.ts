@@ -24,7 +24,9 @@ import { DISCORD, KEY_A, postRanking, startHistory } from './helpers/ranking-kit
 
 const DIGEST = (c: string): string => c.repeat(64);
 const SECRET = Uint8Array.from({ length: 32 }, (_, i) => (i * 13 + 7) % 256);
-const T0 = 1_723_456_789_012;
+// The harness clock starts at START_MS (1.7e12): the seeded finishes sit safely in the past, more than TOLERANCE_MS behind it,
+// so every counted match is settled when the service reads (024 FR-549).
+const T0 = 1_699_000_000_000;
 const KEY_R = '5a6b7c8d9e0f5a6b7c8d9e0f5a6b7c8d9e0f5a6b7c8d9e0f5a6b7c8d9e0f5a6b';
 const KEY_S = '7c8d9e0f5a6b7c8d9e0f5a6b7c8d9e0f5a6b7c8d9e0f5a6b7c8d9e0f5a6b7c8d';
 const KEY_T = '9e0f5a6b7c8d9e0f5a6b7c8d9e0f5a6b7c8d9e0f5a6b7c8d9e0f5a6b7c8d9e0f';
