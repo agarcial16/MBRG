@@ -77,8 +77,22 @@ const living = (h: ServerHarness, id: string): number[] => [...new Set(h.base.st
  * then follow it; any other match gets arbitrary picks (right or wrong by chance), whatever the players ask.
  */
 export function playMatch(h: ServerHarness, made: Made, players: readonly Player[] = [], known = false): void {
+  playUntil(h, made, players, known, 12);
+  const view = h.service.readPublicMatch(made.id);
+  if (!view.ok || view.reply.stage !== 'finished') throw new Error('the match did not finish');
+}
+
+/** Starts the lobby and plays only the first `steps` steps (0 to 12) with the scripted predictions: a running match when under 12. */
+export function playUntil(h: ServerHarness, made: Made, players: readonly Player[], known: boolean, steps: number): void {
+  for (const done of playSteps(h, made, players, known)) if (done === steps) return;
+}
+
+/** The same play as a generator: yields the number of steps done after the start (0) and after each step, so a test can read in between. */
+export function* playSteps(h: ServerHarness, made: Made, players: readonly Player[], known: boolean): Generator<number> {
   const started = h.service.startMatch({ credential: made.hostToken, matchId: made.id, body: {} });
   if (!started.ok) throw new Error(`start refused: ${JSON.stringify(started.error)}`);
+  let done = 0;
+  yield 0;
   for (let k = 1; k <= 4; k += 1) {
     const alive = living(h, made.id);
     const gold = GOLD[k - 1]!;
@@ -104,10 +118,10 @@ export function playMatch(h: ServerHarness, made: Made, players: readonly Player
       h.clock.advance(1000);
       const out = h.service.advance({ credential: OPERATOR, matchId: made.id, body: { round: k, step } });
       if (!out.ok) throw new Error(`advance refused: ${JSON.stringify(out.error)}`);
+      done += 1;
+      yield done;
     }
   }
-  const view = h.service.readPublicMatch(made.id);
-  if (!view.ok || view.reply.stage !== 'finished') throw new Error('the match did not finish');
 }
 
 /** Starts the lobby and plays only `steps` steps (0 to 11): a running match. */
