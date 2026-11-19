@@ -6,3 +6,7 @@
 - Never drive real Discord from automation (ToS; bots cannot press buttons or run slash commands). Test automation = one start command + a fake Discord at handler level.
 - Client-only matches: the bot creates them; the viewer closes their join door (spec 020); the lobby message carries a viewer link (spec 021).
 - The e2e harness (spec 023, `test/e2e/`): the plan's outcomes are PINNED (a golden), not recomputed — a change to the dev map, `@mbrg/sim` or the seeds fails the test on purpose and the fixture is re-pinned. `boot()` takes any `{ url }`: the fake server or the real in-process one.
+- Spec 024: the bot hashes the guild id in `discord/translate.ts` and nothing else may name a guild (source scan); the `Interaction` holds only the key, and no custom id, log line or state file holds a key, a cursor or a user id.
+- A history message keeps its PAGES (not only cursors) in memory per message id: page 1 has no cursor, so asking it again would open a new snapshot; Previous is answered from memory with no request. Paging never extends the 5 minutes (the expiry is fixed at posting).
+- Discord fixes the privacy of a reply when it is deferred: a public command that may fail privately (`/mbrg history`) deletes the deferred reply and follows up with an ephemeral sentence.
+- The map package has no map name (only factions and territories): the "map name" of a history entry is the map id, as the lobby shows it (`ctx.mapName` is the hook for the day a name exists).

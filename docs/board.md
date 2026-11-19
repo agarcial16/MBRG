@@ -10,3 +10,4 @@ Live work, one row per task; the orchestrator updates it, the feature PR closes 
 | Orchestrator launches tasks with delegate_task | small | deepseek-v4.1-flash | child task | `chore/orchestrator-delegate` | PR open | user merges |
 | Close spec 010, ignore .vitest | small | deepseek-v4.1-flash | child task | `chore/close-010` | PR open | user merges |
 | Test flake fix: short needle `Cy` matched inside random player ids (service-players-flow, lobby-public, players list); package-purity ENOENT not reproduced | small | claude-sonnet-5-5 | child task | `fix/package-purity-flake` | PR open | user reviews and merges |
+| Per-Discord-server match history (spec 024): community key, history read, `/mbrg history`, e2e step | Full SDD | claude-sonnet-5-5 implements, claude-opus-5-5 reviews | child tasks | `feat/024-server-history` | M1-M3 implemented; final review next | strong-tier final review, hand run, user acceptance, then status `implemented` and the PR |

@@ -28,3 +28,9 @@ Read before touching the server, the protocol, scoring or the store.
 - A hub's open is ONE synchronous turn (read, register, write); the gauge place is taken at stage 1 and released in a `finally` unless the hub took it.
 - Windows: 1,000 sockets opened at once overflow the listen backlog: open in batches of 100. Kill tests use `process.execPath` + `--import tsx` and a blocking listener (`fixtures/kill-child.ts`), never POSIX tools.
 - Scoring: the core stays pure; `performStep` returns `scored` descriptors (n, d, winner) and the shell scores stored predictions inside the decision transaction; `persist` calls `putResults` only for a phase with rows (a no-prediction match keeps its old write sequence).
+
+## Lessons: per-server history (spec 024)
+- The server never learns a Discord server id: the bot sends the community key (lowercase hex SHA-256 of the id) only in request BODIES; the key is read by the history read alone (source scan pins the files that name `communities`). A new read of it needs its own spec and its own scan.
+- Finish instant = `matches.last_step_ms` of a finished match; a step run on time keeps its SCHEDULED instant (up to `TOLERANCE_MS` before the commit), so a match is listed only once SETTLED (`last_step_ms < now - TOLERANCE_MS`). That is what keeps a walk's snapshot exact.
+- The snapshot guarantee breaks if the wall clock jumps BACKWARD by more than `TOLERANCE_MS` in the middle of a walk (a match finishing then could carry an instant older than the walk's head, and join or skip the walk). Accepted: a stepped clock is an operator fault, a slewed one is fine; any change to the settled bound must keep "a later finish always sorts newer than the head".
+- Statement-count tests count Store method calls (a Proxy), the SQL per method is pinned by the query-plan test; a test that plays a full match takes an explicit 120 s timeout (the suites run in parallel).

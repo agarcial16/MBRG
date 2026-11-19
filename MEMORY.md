@@ -3,7 +3,7 @@ Durable decisions, limits and lessons; no per-task diary (that is `specs/<id>/PR
 
 ## State
 Specs 001-023 implemented. Branch from `main`, PR into `main`.
-Next candidates: deployment guide; per-server history.
+Spec 024 (per-server history): M1-M3 implemented on `feat/024-server-history`, awaiting final review. Next candidates: deployment guide.
 
 ## Game
 Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random alive faction dies; a random neighbor takes all its territories; repeat until one remains. Players predict; they never control.
@@ -13,6 +13,7 @@ Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random
 - Three.js/WebGL, EU4 technique (id texture + owner palette + shader borders): 3D later = camera/material change.
 - Map package = `map.json` + `ids.png` + `presentation.json`, built offline by `tools/build-map`; adjacency = 4-connected pixel contact, no hand-written links; importers only convert to it.
 - State stores owner per territory, so modes are rule changes, not model changes. Ids 1..16,777,215 (24-bit texture). Round k uses `roundRng(seed, k)`: any round is computable alone.
+- Per-server history (024): the bot sends only a SHA-256 community key (never the guild id), in request bodies; a finished match is listed once settled (> `TOLERANCE_MS` after its finish) so a paging walk keeps one snapshot.
 - Sea is an explicit entry kind (no owner); enclosed water joins the nearest sea zone; lakes stay background.
 
 ## Limits
