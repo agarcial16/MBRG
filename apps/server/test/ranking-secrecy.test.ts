@@ -31,8 +31,7 @@ async function walkTexts(h: ServerHarness, order: (typeof ORDERS)[number]): Prom
 }
 
 describe('NFR-123 the ranking counts only counted matches and reads names only from them', () => {
-  it('NFR-123 a running match with scored predictions and a planted name under the head changes no byte of any ranking reply, in any order, before or after any of its steps', async () => {
-    const plain = await startHistory();
+  it('NFR-123 a running match with scored predictions and a planted name under the head changes no byte of any ranking reply, in any order, before or after any of its steps', async () => {    const plain = await startHistory();
     const withRunning = await startHistory();
     // The running match first: rounds 1 and 2 score, the planted name is stored, and its rows end up older than every counted
     // match, so the head bound alone cannot keep them out of a reply.
@@ -92,5 +91,6 @@ describe('NFR-123 the ranking counts only counted matches and reads names only f
     expect(finished.join('\n')).not.toBe((walkReference.get('points') ?? []).join('\n'));
     const fresh = await walkRanking(withRunning, DISCORD, { community: KEY_A }, 500);
     expect(fresh.pages[0]!.total).toBe(18);
-  });
+    // Hundreds of real-socket round-trips: near the default 5 s under the full suite's CPU load, so the timeout is explicit.
+  }, 30_000);
 });

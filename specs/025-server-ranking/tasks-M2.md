@@ -1,4 +1,4 @@
-### M2 — Service, route and proofs (3 / 4)
+### M2 — Service, route and proofs (4 / 4)
 Plan sections 1, 2, 4 (PD2). Depends on M1.
 
 - [x] **T2.1. Service ranking read.** FR-564 (service part), FR-565 (walk part), FR-567 (service part), NFR-125 (statement-count pin)
@@ -10,6 +10,6 @@ Plan sections 1, 2, 4 (PD2). Depends on M1.
 - [x] **T2.3. Twins: secrecy and isolation.** NFR-123, NFR-124 (twin part), FR-568 (secrecy part)
   - Files: new `apps/server/test/ranking-secrecy.test.ts`, `ranking-isolation.test.ts`.
   - Done when: with a running match of the same community (predictions stored and scored for some rounds, and a planted 022 name differing from the finished matches' names), every ranking reply before and after each of its steps equals the twin's without it, byte for byte, in every order; two communities x two namespaces never mix; every existing golden and the 008/011/018/022/024 secrecy tests are green and unchanged.
-- [ ] **T2.4. Bounded work and the source scan.** NFR-125 (closed), NFR-124 (source scan part)
+- [x] **T2.4. Bounded work and the source scan.** NFR-125 (closed), NFR-124 (source scan part)
   - Files: new `apps/server/test/ranking-bounds.test.ts`; the source scan test.
   - Done when: 1,000 counted matches of 10 scored players in one community (and 1,000 in another): the number of store statements per page equals the 10-match case (a counting store wrapper) and the `EXPLAIN QUERY PLAN` of both statements shows index lookups only; a source scan finds `communities` read only by the history and ranking reads; a worst-case page of 10 rows (24-character names, 20-digit ids, every statistic at its widest) answers within the reply body bound.

@@ -64,5 +64,6 @@ describe('NFR-124 (twin part) two communities x two namespaces never mix', () =>
     const first = await walkRanking(h, DISCORD, { community: KEY_B }, 1);
     const cross = await postRanking(h, WEB.credential, { community: KEY_B, cursor: first.pages[0]!.next! });
     expect([cross.status, cross.text]).toStrictEqual([200, '{"items":[],"total":0}']);
-  });
+    // Eleven matches played over HTTP plus the walks: near the default 5 s under a loaded machine, so the timeout is explicit.
+  }, 30_000);
 });
