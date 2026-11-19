@@ -4,6 +4,9 @@
 import type { Action } from '../core/actions';
 import { lobbyMessage } from '../core/announce';
 import { boardView } from '../core/board';
+import { historyMessage, stackAfter } from '../core/history';
+import { nameBook } from '../core/names';
+import type { HistoryPage } from '@mbrg/protocol';
 import { cleanDisplayName } from '../core/display-name';
 import type { Reply } from '../core/model';
 import { matchCandidates } from '../core/text';
@@ -11,6 +14,7 @@ import { paceTiming } from '../core/paces';
 import { chosenText, closedSentence, errorSentence, offerFor, openPhaseOf, resolveText, suggestionsFor } from '../core/predict';
 import { STRINGS } from '../core/strings';
 import type { Followed } from '../core/state';
+import type { NameBook } from '../core/names';
 import type { NamesProvider, Follower } from './follower';
 import type { Failure, ServerClient } from './server-client';
 import type { StateStore } from './state-file';
@@ -56,6 +60,14 @@ export function createHandler(options: HandlerOptions): (action: Action, who: Wh
     return text(chosenText(await names.get(entry.mapId), faction));
   }
 
+  /** A history page as the public message: the faction names of each map shown (a map no longer served has none: the number shows). */
+  async function historyReply(page: HistoryPage, number: number, pages: readonly HistoryPage[], community: string, who: Who): Promise<Reply> {
+    const books = new Map<string, NameBook>();
+    for (const mapId of new Set(page.items.map((item) => item.mapId))) books.set(mapId, await names.get(mapId));
+    const message = historyMessage(page, { page: number, book: (mapId) => books.get(mapId) ?? nameBook([]), viewerUrl: options.viewerUrl }, { askerId: who.userId, community, pages });
+    return { type: 'channel', messages: [message] };
+  }
+
   return async (action, who) => {
     const entry = store.get(who.channelId);
     switch (action.do) {
@@ -98,6 +110,21 @@ export function createHandler(options: HandlerOptions): (action: Action, who: Wh
         if (!rows.ok) return failed(rows.failure);
         const kind = action.mode === 'asker' ? 'asker' : 'private';
         return { type: 'channel', messages: [boardView(rows.value, action.page, { matchId: action.matchId, kind, viewerId: who.userId }).message] };
+      }
+      case 'history': {
+        // One request, whatever the answer: an outage or a refusal is "unavailable" for the member alone, never retried (FR-558).
+        const first = await client.history({ community: action.community, playerId: who.userId });
+        return first.ok ? historyReply(first.value, 1, [first.value], action.community, who) : text(STRINGS.historyUnavailable);
+      }
+      case 'history-page': {
+        // Back to a page already shown (no cursor): the same data, the same snapshot, nothing asked of the server.
+        if (action.cursor === undefined) {
+          const shown = action.pages[action.page - 1];
+          return shown === undefined ? text(STRINGS.errUnexpected) : historyReply(shown, action.page, action.pages, action.community, who);
+        }
+        const next = await client.history({ community: action.community, playerId: who.userId, cursor: action.cursor });
+        if (!next.ok) return text(STRINGS.historyUnavailable);
+        return historyReply(next.value, action.page, stackAfter(action.pages, action.page, next.value), action.community, who);
       }
       case 'predict-open':
       case 'predict-text':

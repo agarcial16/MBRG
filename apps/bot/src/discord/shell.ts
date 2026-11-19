@@ -11,12 +11,12 @@ import { splitMessage } from '../core/limits';
 import type { OutMessage, Reply } from '../core/model';
 import { sendMode } from '../core/send-mode';
 import { STRINGS } from '../core/strings';
-import { registerSent } from '../io/boards';
+import { registerSent, updateSent } from '../io/boards';
 import type { Boards } from '../io/boards';
 import type { Poster } from '../io/follower';
 import type { Who } from '../io/handler';
 import type { Action } from '../core/actions';
-import { EPHEMERAL, MODAL_FIELD, commandDefinitions, displayNameOf, fromAutocomplete, fromBoardButton, fromButton, fromCommand, fromModal, fromSelect, messagePayload, modalPayload, replyPayload, withButtonsDisabled } from './translate';
+import { EPHEMERAL, MODAL_FIELD, commandDefinitions, displayNameOf, fromAutocomplete, fromBoardButton, fromButton, fromCommand, fromHistoryButton, fromModal, fromSelect, messagePayload, modalPayload, replyPayload, withButtonsDisabled } from './translate';
 import type { View } from './translate';
 
 export interface ShellOptions {
@@ -114,6 +114,7 @@ export function createShell(options: ShellOptions): Shell {
     if (i.isButton()) {
       const id = parseCustomId(i.customId);
       if (id?.type === 'board' || id?.type === 'mine') return fromBoardButton(i.customId, i.user.id, options.boards.lookup(i.message.id), options.now());
+      if (id?.type === 'history') return fromHistoryButton(i.customId, i.user.id, options.boards.lookupHistory(i.message.id), options.now());
       return fromButton(i.customId, canManage, i.user.id);
     }
     if (i.isStringSelectMenu()) return fromSelect(i.customId, i.values);
@@ -158,6 +159,8 @@ export function createShell(options: ShellOptions): Shell {
       }
       const [first] = replyPayload(reply, false, await viewFor(channelId));
       await i.editReply(raw(first));
+      // A history page edited in place: the walk keeps its stack of pages (the expiry stays the one of the posting).
+      updateSent(options.boards, i.message.id, reply.messages[0]);
       return;
     }
     const isPrivate = delivery === 'private';

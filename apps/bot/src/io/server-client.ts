@@ -2,8 +2,9 @@
 // the Authorization header of a prediction and of a creation (spec 018 FR-505: the match is created client-only), and a host token
 // only in that of a start (NFR-89). Every reply is read by the
 // protocol's strict readers; anything unreadable is "the server is down" (no value is ever echoed into a message or a log).
-import { readErrorReply, readLeaderboardPage, readPredictionReply, readPublicConfig, readPublicMatch, readStateReply } from '@mbrg/protocol';
-import type { CreationBody, ErrorReply, LeaderboardRow, PredictionKind, PredictionReply, PublicConfig, PublicMatch } from '@mbrg/protocol';
+import { readErrorReply, readHistoryPage, readLeaderboardPage, readPredictionReply, readPublicConfig, readPublicMatch, readStateReply } from '@mbrg/protocol';
+import type { CreationBody, ErrorReply, HistoryPage, LeaderboardRow, PredictionKind, PredictionReply, PublicConfig, PublicMatch } from '@mbrg/protocol';
+import { HISTORY_PAGE_SIZE } from '../core/history';
 import { livingCount, readCorrectPage, readCreated } from '../core/decode-results';
 import type { Created } from '../core/decode-results';
 import { readFactionNames } from '../core/names';
@@ -42,6 +43,11 @@ export interface ServerClient {
   correctPlayers(matchId: string, round: number, phase: 1 | 2): Promise<Result<string[]>>;
   /** Every row of the leaderboard (all pages), as the server ranks it; the paging of the channel is the bot's own (spec 017 FR-477). */
   leaderboard(matchId: string): Promise<Result<LeaderboardRow[]>>;
+  /**
+   * One page of the history of a community (spec 024 FR-573): the key, the asker's local id, the page size and the cursor go in the BODY
+   * with the credential, so no path, query or access log holds them. One request: a refusal or an outage is the caller's to report, never retried.
+   */
+  history(request: { readonly community: string; readonly playerId: string; readonly cursor?: string }): Promise<Result<HistoryPage>>;
 }
 
 const DOWN: Failure = { type: 'down' };
@@ -109,6 +115,13 @@ export function createServerClient(options: ClientOptions): ServerClient {
       }
       return { ok: true, value: ids };
     },
+    history: (r) =>
+      call('POST', '/history', decoded(readHistoryPage), options.credential, {
+        community: r.community,
+        playerId: r.playerId,
+        limit: HISTORY_PAGE_SIZE,
+        ...(r.cursor === undefined ? {} : { cursor: r.cursor }),
+      }),
     async leaderboard(matchId) {
       const rows: LeaderboardRow[] = [];
       let cursor: string | undefined;

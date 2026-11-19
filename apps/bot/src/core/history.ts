@@ -3,7 +3,8 @@
 // (as the leaderboard, 017 FR-483); everything shown is already public data of a finished match (008 FR-246).
 import type { HistoryEntry, HistoryPage, HistoryTopRow } from '@mbrg/protocol';
 import { clampPage } from './board';
-import type { EmbedField, OutMessage } from './model';
+import { historyId } from './custom-ids';
+import type { ButtonSpec, EmbedField, HistoryTag, OutMessage } from './model';
 import type { NameBook } from './names';
 import { mentionOf, userIdOf } from './results';
 import { STRINGS, fill } from './strings';
@@ -87,3 +88,23 @@ export function historyEmbed(page: HistoryPage, ctx: HistoryContext): OutMessage
   const text = [STRINGS.historyTitle, ...entries.flatMap((e) => [e.name, ...e.lines, ...(e.link === undefined ? [] : [e.link])]), footer].join('\n');
   return { text, buttons: [], embed: { color: COLOR, title: STRINGS.historyTitle, fields, footer } };
 }
+
+const buttonsOf = (page: number, pages: number): ButtonSpec[] => [
+  { type: 'custom', customId: historyId('p', Math.max(1, page - 1)), label: STRINGS.boardPrev, style: 'primary', ...(page <= 1 ? { disabled: true } : {}) },
+  { type: 'custom', customId: historyId('n', Math.min(pages, page + 1)), label: STRINGS.boardNext, style: 'primary', ...(page >= pages ? { disabled: true } : {}) },
+];
+
+/**
+ * The history message of a page: the embed with Previous and Next (disabled on the first and the last page, as the leaderboard's) and,
+ * when there is more than one page, the walk the shell remembers to page it (FR-555). An empty history is the one sentence alone.
+ */
+export function historyMessage(page: HistoryPage, ctx: HistoryContext, walk: HistoryTag): OutMessage {
+  const view = historyEmbed(page, ctx);
+  if (page.items.length === 0) return view;
+  const pages = historyPageCount(page.total);
+  return { ...view, buttons: buttonsOf(clampPage(ctx.page, pages), pages), ...(pages > 1 ? { history: walk } : {}) };
+}
+
+/** The pages shown after showing page `page`: a page fetched replaces the stack from its place on; a page shown again changes nothing. */
+export const stackAfter = (pages: readonly HistoryPage[], page: number, fetched: HistoryPage | undefined): readonly HistoryPage[] =>
+  fetched === undefined ? pages : [...pages.slice(0, page - 1), fetched];

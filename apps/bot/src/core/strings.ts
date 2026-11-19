@@ -48,6 +48,9 @@ export const STRINGS = {
   historyOwn: 'Tus puntos: {points} (puesto {rank})',
   historyNotPlayed: 'No jugaste esta partida',
   historyEmpty: 'Este servidor todavía no tiene partidas terminadas.',
+  historyNotYours: 'Solo quien pidió el historial puede cambiar de página. Usa /mbrg history para ver el tuyo.',
+  historyExpired: 'Este historial caducó. Usa /mbrg history para verlo de nuevo.',
+  historyUnavailable: 'El historial no está disponible ahora. Inténtalo más tarde.',
 
   // Embeds of the announcements (spec 017 FR-472, FR-473).
   embedOpenedTitle: 'Ronda {round} abierta',

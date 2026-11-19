@@ -4,10 +4,10 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { decide } from '../../src/core/actions';
-import type { Interaction } from '../../src/core/actions';
+import type { Action, Interaction } from '../../src/core/actions';
 import { parseCustomId } from '../../src/core/custom-ids';
 import type { OutMessage, Reply } from '../../src/core/model';
-import { createBoards, registerSent } from '../../src/io/boards';
+import { createBoards, registerSent, updateSent } from '../../src/io/boards';
 import type { Boards } from '../../src/io/boards';
 import { createFollower, createNames } from '../../src/io/follower';
 import type { Follower, Poster } from '../../src/io/follower';
@@ -78,6 +78,10 @@ export interface Bot {
   failEdits: boolean;
   /** While true an edit takes 40 ms to finish (an edit in flight). */
   slowEdits: boolean;
+  /** A press on a history button of message `messageId`, as the shell does it: the walk it knows, the handler, then the walk updated in place (spec 024). */
+  pressHistory(messageId: string, customId: string, who: Who): Promise<Reply>;
+  /** Runs an action the pure core has already decided on (a step of a flow that is not a command). */
+  act(action: Action, who?: Who): Promise<Reply>;
   run(interaction: Interaction, who?: Who): Promise<Reply>;
   stop(): void;
 }
@@ -146,6 +150,12 @@ export function boot(server: { readonly url: string }, statePath: string, option
       const known = id?.type === 'board' ? boards.lookup(messageId) : undefined;
       return bot.run({ type: 'board-press', customId, userId: who.userId, entry: known, now: bot.clock }, who);
     },
+    async pressHistory(messageId, customId, who) {
+      const reply = await bot.run({ type: 'history-press', customId, userId: who.userId, entry: boards.lookupHistory(messageId), now: bot.clock }, who);
+      if (reply.type === 'channel') updateSent(boards, messageId, reply.messages[0]);
+      return reply;
+    },
+    act: (action, who = MANAGER) => handler(action, who),
     store,
     posts,
     edits,
