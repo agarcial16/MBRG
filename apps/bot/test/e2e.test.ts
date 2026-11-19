@@ -10,7 +10,8 @@ import { EMBED_COLORS } from '../src/core/embeds';
 import type { OutMessage, Reply } from '../src/core/model';
 import { STRINGS } from '../src/core/strings';
 import { GUILD_A, GUILD_B, KEY_A, KEY_B } from './helpers/harness';
-import { EXPECTED_POST_TEXTS, FACTION_NAMES, PLAN, PLAYERS } from './e2e/plan';
+import { ANA_AFTER_FIRST, BOARD_B, EXPECTED_POST_TEXTS, FACTION_NAMES, PLAN, PLAYERS, RANKING_ORDER, RANKING_PINS, askerLine, boardTextB, rankingDescription } from './e2e/plan';
+import type { RankOrder } from './e2e/plan';
 import { renderEmbedsHtml, renderTranscript } from './e2e/render';
 import { secrecyViolations } from './e2e/secrecy';
 import { playScriptedMatch } from './e2e/script';
@@ -86,8 +87,8 @@ describe('spec 023 e2e: real server + real bot core, Discord faked', () => {
   it('FR-541 keeps the future out of the channel: no victim or absorber before its reveal, no later round, no host token', () => {
     const r = run!;
     expect(r.violations).toEqual([]);
-    // The checker saw every post of the run, not just a sample.
-    expect(r.checkedPosts).toBe(r.posts.length);
+    // The checker saw every post of the run (both matches), not just a sample.
+    expect(r.checkedPosts).toBe(r.posts.length + r.second.posts.length);
     // Nothing the channel ever showed (posts, edits, private replies) carries the host token.
     expect(JSON.stringify(r.entries)).not.toContain(r.hostToken);
     // The state file of the run holds no secret either once the match ended: the channel entry was retired.
@@ -131,8 +132,108 @@ describe('spec 023 e2e: real server + real bot core, Discord faked', () => {
 
   it('NFR-118 FR-548 the raw guild ids and the community keys are in no post, edit, reply or file of the run', () => {
     const r = run!;
-    const everything = JSON.stringify([r.posts, r.edits, r.entries.map((e) => (e.kind === 'reply' ? e.reply : e.message))]) + readFileSync(r.world.statePath, 'utf8');
+    const everything = JSON.stringify([r.posts, r.edits, r.second.posts, r.entries.map((e) => (e.kind === 'reply' ? e.reply : e.message))]) + readFileSync(r.world.statePath, 'utf8');
     for (const secret of [GUILD_A, GUILD_B, KEY_A, KEY_B]) expect(everything, secret).not.toContain(secret);
+  });
+
+  it('FR-572 the second match of the same server runs the same journey with other picks: every announcement, the secrecy checker clean, and its own final board', () => {
+    const r = run!;
+    expect(r.second.matchId).not.toBe(r.matchId);
+    expect(r.second.posts).toHaveLength(EXPECTED_POST_TEXTS.length);
+    // Nothing differs from the first match but who guessed right: the announcements without winners are the same sentences.
+    expect(r.second.posts[0]!.text).toBe(EXPECTED_POST_TEXTS[0]);
+    expect(r.second.posts.at(-2)!.text).toBe(EXPECTED_POST_TEXTS.at(-2));
+    expect(r.second.posts.at(-1)!.text).toBe(boardTextB);
+    expect(r.second.leaderboard.map((row) => [row.rank, row.playerId.slice('discord:'.length), row.total])).toEqual(BOARD_B.map(([userId, rank, points]) => [rank, userId, points]));
+    // A 0-point player still has a row: she played.
+    expect(r.second.leaderboard.at(-1)).toMatchObject({ total: 0, name: 'Ana' });
+  });
+
+  it('FR-572 the pinned statistics of the plan are the sums of what the public leaderboards of the two matches say (an oracle that shares nothing with the ranking code)', () => {
+    const r = run!;
+    for (const pin of RANKING_PINS) {
+      const id = `discord:${pin.userId}`;
+      const rows = [r.leaderboard, r.second.leaderboard].map((board) => board.find((row) => row.playerId === id)!);
+      expect(rows.reduce((n, row) => n + row.total, 0), `${id} points`).toBe(pin.points);
+      expect(rows.reduce((n, row) => n + row.correctVictims + row.correctAbsorbers + row.correctWinner, 0), `${id} correct`).toBe(pin.correct);
+      // Won: the highest points of a match, above 0 (a tie wins for all).
+      const won = [r.leaderboard, r.second.leaderboard].filter((board) => {
+        const best = Math.max(...board.map((row) => row.total));
+        return best > 0 && board.find((row) => row.playerId === id)!.total === best;
+      }).length;
+      expect(won, `${id} won`).toBe(pin.won);
+      expect(pin.played).toBe(2);
+    }
+  });
+
+  const messageOfReply = (reply: Reply): OutMessage => {
+    expect(reply.type).toBe('channel');
+    return (reply as Extract<Reply, { type: 'channel' }>).messages[0]!;
+  };
+  const WORDS: readonly [string, RankOrder][] = [['default', 'points'], [STRINGS.orderPoints, 'points'], [STRINGS.orderCorrect, 'correct'], [STRINGS.orderWins, 'wins'], [STRINGS.orderAccuracy, 'accuracy']];
+
+  it('FR-572 NFR-126 after two finished matches the ranking is read in every order: each row, rank, statistic, the note, the asker line and the page indicator are the pinned ones', () => {
+    const r = run!;
+    for (const [word, order] of WORDS) {
+      const message = messageOfReply(r.ranking.byWord[word]!);
+      expect(message.embed?.title, word).toBe('Ranking del servidor');
+      expect(message.embed?.description?.split('\n'), word).toEqual(rankingDescription(order));
+      expect(message.embed?.footer, word).toBe('Página 1/1');
+      const own = askerLine(order, PLAYERS[0]!.userId);
+      expect(message.embed?.fields, word).toEqual(own === undefined ? [] : [{ name: 'Tu puesto', value: own }]);
+      // One page: the buttons are there, disabled, and the message is not a walk the bot keeps.
+      expect(message.buttons.every((b) => b.type === 'custom' && b.disabled === true), word).toBe(true);
+      expect(message.ranking, word).toBeUndefined();
+      expect(message.text, word).toContain(rankingDescription(order).join('\n'));
+    }
+    // The asker's place differs from order to order (pinned by hand): 4th in points, 3rd in correct and in accuracy, 1st in wins.
+    expect(['points', 'correct', 'wins', 'accuracy'].map((o) => askerLine(o as RankOrder, PLAYERS[0]!.userId)?.split(' · ')[0])).toEqual(['Puesto 4', 'Puesto 3', 'Puesto 1', 'Puesto 3']);
+  });
+
+  it('FR-572 the accuracy order ranks only who has at least 10 scored predictions: Carla with exactly 10 is ranked, Diego with exactly 9 is in the tail with a dash, after the note, and has no "Tu puesto" line', () => {
+    const r = run!;
+    const message = messageOfReply(r.ranking.unqualified);
+    const lines = message.embed!.description!.split('\n');
+    expect(lines).toEqual(rankingDescription('accuracy'));
+    expect(lines.slice(-2)).toEqual(['Menos de 10 predicciones: sin puesto en precisión', '— <@444444444444444444> - precisión 44 % · 15 pts · aciertos 4/9 · victorias 0 · partidas 2']);
+    expect(lines[1]).toContain('<@333333333333333333> - precisión 50 % · 16 pts · aciertos 5/10');
+    // Floor, not rounding: 4 of 14 is 28 %, 9 of 13 is 69 %.
+    expect(lines[0]).toContain('precisión 69 %');
+    expect(lines[2]).toContain('precisión 28 %');
+    expect(message.embed!.fields).toEqual([]);
+  });
+
+  it('FR-572 a member who never predicted gets the sentence that they have not played a finished match here; another server gets the empty reply', () => {
+    const r = run!;
+    expect(messageOfReply(r.ranking.outsider).embed?.fields).toEqual([{ name: 'Tu puesto', value: STRINGS.rankingNotPlayed }]);
+    expect(messageOfReply(r.ranking.otherServer)).toEqual({ text: STRINGS.rankingEmpty, buttons: [] });
+  });
+
+  it('FR-572 the server rows the embeds come from carry the pinned statistics, ranks and shown names in every order, and the asker line', () => {
+    const r = run!;
+    const names = new Map(PLAYERS.map((p) => [`discord:${p.userId}`, p.displayName]));
+    for (const order of ['points', 'correct', 'wins', 'accuracy'] as const) {
+      const page = r.ranking.raw[order];
+      expect(page.total, order).toBe(4);
+      expect(page.next, order).toBeUndefined();
+      expect(page.items.map((row) => [row.playerId.slice('discord:'.length), row.rank]), order).toEqual(RANKING_ORDER[order].map(([userId, rank]) => [userId, rank]));
+      for (const row of page.items) {
+        const pin = RANKING_PINS.find((p) => `discord:${p.userId}` === row.playerId)!;
+        expect([row.points, row.correct, row.scored, row.played, row.won], `${order} ${row.playerId}`).toEqual([pin.points, pin.correct, pin.scored, pin.played, pin.won]);
+        expect(row.name, `${order} ${row.playerId}`).toBe(names.get(row.playerId));
+      }
+      const pin = RANKING_PINS[0]!;
+      const rank = RANKING_ORDER[order].find(([userId]) => userId === pin.userId)![1];
+      expect(page.asker, order).toEqual({ points: pin.points, correct: pin.correct, scored: pin.scored, played: pin.played, won: pin.won, ...(rank === undefined ? {} : { rank }) });
+    }
+  });
+
+  it('FR-572 FR-561 right after the second match finishes only the first is settled: the ranking holds the first match alone, as the history does', () => {
+    const message = messageOfReply(run!.ranking.unsettled);
+    const lines = message.embed!.description!.split('\n');
+    expect(lines).toHaveLength(4);
+    expect(lines[0]).toBe(ANA_AFTER_FIRST);
+    expect(message.embed!.description).not.toContain('partidas 2');
   });
 
   it('FR-542 FR-543 renders the same run as a readable transcript and as an HTML page of the embeds', () => {

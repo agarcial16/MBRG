@@ -153,13 +153,10 @@ const DONE_024: readonly string[] = ['FR-546', 'FR-560', 'FR-547', 'FR-549', 'FR
  * complete yet (pinned literal list of its 14 ids). Each task removes the ids it closes in its own commit; T3.4 leaves it
  * empty. A partial id stays pending until its last task; its parts are named in the titles that trace them.
  */
-const PENDING_025: readonly string[] = [
-  'FR-572',
-  'NFR-126',
-];
+const PENDING_025: readonly string[] = [];
 
-/** Ids of spec 025 closed so far (M2 T2.1: FR-564, the service folds the store's snapshot rows; the read part was traced in M1 T1.2, the core part in T1.3. M2 T2.2: FR-563, FR-565, FR-566, FR-567, FR-568, the route `POST /ranking` over a real server; the cursor, wire and row parts were traced in M1, the core parts in T1.4. M2 T2.3: NFR-123, the secrecy twin. M2 T2.4: NFR-124, the isolation twin (T2.3) and the source scan, and NFR-125, the bounded work; the store part of NFR-125 was traced in M1 T1.2. M3 T3.3: FR-569, FR-570 and FR-571, the command (T3.1), the embed (T3.2), the paging of a ranking message and the failure wiring). */
-const DONE_025: readonly string[] = ['FR-564', 'FR-563', 'FR-565', 'FR-566', 'FR-567', 'FR-568', 'NFR-123', 'NFR-124', 'NFR-125', 'FR-569', 'FR-570', 'FR-571'];
+/** Ids of spec 025 closed so far (M2 T2.1: FR-564, the service folds the store's snapshot rows; the read part was traced in M1 T1.2, the core part in T1.3. M2 T2.2: FR-563, FR-565, FR-566, FR-567, FR-568, the route `POST /ranking` over a real server; the cursor, wire and row parts were traced in M1, the core parts in T1.4. M2 T2.3: NFR-123, the secrecy twin. M2 T2.4: NFR-124, the isolation twin (T2.3) and the source scan, and NFR-125, the bounded work; the store part of NFR-125 was traced in M1 T1.2. M3 T3.3: FR-569, FR-570 and FR-571, the command (T3.1), the embed (T3.2), the paging of a ranking message and the failure wiring. M3 T3.4: FR-572 and NFR-126, the e2e step against the real server after two finished matches and the pure functions of the bot's embed text). */
+const DONE_025: readonly string[] = ['FR-564', 'FR-563', 'FR-565', 'FR-566', 'FR-567', 'FR-568', 'NFR-123', 'NFR-124', 'NFR-125', 'FR-569', 'FR-570', 'FR-571', 'FR-572', 'NFR-126'];
 
 const DONE_014: readonly string[] = ['FR-416', 'FR-414', 'FR-413', 'FR-418', 'FR-419', 'FR-415', 'FR-417', 'NFR-81', 'NFR-83', 'FR-421', 'FR-420', 'NFR-82'];
 
@@ -1080,6 +1077,6 @@ describe('traceability', () => {
     for (const id of literal) expect(expected, id).toContain(id);
     // The ids of the other specs next to the ranges stay outside the ledger.
     for (const id of ['FR-544', 'FR-574', 'NFR-127']) expect(expected, id).not.toContain(id);
-    expect(DONE_025).toStrictEqual(['FR-564', 'FR-563', 'FR-565', 'FR-566', 'FR-567', 'FR-568', 'NFR-123', 'NFR-124', 'NFR-125', 'FR-569', 'FR-570', 'FR-571']);
+    expect(DONE_025).toStrictEqual(['FR-564', 'FR-563', 'FR-565', 'FR-566', 'FR-567', 'FR-568', 'NFR-123', 'NFR-124', 'NFR-125', 'FR-569', 'FR-570', 'FR-571', 'FR-572', 'NFR-126']);
   });
 });

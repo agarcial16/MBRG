@@ -114,3 +114,107 @@ export const EXPECTED_POST_TEXTS: readonly string[] = [
 ];
 
 // For this plan every scored phase has at most one right guesser, so no winners sentence ever runs into "y N más".
+
+// --- The second match and the ranking of the server (spec 025 FR-572) ---------------------------------------------------------------
+// The same seeds make the same four rounds again (r1 Francia->Alemania, r2 España->Portugal, r3 Portugal->Alemania, r4 forced), so only the
+// picks change. Worth of a correct guess (spec 008): the victim of round N is worth the factions living at N (r1 5, r2 4, r3 3, r4 2), the
+// absorber the absorption candidates (r1 3, r2 3, r3 2). The statistics below are worked out BY HAND from those picks, never read from a run.
+
+const ANA = '111111111111111111';
+const BRUNO = '222222222222222222';
+const CARLA = '333333333333333333';
+const DIEGO = '444444444444444444';
+
+/**
+ * The second scripted match: Bruno predicts everything right (22 points, the winner), Diego is right on the two first rounds (15), Carla
+ * misses round 2 and skips round 4 (13), Ana misses everything (0 points: she still played). Scored predictions of this match: Ana 7, Bruno 7,
+ * Carla 6, Diego 4.
+ */
+export const PLAN_B: readonly RoundPlan[] = [
+  { ...PLAN[0]!, pickVictim: { [ANA]: 1, [BRUNO]: 3, [CARLA]: 3, [DIEGO]: 3 }, pickAbsorber: { [ANA]: 2, [BRUNO]: 1, [CARLA]: 1, [DIEGO]: 1 } },
+  { ...PLAN[1]!, pickVictim: { [ANA]: 1, [BRUNO]: 2, [CARLA]: 4, [DIEGO]: 2 }, pickAbsorber: { [ANA]: 1, [BRUNO]: 5, [CARLA]: 1, [DIEGO]: 5 } },
+  { ...PLAN[2]!, pickVictim: { [ANA]: 4, [BRUNO]: 5, [CARLA]: 5 }, pickAbsorber: { [ANA]: 4, [BRUNO]: 1, [CARLA]: 1 } },
+  { ...PLAN[3]!, pickVictim: { [ANA]: 4, [BRUNO]: 1 }, pickAbsorber: {} },
+];
+
+/** The final board of the second match as the server ranks it: [user id, rank, points]. */
+export const BOARD_B: readonly (readonly [string, number, number])[] = [[BRUNO, 1, 22], [DIEGO, 2, 15], [CARLA, 3, 13], [ANA, 4, 0]];
+
+export interface Pin {
+  readonly userId: string;
+  readonly points: number;
+  readonly correct: number;
+  readonly scored: number;
+  readonly played: number;
+  readonly won: number;
+}
+
+/**
+ * The statistics of the four players after the two matches (sums of the two plans): Ana 13 + 0 points, 4 + 0 right of 7 + 7, the match of round one
+ * won; Bruno 6 + 22, 2 + 7 of 6 + 7, the second match won; Carla 3 + 13, 1 + 4 of 4 + 6 (exactly 10: qualified for accuracy), none won; Diego 0 + 15,
+ * 0 + 4 of 5 + 4 (exactly 9: NOT qualified), none won. All of them played two matches.
+ */
+export const RANKING_PINS: readonly Pin[] = [
+  { userId: ANA, points: 13, correct: 4, scored: 14, played: 2, won: 1 },
+  { userId: BRUNO, points: 28, correct: 9, scored: 13, played: 2, won: 1 },
+  { userId: CARLA, points: 16, correct: 5, scored: 10, played: 2, won: 0 },
+  { userId: DIEGO, points: 15, correct: 4, scored: 9, played: 2, won: 0 },
+];
+
+/** After the first match alone (the second not settled yet): Ana's row, 4 right of 7 is 57 %. */
+export const ANA_AFTER_FIRST = '1. <@111111111111111111> - 13 pts · aciertos 4/7 · victorias 1 · partidas 1 · precisión 57 %';
+
+export type RankOrder = 'points' | 'correct' | 'wins' | 'accuracy';
+
+/**
+ * The ranking of each order: the players in order with their rank (none: the unranked tail of the accuracy order). Ties share the rank and
+ * are ordered by total points: correct 4 and 4 (Diego 15 points before Ana 13), wins 1 and 1 (Bruno 28 before Ana 13) and 0 and 0 (Carla 16
+ * before Diego 15). Accuracy: Bruno 9/13, Carla 5/10, Ana 4/14, and Diego (9 scored, fewer than 10) after them with no rank.
+ */
+export const RANKING_ORDER: Readonly<Record<RankOrder, readonly (readonly [string, number | undefined])[]>> = {
+  points: [[BRUNO, 1], [CARLA, 2], [DIEGO, 3], [ANA, 4]],
+  correct: [[BRUNO, 1], [CARLA, 2], [DIEGO, 3], [ANA, 3]],
+  wins: [[BRUNO, 1], [ANA, 1], [CARLA, 3], [DIEGO, 3]],
+  accuracy: [[BRUNO, 1], [CARLA, 2], [ANA, 3], [DIEGO, undefined]],
+};
+
+/** The whole percent of right guesses, rounded down, worked out here with integers (never rounded to the nearest). */
+export const percentOf = (correct: number, scored: number): number => Math.floor((100 * correct) / scored);
+
+/** The statistics of a row as the channel reads them, the ordering one first: written out with literal words, independent of the bot's templates. */
+export function statsLine(order: RankOrder, pin: Pin): string {
+  const parts: Record<RankOrder | 'played', string> = {
+    points: `${pin.points} pts`,
+    correct: `aciertos ${pin.correct}/${pin.scored}`,
+    wins: `victorias ${pin.won}`,
+    played: `partidas ${pin.played}`,
+    accuracy: `precisión ${percentOf(pin.correct, pin.scored)} %`,
+  };
+  const rest = (['points', 'correct', 'wins', 'played', 'accuracy'] as const).filter((key) => key !== order);
+  return [parts[order], ...rest.map((key) => parts[key])].join(' · ');
+}
+
+const pinOf = (userId: string): Pin => RANKING_PINS.find((p) => p.userId === userId)!;
+
+/** The description of the ranking page of an order: one line per player, and the note before the unranked tail. */
+export function rankingDescription(order: RankOrder): string[] {
+  const lines: string[] = [];
+  for (const [userId, rank] of RANKING_ORDER[order]) {
+    if (rank === undefined && !lines.some((l) => l.startsWith('Menos de'))) lines.push('Menos de 10 predicciones: sin puesto en precisión');
+    lines.push(`${rank === undefined ? '—' : `${rank}.`} <@${userId}> - ${statsLine(order, pinOf(userId))}`);
+  }
+  return lines;
+}
+
+/** The "Tu puesto" value of a player under an order; none when they have no rank (the accuracy tail). */
+export function askerLine(order: RankOrder, userId: string): string | undefined {
+  const rank = RANKING_ORDER[order].find(([id]) => id === userId)?.[1];
+  return rank === undefined ? undefined : `Puesto ${rank} · ${statsLine(order, pinOf(userId))}`;
+}
+
+/** The final public leaderboard of the second match: rank, mention and points, the page of four rows. */
+export const boardTextB: string = [
+  'Clasificación',
+  ...BOARD_B.map(([userId, rank, points]) => `${rank}. <@${userId}> - ${points} pts`),
+  'Página 1/1',
+].join('\n');
