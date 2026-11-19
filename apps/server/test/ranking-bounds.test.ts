@@ -132,16 +132,17 @@ describe('NFR-125 the ranking work is bounded whatever the stored matches', () =
       openStore(file).close();
       const db = new DatabaseSync(file);
       try {
-        for (const [sql, players] of [[READ_SQL.rankingResults, 'r'], [READ_SQL.rankingNames, 'n']] as const) {
+        for (const [sql, table] of [[READ_SQL.rankingResults, 'results'], [READ_SQL.rankingNames, 'client_names']] as const) {
           for (const bound of [true, false]) {
             const plan = db
               .prepare(`EXPLAIN QUERY PLAN ${sql}`)
               .all(KEY_R, NAMESPACE, ...(bound ? [T0, T0, T0, 'x'.repeat(16)] : [null, null, null, null]))
               .map((r) => String(r.detail));
             const text = plan.join(' | ');
-            expect(plan.filter((d) => /\bSCAN\b/.test(d)), `${players} ${bound}`).toStrictEqual([]);
-            expect(plan.some((d) => /SEARCH .*communities/.test(d)), `${players} ${bound}`).toBe(true);
-            expect(plan.some((d) => /SEARCH .*matches/.test(d)), `${players} ${bound}`).toBe(true);
+            expect(plan.filter((d) => /\bSCAN\b/.test(d)), text).toStrictEqual([]);
+            expect(plan.some((d) => /SEARCH .*communities/.test(d)), text).toBe(true);
+            expect(plan.some((d) => /SEARCH .*matches/.test(d)), text).toBe(true);
+            expect(plan.some((d) => new RegExp(`SEARCH .*${table}`).test(d)), text).toBe(true);
           }
         }
       } finally {
@@ -152,7 +153,9 @@ describe('NFR-125 the ranking work is bounded whatever the stored matches', () =
     }
   });
 
-  it('NFR-125 a worst-case page of 10 rows (24-character names, 20-digit ids, every statistic at its widest) answers within the reply body bound', async () => {
+  // The reply has no bound of its own; the request-body constant stands in as the guard here. The spec's "every statistic
+  // at its widest" for the embed is covered by the M3 bot test (017 NFR-94); this pins the wire reply of the widest page.
+  it('NFR-125 a worst-case page of 10 rows (24-character names, 20-digit ids, points, correct and scored at their widest) answers well under the request body bound', async () => {
     const NAME = 'N'.repeat(24);
     const ASKER = '7'.repeat(19).concat('0');
     const h = await startHistory({
@@ -161,9 +164,12 @@ describe('NFR-125 the ranking work is bounded whatever the stored matches', () =
         put(store, matchId, KEY_A, 'discord', T0);
         const rows: ResultRow[] = [];
         for (let p = 0; p < 10; p += 1) {
-          // A 20-digit local id: wider than any safe integer, built as a text.
+          // A 20-digit local id: wider than any safe integer, built as a text. Three scored rows of a kind each, all
+          // correct at the widest points, so points, correct and scored are all at their widest for one match.
           const playerId = `discord:${String(p).padStart(20, '7')}`;
           rows.push({ playerId, kind: 'victim', round: 1, choice: 3, correct: true, points: 999_999_999 });
+          rows.push({ playerId, kind: 'absorber', round: 1, choice: 2, correct: true, points: 999_999_999 });
+          rows.push({ playerId, kind: 'winner', round: 0, choice: 4, correct: true, points: 999_999_999 });
           store.transaction(() => store.putClientName(matchId, playerId, NAME));
         }
         store.transaction(() => store.putResults(matchId, rows));

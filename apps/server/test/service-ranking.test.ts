@@ -343,5 +343,6 @@ describe('NFR-125 (service part) one page reads the head and the two snapshot st
       h.close();
       store.close();
     }
-  });
+    // Seeds 1,000 matches with 2,000 result rows: explicit headroom against the default 5 s under the suite's load.
+  }, 30_000);
 });

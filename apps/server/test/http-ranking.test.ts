@@ -3,7 +3,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { encodeCursor, encodeRankingPage, readRankingPage } from '@mbrg/protocol';
 import type { RankingPage } from '@mbrg/protocol';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+// Every test of this file drives a real server (~0.9 s alone each): explicit headroom against the default 5 s under the
+// full suite's CPU load (the lesson of the load-induced flakes).
+vi.setConfig({ testTimeout: 30_000 });
 import { productionRoutes } from '../src/http/server';
 import type { Identity } from '../src/http/identity';
 import type { RouteContext } from '../src/http/router';
