@@ -37,6 +37,18 @@ export const STRINGS = {
   boardExpired: 'Esta clasificación caducó. Usa /mbrg board para verla de nuevo.',
   playerFallback: 'Jugador',
 
+  // History of the finished matches of a Discord server (spec 024 FR-554, FR-556).
+  historyTitle: 'Partidas terminadas',
+  historyEntry: '{date} · {map}',
+  historyWinner: 'Ganó **{winner}** · {players}',
+  historyPlayersOne: '1 jugador',
+  historyPlayersMany: '{n} jugadores',
+  historyMore: 'y {n} más',
+  historyNobody: 'Nadie sumó puntos',
+  historyOwn: 'Tus puntos: {points} (puesto {rank})',
+  historyNotPlayed: 'No jugaste esta partida',
+  historyEmpty: 'Este servidor todavía no tiene partidas terminadas.',
+
   // Embeds of the announcements (spec 017 FR-472, FR-473).
   embedOpenedTitle: 'Ronda {round} abierta',
   embedOpenedText: '¿Qué facción será eliminada? Pulsa Predecir.',
