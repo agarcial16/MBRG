@@ -56,6 +56,30 @@ describe('FR-548 the community key', () => {
     expect(fromCommand('history', {}, true, '42')).toEqual({ type: 'history', community: undefined });
   });
 
+  it('FR-569 FR-548 the ranking command carries the key of its server and the order word as typed, and nothing else; without a server it has no key', () => {
+    expect(fromCommand('ranking', {}, false, '42', GUILD_A)).toEqual({ type: 'ranking', community: KEY_A, order: undefined });
+    expect(fromCommand('ranking', { order: null }, false, '42', GUILD_A)).toEqual({ type: 'ranking', community: KEY_A, order: undefined });
+    expect(fromCommand('ranking', { order: 'victorias' }, false, '42', GUILD_A)).toEqual({ type: 'ranking', community: KEY_A, order: 'victorias' });
+    expect(JSON.stringify(fromCommand('ranking', { order: 'puntos' }, false, '42', GUILD_A))).not.toContain(GUILD_A);
+    expect(fromCommand('ranking', { order: 'puntos' }, true, '42', null)).toEqual({ type: 'ranking', community: undefined, order: 'puntos' });
+    expect(fromCommand('ranking', {}, true, '42')).toEqual({ type: 'ranking', community: undefined, order: undefined });
+  });
+
+  it('FR-569 the registered ranking subcommand has one optional text option whose four choices are the order words, and takes no other option', () => {
+    const root = commandDefinitions()[0]!;
+    const subs = root.options as { name: string; options?: { name: string; required?: boolean; type: number; choices?: { name: string; value: string }[] }[] }[];
+    const ranking = subs.filter((s) => s.name === 'ranking');
+    expect(ranking).toHaveLength(1);
+    expect(ranking[0]!.options).toHaveLength(1);
+    expect(ranking[0]!.options![0]).toMatchObject({ name: 'order', type: 3, required: false });
+    expect(ranking[0]!.options![0]!.choices).toEqual([
+      { name: 'puntos', value: 'puntos' },
+      { name: 'aciertos', value: 'aciertos' },
+      { name: 'victorias', value: 'victorias' },
+      { name: 'precisión', value: 'precisión' },
+    ]);
+  });
+
   it('FR-557 the registered command stays unavailable in direct messages', () => {
     expect(commandDefinitions().every((c) => c.dm_permission === false)).toBe(true);
   });
@@ -108,10 +132,10 @@ describe('NFR-91 Discord limits in payloads', () => {
     expect(modal.components[0]?.components[0]).toMatchObject({ type: 4, custom_id: 'q', required: true, style: 1 });
   });
 
-  it('FR-451 FR-554 the slash command definition has the six subcommands (history added by spec 024) and autocomplete on the map and the faction', () => {
+  it('FR-451 FR-554 FR-569 the slash command definition has the seven subcommands (history added by spec 024, ranking by spec 025) and autocomplete on the map and the faction', () => {
     const [root] = commandDefinitions();
     expect(root?.name).toBe('mbrg');
-    expect(root?.options.map((o) => o.name)).toEqual(['create', 'start', 'stop', 'board', 'predict', 'history']);
+    expect(root?.options.map((o) => o.name)).toEqual(['create', 'start', 'stop', 'board', 'predict', 'history', 'ranking']);
     expect(root?.options[5]).toEqual({ type: 1, name: 'history', description: 'Muestra las partidas terminadas de este servidor' });
     const create = root?.options[0];
     expect(create?.options?.[0]).toMatchObject({ name: 'map', required: true, autocomplete: true });

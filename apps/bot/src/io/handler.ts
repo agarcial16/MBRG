@@ -116,6 +116,12 @@ export function createHandler(options: HandlerOptions): (action: Action, who: Wh
         const first = await client.history({ community: action.community, playerId: who.userId });
         return first.ok ? historyReply(first.value, 1, [first.value], action.community, who) : text(STRINGS.historyUnavailable);
       }
+      case 'ranking': {
+        // One request, whatever the answer: an outage or a refusal (an older server included) is "unavailable" for the member alone, never retried (FR-571).
+        const first = await client.ranking({ community: action.community, order: action.order, playerId: who.userId });
+        // The page itself is shown by the next tasks (T3.2, T3.3): until then a readable answer has nothing to show.
+        return first.ok ? text(STRINGS.errUnexpected) : text(STRINGS.rankingUnavailable);
+      }
       case 'history-page': {
         // Back to a page already shown (no cursor): the same data, the same snapshot, nothing asked of the server.
         if (action.cursor === undefined) {

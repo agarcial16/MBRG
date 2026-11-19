@@ -82,6 +82,15 @@ describe('FR-573 NFR-118 the bot logs closed codes and never a body', () => {
   });
 });
 
+describe('FR-569 FR-573 the ranking request', () => {
+  it('FR-573 the ranking request is built in one place: the key, the order, the asker and the cursor go in the body, and the path is a constant', () => {
+    const client = all.find((f) => f.path === 'io/server-client.ts')!.text;
+    expect(client.match(/'\/ranking'/g)).toHaveLength(1);
+    expect(client).toMatch(/call\('POST', '\/ranking', decoded\(readRankingPage\), options\.credential, \{/);
+    expect(client).not.toMatch(/\/ranking\$\{|\/ranking\?/);
+  });
+});
+
 describe('NFR-89 start-up', () => {
   it('NFR-89 the bot refuses to start naming the missing variable and echoes no secret', () => {
     const entry = join(SRC, 'main.ts');

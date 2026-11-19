@@ -1,10 +1,11 @@
 // From a press, a window or a command to the action to run (spec 012 FR-451, FR-452, FR-454, FR-457, FR-458, NFR-90). Pure: the
 // Discord shell turns a Discord interaction into an `Interaction` and runs the `Action` this gives. Who may manage the channel
 // arrives as a plain flag (the shell reads the permission); the user id decides only who may start (FR-464), else it goes to the server.
-import type { HistoryPage } from '@mbrg/protocol';
+import type { HistoryPage, RankingOrder } from '@mbrg/protocol';
 import { parseCustomId } from './custom-ids';
 import type { Pace, PhaseKind } from './model';
 import { isPace } from './paces';
+import { orderOf } from './ranking';
 import { STRINGS } from './strings';
 
 /** What the shell knows of a leaderboard message a press came from: its match, who asked (none: the final post) and when it stops paging. */
@@ -30,6 +31,8 @@ export type Interaction =
   | { readonly type: 'predict'; readonly faction: string | undefined }
   /** The history of the finished matches of this server (spec 024 FR-554); `community` as in `create` (none: no server, FR-557). */
   | { readonly type: 'history'; readonly community: string | undefined }
+  /** The ranking of the members of this server (spec 025 FR-569); `community` as in `history`, `order` the word as typed (none: points). */
+  | { readonly type: 'ranking'; readonly community: string | undefined; readonly order: string | undefined }
   | { readonly type: 'button'; readonly customId: string; readonly canManage: boolean; readonly userId: string }
   | { readonly type: 'select'; readonly customId: string; readonly values: readonly string[] }
   | { readonly type: 'modal'; readonly customId: string; readonly text: string }
@@ -50,7 +53,9 @@ export type Action =
   /** The first page of the history of the asker's community, as a public reply (spec 024 FR-554); the paging follows with `history-page`. */
   | { readonly do: 'history'; readonly community: string }
   /** A page of a history message, in place: from the pages already shown (no `cursor`), or the next page of the walk by its cursor (spec 024 FR-555). */
-  | { readonly do: 'history-page'; readonly community: string; readonly page: number; readonly pages: readonly HistoryPage[]; readonly cursor?: string };
+  | { readonly do: 'history-page'; readonly community: string; readonly page: number; readonly pages: readonly HistoryPage[]; readonly cursor?: string }
+  /** The first page of the ranking of the asker's community under an order, as a public reply (spec 025 FR-569). */
+  | { readonly do: 'ranking'; readonly community: string; readonly order: RankingOrder };
 
 /** How the answer is sent: deferred at once (the work may take longer than Discord's three seconds) as public or private, direct, or as the edit of the message pressed (`update`). */
 export type Delivery = 'public' | 'private' | 'direct' | 'update';
@@ -88,6 +93,12 @@ export function decide(interaction: Interaction, following: boolean, info: Chann
       return following || info.hasLast === true ? { do: 'board' } : say(STRINGS.notFollowing);
     case 'history':
       return interaction.community === undefined ? say(STRINGS.noServer) : { do: 'history', community: interaction.community };
+    case 'ranking': {
+      // As the history: a command without a server is refused before anything else, then the order word is read (spec 025 FR-571).
+      if (interaction.community === undefined) return say(STRINGS.noServer);
+      const order = orderOf(interaction.order);
+      return order === undefined ? say(STRINGS.unknownOrder) : { do: 'ranking', community: interaction.community, order };
+    }
     case 'predict':
       if (!following) return say(STRINGS.notFollowing);
       return interaction.faction === undefined || interaction.faction.trim() === '' ? { do: 'predict-open' } : { do: 'predict-text', text: interaction.faction };
@@ -149,6 +160,7 @@ export function deliveryOf(action: Action): Delivery {
     case 'stop':
     case 'board':
     case 'history':
+    case 'ranking':
       return 'public';
     case 'history-page':
       return 'update';

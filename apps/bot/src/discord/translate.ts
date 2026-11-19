@@ -4,6 +4,7 @@
 import type { BoardEntryView, HistoryWalkView, Interaction } from '../core/actions';
 import { fitEmbed, rowsOf, splitMessage } from '../core/limits';
 import type { ButtonSpec, EmbedSpec, OutMessage, Reply } from '../core/model';
+import { ORDER_WORDS } from '../core/ranking';
 import { STRINGS } from '../core/strings';
 import { communityKey } from '../io/community';
 
@@ -29,7 +30,7 @@ export function displayNameOf(source: { readonly nick?: string | null; readonly 
  * The core interaction of a slash command, from the subcommand name and its text options. The Discord server of the command comes in as
  * its id and goes no further: only its community key reaches the interaction (spec 024 FR-548); a command with no server has none.
  */
-export function fromCommand(sub: string, options: { readonly map?: string | null; readonly pace?: string | null; readonly faction?: string | null }, canManage: boolean, userId: string, guildId?: string | null): Interaction | undefined {
+export function fromCommand(sub: string, options: { readonly map?: string | null; readonly pace?: string | null; readonly faction?: string | null; readonly order?: string | null }, canManage: boolean, userId: string, guildId?: string | null): Interaction | undefined {
   const community = guildId === undefined || guildId === null || guildId === '' ? undefined : communityKey(guildId);
   switch (sub) {
     case 'create':
@@ -44,6 +45,8 @@ export function fromCommand(sub: string, options: { readonly map?: string | null
       return { type: 'predict', faction: options.faction ?? undefined };
     case 'history':
       return { type: 'history', community };
+    case 'ranking':
+      return { type: 'ranking', community, order: options.order ?? undefined };
     default:
       return undefined;
   }
@@ -179,6 +182,20 @@ export function commandDefinitions() {
           options: [{ type: text, name: STRINGS.optFaction, description: STRINGS.optFactionText, required: false, autocomplete: true }],
         },
         { type: sub, name: STRINGS.cmdHistory, description: STRINGS.cmdHistoryText },
+        {
+          type: sub,
+          name: STRINGS.cmdRanking,
+          description: STRINGS.cmdRankingText,
+          options: [
+            {
+              type: text,
+              name: STRINGS.optOrder,
+              description: STRINGS.optOrderText,
+              required: false,
+              choices: ORDER_WORDS.map(([word]) => ({ name: word, value: word })),
+            },
+          ],
+        },
       ],
     },
   ];

@@ -105,7 +105,7 @@ export function createShell(options: ShellOptions): Shell {
   async function interactionOf(i: DiscordInteraction): Promise<Interaction | undefined> {
     const canManage = (i.memberPermissions?.has(PermissionFlagsBits.ManageChannels) ?? false) === true;
     if (i.isChatInputCommand()) {
-      return fromCommand(i.options.getSubcommand(), { map: i.options.getString(STRINGS.optMap), pace: i.options.getString(STRINGS.optPace), faction: i.options.getString(STRINGS.optFaction) }, canManage, i.user.id, i.guildId);
+      return fromCommand(i.options.getSubcommand(), { map: i.options.getString(STRINGS.optMap), pace: i.options.getString(STRINGS.optPace), faction: i.options.getString(STRINGS.optFaction), order: i.options.getString(STRINGS.optOrder) }, canManage, i.user.id, i.guildId);
     }
     if (i.isAutocomplete()) {
       const focused = i.options.getFocused(true);
@@ -166,8 +166,8 @@ export function createShell(options: ShellOptions): Shell {
     const isPrivate = delivery === 'private';
     await i.deferReply(isPrivate ? { flags: EPHEMERAL } : {});
     const reply = await options.handle(action, who);
-    if (action.do === 'history' && reply.type === 'text') {
-      // The history is public, but "unavailable" is for the member alone (spec 024 FR-558): the privacy of a reply is fixed when it is deferred,
+    if ((action.do === 'history' || action.do === 'ranking') && reply.type === 'text') {
+      // The history and the ranking are public, but "unavailable" is for the member alone (spec 024 FR-558, spec 025 FR-571): the privacy of a reply is fixed when it is deferred,
       // so the deferred public reply is removed and the sentence follows as a private one.
       await i.deleteReply();
       const [sentence] = replyPayload(reply, true);

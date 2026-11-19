@@ -52,6 +52,14 @@ export const STRINGS = {
   historyExpired: 'Este historial caducó. Usa /mbrg history para verlo de nuevo.',
   historyUnavailable: 'El historial no está disponible ahora. Inténtalo más tarde.',
 
+  // Ranking of a Discord server (spec 025 FR-569 to FR-571): the order words of the command (also its choices) and the failures.
+  orderPoints: 'puntos',
+  orderCorrect: 'aciertos',
+  orderWins: 'victorias',
+  orderAccuracy: 'precisión',
+  unknownOrder: 'Ese orden no existe.',
+  rankingUnavailable: 'El ranking no está disponible ahora. Inténtalo más tarde.',
+
   // Embeds of the announcements (spec 017 FR-472, FR-473).
   embedOpenedTitle: 'Ronda {round} abierta',
   embedOpenedText: '¿Qué facción será eliminada? Pulsa Predecir.',
@@ -121,6 +129,10 @@ export const STRINGS = {
   cmdPredictText: 'Predice en la fase abierta',
   cmdHistory: 'history',
   cmdHistoryText: 'Muestra las partidas terminadas de este servidor',
+  cmdRanking: 'ranking',
+  cmdRankingText: 'Muestra el ranking de los miembros de este servidor',
+  optOrder: 'order',
+  optOrderText: 'Orden del ranking',
   optMap: 'map',
   optMapText: 'Mapa de la partida',
   optPace: 'pace',

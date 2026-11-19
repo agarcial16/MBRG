@@ -2,9 +2,10 @@
 // the Authorization header of a prediction and of a creation (spec 018 FR-505: the match is created client-only), and a host token
 // only in that of a start (NFR-89). Every reply is read by the
 // protocol's strict readers; anything unreadable is "the server is down" (no value is ever echoed into a message or a log).
-import { readErrorReply, readHistoryPage, readLeaderboardPage, readPredictionReply, readPublicConfig, readPublicMatch, readStateReply } from '@mbrg/protocol';
-import type { CreationBody, ErrorReply, HistoryPage, LeaderboardRow, PredictionKind, PredictionReply, PublicConfig, PublicMatch } from '@mbrg/protocol';
+import { readErrorReply, readHistoryPage, readLeaderboardPage, readPredictionReply, readPublicConfig, readPublicMatch, readRankingPage, readStateReply } from '@mbrg/protocol';
+import type { CreationBody, ErrorReply, HistoryPage, LeaderboardRow, PredictionKind, PredictionReply, PublicConfig, PublicMatch, RankingOrder, RankingPage } from '@mbrg/protocol';
 import { HISTORY_PAGE_SIZE } from '../core/history';
+import { RANKING_PAGE_SIZE } from '../core/ranking';
 import { livingCount, readCorrectPage, readCreated } from '../core/decode-results';
 import type { Created } from '../core/decode-results';
 import { readFactionNames } from '../core/names';
@@ -48,6 +49,11 @@ export interface ServerClient {
    * with the credential, so no path, query or access log holds them. One request: a refusal or an outage is the caller's to report, never retried.
    */
   history(request: { readonly community: string; readonly playerId: string; readonly cursor?: string }): Promise<Result<HistoryPage>>;
+  /**
+   * One page of the ranking of a community under an order (spec 025, 024 FR-573): the same transport rules as `history`: the key, the order,
+   * the asker's local id, the page size and the cursor go in the BODY with the credential; one request, never retried.
+   */
+  ranking(request: { readonly community: string; readonly order: RankingOrder; readonly playerId: string; readonly cursor?: string }): Promise<Result<RankingPage>>;
 }
 
 const DOWN: Failure = { type: 'down' };
@@ -120,6 +126,14 @@ export function createServerClient(options: ClientOptions): ServerClient {
         community: r.community,
         playerId: r.playerId,
         limit: HISTORY_PAGE_SIZE,
+        ...(r.cursor === undefined ? {} : { cursor: r.cursor }),
+      }),
+    ranking: (r) =>
+      call('POST', '/ranking', decoded(readRankingPage), options.credential, {
+        community: r.community,
+        order: r.order,
+        playerId: r.playerId,
+        limit: RANKING_PAGE_SIZE,
         ...(r.cursor === undefined ? {} : { cursor: r.cursor }),
       }),
     async leaderboard(matchId) {
