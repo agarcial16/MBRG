@@ -42,6 +42,8 @@ export function fromCommand(sub: string, options: { readonly map?: string | null
       return { type: 'board' };
     case 'predict':
       return { type: 'predict', faction: options.faction ?? undefined };
+    case 'history':
+      return { type: 'history', community };
     default:
       return undefined;
   }
@@ -176,6 +178,7 @@ export function commandDefinitions() {
           description: STRINGS.cmdPredictText,
           options: [{ type: text, name: STRINGS.optFaction, description: STRINGS.optFactionText, required: false, autocomplete: true }],
         },
+        { type: sub, name: STRINGS.cmdHistory, description: STRINGS.cmdHistoryText },
       ],
     },
   ];

@@ -28,6 +28,8 @@ export type Interaction =
   | { readonly type: 'stop'; readonly canManage: boolean }
   | { readonly type: 'board' }
   | { readonly type: 'predict'; readonly faction: string | undefined }
+  /** The history of the finished matches of this server (spec 024 FR-554); `community` as in `create` (none: no server, FR-557). */
+  | { readonly type: 'history'; readonly community: string | undefined }
   | { readonly type: 'button'; readonly customId: string; readonly canManage: boolean; readonly userId: string }
   | { readonly type: 'select'; readonly customId: string; readonly values: readonly string[] }
   | { readonly type: 'modal'; readonly customId: string; readonly text: string }
@@ -84,6 +86,8 @@ export function decide(interaction: Interaction, following: boolean, info: Chann
       return following ? { do: 'stop' } : say(STRINGS.notFollowing);
     case 'board':
       return following || info.hasLast === true ? { do: 'board' } : say(STRINGS.notFollowing);
+    case 'history':
+      return interaction.community === undefined ? say(STRINGS.noServer) : { do: 'history', community: interaction.community };
     case 'predict':
       if (!following) return say(STRINGS.notFollowing);
       return interaction.faction === undefined || interaction.faction.trim() === '' ? { do: 'predict-open' } : { do: 'predict-text', text: interaction.faction };

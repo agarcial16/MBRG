@@ -61,6 +61,27 @@ describe('NFR-118 the guild id never leaves the bot', () => {
   });
 });
 
+describe('FR-573 NFR-118 the bot logs closed codes and never a body', () => {
+  const logCalls = (text: string): string[] => text.split('\n').filter((line) => /\blog\(|console\./.test(line));
+
+  it('FR-573 NFR-118 every log call of the bot is a closed code written as a literal, and the server client logs nothing', () => {
+    for (const file of all) {
+      for (const line of logCalls(file.text)) {
+        // Either a call with a quoted code, the definition of the logger, or one of the fixed start-up messages of the operator console.
+        expect(line, `${file.path}: ${line}`).toMatch(/log\('[a-z-]+'\)|const log = |console\.(error|log)\((fill\(STRINGS\.\w+|STRINGS\.\w+)/);
+      }
+    }
+    expect(logCalls(all.find((f) => f.path === 'io/server-client.ts')!.text)).toEqual([]);
+  });
+
+  it('FR-573 the history request is built in one place: the key, the asker and the cursor go in the body, and the path is a constant', () => {
+    const client = all.find((f) => f.path === 'io/server-client.ts')!.text;
+    expect(client.match(/'\/history'/g)).toHaveLength(1);
+    expect(client).toMatch(/call\('POST', '\/history', decoded\(readHistoryPage\), options\.credential, \{/);
+    expect(client).not.toMatch(/\/history\$\{|\/history\?/);
+  });
+});
+
 describe('NFR-89 start-up', () => {
   it('NFR-89 the bot refuses to start naming the missing variable and echoes no secret', () => {
     const entry = join(SRC, 'main.ts');

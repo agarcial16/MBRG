@@ -69,6 +69,15 @@ describe('FR-452 who may start, stop and create', () => {
     }
   });
 
+  it('FR-554 FR-557 the history command is answered in public for a server, and refused with one sentence, sending nothing, without one', () => {
+    expect(decide({ type: 'history', community: KEY }, false)).toEqual({ do: 'history', community: KEY });
+    expect(decide({ type: 'history', community: KEY }, true)).toEqual({ do: 'history', community: KEY });
+    expect(deliveryOf({ do: 'history', community: KEY })).toBe('public');
+    const refused = decide({ type: 'history', community: undefined }, false);
+    expect(refused).toEqual({ do: 'say', text: 'Este comando solo funciona dentro de un servidor de Discord.' });
+    expect(deliveryOf(refused)).toBe('direct');
+  });
+
   it('FR-451 the pace stays inside the public bounds', () => {
     const config: PublicConfig = { maps: ['europe'], minInterval: 30, maxInterval: 3600, minPhase1: 10, minPhase2: 5, maxPlayers: 50, enabled: true };
     expect(paceTiming('fast', config)).toEqual({ i: 30, l1: 10, l2: 5 });

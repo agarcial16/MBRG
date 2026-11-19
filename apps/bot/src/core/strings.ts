@@ -119,6 +119,8 @@ export const STRINGS = {
   cmdBoardText: 'Muestra la clasificación',
   cmdPredict: 'predict',
   cmdPredictText: 'Predice en la fase abierta',
+  cmdHistory: 'history',
+  cmdHistoryText: 'Muestra las partidas terminadas de este servidor',
   optMap: 'map',
   optMapText: 'Mapa de la partida',
   optPace: 'pace',

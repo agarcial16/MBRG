@@ -166,6 +166,14 @@ export function createShell(options: ShellOptions): Shell {
     const isPrivate = delivery === 'private';
     await i.deferReply(isPrivate ? { flags: EPHEMERAL } : {});
     const reply = await options.handle(action, who);
+    if (action.do === 'history' && reply.type === 'text') {
+      // The history is public, but "unavailable" is for the member alone (spec 024 FR-558): the privacy of a reply is fixed when it is deferred,
+      // so the deferred public reply is removed and the sentence follows as a private one.
+      await i.deleteReply();
+      const [sentence] = replyPayload(reply, true);
+      await i.followUp(raw(sentence));
+      return;
+    }
     const [first, ...rest] = replyPayload(reply, isPrivate, await viewFor(channelId));
     const sent = await i.editReply(raw(first));
     // A public leaderboard that pages is remembered by its message id (FR-480, FR-481).
