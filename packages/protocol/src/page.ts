@@ -1,7 +1,7 @@
 import { errorReply } from './errors';
 import { isLocalId, isPlayerId } from './ids';
 import type { ReadResult } from './read';
-import { PREDICTION_KINDS, type PredictionKind } from './wire';
+import { PREDICTION_KINDS, RANKING_ORDERS, type PredictionKind } from './wire';
 
 /**
  * Paging of every list read (FR-279, P38, PD20). A page has 1 to 500 items (default 100); a page that is not the last
@@ -102,7 +102,7 @@ function isKeyOf(list: CursorList, parts: readonly unknown[]): boolean {
     }
     case 'ranking':
       return (
-        parts.length === 4 && isInt(parts[0], 0) && parts[0] <= 3 && isInt(parts[1], 0) &&
+        parts.length === 4 && isInt(parts[0], 0) && parts[0] <= RANKING_ORDERS.length - 1 && isInt(parts[1], 0) &&
         typeof parts[2] === 'string' && MATCH_ID.test(parts[2]) && isLocalId(parts[3])
       );
     default:
