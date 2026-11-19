@@ -4,10 +4,14 @@
 // record of an applied round, a pending state or a credential text (PD11, PD12).
 import type { MatchEvent, MatchSummary, PredictionKind, PublicState } from '@mbrg/protocol';
 import type { HistoryKey, HistoryMatch } from '../core/history';
+import type { RankingNameRow, RankingSourceRow } from '../core/ranking';
 import type { MemoScope } from '../core/memo';
 import type { StoredPrediction } from '../core/predictions';
 import type { PlayerTotals, ResultRow, ScorablePrediction } from '../core/scoring';
 import type { CoreMatch, StepRow } from '../core/view';
+
+// The ranking source rows live with the pure core that folds them (spec 025), as the history keys do (spec 024).
+export type { RankingNameRow, RankingSourceRow } from '../core/ranking';
 
 /**
  * Why a store could not be opened or used. `store-failure` and `database-locked` are storage failures (the service replies
@@ -113,24 +117,6 @@ export interface StoredPhaseResult {
 
 /** One player who guessed a scored phase right, as the winners list it: the player id and the name it joined with. */
 export interface StoredWinner {
-  readonly playerId: string;
-  readonly name: string;
-}
-
-/** One ranking source row (spec 025 FR-564): the aggregate of one player in one counted match, as the store reads it. */
-export interface RankingSourceRow {
-  readonly matchId: string;
-  readonly finishedAt: number;
-  readonly playerId: string;
-  readonly points: number;
-  readonly correct: number;
-  readonly scored: number;
-}
-
-/** One name a counted match stored (spec 025 FR-563): a source row of the shown-name rule. */
-export interface RankingNameRow {
-  readonly matchId: string;
-  readonly finishedAt: number;
   readonly playerId: string;
   readonly name: string;
 }
