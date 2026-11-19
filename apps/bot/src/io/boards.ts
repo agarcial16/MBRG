@@ -3,9 +3,10 @@
 // registry is empty, so an old button is answered as expired (edge cases of the specs). Time and timers are injected, so the tests run
 // without waiting.
 import { BOARD_TTL_MS } from '../core/board';
-import type { BoardEntryView, HistoryWalkView } from '../core/actions';
+import type { BoardEntryView, HistoryWalkView, RankingWalkView } from '../core/actions';
 import { HISTORY_TTL_MS } from '../core/history';
-import type { BoardTag, HistoryTag, OutMessage } from '../core/model';
+import type { BoardTag, HistoryTag, OutMessage, RankingTag } from '../core/model';
+import { RANKING_TTL_MS } from '../core/ranking';
 
 export interface BoardsOptions {
   readonly now: () => number;
@@ -23,6 +24,10 @@ export interface Boards {
   lookupHistory(messageId: string): HistoryWalkView | undefined;
   /** The page stack after a press; the expiry stays the one of the posting. A message no longer remembered is ignored. */
   updateHistory(messageId: string, pages: HistoryTag['pages']): void;
+  /** A ranking message that pages: its walk (asker, key, order, pages shown) lives here for 5 minutes (spec 025 FR-569). */
+  registerRanking(channelId: string, messageId: string, tag: RankingTag): void;
+  lookupRanking(messageId: string): RankingWalkView | undefined;
+  updateRanking(messageId: string, pages: RankingTag['pages']): void;
   /** Cancels every pending timer (shutdown). */
   stopAll(): void;
 }
@@ -36,6 +41,7 @@ export const afterMs = (ms: number, fn: () => void): (() => void) => {
 export function createBoards(options: BoardsOptions): Boards {
   const entries = new Map<string, { readonly view: BoardEntryView; readonly cancel: () => void }>();
   const walks = new Map<string, { view: HistoryWalkView; readonly cancel: () => void }>();
+  const rankingWalks = new Map<string, { view: RankingWalkView; readonly cancel: () => void }>();
   const expire = (channelId: string, messageId: string, forget: () => void): void => {
     forget();
     options.disable(channelId, messageId).catch(() => {
@@ -61,11 +67,24 @@ export function createBoards(options: BoardsOptions): Boards {
       const known = walks.get(messageId);
       if (known !== undefined) known.view = { ...known.view, pages };
     },
+    registerRanking(channelId, messageId, tag) {
+      rankingWalks.get(messageId)?.cancel();
+      const view: RankingWalkView = { askerId: tag.askerId, community: tag.community, order: tag.order, pages: tag.pages, expiresAt: options.now() + RANKING_TTL_MS };
+      const cancel = options.after(RANKING_TTL_MS, () => expire(channelId, messageId, () => rankingWalks.delete(messageId)));
+      rankingWalks.set(messageId, { view, cancel });
+    },
+    lookupRanking: (messageId) => rankingWalks.get(messageId)?.view,
+    updateRanking(messageId, pages) {
+      const known = rankingWalks.get(messageId);
+      if (known !== undefined) known.view = { ...known.view, pages };
+    },
     stopAll() {
       for (const { cancel } of entries.values()) cancel();
       for (const { cancel } of walks.values()) cancel();
+      for (const { cancel } of rankingWalks.values()) cancel();
       entries.clear();
       walks.clear();
+      rankingWalks.clear();
     },
   };
 }
@@ -75,9 +94,11 @@ export function registerSent(boards: Boards, channelId: string, messageId: strin
   if (messageId === undefined) return;
   if (message?.board !== undefined) boards.register(channelId, messageId, message.board);
   if (message?.history !== undefined) boards.registerHistory(channelId, messageId, message.history);
+  if (message?.ranking !== undefined) boards.registerRanking(channelId, messageId, message.ranking);
 }
 
 /** After the shell edited a history message in place: its stack of pages is the one of the new message. */
 export function updateSent(boards: Boards, messageId: string, message: OutMessage | undefined): void {
   if (message?.history !== undefined) boards.updateHistory(messageId, message.history.pages);
+  if (message?.ranking !== undefined) boards.updateRanking(messageId, message.ranking.pages);
 }

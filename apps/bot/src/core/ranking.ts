@@ -4,12 +4,15 @@
 // live in the strings module (PD4): the wire takes the enum, only the bot speaks Spanish.
 import type { RankingOrder, RankingPage, RankingRow } from '@mbrg/protocol';
 import { clampPage } from './board';
-import type { OutMessage, Reply } from './model';
+import { rankingId } from './custom-ids';
+import type { ButtonSpec, OutMessage, RankingTag, Reply } from './model';
 import { mentionOf, userIdOf } from './results';
 import { STRINGS, fill } from './strings';
 
 /** A ranking page holds 10 rows (NFR-125). */
 export const RANKING_PAGE_SIZE = 10;
+/** A ranking message pages for 5 minutes after it was posted (FR-569), as a history's. */
+export const RANKING_TTL_MS = 5 * 60 * 1000;
 const COLOR = 0xe67e22;
 
 /** The order words, in the order the command offers them, each with the wire order it asks for. */
@@ -122,4 +125,20 @@ export function rankingEmbed(page: RankingPage, order: RankingOrder, ctx: Rankin
     buttons: [],
     embed: { color: COLOR, title, description: lines.join('\n'), fields: own === undefined ? [] : [{ name: STRINGS.boardOwnField, value: own }], footer },
   };
+}
+
+const buttonsOf = (page: number, pages: number): ButtonSpec[] => [
+  { type: 'custom', customId: rankingId('p', Math.max(1, page - 1)), label: STRINGS.boardPrev, style: 'primary', ...(page <= 1 ? { disabled: true } : {}) },
+  { type: 'custom', customId: rankingId('n', Math.min(pages, page + 1)), label: STRINGS.boardNext, style: 'primary', ...(page >= pages ? { disabled: true } : {}) },
+];
+
+/**
+ * The ranking message of a page: the embed with Previous and Next (disabled on the first and the last page, as the history's) and, when
+ * there is more than one page, the walk the shell remembers to page it (FR-569). An empty ranking is the one sentence alone (FR-570).
+ */
+export function rankingMessage(page: RankingPage, order: RankingOrder, ctx: RankingContext, walk: RankingTag): OutMessage {
+  const view = rankingEmbed(page, order, ctx);
+  if (page.items.length === 0) return view;
+  const pages = rankingPageCount(page.total);
+  return { ...view, buttons: buttonsOf(clampPage(ctx.page, pages), pages), ...(pages > 1 ? { ranking: walk } : {}) };
 }

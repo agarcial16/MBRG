@@ -59,6 +59,8 @@ export const STRINGS = {
   orderAccuracy: 'precisión',
   unknownOrder: 'Ese orden no existe.',
   rankingUnavailable: 'El ranking no está disponible ahora. Inténtalo más tarde.',
+  rankingNotYours: 'Solo quien pidió el ranking puede cambiar de página. Usa /mbrg ranking para ver el tuyo.',
+  rankingExpired: 'Este ranking caducó. Usa /mbrg ranking para verlo de nuevo.',
   rankingEmpty: 'Este servidor todavía no tiene ranking.',
   rankingTitle: 'Ranking del servidor',
   rankingRow: '{rank} {who} - {stats}',

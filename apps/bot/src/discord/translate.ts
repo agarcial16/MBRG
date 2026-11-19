@@ -1,7 +1,7 @@
 // The translation between Discord's shapes and the core's (spec 012 NFR-90). Pure functions over plain values: the thin shell
 // reads the discord.js objects, calls these and sends what they return. Nothing here imports the Discord library; the payloads
 // are the raw API shapes (numeric component and button types) that the library sends as they are.
-import type { BoardEntryView, HistoryWalkView, Interaction } from '../core/actions';
+import type { BoardEntryView, HistoryWalkView, Interaction, RankingWalkView } from '../core/actions';
 import { fitEmbed, rowsOf, splitMessage } from '../core/limits';
 import type { ButtonSpec, EmbedSpec, OutMessage, Reply } from '../core/model';
 import { ORDER_WORDS } from '../core/ranking';
@@ -57,6 +57,8 @@ export const fromButton = (customId: string, canManage: boolean, userId: string)
 export const fromBoardButton = (customId: string, userId: string, entry: BoardEntryView | undefined, now: number): Interaction => ({ type: 'board-press', customId, userId, entry, now });
 /** A press on a history button: the shell adds what it knows of the message (spec 024 FR-555). */
 export const fromHistoryButton = (customId: string, userId: string, entry: HistoryWalkView | undefined, now: number): Interaction => ({ type: 'history-press', customId, userId, entry, now });
+/** A press on a ranking button: the shell adds what it knows of the message (spec 025 FR-569). */
+export const fromRankingButton = (customId: string, userId: string, entry: RankingWalkView | undefined, now: number): Interaction => ({ type: 'ranking-press', customId, userId, entry, now });
 export const fromSelect = (customId: string, values: readonly string[]): Interaction => ({ type: 'select', customId, values });
 export const fromModal = (customId: string, text: string): Interaction => ({ type: 'modal', customId, text });
 export const fromAutocomplete = (focused: string, text: string): Interaction | undefined =>

@@ -1,7 +1,7 @@
 // From a press, a window or a command to the action to run (spec 012 FR-451, FR-452, FR-454, FR-457, FR-458, NFR-90). Pure: the
 // Discord shell turns a Discord interaction into an `Interaction` and runs the `Action` this gives. Who may manage the channel
 // arrives as a plain flag (the shell reads the permission); the user id decides only who may start (FR-464), else it goes to the server.
-import type { HistoryPage, RankingOrder } from '@mbrg/protocol';
+import type { HistoryPage, RankingOrder, RankingPage } from '@mbrg/protocol';
 import { parseCustomId } from './custom-ids';
 import type { Pace, PhaseKind } from './model';
 import { isPace } from './paces';
@@ -23,6 +23,15 @@ export interface HistoryWalkView {
   readonly pages: readonly HistoryPage[];
 }
 
+/** What the shell knows of a ranking message a press came from (spec 025 FR-569): its asker, key, order, the pages shown so far and when it stops paging. */
+export interface RankingWalkView {
+  readonly askerId: string;
+  readonly community: string;
+  readonly order: RankingOrder;
+  readonly expiresAt: number;
+  readonly pages: readonly RankingPage[];
+}
+
 export type Interaction =
   | { readonly type: 'create'; readonly canManage: boolean; readonly map: string; readonly pace: string | undefined; /** The community key of the server (spec 024 FR-548); none: the interaction came without a server (FR-557). */ readonly community: string | undefined }
   | { readonly type: 'start'; readonly canManage: boolean; readonly userId: string }
@@ -38,7 +47,8 @@ export type Interaction =
   | { readonly type: 'modal'; readonly customId: string; readonly text: string }
   | { readonly type: 'autocomplete'; readonly option: 'map' | 'faction'; readonly text: string }
   | { readonly type: 'board-press'; readonly customId: string; readonly userId: string; readonly entry: BoardEntryView | undefined; readonly now: number }
-  | { readonly type: 'history-press'; readonly customId: string; readonly userId: string; readonly entry: HistoryWalkView | undefined; readonly now: number };
+  | { readonly type: 'history-press'; readonly customId: string; readonly userId: string; readonly entry: HistoryWalkView | undefined; readonly now: number }
+  | { readonly type: 'ranking-press'; readonly customId: string; readonly userId: string; readonly entry: RankingWalkView | undefined; readonly now: number };
 
 export type Action =
   | { readonly do: 'say'; readonly text: string }
@@ -55,7 +65,9 @@ export type Action =
   /** A page of a history message, in place: from the pages already shown (no `cursor`), or the next page of the walk by its cursor (spec 024 FR-555). */
   | { readonly do: 'history-page'; readonly community: string; readonly page: number; readonly pages: readonly HistoryPage[]; readonly cursor?: string }
   /** The first page of the ranking of the asker's community under an order, as a public reply (spec 025 FR-569). */
-  | { readonly do: 'ranking'; readonly community: string; readonly order: RankingOrder };
+  | { readonly do: 'ranking'; readonly community: string; readonly order: RankingOrder }
+  /** A page of a ranking message, in place: from the pages already shown (no `cursor`), or the next page of the walk by its cursor (spec 025 FR-569, as `history-page`). */
+  | { readonly do: 'ranking-page'; readonly community: string; readonly order: RankingOrder; readonly page: number; readonly pages: readonly RankingPage[]; readonly cursor?: string };
 
 /** How the answer is sent: deferred at once (the work may take longer than Discord's three seconds) as public or private, direct, or as the edit of the message pressed (`update`). */
 export type Delivery = 'public' | 'private' | 'direct' | 'update';
@@ -147,6 +159,18 @@ export function decide(interaction: Interaction, following: boolean, info: Chann
       const cursor = id.page === walk.pages.length + 1 ? walk.pages[walk.pages.length - 1]?.next : undefined;
       return cursor === undefined ? say(STRINGS.errUnexpected) : { ...base, cursor };
     }
+    case 'ranking-press': {
+      const id = parseCustomId(interaction.customId);
+      if (id?.type !== 'ranking') return say(STRINGS.errUnexpected);
+      const walk = interaction.entry;
+      // The message is unknown (the bot restarted) or past its five minutes: nothing is served, whoever presses (spec 025 FR-569, as the history's).
+      if (walk === undefined || interaction.now >= walk.expiresAt) return say(STRINGS.rankingExpired);
+      if (walk.askerId !== interaction.userId) return say(STRINGS.rankingNotYours);
+      const base = { do: 'ranking-page' as const, community: walk.community, order: walk.order, page: id.page, pages: walk.pages };
+      if (id.page <= walk.pages.length) return base;
+      const cursor = id.page === walk.pages.length + 1 ? walk.pages[walk.pages.length - 1]?.next : undefined;
+      return cursor === undefined ? say(STRINGS.errUnexpected) : { ...base, cursor };
+    }
   }
 }
 
@@ -163,6 +187,7 @@ export function deliveryOf(action: Action): Delivery {
     case 'ranking':
       return 'public';
     case 'history-page':
+    case 'ranking-page':
       return 'update';
     case 'board-page':
       return action.mode === 'new-private' ? 'private' : 'update';
