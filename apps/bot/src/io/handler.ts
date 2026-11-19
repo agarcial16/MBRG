@@ -35,12 +35,13 @@ export interface Who {
 
 const text = (value: string): Reply => ({ type: 'text', text: value });
 /**
- * The reply to a failure. For a creation (`creating`), a server that does not know `joinPolicy` (an older one: `invalid-request` naming
- * it) is "the server is unavailable": the bot never retries as an open match (spec 018 FR-505).
+ * The reply to a failure. For a creation (`creating`), a server that does not know `joinPolicy` or `community` (an older one:
+ * `invalid-request` naming it) is "the server is unavailable": the bot never retries as an open match (spec 018 FR-505) nor without the
+ * community key (spec 024 PD6).
  */
 const failed = (failure: Failure, creating = false): Reply => {
   if (failure.type === 'down') return text(STRINGS.serverDown);
-  if (creating && failure.error.kind === 'invalid-request' && failure.error.items?.includes('joinPolicy') === true) return text(STRINGS.serverDown);
+  if (creating && failure.error.kind === 'invalid-request' && (failure.error.items?.includes('joinPolicy') === true || failure.error.items?.includes('community') === true)) return text(STRINGS.serverDown);
   return text(errorSentence(failure.error));
 };
 
@@ -65,7 +66,7 @@ export function createHandler(options: HandlerOptions): (action: Action, who: Wh
         if (!config.ok) return failed(config.failure);
         if (!config.value.enabled) return text(STRINGS.createDisabled);
         if (!config.value.maps.includes(action.mapId)) return text(STRINGS.unknownMap);
-        const made = await client.create({ mapId: action.mapId, timing: paceTiming(action.pace, config.value), requestId: options.newRequestId() });
+        const made = await client.create({ mapId: action.mapId, timing: paceTiming(action.pace, config.value), requestId: options.newRequestId(), community: action.community });
         if (!made.ok) return failed(made.failure, true);
         // Two creations at once in one channel: the second finds the channel taken and creates nothing more.
         if (store.get(who.channelId) !== undefined) return text(STRINGS.alreadyFollowing);

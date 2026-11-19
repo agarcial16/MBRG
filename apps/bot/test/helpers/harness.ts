@@ -19,6 +19,12 @@ import type { StateStore } from '../../src/io/state-file';
 import { CREDENTIAL } from './fake-server';
 
 export const CHANNEL = '777000111222333444';
+/** Planted Discord server ids (spec 024): the raw id must appear in no request, log line or file; only the key does. */
+export const GUILD_A = '741852963074185296';
+export const GUILD_B = '852963074185296307';
+/** The community keys of the planted servers, pinned (SHA-256 of the id text, lowercase hex). */
+export const KEY_A = '6e64010f7e44b49bdd7d8caa2152bc776324a84df33bc52ea513355b2892972f';
+export const KEY_B = 'c60c89d871677dd49aa9904a405cdc20431122f08ffd42689563c9b627270ba6';
 export const MANAGER: Who = { channelId: CHANNEL, userId: '900000000000000001' };
 
 export interface Posted {
@@ -190,4 +196,4 @@ export function boot(server: { readonly url: string }, statePath: string, option
   return bot;
 }
 
-export const manager = (over: Partial<Extract<Interaction, { type: 'create' }>> = {}): Interaction => ({ type: 'create', canManage: true, map: 'europe', pace: 'normal', ...over });
+export const manager = (over: Partial<Extract<Interaction, { type: 'create' }>> = {}): Interaction => ({ type: 'create', canManage: true, map: 'europe', pace: 'normal', community: KEY_A, ...over });

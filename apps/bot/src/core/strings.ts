@@ -67,6 +67,7 @@ export const STRINGS = {
   createDisabled: 'La creación de partidas públicas no está activa.',
   unknownMap: 'Ese mapa no está disponible.',
   unknownPace: 'Ese ritmo no existe.',
+  noServer: 'Este comando solo funciona dentro de un servidor de Discord.',
   started: 'Partida iniciada.',
   stopped: 'Este canal deja de seguir la partida. La partida continúa en el servidor.',
   chosen: 'Elegido: {name}.',

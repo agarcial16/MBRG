@@ -3,11 +3,13 @@ import { PREDICT_ID, START_ID, pickId } from '../src/core/custom-ids';
 import type { ButtonSpec } from '../src/core/model';
 import { EPHEMERAL, commandDefinitions, componentsOf, embedPayload, fromAutocomplete, fromBoardButton, fromButton, fromCommand, fromModal, fromSelect, messagePayload, modalPayload, replyPayload, withButtonsDisabled } from '../src/discord/translate';
 import type { OutMessage } from '../src/core/model';
+import { communityKey } from '../src/io/community';
+import { GUILD_A, GUILD_B, KEY_A, KEY_B } from './helpers/harness';
 
 describe('NFR-90 translation of Discord shapes', () => {
   it('NFR-90 a slash command becomes a core interaction with the manager flag and its text options', () => {
-    expect(fromCommand('create', { map: 'europe', pace: 'fast' }, true, '42')).toEqual({ type: 'create', canManage: true, map: 'europe', pace: 'fast' });
-    expect(fromCommand('create', { map: 'europe' }, false, '42')).toEqual({ type: 'create', canManage: false, map: 'europe', pace: undefined });
+    expect(fromCommand('create', { map: 'europe', pace: 'fast' }, true, '42', GUILD_A)).toEqual({ type: 'create', canManage: true, map: 'europe', pace: 'fast', community: KEY_A });
+    expect(fromCommand('create', { map: 'europe' }, false, '42', GUILD_A)).toEqual({ type: 'create', canManage: false, map: 'europe', pace: undefined, community: KEY_A });
     expect(fromCommand('start', {}, true, '42')).toEqual({ type: 'start', canManage: true, userId: '42' });
     expect(fromCommand('stop', {}, false, '42')).toEqual({ type: 'stop', canManage: false });
     expect(fromCommand('board', {}, false, '42')).toEqual({ type: 'board' });
@@ -23,6 +25,32 @@ describe('NFR-90 translation of Discord shapes', () => {
     expect(fromAutocomplete('map', 'eu')).toEqual({ type: 'autocomplete', option: 'map', text: 'eu' });
     expect(fromAutocomplete('faction', 'x')).toEqual({ type: 'autocomplete', option: 'faction', text: 'x' });
     expect(fromAutocomplete('other', 'x')).toBeUndefined();
+  });
+});
+
+describe('FR-548 the community key', () => {
+  it('FR-548 the key is the lowercase hexadecimal SHA-256 of the guild id text: a pinned vector, stable, one per server', () => {
+    // Independent vector: sha256 of the ASCII text "123456789012345678" (computed outside the code under test).
+    expect(communityKey('123456789012345678')).toBe('37f96542b663971bfdf6b7785174b7255d9aa320fa3455a5b4fa7b079427cf97');
+    expect(communityKey(GUILD_A)).toBe(KEY_A);
+    expect(communityKey(GUILD_B)).toBe(KEY_B);
+    expect(communityKey(GUILD_A)).toBe(communityKey(GUILD_A));
+    for (const key of [KEY_A, KEY_B]) expect(key).toMatch(/^[0-9a-f]{64}$/);
+    expect(KEY_A).not.toBe(KEY_B);
+  });
+
+  it('FR-548 NFR-118 the interaction holds the key and never the raw guild id; a command with no guild has no key', () => {
+    for (const sub of ['create', 'start', 'stop', 'board', 'predict']) {
+      const interaction = fromCommand(sub, { map: 'europe', pace: 'fast', faction: 'fra' }, true, '42', GUILD_A);
+      expect(JSON.stringify(interaction), sub).not.toContain(GUILD_A);
+    }
+    expect(JSON.stringify(fromCommand('create', { map: 'europe' }, true, '42', GUILD_A))).toContain(KEY_A);
+    expect(fromCommand('create', { map: 'europe' }, true, '42', null)).toEqual({ type: 'create', canManage: true, map: 'europe', pace: undefined, community: undefined });
+    expect(fromCommand('create', { map: 'europe' }, true, '42')).toMatchObject({ community: undefined });
+  });
+
+  it('FR-557 the registered command stays unavailable in direct messages', () => {
+    expect(commandDefinitions().every((c) => c.dm_permission === false)).toBe(true);
   });
 });
 

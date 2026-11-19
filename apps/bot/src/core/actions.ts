@@ -14,7 +14,7 @@ export interface BoardEntryView {
 }
 
 export type Interaction =
-  | { readonly type: 'create'; readonly canManage: boolean; readonly map: string; readonly pace: string | undefined }
+  | { readonly type: 'create'; readonly canManage: boolean; readonly map: string; readonly pace: string | undefined; /** The community key of the server (spec 024 FR-548); none: the interaction came without a server (FR-557). */ readonly community: string | undefined }
   | { readonly type: 'start'; readonly canManage: boolean; readonly userId: string }
   | { readonly type: 'stop'; readonly canManage: boolean }
   | { readonly type: 'board' }
@@ -27,7 +27,7 @@ export type Interaction =
 
 export type Action =
   | { readonly do: 'say'; readonly text: string }
-  | { readonly do: 'create'; readonly mapId: string; readonly pace: Pace }
+  | { readonly do: 'create'; readonly mapId: string; readonly pace: Pace; readonly community: string }
   | { readonly do: 'start' | 'stop' | 'board' | 'predict-open' }
   | { readonly do: 'predict-text'; readonly text: string }
   | { readonly do: 'choose'; readonly kind: PhaseKind; readonly round: number; readonly faction: number }
@@ -54,11 +54,13 @@ const mayStart = (userId: string, canManage: boolean, info: ChannelInfo): boolea
 export function decide(interaction: Interaction, following: boolean, info: ChannelInfo = {}): Action {
   switch (interaction.type) {
     case 'create': {
+      // A command without a server is refused before anything else and sends nothing (spec 024 FR-557).
+      if (interaction.community === undefined) return say(STRINGS.noServer);
       if (!interaction.canManage) return say(STRINGS.noPermission);
       if (following) return say(STRINGS.alreadyFollowing);
       const pace = interaction.pace ?? 'normal';
       if (!isPace(pace)) return say(STRINGS.unknownPace);
-      return { do: 'create', mapId: interaction.map, pace };
+      return { do: 'create', mapId: interaction.map, pace, community: interaction.community };
     }
     case 'start':
       if (!following) return say(STRINGS.notFollowing);

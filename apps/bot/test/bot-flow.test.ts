@@ -6,7 +6,7 @@ import { STRINGS } from '../src/core/strings';
 import { loadState } from '../src/io/state-file';
 import { CREDENTIAL, FUTURE_SECRET, HOST_TOKEN, MATCH_ID, MATCH_SECRET, SCHEDULE, baseMatch, startFake } from './helpers/fake-server';
 import type { Fake } from './helpers/fake-server';
-import { CHANNEL, MANAGER, boot, manager, tempState, waitFor } from './helpers/harness';
+import { CHANNEL, KEY_A, MANAGER, boot, manager, tempState, waitFor } from './helpers/harness';
 import type { Bot, Posted } from './helpers/harness';
 import { FULL_JOURNEY, TEXTS, WRONG_GUESSER, applyRound1, finishRound2, revealRound1, revealRound2Forced } from './helpers/journey';
 
@@ -57,7 +57,7 @@ describe('FR-451 create', () => {
     expect(reply.messages[0]?.buttons).toEqual([{ type: 'custom', customId: START_ID, label: 'Iniciar', style: 'success' }]);
     const creation = fake.requests.find((r) => r.method === 'POST' && r.path === '/matches');
     expect(creation?.bearer).toBe(CREDENTIAL);
-    expect(creation?.body).toEqual({ mapId: 'europe', timing: { i: 30, l1: 10, l2: 5 }, requestId: 'request-1', joinPolicy: 'client' });
+    expect(creation?.body).toEqual({ mapId: 'europe', timing: { i: 30, l1: 10, l2: 5 }, requestId: 'request-1', joinPolicy: 'client', community: KEY_A });
     expect(bot.store.get(CHANNEL)).toMatchObject({ matchId: MATCH_ID, mapId: 'europe', hostToken: HOST_TOKEN, lastSeq: 1 });
     await waitFor(() => fake.streamCount() === 1);
     expect(fake.requests.find((r) => r.path.endsWith('/events'))?.lastEventId).toBe('1');

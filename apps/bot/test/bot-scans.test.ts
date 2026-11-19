@@ -43,6 +43,24 @@ describe('NFR-90 the core is pure', () => {
   });
 });
 
+describe('NFR-118 the guild id never leaves the bot', () => {
+  const guildLines = (text: string): string[] => text.split('\n').filter((line) => /guild/i.test(line.replace(/GatewayIntentBits\.Guilds/g, '')));
+
+  it('NFR-118 only the shell, the translation and the key module name a guild, and no line that does logs, replies, sends or builds a request', () => {
+    const named = all.filter((f) => guildLines(f.text).length > 0);
+    expect(named.map((f) => f.path).sort()).toEqual(['discord/shell.ts', 'discord/translate.ts', 'io/community.ts']);
+    for (const file of named) {
+      for (const line of guildLines(file.text)) expect(line, `${file.path}: ${line}`).not.toMatch(/log\(|console\.|reply\(|send\(|fetch\(|JSON\.stringify/);
+    }
+  });
+
+  it('NFR-118 the shell reads the guild id once, to hand it to the translation, and the core never sees it', () => {
+    const shell = all.find((f) => f.path === 'discord/shell.ts')!.text;
+    expect(shell.match(/guildId/g)).toHaveLength(1);
+    for (const file of core) expect(/guild/i.test(file.text), file.path).toBe(false);
+  });
+});
+
 describe('NFR-89 start-up', () => {
   it('NFR-89 the bot refuses to start naming the missing variable and echoes no secret', () => {
     const entry = join(SRC, 'main.ts');

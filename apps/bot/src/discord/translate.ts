@@ -5,6 +5,7 @@ import type { BoardEntryView, Interaction } from '../core/actions';
 import { fitEmbed, rowsOf, splitMessage } from '../core/limits';
 import type { ButtonSpec, EmbedSpec, OutMessage, Reply } from '../core/model';
 import { STRINGS } from '../core/strings';
+import { communityKey } from '../io/community';
 
 const ACTION_ROW = 1;
 const BUTTON = 2;
@@ -24,11 +25,15 @@ export function displayNameOf(source: { readonly nick?: string | null; readonly 
   return undefined;
 }
 
-/** The core interaction of a slash command, from the subcommand name and its text options. */
-export function fromCommand(sub: string, options: { readonly map?: string | null; readonly pace?: string | null; readonly faction?: string | null }, canManage: boolean, userId: string): Interaction | undefined {
+/**
+ * The core interaction of a slash command, from the subcommand name and its text options. The Discord server of the command comes in as
+ * its id and goes no further: only its community key reaches the interaction (spec 024 FR-548); a command with no server has none.
+ */
+export function fromCommand(sub: string, options: { readonly map?: string | null; readonly pace?: string | null; readonly faction?: string | null }, canManage: boolean, userId: string, guildId?: string | null): Interaction | undefined {
+  const community = guildId === undefined || guildId === null || guildId === '' ? undefined : communityKey(guildId);
   switch (sub) {
     case 'create':
-      return { type: 'create', canManage, map: options.map ?? '', pace: options.pace ?? undefined };
+      return { type: 'create', canManage, map: options.map ?? '', pace: options.pace ?? undefined, community };
     case 'start':
       return { type: 'start', canManage, userId };
     case 'stop':
