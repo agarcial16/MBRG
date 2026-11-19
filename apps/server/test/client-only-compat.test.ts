@@ -30,7 +30,7 @@ describe('spec 018 leaves the existing wire and the simulation as they were', ()
     for (const [name, sha] of Object.entries(PINS.files)) expect(hashOf(name), name).toBe(sha);
   });
 
-  it('NFR-102 the production route table is the 19 routes of spec 014 and `POST /history` (spec 024): spec 018 adds no route', async () => {
+  it('NFR-102 the production route table is the 19 routes of spec 014, `POST /history` (spec 024) and `POST /ranking` (spec 025): spec 018 adds no route', async () => {
     let table: readonly Route[] = [];
     await startServer({
       routes: (service, settings) => {
@@ -38,7 +38,7 @@ describe('spec 018 leaves the existing wire and the simulation as they were', ()
         return table;
       },
     });
-    expect(table).toHaveLength(20);
+    expect(table).toHaveLength(21);
     expect(table.map((r) => `${r.method} ${r.path}`)).toContain('GET /config');
   });
 });

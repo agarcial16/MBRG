@@ -1,10 +1,10 @@
-### M2 — Service, route and proofs (1 / 4)
+### M2 — Service, route and proofs (2 / 4)
 Plan sections 1, 2, 4 (PD2). Depends on M1.
 
 - [x] **T2.1. Service ranking read.** FR-564 (service part), FR-565 (walk part), FR-567 (service part), NFR-125 (statement-count pin)
   - Files: `apps/server/src/service/matches.ts`, service tests.
   - Done when: `ranking(request)` reads the two store statements bounded by the head of the cursor (a first page takes its head from the newest counted match), builds the statistics, ranks, pages and counts through the core; no write, no memoisation; a storage failure is `unavailable`; the service rechecks the community key and the local id (defence in depth, as the other reads); a counting store wrapper pins the statement count equal with 10 and with 1,000 counted matches.
-- [ ] **T2.2. Route `POST /ranking`.** FR-563, FR-565, FR-566, FR-567, FR-568
+- [x] **T2.2. Route `POST /ranking`.** FR-563, FR-565, FR-566, FR-567, FR-568
   - Files: `apps/server/src/http/server.ts`, new `apps/server/test/http-ranking.test.ts`, `test/helpers/` (a ranking kit beside the history kit).
   - Done when (real server): a client credential reads pages of 10 with `total`, every row and the asker checked against the matches' public leaderboards (oracle by another route), in every order; a walk across a match that finishes in between keeps its pages and `total`, never repeats or skips; anonymous, player and operator callers get the `forbidden` bytes (the same bytes as another forbidden reply); another namespace, an unknown key and a cross-namespace cursor get `{ items: [], total: 0 }` (same bytes); a request with any query text is `invalid-request` and nothing in a query is read; nothing is stored or memoised (closed-file dump equal); the request log lines and replies contain no key (log scan); public reads without the key still work; an encoder refusal is a 500.
 - [ ] **T2.3. Twins: secrecy and isolation.** NFR-123, NFR-124 (twin part), FR-568 (secrecy part)
