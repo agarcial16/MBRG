@@ -9,7 +9,7 @@ import { CHILD_OPERATOR, baseEnv, eventsOf, withMain } from './helpers/main-chil
 // own file; it works as that scan does, with a real child process and its stdout and stderr.
 
 describe('NFR-118 (logs) the log scan of the history', () => {
-  it('NFR-118 (logs) a production process serving the history logs and prints neither the community key nor the asker id, and no reply echoes them', async () => {
+  it('NFR-118 (logs, part: server process) a production process serving the history logs and prints neither the community key nor the asker id, and no reply echoes them', async () => {
     const CLIENT = 'child-client-credential-abcdef0123456789';
     const KEY = '5b4a9cc0ae55c9e5b4a9cc0ae55c9e5b4a9cc0ae55c9e5b4a9cc0ae55c9e5b4a';
     const ASKER = 'asker-planted-31337';

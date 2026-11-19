@@ -16,7 +16,7 @@ const source = (file: string): string => readFileSync(file, 'utf8');
 const READS = /\b(FROM|JOIN)\s+communities\b/g;
 
 describe('NFR-118 (source scan) the community storage is read only by the history reads', () => {
-  it('NFR-118 the table is named only by the schema and the sqlite store, and its reads are the two history statements and the duplicate check of the insert', () => {
+  it('NFR-118 (part: server storage) the table is named only by the schema and the sqlite store, and its reads are the two history statements and the duplicate check of the insert', () => {
     const naming = files(SRC).filter((f) => /\bcommunities\b/.test(source(f))).map(rel).sort();
     expect(naming).toStrictEqual(['store/schema.ts', 'store/sqlite.ts']);
     const sqlite = source(join(SRC, 'store', 'sqlite.ts'));
@@ -30,7 +30,7 @@ describe('NFR-118 (source scan) the community storage is read only by the histor
     for (const [name, sql] of Object.entries(READ_SQL)) if (name !== 'historyAfter' && name !== 'historyCount') expect(sql, name).not.toMatch(/communit/i);
   });
 
-  it('NFR-118 only the history method of the service calls the history reads, and the files that mention a community are the pinned ones', () => {
+  it('NFR-118 (part: server) only the history method of the service calls the history reads, and the files that mention a community are the pinned ones', () => {
     const callers = files(SRC).filter((f) => /\.(historyAfter|historyCount)\(/.test(source(f))).map(rel).sort();
     // The service is the one caller; the fault seam only passes the two reads through.
     expect(callers).toStrictEqual(['service/matches.ts', 'store/faults.ts']);

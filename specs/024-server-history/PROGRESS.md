@@ -93,3 +93,12 @@
 - Tests run: full `npm test`: 391 files passed, 1 failed (`lobby-secrecy.test.ts`, because I had edited the pinned `server-log-scan.test.ts`; reverted, the file passes: 8 passed with the new log scan); the rest 5,821 passed, 6 skipped. `npm run typecheck` clean. Protected-path diff vs `main` empty.
 - Untested here: the embed limits, the bot (M3).
 - Next: strong-tier reviewer for M2 (secrecy, persistence), then M3 (bot: `/historial`, embed, DM rule, command registration). Branch `feat/024-server-history`, state: M2 5 / 5 (done, not reviewed).
+
+## M2 review fixes (Opus re-check of c67ada4)
+- Flaky: the four tests of `history-isolation.test.ts` had the 5 s default timeout and two timed out under the full suite; they now have 120 s like the other history files.
+- Ledger and tasks agree: FR-545 (bot part, T3.1), FR-573 (bot part, T3.4) and NFR-118 (bot part: no raw guild id leaves the bot, T3.1) are back in `PENDING_024` (now FR-545, FR-548, FR-554 to FR-559, FR-562, FR-573, NFR-118, NFR-121, NFR-122); `DONE_024` keeps FR-546, FR-560, FR-547, FR-549 to FR-553, FR-561, NFR-117, NFR-119, NFR-120. The NFR-118 server titles now say `(part: server ...)`.
+- Secrecy twin: the unfinished matches use planted names (`Planted-Run-...`) that no finished match holds, and every compared reply is also checked to hold none of them.
+- Nits: `store.ts` documents the real cap (1 to 501: 500 plus the look-ahead row); `DIGEST = (c` spacing in `store-upgrade-v5.test.ts`; `KEY_Z` lives once in `history-kit.ts`.
+- Not changed (needs a decision): the review's finding on `last_step_ms` vs the commit instant of a timed match (snapshot race), see the reviewer's report.
+- Tests run: full `npm test` twice, both green (393 files passed, 1 skipped; 5,822 tests passed, 6 skipped); `npm run typecheck` clean.
+- Next: re-check of M2 by the reviewer; then rebase on `main` before T3.1 (M3). Branch `feat/024-server-history`, state: M2 5 / 5 (review fixes applied).

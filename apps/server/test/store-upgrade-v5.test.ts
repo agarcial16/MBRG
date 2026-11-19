@@ -13,7 +13,7 @@ import { dumpRows, listColumns, withRawDb } from './helpers/db-scan';
 
 const V1_FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'v1-database.db');
 const V4_FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'v4-database.db');
-const DIGEST =(c: string): string => c.repeat(64);
+const DIGEST = (c: string): string => c.repeat(64);
 
 const withTempDir = (body: (dir: string) => void): void => {
   const dir = mkdtempSync(join(tmpdir(), 'mbrg-v5-'));

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { DISCORD, KEY_A, KEY_B, WEB, createCommunityMatch, playMatch, playSteps, postHistory, startHistory, walk } from './helpers/history-kit';
+import { DISCORD, KEY_A, KEY_B, KEY_Z, WEB, createCommunityMatch, playMatch, playSteps, postHistory, startHistory, walk } from './helpers/history-kit';
 import type { Player } from './helpers/history-kit';
 import { closeAllServers } from './helpers/server-harness';
 import type { ServerHarness } from './helpers/server-harness';
@@ -17,6 +17,15 @@ const ANA: Player = { client: DISCORD, local: 'u1', name: 'Ana', victim: 'right'
 const BEA: Player = { client: DISCORD, local: 'u2', name: 'Bea', victim: 'right', absorber: 'wrong', winner: 'wrong' };
 const CAL: Player = { client: DISCORD, local: 'u3', victim: 'wrong', absorber: 'wrong', winner: 'wrong' };
 const WEBBY: Player = { client: WEB, local: 'w1', name: 'Web', victim: 'right', absorber: 'right', winner: 'right' };
+
+// The players of the unfinished matches have names no finished match holds: a name stored while a match runs that reached a reply
+// would show in the bytes of the compared replies (and in the plain check below), never hide behind a name of the finished ones.
+const PLANTED = 'Planted-Run-';
+const RUN_ANA: Player = { ...ANA, name: PLANTED + 'Zed' };
+const RUN_BEA: Player = { ...BEA, name: PLANTED + 'Quy' };
+const RUN_CAL: Player = { ...CAL, name: PLANTED + 'Xo' };
+const RUN_WEB: Player = { ...WEBBY, name: PLANTED + 'Web' };
+const RUNNERS = [RUN_ANA, RUN_BEA, RUN_CAL];
 
 /** The finished history both twins share: four matches of KEY_A (two namespaces) and one of KEY_B. */
 async function finished(h: ServerHarness, known = true): Promise<void> {
@@ -70,10 +79,10 @@ describe('NFR-117 FR-561 the twin of an unfinished match of the same community',
     // A running match of the key under each namespace with predictions stored: step by step, the web one one step behind.
     const running = await createCommunityMatch(real, DISCORD, 'u-run', KEY_A);
     const webRunning = await createCommunityMatch(real, WEB, 'u-web-run', KEY_A);
-    const web = playSteps(real, webRunning, [WEBBY], false);
+    const web = playSteps(real, webRunning, [RUN_WEB], false);
     const watched: number[] = [];
     let scoredRows = 0;
-    for (const done of playSteps(real, running, [ANA, BEA, CAL], false)) {
+    for (const done of playSteps(real, running, RUNNERS, false)) {
       watched.push(done);
       if (done > 0) web.next();
       if (done === 12) break;
@@ -81,7 +90,9 @@ describe('NFR-117 FR-561 the twin of an unfinished match of the same community',
       // Started and not finished: the stage is neither the lobby nor the end.
       expect(shown.ok ? shown.reply.stage : 'unreadable', `stage after ${done} steps`).not.toMatch(/^(finished|lobby|expired|unreadable)$/);
       scoredRows = Math.max(scoredRows, real.base.store.leaderboardTotals(running.id).length);
-      expect(await replies(real), `after ${done} steps of the match`).toStrictEqual(base);
+      const now = await replies(real);
+      expect(now, `after ${done} steps of the match`).toStrictEqual(base);
+      expect(now.join('\n'), `after ${done} steps`).not.toContain(PLANTED);
     }
     expect(watched).toStrictEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
     // The rounds applied before the finish scored three players: the data was there to leak.
@@ -102,9 +113,8 @@ describe('NFR-117 FR-561 the twin of an unfinished match of the same community',
     const twin = await startHistory();
     const real = await startHistory();
     // The same draws on both servers: only the key of the first match differs (KEY_A in the real one, another key in the twin).
-    const KEY_Z = '4a3f8bbffd44b8d4a3f8bbffd44b8d4a3f8bbffd44b8d4a3f8bbffd44b8d4a3f';
-    const oldReal = playSteps(real, await createCommunityMatch(real, DISCORD, 'u-old', KEY_A), [ANA, BEA, CAL], true);
-    const oldTwin = playSteps(twin, await createCommunityMatch(twin, DISCORD, 'u-old', KEY_Z), [ANA, BEA, CAL], true);
+    const oldReal = playSteps(real, await createCommunityMatch(real, DISCORD, 'u-old', KEY_A), RUNNERS, true);
+    const oldTwin = playSteps(twin, await createCommunityMatch(twin, DISCORD, 'u-old', KEY_Z), RUNNERS, true);
     for (let i = 0; i <= 5; i += 1) {
       oldReal.next();
       oldTwin.next();
@@ -129,7 +139,7 @@ describe('NFR-117 FR-561 the twin of an unfinished match of the same community',
     const first = (await postHistory(real, DISCORD.credential, { community: KEY_A, limit: 1 })).json() as { next: string; total: number };
     const running = await createCommunityMatch(real, DISCORD, 'u-run', KEY_A);
     const seen: string[] = [];
-    for (const done of playSteps(real, running, [ANA, BEA], false)) {
+    for (const done of playSteps(real, running, [RUN_ANA, RUN_BEA], false)) {
       if (done === 12) break;
       const reply = await postHistory(real, DISCORD.credential, { community: KEY_A, limit: 1, cursor: first.next });
       seen.push(reply.text);

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { DISCORD, KEY_A, KEY_B, KEY_C, WEB, createCommunityMatch, playMatch, postHistory, startHistory, walk } from './helpers/history-kit';
+import { DISCORD, KEY_A, KEY_B, KEY_C, KEY_Z, WEB, createCommunityMatch, playMatch, postHistory, startHistory, walk } from './helpers/history-kit';
 import type { Client, HistoryBody, Player } from './helpers/history-kit';
 import { closeAllServers } from './helpers/server-harness';
 import type { ServerHarness } from './helpers/server-harness';
@@ -71,7 +71,7 @@ describe('NFR-119 two keys by two namespaces never mix', () => {
         for (const text of walked.texts) for (const id of foreign) expect(text, `${cell} holds ${id}`).not.toContain(id);
       }
     }
-  });
+  }, 120_000);
 
   it('NFR-119 the players of an entry are those of its namespace, and the same local id in the other namespace is another player', async () => {
     const { h, ids } = await build();
@@ -99,7 +99,7 @@ describe('NFR-119 two keys by two namespaces never mix', () => {
     const web = (await postHistory(only, WEB.credential, { community: KEY_A, playerId: 'solo' })).json() as { items: unknown[]; total: number };
     expect(discord.items[0]?.asker).toMatchObject({ points: expect.any(Number), rank: 1 });
     expect(web).toStrictEqual({ items: [], total: 0 });
-  });
+  }, 120_000);
 
   it('NFR-119 a cursor made for one cell used on another cell lists only the matches of the cell asked, never a neighbour\'s', async () => {
     const { h, ids } = await build();
@@ -122,11 +122,10 @@ describe('NFR-119 two keys by two namespaces never mix', () => {
         for (const id of got) expect(ids[cell], `${cell} got ${id}`).toContain(id);
       }
     }
-  });
+  }, 120_000);
 
   it('NFR-119 an unknown key, a key that only has unfinished matches elsewhere and a match without a key read as an empty history', async () => {
     const { h } = await build();
-    const KEY_Z = '4a3f8bbffd44b8d4a3f8bbffd44b8d4a3f8bbffd44b8d4a3f8bbffd44b8d4a3f';
     for (const client of [DISCORD, WEB]) {
       const reply = await postHistory(h, client.credential, { community: KEY_Z });
       expect(reply.json()).toStrictEqual({ items: [], total: 0 });
@@ -134,5 +133,5 @@ describe('NFR-119 two keys by two namespaces never mix', () => {
     // KEY_C has matches only under discord.
     expect((await postHistory(h, WEB.credential, { community: KEY_C })).json()).toStrictEqual({ items: [], total: 0 });
     expect(((await postHistory(h, DISCORD.credential, { community: KEY_C })).json() as { total: number }).total).toBe(1);
-  });
+  }, 120_000);
 });

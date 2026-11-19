@@ -297,7 +297,7 @@ export interface Store {
    * The history of a community (spec 024 FR-549): the matches whose stored community is `community` (64 lowercase hexadecimal
    * characters), whose client namespace is `namespace` and whose stage is `finished` (any other stage never), in history order
    * (finish instant descending, then match id ascending by code unit), strictly after `after` when given and no newer than
-   * `head` when given, at most `limit` (1 to 500). The finish instant is the match's `last_step_ms`: no step follows the last
+   * `head` when given, at most `limit` (1 to 501: a page of at most 500 plus one look-ahead row). The finish instant is the match's `last_step_ms`: no step follows the last
    * application. Selects the match id, the map id, that instant and the winner only. The one read of the community storage.
    */
   historyAfter(community: string, namespace: string, head: HistoryKey | undefined, after: HistoryKey | undefined, limit: number): HistoryMatch[];

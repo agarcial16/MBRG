@@ -15,6 +15,7 @@ import { OPERATOR, creationBody } from './service-harness';
 
 export const KEY_A = '1d0c5eeda11ce5a1d0c5eeda11ce5a1d0c5eeda11ce5a1d0c5eeda11ce5a1d0c';
 export const KEY_B = '2e1d6ffeb22df6b2e1d6ffeb22df6b2e1d6ffeb22df6b2e1d6ffeb22df6b2e1d';
+export const KEY_Z = '4a3f8bbffd44b8d4a3f8bbffd44b8d4a3f8bbffd44b8d4a3f8bbffd44b8d4a3f';
 export const KEY_C = '3f2e7aaffc33a7c3f2e7aaffc33a7c3f2e7aaffc33a7c3f2e7aaffc33a7c3f2e';
 
 export const WEB = { credential: CLIENT_CREDENTIAL, namespace: 'web' } as const;
