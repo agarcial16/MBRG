@@ -12,7 +12,7 @@ import { StoreError } from '../src/store/store';
 import type { Store } from '../src/store/store';
 import { dumpRows, withRawDb } from './helpers/db-scan';
 import { DISCORD, KEY_A, KEY_B, WEB, createCommunityMatch, playMatch, postHistory, runMatch, startHistory, walk } from './helpers/history-kit';
-import type { Made, Player } from './helpers/history-kit';
+import type { Client, Made, Player } from './helpers/history-kit';
 import { get } from './helpers/http-reads-kit';
 import { request } from './helpers/http-client';
 import { PLANTED, closeAllServers, errorBody } from './helpers/server-harness';
@@ -51,7 +51,7 @@ const BEA: Player = { client: DISCORD, local: 'u2', name: 'Bea', victim: 'right'
 const CAL: Player = { client: DISCORD, local: 'u3', victim: 'wrong', absorber: 'wrong', winner: 'wrong' };
 const WEBBY: Player = { client: WEB, local: 'w1', name: 'Web', victim: 'right', absorber: 'right', winner: 'right' };
 
-const read = async (h: ServerHarness, body: unknown, client = DISCORD): Promise<{ status: number; text: string; page: Page }> => {
+const read = async (h: ServerHarness, body: unknown, client: Client = DISCORD): Promise<{ status: number; text: string; page: Page }> => {
   const reply = await postHistory(h, client.credential, body);
   return { status: reply.status, text: reply.text, page: reply.status === 200 ? (reply.json() as Page) : { items: [], total: -1 } };
 };
