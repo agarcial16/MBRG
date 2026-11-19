@@ -466,7 +466,9 @@ export const RANKING_FIELDS = ['community', 'order', 'playerId', 'limit', 'curso
 
 /**
  * One row of the community ranking (spec 025 FR-563): a namespaced player id, the shown name when 022 stored one, and the
- * statistics of FR-564 over the counted matches of the snapshot (points, correct, scored, played, won).
+ * statistics of FR-564 over the counted matches of the snapshot (points, correct, scored, played, won). `rank` carries
+ * FR-565's competition rank of the row's order (shared on a tie of the ordering statistic); it is absent exactly for the
+ * unranked tail of the accuracy order (FR-566), where the bot shows "—".
  */
 export interface RankingRow {
   readonly playerId: string;
@@ -476,6 +478,7 @@ export interface RankingRow {
   readonly scored: number;
   readonly played: number;
   readonly won: number;
+  readonly rank?: number;
 }
 
 /**
@@ -495,7 +498,7 @@ export interface RankingPage {
 }
 
 /** Wire key order of the ranking replies (spec 025): fixed, whatever the order of the input object. */
-export const RANKING_ROW_KEYS = ['playerId', 'name', 'points', 'correct', 'scored', 'played', 'won'] as const;
+export const RANKING_ROW_KEYS = ['playerId', 'name', 'points', 'correct', 'scored', 'played', 'won', 'rank'] as const;
 export const RANKING_ASKER_KEYS = ['points', 'correct', 'scored', 'played', 'won', 'rank'] as const;
 export const RANKING_PAGE_KEYS = ['items', 'total', 'next', 'asker'] as const;
 

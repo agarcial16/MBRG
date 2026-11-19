@@ -1,3 +1,4 @@
+import { isNamespace, PAGE_LIMIT_MAX, type RankingAsker, type RankingOrder, type RankingRow } from '@mbrg/protocol';
 import { compareHistory, type HistoryKey } from './history';
 
 // Pure core of the per-community ranking (spec 025): the statistics of one player over the counted matches of a snapshot
@@ -90,4 +91,116 @@ export function shownNameOf(names: readonly RankingNameRow[]): ReadonlyMap<strin
     }
   }
   return shown;
+}
+
+/** A player qualified for the accuracy order (FR-566): at least this many scored predictions. */
+const QUALIFIED_SCORED = 10;
+
+/** One placed player of the snapshot: their statistics and their competition rank, absent in the unranked tail. */
+interface Placed {
+  readonly stats: PlayerStats;
+  readonly rank?: number;
+}
+
+/** Whether `a` is strictly before `b` by the ordering statistic alone (FR-565); ties resolve outside. */
+function morePrimary(order: RankingOrder, a: PlayerStats, b: PlayerStats): boolean {
+  if (order === 'accuracy') return a.correct * b.scored > b.correct * a.scored;
+  const key = order === 'points' ? 'points' : order === 'correct' ? 'correct' : 'won';
+  return a[key] > b[key];
+}
+
+/** The full order of the snapshot (FR-565, FR-566): the ranked rows by the statistic, then points, then id; the accuracy tail after them. */
+const byOrder = (order: RankingOrder, a: PlayerStats, b: PlayerStats): number => {
+  if (morePrimary(order, a, b)) return -1;
+  if (morePrimary(order, b, a)) return 1;
+  if (a.points !== b.points) return a.points > b.points ? -1 : 1;
+  return byPlayerId(a, b);
+};
+
+/** One page of the ranking of a snapshot, as the service sends it: the wire rows, the snapshot total, the next local id and the asker. */
+export interface RankingPageCore {
+  readonly rows: readonly RankingRow[];
+  readonly total: number;
+  /** The local id of the page's last row; the service pairs it with the snapshot head into a `ranking` cursor. */
+  readonly next?: string;
+  readonly asker?: RankingAsker;
+}
+
+/**
+ * Orders, ranks and pages the snapshot (FR-565 to FR-567). The order is the statistic descending, then total points
+ * descending, then player id ascending; players equal on the ordering statistic share the competition rank. In the
+ * accuracy order only qualified players (at least 10 scored predictions) are ranked, by exact fractions
+ * (cross-multiplied, never rounded); the rest follow in one unranked tail by points, then id, all counted in the total.
+ * The page starts strictly after the row `afterLocalId` names, holds at most `limit` (1 to 500) rows and carries `next`
+ * exactly when more follow; a cursor naming a row outside the snapshot is a RangeError. `askerLocalId` adds the asker's
+ * own row with their rank (no rank when unqualified in the accuracy order) or the mark that they have no row.
+ */
+export function rankingOf(
+  stats: readonly PlayerStats[],
+  names: ReadonlyMap<string, string>,
+  order: RankingOrder,
+  namespace: string,
+  afterLocalId: string | undefined,
+  limit: number,
+  askerLocalId?: string,
+): RankingPageCore {
+  if (!isNamespace(namespace)) throw new RangeError('a ranking namespace is 1 to 16 characters of a-z and 0-9');
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > PAGE_LIMIT_MAX) throw new RangeError('a ranking page holds 1 to 500 rows');
+  const qualified = (s: PlayerStats): boolean => order !== 'accuracy' || s.scored >= QUALIFIED_SCORED;
+  const rankedStats = stats.filter(qualified).sort((a, b) => byOrder(order, a, b));
+  const tailStats = order === 'accuracy' ? stats.filter((s) => !qualified(s)).sort((a, b) => byOrder('points', a, b)) : [];
+  // Competition ranking (FR-565): the rank is 1 plus the ranked rows strictly before by the statistic alone.
+  const all: Placed[] = [
+    ...rankedStats.map((s) => ({ stats: s, rank: 1 + rankedStats.filter((o) => morePrimary(order, o, s)).length })),
+    ...tailStats.map((s) => ({ stats: s })),
+  ];
+  const localOf = (playerId: string): string => {
+    if (!playerId.startsWith(`${namespace}:`)) throw new RangeError('a ranking player id is outside the namespace');
+    return playerId.slice(namespace.length + 1);
+  };
+  const locals = all.map((p) => localOf(p.stats.playerId));
+  const rowOf = (p: Placed): RankingRow => {
+    const name = names.get(p.stats.playerId);
+    return {
+      playerId: p.stats.playerId,
+      ...(name === undefined ? {} : { name }),
+      points: p.stats.points,
+      correct: p.stats.correct,
+      scored: p.stats.scored,
+      played: p.stats.played,
+      won: p.stats.won,
+      ...(p.rank === undefined ? {} : { rank: p.rank }),
+    };
+  };
+  let from = 0;
+  if (afterLocalId !== undefined) {
+    const at = locals.indexOf(afterLocalId);
+    if (at < 0) throw new RangeError('the ranking cursor names a row outside the snapshot');
+    from = at + 1;
+  }
+  const slice = all.slice(from, from + limit);
+  const last = slice[slice.length - 1];
+  const next = from + limit < all.length && last !== undefined ? localOf(last.stats.playerId) : undefined;
+  let asker: RankingAsker | undefined;
+  if (askerLocalId !== undefined) {
+    const at = locals.indexOf(askerLocalId);
+    if (at < 0) asker = { played: false };
+    else {
+      const p = all[at]!;
+      asker = {
+        points: p.stats.points,
+        correct: p.stats.correct,
+        scored: p.stats.scored,
+        played: p.stats.played,
+        won: p.stats.won,
+        ...(p.rank === undefined ? {} : { rank: p.rank }),
+      };
+    }
+  }
+  return {
+    rows: slice.map(rowOf),
+    total: all.length,
+    ...(next === undefined ? {} : { next }),
+    ...(asker === undefined ? {} : { asker }),
+  };
 }

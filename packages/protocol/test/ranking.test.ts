@@ -144,13 +144,25 @@ describe('FR-565 (cursor part) the ranking cursor', () => {
 
 describe('FR-563 (row shape part) and FR-565 (wire part) the ranking row and page: encode and decode', () => {
   it('FR-563 (row shape part) a row encodes with the fixed key order and decodes to the same value', () => {
-    expect([...RANKING_ROW_KEYS]).toStrictEqual(['playerId', 'name', 'points', 'correct', 'scored', 'played', 'won']);
+    expect([...RANKING_ROW_KEYS]).toStrictEqual(['playerId', 'name', 'points', 'correct', 'scored', 'played', 'won', 'rank']);
     expect([...RANKING_PAGE_KEYS]).toStrictEqual(['items', 'total', 'next', 'asker']);
     const text = encodeRankingPage(page({ next: 'abc' }));
     expect(text).toBe(
       '{"items":[{"playerId":"discord:101","name":"Ana","points":9,"correct":4,"scored":6,"played":3,"won":1}],"total":5,"next":"abc"}',
     );
     expect(readRankingPage(JSON.parse(text))).toStrictEqual({ ok: true, value: page({ next: 'abc' }) });
+    // The competition rank of the row (FR-565): present for a ranked row, absent in the accuracy tail (FR-566).
+    const ranked = encodeRankingPage(page({ items: [row({ rank: 3 })] }));
+    expect(ranked).toBe(
+      '{"items":[{"playerId":"discord:101","name":"Ana","points":9,"correct":4,"scored":6,"played":3,"won":1,"rank":3}],"total":5}',
+    );
+    expect(readRankingPage(JSON.parse(ranked))).toStrictEqual({ ok: true, value: page({ items: [row({ rank: 3 })] }) });
+    for (const rank of [0, -1, 1.5, '3', null]) {
+      expect(() => encodeRankingPage(page({ items: [row({ rank } as never)] })), String(rank)).toThrow(RangeError);
+      const wire = JSON.parse(encodeRankingPage(page()));
+      wire.items[0].rank = rank;
+      expect(readRankingPage(wire).ok, String(rank)).toBe(false);
+    }
   });
 
   it('FR-563 (row shape part) the input key order does not change the bytes, and a row without a name omits it', () => {

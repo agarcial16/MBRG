@@ -450,7 +450,8 @@ const rankingRow: Reader<RankingRow> = (v, f) =>
   object(v, f, RANKING_ROW_KEYS, (m) => {
     const playerId = m.get('playerId', textWhere(isPlayerId));
     const name = m.has('name') ? m.get('name', nameOf) : undefined;
-    return { playerId, ...(name === undefined ? {} : { name }), ...rankingStats(m) };
+    const row = { playerId, ...(name === undefined ? {} : { name }), ...rankingStats(m) };
+    return m.has('rank') ? { ...row, rank: m.get('rank', int(1)) } : row;
   });
 
 /** The asker's statistics (with an optional rank) or `{ played: false }` alone, and nothing else. */

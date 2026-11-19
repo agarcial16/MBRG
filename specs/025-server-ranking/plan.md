@@ -26,7 +26,7 @@ Spec: `spec.md` (approved 2026-11-18). Status: draft (presented 2026-11-19). Mil
 
 ## 4. Interface
 - `POST /ranking`, `Authorization: Bearer <client credential>`, body `{ community, order?, playerId?, limit?, cursor? }` → `200 { items, total, next?, asker? }`. Same rules as `POST /history` (FR-568): non-client callers get the forbidden bytes; another namespace or an unknown key gets `{ items: [], total: 0 }`; nothing stored or memoised; the key never in a reply, header or log line.
-- Row: `{ playerId, name?, points, correct, scored, played, won }`. `asker` (named by `playerId`) = the row plus its `rank` (no `rank` when unqualified in the accuracy order) or `{ played: false }`.
+- Row: `{ playerId, name?, points, correct, scored, played, won, rank? }`; `rank` carries FR-565's competition rank of the row (absent in the accuracy tail, FR-566) — the bot's embed needs it per row (FR-569). `asker` (named by `playerId`) = the row's statistics plus their `rank` (no `rank` when unqualified in the accuracy order) or `{ played: false }`.
 
 ## 5. Decisions (discarded alternative)
 - PD1 Ranking computed at read time from `results`; no aggregate table. Discarded: a stored per-community aggregate (a schema change, forbidden by NFR-125, and a new write in the pinned step transactions).

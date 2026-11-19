@@ -418,7 +418,7 @@ function checkRankingStats(what: string, points: number, correct: number, scored
   void correct;
 }
 
-/** One row of the ranking (spec 025 FR-563): a namespaced player id, the shown name when stored, and the statistics of FR-564. */
+/** One row of the ranking (spec 025 FR-563): a namespaced player id, the shown name when stored, the statistics of FR-564 and the competition rank (FR-565, absent in the accuracy tail). */
 function encodeRankingRow(v: unknown): string {
   const o = objectOf(v, 'ranking row', RANKING_ROW_KEYS);
   noInherited(o, 'ranking row', RANKING_ROW_KEYS);
@@ -434,8 +434,9 @@ function encodeRankingRow(v: unknown): string {
       scored: int('ranking row.scored', 0),
       played: int('ranking row.played', 0),
       won: int('ranking row.won', 0),
+      rank: int('ranking row.rank', 1),
     },
-    ['name'],
+    ['name', 'rank'],
   );
   checkRankingStats('ranking row', o.points as number, o.correct as number, o.scored as number, o.played as number, o.won as number);
   return out;
