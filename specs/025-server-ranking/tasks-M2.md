@@ -1,4 +1,4 @@
-### M2 — Service, route and proofs (2 / 4)
+### M2 — Service, route and proofs (3 / 4)
 Plan sections 1, 2, 4 (PD2). Depends on M1.
 
 - [x] **T2.1. Service ranking read.** FR-564 (service part), FR-565 (walk part), FR-567 (service part), NFR-125 (statement-count pin)
@@ -7,7 +7,7 @@ Plan sections 1, 2, 4 (PD2). Depends on M1.
 - [x] **T2.2. Route `POST /ranking`.** FR-563, FR-565, FR-566, FR-567, FR-568
   - Files: `apps/server/src/http/server.ts`, new `apps/server/test/http-ranking.test.ts`, `test/helpers/` (a ranking kit beside the history kit).
   - Done when (real server): a client credential reads pages of 10 with `total`, every row and the asker checked against the matches' public leaderboards (oracle by another route), in every order; a walk across a match that finishes in between keeps its pages and `total`, never repeats or skips; anonymous, player and operator callers get the `forbidden` bytes (the same bytes as another forbidden reply); another namespace, an unknown key and a cross-namespace cursor get `{ items: [], total: 0 }` (same bytes); a request with any query text is `invalid-request` and nothing in a query is read; nothing is stored or memoised (closed-file dump equal); the request log lines and replies contain no key (log scan); public reads without the key still work; an encoder refusal is a 500.
-- [ ] **T2.3. Twins: secrecy and isolation.** NFR-123, NFR-124 (twin part), FR-568 (secrecy part)
+- [x] **T2.3. Twins: secrecy and isolation.** NFR-123, NFR-124 (twin part), FR-568 (secrecy part)
   - Files: new `apps/server/test/ranking-secrecy.test.ts`, `ranking-isolation.test.ts`.
   - Done when: with a running match of the same community (predictions stored and scored for some rounds, and a planted 022 name differing from the finished matches' names), every ranking reply before and after each of its steps equals the twin's without it, byte for byte, in every order; two communities x two namespaces never mix; every existing golden and the 008/011/018/022/024 secrecy tests are green and unchanged.
 - [ ] **T2.4. Bounded work and the source scan.** NFR-125 (closed), NFR-124 (source scan part)

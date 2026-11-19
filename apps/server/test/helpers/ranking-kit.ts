@@ -62,13 +62,14 @@ export interface Ranked {
 /**
  * The community of the ranking tests: seven matches of KEY_A under the Discord namespace, the first with scripted predictions
  * (the known secret), the second with the same three locals under new planted names, five more with three arbitrary players
- * each. Deterministic: two harnesses built the same way produce byte-identical ranking replies.
+ * each. Deterministic: two harnesses built the same way produce byte-identical ranking replies. `scripted: false` plays the
+ * first match with arbitrary picks too (a harness whose known secret was consumed by an earlier creation, as the secrecy twin).
  */
-export async function populateRanking(h: ServerHarness): Promise<Ranked> {
+export async function populateRanking(h: ServerHarness, options: { scripted?: boolean } = {}): Promise<Ranked> {
   const matches: Made[] = [];
   for (const [i, players] of POPULATION.entries()) {
     const made = await createCommunityMatch(h, DISCORD, `a-${i}`, KEY_A);
-    playMatch(h, made, players, i === 0);
+    playMatch(h, made, players, options.scripted !== false && i === 0);
     matches.push(made);
   }
   return { matches };
