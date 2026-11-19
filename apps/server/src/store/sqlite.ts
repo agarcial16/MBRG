@@ -199,13 +199,15 @@ export const READ_SQL = {
     FROM results WHERE match_id = ? GROUP BY player_id ORDER BY player_id`,
   // The history reads (spec 024 FR-549, FR-561): the only statements that read `communities`. The key reaches its rows through
   // `communities_by_key`, each match by its primary key, the namespace by the primary key of `client_matches`; only a finished
-  // match counts. The head ("at or after") and the keyset ("strictly after") are optional (a NULL first parameter turns the
+  // match counts, and only once it is SETTLED: its finish instant is below `settledBefore` (the service passes now - TOLERANCE_MS: a step
+  // run on time keeps its scheduled instant, up to TOLERANCE_MS before the instant it is committed at, so a match that finishes after a
+  // read could otherwise sort behind a head already taken). The head ("at or after") and the keyset ("strictly after") are optional (a NULL first parameter turns the
   // condition off); history order is the finish instant (`last_step_ms`) descending, then the match id ascending.
   historyAfter: `SELECT m.id AS id, m.map_id AS map_id, m.last_step_ms AS finished_ms, m.winner AS winner
     FROM communities c INDEXED BY communities_by_key
     JOIN matches m ON m.id = c.match_id
     JOIN client_matches cm ON cm.match_id = c.match_id
-    WHERE c.community = ? AND cm.namespace = ? AND m.stage = 'finished'
+    WHERE c.community = ? AND cm.namespace = ? AND m.stage = 'finished' AND m.last_step_ms < ?
       AND (? IS NULL OR m.last_step_ms < ? OR (m.last_step_ms = ? AND m.id >= ?))
       AND (? IS NULL OR m.last_step_ms < ? OR (m.last_step_ms = ? AND m.id > ?))
     ORDER BY m.last_step_ms DESC, m.id ASC LIMIT ?`,
@@ -213,7 +215,7 @@ export const READ_SQL = {
     FROM communities c INDEXED BY communities_by_key
     JOIN matches m ON m.id = c.match_id
     JOIN client_matches cm ON cm.match_id = c.match_id
-    WHERE c.community = ? AND cm.namespace = ? AND m.stage = 'finished'
+    WHERE c.community = ? AND cm.namespace = ? AND m.stage = 'finished' AND m.last_step_ms < ?
       AND (? IS NULL OR m.last_step_ms < ? OR (m.last_step_ms = ? AND m.id >= ?))`,
 } as const;
 
@@ -229,6 +231,10 @@ const checkHistoryKey = (key: HistoryKey | undefined, what: string): readonly [n
     throw new RangeError(`${what} is a finish instant and a match id`);
   }
   return [key.finishedAt, key.matchId];
+};
+/** The settled bound of a history read: a whole instant (it may be negative on a young clock; it only has to be a safe integer). */
+const checkSettled = (settledBefore: number): void => {
+  if (!Number.isSafeInteger(settledBefore)) throw new RangeError('a settled bound is a whole instant');
 };
 const checkHistoryScope = (community: string, namespace: string): void => {
   if (!isCommunityKey(community)) throw new RangeError('a community key is 64 lowercase hexadecimal characters');
@@ -706,23 +712,25 @@ export const openStore = (path: string): Store => {
         return num(r, 'client_only') === 1 ? { ...summary, clientOnly: true as const } : summary;
       });
     },
-    historyAfter(community: string, namespace: string, head: HistoryKey | undefined, after: HistoryKey | undefined, limit: number): HistoryMatch[] {
+    historyAfter(community: string, namespace: string, settledBefore: number, head: HistoryKey | undefined, after: HistoryKey | undefined, limit: number): HistoryMatch[] {
       checkHistoryScope(community, namespace);
+      checkSettled(settledBefore);
       const [headAt, headId] = checkHistoryKey(head, 'a history head');
       const [afterAt, afterId] = checkHistoryKey(after, 'a history cursor key');
       checkLimit(limit);
       // A page of up to 500 plus the one row that tells whether more follow.
       if (limit > 501) throw new RangeError('a history read holds at most 501 matches');
-      return all(READ_SQL.historyAfter, community, namespace, headAt, headAt, headAt, headId, afterAt, afterAt, afterAt, afterId, limit).map((r) => {
+      return all(READ_SQL.historyAfter, community, namespace, settledBefore, headAt, headAt, headAt, headId, afterAt, afterAt, afterAt, afterId, limit).map((r) => {
         const winner = optNum(r, 'winner');
         if (winner === null) throw corrupt('a finished match has no winner');
         return { matchId: str(r, 'id'), mapId: str(r, 'map_id'), finishedAt: num(r, 'finished_ms'), winner };
       });
     },
-    historyCount(community: string, namespace: string, head: HistoryKey | undefined): number {
+    historyCount(community: string, namespace: string, settledBefore: number, head: HistoryKey | undefined): number {
       checkHistoryScope(community, namespace);
+      checkSettled(settledBefore);
       const [headAt, headId] = checkHistoryKey(head, 'a history head');
-      const row = one(READ_SQL.historyCount, community, namespace, headAt, headAt, headAt, headId);
+      const row = one(READ_SQL.historyCount, community, namespace, settledBefore, headAt, headAt, headAt, headId);
       return row === undefined ? 0 : num(row, 'n');
     },
     recordsAfter(matchId: string, round: number, limit: number): StoredRecord[] {

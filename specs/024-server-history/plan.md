@@ -18,8 +18,8 @@ Spec: `spec.md` (approved 2026-11-18). Status: approved (by the user on 2026-11-
 `communities (match_id TEXT PRIMARY KEY REFERENCES matches(id), community TEXT NOT NULL)` + index `communities_by_key (community, match_id)`. Upgrade v1..v4 adds only this; a fresh file creates v1..v5; v6 refused. Written once at creation, never updated (FR-547); `purgeExpired` deletes it with its match.
 
 ## 3. Reads (FR-549, FR-561, NFR-121)
-- `historyAfter(key, namespace, head?, after?, limit)`: `communities` by key, joined to `client_matches` (namespace) and `matches` (`stage = 'finished'`), ordered by `last_step_ms DESC, id ASC`, keyset after `after`, bounded by `head`. Finish instant = `matches.last_step_ms` of a finished match (no step follows the last application; a test pins it equal to that step's instant).
-- `historyCount(key, namespace, head)`: same filter, `COUNT(*)`.
+- `historyAfter(key, namespace, settledBefore, head?, after?, limit)`: `communities` by key, joined to `client_matches` (namespace) and `matches` (`stage = 'finished'` and `last_step_ms < settledBefore`; the service passes the clock minus `TOLERANCE_MS`: a match that finishes after a read then always sorts newer than the head that read took), ordered by `last_step_ms DESC, id ASC`, keyset after `after`, bounded by `head`. Finish instant = `matches.last_step_ms` of a finished match (no step follows the last application; a test pins it equal to that step's instant).
+- `historyCount(key, namespace, settledBefore, head)`: same filter, `COUNT(*)`.
 - Per entry: the existing `leaderboardTotals` + `rankLeaderboard` + `clientNames`. Statements per page: 2 + 2 × entries (at most 12), whatever the stored matches.
 - First page: head = its first entry; the cursor carries head and the last key. Total = count at or after head.
 

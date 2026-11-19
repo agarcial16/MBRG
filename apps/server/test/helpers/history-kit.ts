@@ -2,6 +2,7 @@ import type { ClientReply } from './http-client';
 import { request } from './http-client';
 import { SECRETS } from './core-timelines';
 import { GOLD, WINNER } from './results-script';
+import { TOLERANCE_MS } from '../../src/core/time';
 import { startReads } from './http-reads-kit';
 import { CLIENT_CREDENTIAL } from './server-harness';
 import type { ServerHarness, ServerHarnessOptions } from './server-harness';
@@ -81,7 +82,11 @@ export function playMatch(h: ServerHarness, made: Made, players: readonly Player
   playUntil(h, made, players, known, 12);
   const view = h.service.readPublicMatch(made.id);
   if (!view.ok || view.reply.stage !== 'finished') throw new Error('the match did not finish');
+  settle(h);
 }
+
+/** The history lists a match once it is settled (its finish instant is more than TOLERANCE_MS behind the clock): moves the clock past that. */
+export const settle = (h: ServerHarness): void => h.clock.advance(TOLERANCE_MS + 1);
 
 /** Starts the lobby and plays only the first `steps` steps (0 to 12) with the scripted predictions: a running match when under 12. */
 export function playUntil(h: ServerHarness, made: Made, players: readonly Player[], known: boolean, steps: number): void {

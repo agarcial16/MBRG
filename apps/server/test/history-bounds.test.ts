@@ -94,7 +94,9 @@ async function measure(file: string, total: number): Promise<Counted> {
       .map((r) => [Number(r.t), String(r.id)] as const),
   );
   expect(keys).toHaveLength(total);
+  // The clones finish up to 1,000 s after the template: the clock moves past the last of them so every one is settled.
   const h = await startHistory({ wrapStore: (inner) => (inner.close(), counting(openStore(file), counts)) });
+  h.clock.advance(10_000_000);
   const head = keys[0]!;
   const bodies: Record<string, unknown>[] = [
     { community: KEY_A, playerId: 'u1', limit: 5 },
@@ -153,8 +155,8 @@ describe('NFR-121 a page of the history is bounded work', () => {
     // The plans on the large file, with data: index lookups, never a scan of the three tables.
     await closeAllServers();
     withRawDb(large, (db) => {
-      const after = db.prepare(`EXPLAIN QUERY PLAN ${READ_SQL.historyAfter}`).all(KEY_A, 'discord', null, null, null, null, null, null, null, null, 5).map((r) => String(r.detail));
-      const count = db.prepare(`EXPLAIN QUERY PLAN ${READ_SQL.historyCount}`).all(KEY_A, 'discord', null, null, null, null).map((r) => String(r.detail));
+      const after = db.prepare(`EXPLAIN QUERY PLAN ${READ_SQL.historyAfter}`).all(KEY_A, 'discord', Number.MAX_SAFE_INTEGER, null, null, null, null, null, null, null, null, 5).map((r) => String(r.detail));
+      const count = db.prepare(`EXPLAIN QUERY PLAN ${READ_SQL.historyCount}`).all(KEY_A, 'discord', Number.MAX_SAFE_INTEGER, null, null, null, null).map((r) => String(r.detail));
       for (const plan of [after, count]) {
         expect(plan.filter((d) => /\bSCAN\b/.test(d)), plan.join(' | ')).toStrictEqual([]);
         expect(plan.some((d) => /communities_by_key/.test(d)), plan.join(' | ')).toBe(true);

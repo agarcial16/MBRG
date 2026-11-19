@@ -96,7 +96,7 @@ import { rankLeaderboard, readResultsRound, scorePhase, scoredPhaseCount } from 
 import type { StoredPrediction, Submission } from '../core/predictions';
 import { haltMatch, runDue } from '../core/steps';
 import type { StepDeps, StepOutcome } from '../core/steps';
-import { dueStep, effectiveInstant, reportedTime, wholeMs } from '../core/time';
+import { TOLERANCE_MS, dueStep, effectiveInstant, reportedTime, wholeMs } from '../core/time';
 import { publicOf } from '../core/view';
 import type { CoreMatch, StepRow } from '../core/view';
 import { DERIVATION_RULE, commitment as commitmentOf, newSecret, secretHex } from '../secret';
@@ -1667,7 +1667,11 @@ export function createMatchService(options: ServiceOptions): MatchService {
       // The asker is a player of the credential's own namespace: the local id never names another one.
       const askerId = playerId === undefined ? undefined : playerIdOf(namespace, playerId);
       return read(() => {
-        const rows = store.historyAfter(community, namespace, after === undefined ? undefined : { finishedAt: after[0], matchId: after[1] }, after === undefined ? undefined : { finishedAt: after[2], matchId: after[3] }, limit + 1);
+        // Only SETTLED matches are listed (FR-549): a match that finishes after this read has a finish instant of at least the clock
+        // now minus TOLERANCE_MS (a step run on time keeps its scheduled instant), so it sorts newer than every settled match and
+        // can never join the snapshot of a walk already started, nor change its total.
+        const settledBefore = wholeMs(clock.now()) - TOLERANCE_MS;
+        const rows = store.historyAfter(community, namespace, settledBefore, after === undefined ? undefined : { finishedAt: after[0], matchId: after[1] }, after === undefined ? undefined : { finishedAt: after[2], matchId: after[3] }, limit + 1);
         const first = rows[0];
         // The head of the walk: the cursor's, or the newest match of this first page.
         const head = after !== undefined ? { finishedAt: after[0], matchId: after[1] } : first === undefined ? undefined : { finishedAt: first.finishedAt, matchId: first.matchId };
@@ -1679,7 +1683,7 @@ export function createMatchService(options: ServiceOptions): MatchService {
           return entryOf(row, ranked, store.clientNames(row.matchId, topIds), askerId);
         });
         const last = kept[kept.length - 1];
-        const total = store.historyCount(community, namespace, head);
+        const total = store.historyCount(community, namespace, settledBefore, head);
         return {
           ok: true,
           reply: rows.length > limit && last !== undefined ? { items, total, next: encodeCursor('history', [head.finishedAt, head.matchId, last.finishedAt, last.matchId]) } : { items, total },

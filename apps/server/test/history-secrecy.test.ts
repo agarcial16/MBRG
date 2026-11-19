@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { DISCORD, KEY_A, KEY_B, KEY_Z, WEB, createCommunityMatch, playMatch, playSteps, postHistory, startHistory, walk } from './helpers/history-kit';
+import { DISCORD, KEY_A, KEY_B, KEY_Z, WEB, createCommunityMatch, playMatch, playSteps, postHistory, settle, startHistory, walk } from './helpers/history-kit';
 import type { Player } from './helpers/history-kit';
 import { closeAllServers } from './helpers/server-harness';
 import type { ServerHarness } from './helpers/server-harness';
@@ -98,7 +98,10 @@ describe('NFR-117 FR-561 the twin of an unfinished match of the same community',
     // The rounds applied before the finish scored three players: the data was there to leak.
     expect(scoredRows).toBeGreaterThanOrEqual(3);
 
-    // The control: the finish is the one thing that changes the reply, and only by that match, first in the list.
+    // The control: the finish is the one thing that changes the reply, and only by that match, first in the list; the history lists it
+    // once it is settled (FR-549), so the reply is still the twin's at the very moment of the finish.
+    expect(await replies(real)).toStrictEqual(base);
+    settle(real);
     expect(await totalOf(real)).toBe(4);
     expect(await replies(real)).not.toStrictEqual(base);
     const page = (await postHistory(real, DISCORD.credential, { community: KEY_A, limit: 1 })).json() as { items: { matchId: string }[] };
