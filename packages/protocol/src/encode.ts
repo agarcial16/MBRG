@@ -410,12 +410,11 @@ export function encodeHistoryPage(page: HistoryPage): string {
   return out;
 }
 
-/** The statistics of one ranking row or of the asker (spec 025 FR-564): whole numbers, `won <= played <= scored`. */
-function checkRankingStats(what: string, points: number, correct: number, scored: number, played: number, won: number): void {
+/** The statistics of one ranking row or of the asker (spec 025 FR-564): `correct <= scored` and `won <= played <= scored`. */
+function checkRankingStats(what: string, correct: number, scored: number, played: number, won: number): void {
+  if (correct > scored) bad(`${what}.correct exceeds ${what}.scored`);
   if (played > scored) bad(`${what}.played exceeds ${what}.scored`);
   if (won > played) bad(`${what}.won exceeds ${what}.played`);
-  void points;
-  void correct;
 }
 
 /** One row of the ranking (spec 025 FR-563): a namespaced player id, the shown name when stored, the statistics of FR-564 and the competition rank (FR-565, absent in the accuracy tail). */
@@ -438,7 +437,7 @@ function encodeRankingRow(v: unknown): string {
     },
     ['name', 'rank'],
   );
-  checkRankingStats('ranking row', o.points as number, o.correct as number, o.scored as number, o.played as number, o.won as number);
+  checkRankingStats('ranking row', o.correct as number, o.scored as number, o.played as number, o.won as number);
   return out;
 }
 
@@ -465,7 +464,7 @@ function encodeRankingAsker(v: unknown): string {
     },
     ['rank'],
   );
-  checkRankingStats('ranking asker', o.points as number, o.correct as number, o.scored as number, o.played as number, o.won as number);
+  checkRankingStats('ranking asker', o.correct as number, o.scored as number, o.played as number, o.won as number);
   return out;
 }
 

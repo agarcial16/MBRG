@@ -40,11 +40,13 @@ export interface CursorKeys {
   /** The snapshot head (newest counted match of the walk) then the last entry of the page: finish instant, match id (spec 024 FR-549). */
   readonly history: readonly [headFinishedAt: number, headMatchId: string, finishedAt: number, matchId: string];
   /**
-   * The snapshot head then the local player id of the row the page ended on (spec 025 FR-565). An identity keyset: inside a
-   * snapshot the rows, their statistics and every order are frozen (a counted match is immutable and a newer one is excluded by
-   * the head bound), so the local id alone identifies the row's place in any order; the id carries no secret.
+   * The order word's index in `RANKING_ORDERS`, then the snapshot head and the local player id of the row the page ended on
+   * (spec 025 FR-565). An identity keyset: inside a snapshot the rows, their statistics and every order are frozen (a counted
+   * match is immutable and a newer one is excluded by the head bound), so the local id identifies the row's place in any one
+   * order. The order travels in the key, so a walk cannot continue in another order (the request reader refuses the mismatch);
+   * the id carries no secret.
    */
-  readonly ranking: readonly [headFinishedAt: number, headMatchId: string, localId: string];
+  readonly ranking: readonly [order: number, headFinishedAt: number, headMatchId: string, localId: string];
 }
 export type CursorKey<L extends CursorList> = CursorKeys[L];
 
@@ -99,7 +101,10 @@ function isKeyOf(list: CursorList, parts: readonly unknown[]): boolean {
       return at < headAt || (at === headAt && id >= headId);
     }
     case 'ranking':
-      return parts.length === 3 && isInt(parts[0], 0) && typeof parts[1] === 'string' && MATCH_ID.test(parts[1]) && isLocalId(parts[2]);
+      return (
+        parts.length === 4 && isInt(parts[0], 0) && parts[0] <= 3 && isInt(parts[1], 0) &&
+        typeof parts[2] === 'string' && MATCH_ID.test(parts[2]) && isLocalId(parts[3])
+      );
     default:
       return false;
   }

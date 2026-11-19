@@ -81,7 +81,7 @@ describe('cursors per list (FR-279 (b), (e))', () => {
     players: [[1], [42], [Number.MAX_SAFE_INTEGER]],
     'phase-winners': [['player:Ab3_x-9.Qz1k'], ['player:a'], ['player:' + 'Z'.repeat(64)]],
     history: [[10, 'A', 10, 'A'], [1_700_000_009_000, 'HstMatchHEAD0001', 1_700_000_005_000, 'HstMatchLAST0002']],
-    ranking: [[10, 'A', 'a'], [1_700_000_009_000, 'RnkMatchHEAD0001', 'u-1.x'], [Number.MAX_SAFE_INTEGER, 'z-_9', 'Z'.repeat(64)]],
+    ranking: [[0, 10, 'A', 'a'], [3, 1_700_000_009_000, 'RnkMatchHEAD0001', 'u-1.x'], [3, Number.MAX_SAFE_INTEGER, 'z-_9', 'Z'.repeat(64)]],
   };
 
   it('FR-279 (b) the list tags are the three of M3a, the three results lists, the players list, the winners list and the per-community lists, and each key round-trips through its cursor', () => {

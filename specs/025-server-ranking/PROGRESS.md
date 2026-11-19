@@ -34,3 +34,15 @@
 - Tests run (milestone end): `npm test` -> 391 files, 5854 tests, all pass (one pinned probe fixed as above); `npm run typecheck` clean except the two pre-existing 024 errors in `http-history.test.ts` (the 024 M2 thread holds the uncommitted fix). Protected-path diff vs the 024 head empty.
 - Untested here: the service and route (M2: head from `historyAfter(..., 1)`, defence in depth, secrecy and isolation twins, bounded work), the bot (M3).
 - Next: T2.1 (service ranking read). Branch `feat/025-server-ranking`, state: M1 4 / 4 done, M2 0 / 4.
+
+## Review of M1 (Opus, claude-opus-5-5) and its fixes (post-T1.4)
+- Verdict: objections, all addressed below; everything else the reviewer checked held (purity, store reads, ranks, asker, ledger, protected paths, mutants re-applied and caught, privacy).
+- Cherry-pick: c90cddb (the 024 branch's http-history type fix) onto this branch, so the branch typechecks clean.
+- Fix 1 (statement count): `store-ranking.test.ts` now patches `DatabaseSync.prototype.prepare` and counts the statements the adapter really prepares: exactly 2 for the two reads, with 10 and with 1,000 counted matches. The old wrapper counted its own calls and proved nothing; the unused outer store is gone.
+- Fix 2 (cursor and orders): the `ranking` cursor key is now `[order, headFinishedAt, headMatchId, localId]` with the order word's index; `readRankingRequest` refuses a cursor of another order (`invalid-request ['cursor']`). The PROGRESS claim that the old value key "cannot tell orders apart" was wrong for the identity key too - the order now travels in the key and the claim is gone. `plan.md` (section 1 and PD3) amended. Pins updated: `page.test.ts` samples, `service-players.test.ts` probe, `ranking.test.ts` cursor tests plus a new cross-order refusal test.
+- Fix 3 (cost): `rankingOf` computes the competition ranks in one pass over the sorted rows (a tie keeps the previous rank) and looks rows up through a Map of local ids; no quadratic re-filtering or list scans.
+- Fix 4 (status): `plan.md` and `tasks.md` headers now record the user's approval of 2026-11-19.
+- Fix 5 (stats checks): `checkRankingStats` keeps only what it checks and gains the real invariant `correct <= scored` (both in the encoder and the decoder, row and asker); `ranking.test.ts` covers it.
+- Mutation proofs after the fixes: order-match check removed (killed by the cross-order test), `correct <= scored` removed (killed), single-pass rank made positional (killed by the tie tests).
+- Tests run: `npx vitest run` over the 7 affected files -> 138 passed; `npm test` -> 391 files, 5855 tests, all green; `npm run typecheck` clean (the cherry-pick cured the two inherited 024 errors).
+- Next: relaunch M2 (the first M2 child was cancelled before any commit when the review objections changed the cursor key). Branch `feat/025-server-ranking`, state: M1 4 / 4 done and reviewed, M2 0 / 4.

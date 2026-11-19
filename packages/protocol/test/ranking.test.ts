@@ -41,8 +41,8 @@ describe('FR-573 (shape part) the ranking request reader', () => {
       ok: true,
       value: { community: KEY, order: 'accuracy', playerId: 'u-1.x', limit: 5 },
     });
-    const cursor = encodeCursor('ranking', [20, 'AAAA', 'u1']);
-    expect(readRankingRequest({ community: KEY, cursor })).toStrictEqual({ ok: true, value: { community: KEY, order: 'points', limit: 100, after: [20, 'AAAA', 'u1'] } });
+    const cursor = encodeCursor('ranking', [0, 20, 'AAAA', 'u1']);
+    expect(readRankingRequest({ community: KEY, cursor })).toStrictEqual({ ok: true, value: { community: KEY, order: 'points', limit: 100, after: [0, 20, 'AAAA', 'u1'] } });
     expect([...RANKING_FIELDS]).toStrictEqual(['community', 'order', 'playerId', 'limit', 'cursor']);
     expect([...RANKING_ORDERS]).toStrictEqual(['points', 'correct', 'wins', 'accuracy']);
   });
@@ -80,9 +80,20 @@ describe('FR-573 (shape part) the ranking request reader', () => {
   it('FR-573 (shape part) a cursor of another list, another text or another type is invalid-request naming cursor', () => {
     const matches = encodeCursor('matches', [1, 'AAAA']);
     const history = encodeCursor('history', [20, 'AAAA', 10, 'BBBB']);
-    for (const cursor of [matches, history, 'AAAA', '', 5, null, `${encodeCursor('ranking', [20, 'AAAA', 'u1'])}=`]) {
+    for (const cursor of [matches, history, 'AAAA', '', 5, null, `${encodeCursor('ranking', [0, 20, 'AAAA', 'u1'])}=`]) {
       expect(readRankingRequest({ community: KEY, cursor }), String(cursor)).toStrictEqual(invalid('cursor'));
     }
+  });
+
+  it('FR-565 (cursor part) a cursor issued for another order is invalid-request naming cursor', () => {
+    const accuracyCursor = encodeCursor('ranking', [3, 20, 'AAAA', 'u1']);
+    expect(readRankingRequest({ community: KEY, order: 'points', cursor: accuracyCursor })).toStrictEqual(invalid('cursor'));
+    expect(readRankingRequest({ community: KEY, order: 'accuracy', cursor: accuracyCursor })).toMatchObject({ ok: true });
+    const pointsCursor = encodeCursor('ranking', [0, 20, 'AAAA', 'u1']);
+    for (const order of ['correct', 'wins', 'accuracy'] as const) {
+      expect(readRankingRequest({ community: KEY, order, cursor: pointsCursor }), order).toStrictEqual(invalid('cursor'));
+    }
+    expect(readRankingRequest({ community: KEY, cursor: pointsCursor })).toMatchObject({ ok: true });
   });
 
   it('FR-573 (shape part) an unknown member is refused naming the first in sorted order, after the known ones; inherited members are ignored', () => {
@@ -97,19 +108,19 @@ describe('FR-573 (shape part) the ranking request reader', () => {
 });
 
 describe('FR-565 (cursor part) the ranking cursor', () => {
-  const key = [1_700_000_009_000, 'RnkMatchHEAD0001', 'u-1.x'] as const;
+  const key = [3, 1_700_000_009_000, 'RnkMatchHEAD0001', 'u-1.x'] as const;
 
-  it('FR-565 (cursor part) ranking is a cursor list and its key round-trips with the head and the local id of the last row', () => {
+  it('FR-565 (cursor part) ranking is a cursor list and its key round-trips with the order, the head and the local id of the last row', () => {
     expect(CURSOR_LISTS).toContain('ranking');
     const text = encodeCursor('ranking', key);
     expect(text.length).toBeLessThanOrEqual(256);
     expect(decodeCursor('ranking', text)).toStrictEqual({ ok: true, value: key });
-    // The head itself is a valid last key (a page of one row).
-    expect(decodeCursor('ranking', encodeCursor('ranking', [10, 'A', 'a']))).toStrictEqual({ ok: true, value: [10, 'A', 'a'] });
+    // The head itself is a valid last key (a page of one row), in any order.
+    expect(decodeCursor('ranking', encodeCursor('ranking', [0, 10, 'A', 'a']))).toStrictEqual({ ok: true, value: [0, 10, 'A', 'a'] });
   });
 
   it('FR-565 (cursor part) the longest key still fits the cursor length', () => {
-    expect(() => encodeCursor('ranking', [9_007_199_254_740_991, 'x'.repeat(64), 'y'.repeat(64)])).not.toThrow();
+    expect(() => encodeCursor('ranking', [3, 9_007_199_254_740_991, 'x'.repeat(64), 'y'.repeat(64)])).not.toThrow();
   });
 
   it('FR-565 (cursor part) a ranking cursor is refused for any other list, and no other cursor for ranking', () => {
@@ -120,25 +131,30 @@ describe('FR-565 (cursor part) the ranking cursor', () => {
   });
 
   it('FR-565 (cursor part) a re-encoded text or a bad shape is refused', () => {
-    const spaced = Buffer.from(`[ "ranking",${key[0]},"${key[1]}","${key[2]}"]`).toString('base64url');
+    const spaced = Buffer.from(`[ "ranking",${key[0]},${key[1]},"${key[2]}","${key[3]}"]`).toString('base64url');
     expect(decodeCursor('ranking', spaced)).toStrictEqual(invalid('cursor'));
     const raw = (parts: unknown[]): string => Buffer.from(JSON.stringify(['ranking', ...parts])).toString('base64url');
     const bad: unknown[][] = [
-      [1, 'A'],
-      [1, 'A', 'a', 1],
-      [-1, 'A', 'a'],
-      [1.5, 'A', 'a'],
-      ['1', 'A', 'a'],
-      [1, 5, 'a'],
-      [1, 'bad id', 'a'],
-      [1, 'A', 5],
-      [1, 'A', 'discord:1'],
-      [1, 'A', 'a b'],
-      [1, 'A', 'x'.repeat(65)],
+      [1, 'A', 'a'],
+      [1, 'A', 'a', 'b', 1],
+      [4, 1, 'A', 'a'],
+      [-1, 1, 'A', 'a'],
+      [1.5, 1, 'A', 'a'],
+      ['3', 1, 'A', 'a'],
+      [0, -1, 'A', 'a'],
+      [0, 1.5, 'A', 'a'],
+      [0, '1', 'A', 'a'],
+      [0, 1, 5, 'a'],
+      [0, 1, 'bad id', 'a'],
+      [0, 1, 'A', 5],
+      [0, 1, 'A', 'discord:1'],
+      [0, 1, 'A', 'a b'],
+      [0, 1, 'A', 'x'.repeat(65)],
     ];
     for (const parts of bad) expect(decodeCursor('ranking', raw(parts)), JSON.stringify(parts)).toStrictEqual(invalid('cursor'));
-    expect(() => encodeCursor('ranking', [1, 'A', 'discord:1'] as never)).toThrow(RangeError);
-    expect(() => encodeCursor('ranking', [1, 'A'] as never)).toThrow(RangeError);
+    expect(() => encodeCursor('ranking', [4, 1, 'A', 'a'] as never)).toThrow(RangeError);
+    expect(() => encodeCursor('ranking', [0, 1, 'A', 'discord:1'] as never)).toThrow(RangeError);
+    expect(() => encodeCursor('ranking', [0, 1, 'A'] as never)).toThrow(RangeError);
   });
 });
 
@@ -192,6 +208,7 @@ describe('FR-563 (row shape part) and FR-565 (wire part) the ranking row and pag
       { rank: 1 },
       { points: -1, correct: 0, scored: 0, played: 0, won: 0, rank: 1 },
       { points: 1, correct: -1, scored: 0, played: 0, won: 0, rank: 1 },
+      { points: 1, correct: 1, scored: 0, played: 0, won: 0, rank: 1 },
       { points: 1, correct: 1, scored: 2, played: 3, won: 0, rank: 1 },
       { points: 1, correct: 1, scored: 2, played: 2, won: 3, rank: 1 },
       { points: 1, correct: 1, scored: 2, played: 2, won: 1, rank: 0 },
@@ -250,8 +267,9 @@ describe('FR-563 (row shape part) and FR-565 (wire part) the ranking row and pag
       wire.items[0][k] = v;
       expect(readRankingPage(wire), k).toStrictEqual({ ok: false, field: `items[0].${k}` });
     }
-    // The counts are ordered: a player cannot win more matches than they played, nor play more than they had scored.
-    for (const over of [row({ won: 4 }), row({ played: 7 }), row({ scored: 2 })]) {
+    // The counts are ordered: a player cannot win more matches than they played, nor play more than they had scored,
+    // nor have more correct predictions than scored predictions.
+    for (const over of [row({ won: 4 }), row({ played: 7 }), row({ scored: 2 }), row({ correct: 7 })]) {
       expect(() => encodeRankingPage(page({ items: [over] })), JSON.stringify(over)).toThrow(RangeError);
       const wire = JSON.parse(encodeRankingPage(page()));
       wire.items[0] = over;

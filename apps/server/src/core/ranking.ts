@@ -149,16 +149,24 @@ export function rankingOf(
   const qualified = (s: PlayerStats): boolean => order !== 'accuracy' || s.scored >= QUALIFIED_SCORED;
   const rankedStats = stats.filter(qualified).sort((a, b) => byOrder(order, a, b));
   const tailStats = order === 'accuracy' ? stats.filter((s) => !qualified(s)).sort((a, b) => byOrder('points', a, b)) : [];
-  // Competition ranking (FR-565): the rank is 1 plus the ranked rows strictly before by the statistic alone.
-  const all: Placed[] = [
-    ...rankedStats.map((s) => ({ stats: s, rank: 1 + rankedStats.filter((o) => morePrimary(order, o, s)).length })),
-    ...tailStats.map((s) => ({ stats: s })),
-  ];
+  // Competition ranking (FR-565) in one pass over the sorted rows: a row's rank is 1 plus the rows strictly before it by
+  // the ordering statistic alone, so a tie keeps the previous rank instead of the position.
+  const all: Placed[] = [];
+  let rank = 0;
+  for (let i = 0; i < rankedStats.length; i++) {
+    const s = rankedStats[i]!;
+    if (i === 0 || morePrimary(order, rankedStats[i - 1]!, s)) rank = i + 1;
+    all.push({ stats: s, rank });
+  }
+  for (const s of tailStats) all.push({ stats: s });
   const localOf = (playerId: string): string => {
     if (!playerId.startsWith(`${namespace}:`)) throw new RangeError('a ranking player id is outside the namespace');
     return playerId.slice(namespace.length + 1);
   };
-  const locals = all.map((p) => localOf(p.stats.playerId));
+  const localIndexOf = new Map<string, number>();
+  all.forEach((p, i) => {
+    localIndexOf.set(localOf(p.stats.playerId), i);
+  });
   const rowOf = (p: Placed): RankingRow => {
     const name = names.get(p.stats.playerId);
     return {
@@ -174,8 +182,8 @@ export function rankingOf(
   };
   let from = 0;
   if (afterLocalId !== undefined) {
-    const at = locals.indexOf(afterLocalId);
-    if (at < 0) throw new RangeError('the ranking cursor names a row outside the snapshot');
+    const at = localIndexOf.get(afterLocalId);
+    if (at === undefined) throw new RangeError('the ranking cursor names a row outside the snapshot');
     from = at + 1;
   }
   const slice = all.slice(from, from + limit);
@@ -183,8 +191,8 @@ export function rankingOf(
   const next = from + limit < all.length && last !== undefined ? localOf(last.stats.playerId) : undefined;
   let asker: RankingAsker | undefined;
   if (askerLocalId !== undefined) {
-    const at = locals.indexOf(askerLocalId);
-    if (at < 0) asker = { played: false };
+    const at = localIndexOf.get(askerLocalId);
+    if (at === undefined) asker = { played: false };
     else {
       const p = all[at]!;
       asker = {

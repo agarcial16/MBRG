@@ -225,25 +225,39 @@ describe('FR-564 (read part) the ranking reads of the store', () => {
   });
 
   it('NFR-125 (store part) the two reads are one statement each, with 10 and with 1,000 counted matches', () => {
-    const store = openStore(':memory:');
+    // Count the statements the adapter really prepares (a store wrapper would only count its own calls).
+    const countPrepares = (run: () => void): number => {
+      let n = 0;
+      const proto = DatabaseSync.prototype as unknown as Record<string, unknown>;
+      const original = proto.prepare as (...args: unknown[]) => unknown;
+      proto.prepare = function (this: unknown, ...args: unknown[]) {
+        n += 1;
+        return original.apply(this, args);
+      };
+      try {
+        run();
+      } finally {
+        proto.prepare = original;
+      }
+      return n;
+    };
     for (const count of [10, 1000]) {
-      // A second in-memory store per count: the reads see only that count's matches.
       const one = openStore(':memory:');
       for (let i = 0; i < count; i++) {
-        put(one, { id: `m${String(i).padStart(4, '0')}`.padEnd(16, 'y'), community: KEY_R, namespace: 'discord', at: T0 + i });
-        putResults(one, `m${String(i).padStart(4, '0')}`.padEnd(16, 'y'), [
+        const matchId = `m${String(i).padStart(4, '0')}`.padEnd(16, 'y');
+        put(one, { id: matchId, community: KEY_R, namespace: 'discord', at: T0 + i });
+        putResults(one, matchId, [
           victim('discord:u1', 1, true, 3),
           absorber('discord:u1', 2, false, 0),
           winner('discord:u2', false, 0),
         ]);
       }
-      let calls = 0;
-      const counting: Store = { ...one, rankingResults: (...a) => (calls++, one.rankingResults(...a)), rankingNames: (...a) => (calls++, one.rankingNames(...a)) };
-      expect(counting.rankingResults(KEY_R, 'discord', undefined)).toHaveLength(2 * count);
-      expect(counting.rankingNames(KEY_R, 'discord', undefined)).toStrictEqual([]);
-      expect(calls).toBe(2);
+      const statements = countPrepares(() => {
+        expect(one.rankingResults(KEY_R, 'discord', undefined)).toHaveLength(2 * count);
+        expect(one.rankingNames(KEY_R, 'discord', undefined)).toStrictEqual([]);
+      });
+      expect(statements, String(count)).toBe(2);
       one.close();
     }
-    store.close();
   });
 });

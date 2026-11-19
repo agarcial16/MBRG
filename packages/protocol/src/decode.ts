@@ -434,13 +434,14 @@ export function readHistoryPage(input: unknown): Decoded<HistoryPage> {
   );
 }
 
-/** The statistics of one ranking row or of the asker (spec 025 FR-564): `won <= played <= scored`. */
+/** The statistics of one ranking row or of the asker (spec 025 FR-564): `correct <= scored` and `won <= played <= scored`. */
 const rankingStats = (m: Members): { points: number; correct: number; scored: number; played: number; won: number } => {
   const points = m.get('points', int(0));
   const correct = m.get('correct', int(0));
   const scored = m.get('scored', int(0));
   const played = m.get('played', int(0));
   const won = m.get('won', int(0));
+  if (correct > scored) refuse(m.path('correct'));
   if (played > scored) refuse(m.path('played'));
   if (won > played) refuse(m.path('won'));
   return { points, correct, scored, played, won };
@@ -470,6 +471,7 @@ const rankingAsker: Reader<RankingAsker> = (v, f) =>
     const correct = m.get('correct', int(0));
     const scored = m.get('scored', int(0));
     const won = m.get('won', int(0));
+    if (correct > scored) refuse(m.path('correct'));
     if (played > scored) refuse(m.path('played'));
     if (won > played) refuse(m.path('won'));
     const stats = { points, correct, scored, played, won };

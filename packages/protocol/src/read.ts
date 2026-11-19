@@ -154,6 +154,8 @@ export function readRankingRequest(input: unknown): ReadResult<RankingRequest> {
     if (typeof o.cursor !== 'string') return fail('invalid-request', 'cursor');
     const decoded = decodeCursor('ranking', o.cursor);
     if (!decoded.ok) return decoded;
+    // The order travels in the cursor (FR-565): a walk of one order cannot continue in another.
+    if (decoded.value[0] !== RANKING_ORDERS.indexOf(order)) return fail('invalid-request', 'cursor');
     after = decoded.value;
   }
   const extra = firstUnknown(o, RANKING_FIELDS);
