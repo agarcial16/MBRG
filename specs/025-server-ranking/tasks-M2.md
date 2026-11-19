@@ -1,7 +1,7 @@
-### M2 — Service, route and proofs (0 / 4)
+### M2 — Service, route and proofs (1 / 4)
 Plan sections 1, 2, 4 (PD2). Depends on M1.
 
-- [ ] **T2.1. Service ranking read.** FR-564 (service part), FR-565 (walk part), FR-567 (service part), NFR-125 (statement-count pin)
+- [x] **T2.1. Service ranking read.** FR-564 (service part), FR-565 (walk part), FR-567 (service part), NFR-125 (statement-count pin)
   - Files: `apps/server/src/service/matches.ts`, service tests.
   - Done when: `ranking(request)` reads the two store statements bounded by the head of the cursor (a first page takes its head from the newest counted match), builds the statistics, ranks, pages and counts through the core; no write, no memoisation; a storage failure is `unavailable`; the service rechecks the community key and the local id (defence in depth, as the other reads); a counting store wrapper pins the statement count equal with 10 and with 1,000 counted matches.
 - [ ] **T2.2. Route `POST /ranking`.** FR-563, FR-565, FR-566, FR-567, FR-568
