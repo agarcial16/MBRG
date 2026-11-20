@@ -223,6 +223,8 @@ export const READ_SQL = {
   // The same path as the history reads (key through `communities_by_key`, each match by its primary key, the namespace by the
   // primary key of `client_matches`, only a finished match counts, the head bound optional); the results are reached through
   // their per-match key and aggregated per (match, player), so the statement count never grows with the stored matches.
+  // The floor (spec 027, the lower instant of a ranking period) is the LAST two parameters and one more optional condition: a NULL
+  // floor turns it off, so the all-time call reads the rows it read before; a match finished at the floor is in, one 1 ms before is out.
   rankingResults: `SELECT m.id AS match_id, m.last_step_ms AS finished_ms, r.player_id AS player_id,
     SUM(r.points) AS points, SUM(r.correct) AS correct, COUNT(*) AS scored
     FROM communities k INDEXED BY communities_by_key
@@ -231,6 +233,7 @@ export const READ_SQL = {
     JOIN results r ON r.match_id = k.match_id
     WHERE k.community = ? AND cm.namespace = ? AND m.stage = 'finished'
       AND (? IS NULL OR m.last_step_ms < ? OR (m.last_step_ms = ? AND m.id >= ?))
+      AND (? IS NULL OR m.last_step_ms >= ?)
     GROUP BY m.id, r.player_id
     ORDER BY m.last_step_ms DESC, m.id ASC, r.player_id ASC`,
   rankingNames: `SELECT m.id AS match_id, m.last_step_ms AS finished_ms, n.player_id AS player_id, n.name AS name
@@ -240,6 +243,7 @@ export const READ_SQL = {
     JOIN client_names n ON n.match_id = k.match_id
     WHERE k.community = ? AND cm.namespace = ? AND m.stage = 'finished'
       AND (? IS NULL OR m.last_step_ms < ? OR (m.last_step_ms = ? AND m.id >= ?))
+      AND (? IS NULL OR m.last_step_ms >= ?)
     ORDER BY m.last_step_ms DESC, m.id ASC`,
 } as const;
 
@@ -259,6 +263,12 @@ const checkHistoryKey = (key: HistoryKey | undefined, what: string): readonly [n
 /** The settled bound of a history read: a whole instant (it may be negative on a young clock; it only has to be a safe integer). */
 const checkSettled = (settledBefore: number): void => {
   if (!Number.isSafeInteger(settledBefore)) throw new RangeError('a settled bound is a whole instant');
+};
+/** The floor of a ranking read (spec 027): none, or a whole instant (any sign: a test clock may sit near 0); anything else is a RangeError. */
+const checkFloor = (floor: number | undefined): number | null => {
+  if (floor === undefined) return null;
+  if (typeof floor !== 'number' || !Number.isSafeInteger(floor)) throw new RangeError('a ranking floor is a whole instant');
+  return floor;
 };
 const checkHistoryScope = (community: string, namespace: string): void => {
   if (!isCommunityKey(community)) throw new RangeError('a community key is 64 lowercase hexadecimal characters');
@@ -757,10 +767,11 @@ export const openStore = (path: string): Store => {
       const row = one(READ_SQL.historyCount, community, namespace, settledBefore, headAt, headAt, headAt, headId);
       return row === undefined ? 0 : num(row, 'n');
     },
-    rankingResults(community: string, namespace: string, head: HistoryKey | undefined): RankingSourceRow[] {
+    rankingResults(community: string, namespace: string, head: HistoryKey | undefined, floor?: number): RankingSourceRow[] {
       checkHistoryScope(community, namespace);
       const [headAt, headId] = checkHistoryKey(head, 'a ranking head');
-      return all(READ_SQL.rankingResults, community, namespace, headAt, headAt, headAt, headId).map((r) => ({
+      const lower = checkFloor(floor);
+      return all(READ_SQL.rankingResults, community, namespace, headAt, headAt, headAt, headId, lower, lower).map((r) => ({
         matchId: str(r, 'match_id'),
         finishedAt: num(r, 'finished_ms'),
         playerId: str(r, 'player_id'),
@@ -769,10 +780,11 @@ export const openStore = (path: string): Store => {
         scored: num(r, 'scored'),
       }));
     },
-    rankingNames(community: string, namespace: string, head: HistoryKey | undefined): RankingNameRow[] {
+    rankingNames(community: string, namespace: string, head: HistoryKey | undefined, floor?: number): RankingNameRow[] {
       checkHistoryScope(community, namespace);
       const [headAt, headId] = checkHistoryKey(head, 'a ranking head');
-      return all(READ_SQL.rankingNames, community, namespace, headAt, headAt, headAt, headId).map((r) => ({
+      const lower = checkFloor(floor);
+      return all(READ_SQL.rankingNames, community, namespace, headAt, headAt, headAt, headId, lower, lower).map((r) => ({
         matchId: str(r, 'match_id'),
         finishedAt: num(r, 'finished_ms'),
         playerId: str(r, 'player_id'),
