@@ -24,7 +24,7 @@ export interface Boards {
   lookupHistory(messageId: string): HistoryWalkView | undefined;
   /** The page stack after a press; the expiry stays the one of the posting. A message no longer remembered is ignored. */
   updateHistory(messageId: string, pages: HistoryTag['pages']): void;
-  /** A ranking message that pages: its walk (asker, key, order, pages shown) lives here for 5 minutes (spec 025 FR-569). */
+  /** A ranking message that pages: its walk (asker, key, order, period if any, pages shown) lives here for 5 minutes (spec 025 FR-569, spec 027 FR-583). */
   registerRanking(channelId: string, messageId: string, tag: RankingTag): void;
   lookupRanking(messageId: string): RankingWalkView | undefined;
   updateRanking(messageId: string, pages: RankingTag['pages']): void;
@@ -69,7 +69,7 @@ export function createBoards(options: BoardsOptions): Boards {
     },
     registerRanking(channelId, messageId, tag) {
       rankingWalks.get(messageId)?.cancel();
-      const view: RankingWalkView = { askerId: tag.askerId, community: tag.community, order: tag.order, pages: tag.pages, expiresAt: options.now() + RANKING_TTL_MS };
+      const view: RankingWalkView = { askerId: tag.askerId, community: tag.community, order: tag.order, ...(tag.period === undefined ? {} : { period: tag.period }), pages: tag.pages, expiresAt: options.now() + RANKING_TTL_MS };
       const cancel = options.after(RANKING_TTL_MS, () => expire(channelId, messageId, () => rankingWalks.delete(messageId)));
       rankingWalks.set(messageId, { view, cancel });
     },

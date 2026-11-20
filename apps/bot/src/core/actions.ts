@@ -28,6 +28,8 @@ export interface RankingWalkView {
   readonly askerId: string;
   readonly community: string;
   readonly order: RankingOrder;
+  /** The time window of the walk (spec 027 FR-583); none is all time. */
+  readonly period?: TimePeriod;
   readonly expiresAt: number;
   readonly pages: readonly RankingPage[];
 }
@@ -67,7 +69,7 @@ export type Action =
   /** The first page of the ranking of the asker's community under an order, as a public reply (spec 025 FR-569); `period` only for a time window (spec 027), none is all time. */
   | { readonly do: 'ranking'; readonly community: string; readonly order: RankingOrder; readonly period?: TimePeriod }
   /** A page of a ranking message, in place: from the pages already shown (no `cursor`), or the next page of the walk by its cursor (spec 025 FR-569, as `history-page`). */
-  | { readonly do: 'ranking-page'; readonly community: string; readonly order: RankingOrder; readonly page: number; readonly pages: readonly RankingPage[]; readonly cursor?: string };
+  | { readonly do: 'ranking-page'; readonly community: string; readonly order: RankingOrder; readonly period?: TimePeriod; readonly page: number; readonly pages: readonly RankingPage[]; readonly cursor?: string };
 
 /** How the answer is sent: deferred at once (the work may take longer than Discord's three seconds) as public or private, direct, or as the edit of the message pressed (`update`). */
 export type Delivery = 'public' | 'private' | 'direct' | 'update';
@@ -170,7 +172,8 @@ export function decide(interaction: Interaction, following: boolean, info: Chann
       // The message is unknown (the bot restarted) or past its five minutes: nothing is served, whoever presses (spec 025 FR-569, as the history's).
       if (walk === undefined || interaction.now >= walk.expiresAt) return say(STRINGS.rankingExpired);
       if (walk.askerId !== interaction.userId) return say(STRINGS.rankingNotYours);
-      const base = { do: 'ranking-page' as const, community: walk.community, order: walk.order, page: id.page, pages: walk.pages };
+      // The period of the walk goes with every press (spec 027 FR-583): a press never asks in another window than the one its message shows.
+      const base = { do: 'ranking-page' as const, community: walk.community, order: walk.order, ...(walk.period === undefined ? {} : { period: walk.period }), page: id.page, pages: walk.pages };
       if (id.page <= walk.pages.length) return base;
       const cursor = id.page === walk.pages.length + 1 ? walk.pages[walk.pages.length - 1]?.next : undefined;
       return cursor === undefined ? say(STRINGS.errUnexpected) : { ...base, cursor };

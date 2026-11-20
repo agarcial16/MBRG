@@ -155,7 +155,9 @@ const buttonsOf = (page: number, pages: number): ButtonSpec[] => [
  * there is more than one page, the walk the shell remembers to page it (FR-569). An empty ranking is the one sentence alone (FR-570).
  */
 export function rankingMessage(page: RankingPage, order: RankingOrder, ctx: RankingContext, walk: RankingTag): OutMessage {
-  const view = rankingEmbed(page, order, ctx);
+  // The period of the message is the walk's, so the title and the pages the buttons walk are always those of one window (spec 027 FR-583).
+  const { period: _shown, ...plain } = ctx;
+  const view = rankingEmbed(page, order, walk.period === undefined ? plain : { ...plain, period: walk.period });
   if (page.items.length === 0) return view;
   const pages = rankingPageCount(page.total);
   return { ...view, buttons: buttonsOf(clampPage(ctx.page, pages), pages), ...(pages > 1 ? { ranking: walk } : {}) };

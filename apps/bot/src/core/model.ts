@@ -46,6 +46,8 @@ export interface RankingTag {
   readonly askerId: string;
   readonly community: string;
   readonly order: RankingOrder;
+  /** The time window of the walk (spec 027 FR-583); none is all time. Every press asks with it, so a walk never mixes periods. */
+  readonly period?: TimePeriod;
   readonly pages: readonly RankingPage[];
 }
 

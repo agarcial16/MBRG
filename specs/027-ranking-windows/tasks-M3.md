@@ -1,4 +1,4 @@
-### M3 — Bot and e2e (2 / 4)
+### M3 — Bot and e2e (3 / 4)
 Plan sections 1, 5 (PD6). Depends on M2.
 
 - [x] **T3.1. Period option, translation and failures.** FR-584
@@ -7,7 +7,7 @@ Plan sections 1, 5 (PD6). Depends on M2.
 - [x] **T3.2. Titles, sentences and the worst case.** NFR-130
   - Files: `apps/bot/src/core/ranking.ts`, `core/strings.ts`, a new `apps/bot/test/core-ranking-period.test.ts`.
   - Done when: the title is "Ranking del servidor · últimos 7 días" / "· últimos 30 días" for a period and "Ranking del servidor" without one; the "Tu puesto" line gives the rank and statistics inside the window, is absent for an asker unqualified in the accuracy order, and is "No has jugado ninguna partida terminada en este servidor en los últimos N días." for an asker with no row; the windowed empty reply is "Nadie ha jugado una partida terminada en este servidor en los últimos N días." without buttons, and the all-time empty reply is unchanged; N is 7 or 30; a worst case (24-character names, 20-digit ids, every statistic at its widest, the 30-day title, the accuracy note and the asker's window sentence) renders within every 017 NFR-94 limit; `bot-scans` (no unused string) green.
-- [ ] **T3.3. The walk keeps its period.** FR-580, FR-581, FR-582, FR-583
+- [x] **T3.3. The walk keeps its period.** FR-580, FR-581, FR-582, FR-583
   - Files: `apps/bot/src/core/model.ts` (`RankingTag.period?`), `core/actions.ts` (`RankingWalkView.period?`), `io/boards.ts`, `io/handler.ts`, a new `apps/bot/test/bot-flow-ranking-period.test.ts`.
   - Done when (bot flow against a scripted server): the command in each period and order replies publicly with page 1 of that period; the board keeps the period beside the order and pages; Next follows the cursor of the page shown and Previous returns to a page already shown, both with the same title, snapshot and "Página N/M"; only the asker pages; an expired walk refuses as 025; the windowed empty case carries no buttons; custom ids carry only the target page (no period, no floor).
 - [ ] **T3.4. e2e step and close.** FR-585, NFR-131

@@ -47,12 +47,16 @@ describe('FR-580 (title part) the title names the window', () => {
 
   it('FR-580 (title part) the message of a window, with its buttons, has the window title; an all-time message the plain title', () => {
     for (const [period, days] of PERIODS) {
-      const message = rankingMessage(page([row('111')], { total: 25 }), 'points', ctx(period), { askerId: '9', community: 'k', order: 'points', pages: [] });
+      const message = rankingMessage(page([row('111')], { total: 25 }), 'points', ctx(), { askerId: '9', community: 'k', order: 'points', period, pages: [] });
       expect(message.embed?.title).toBe(`Ranking del servidor · últimos ${days} días`);
       expect(message.buttons).toHaveLength(2);
+      expect(message.ranking).toMatchObject({ period });
     }
     const plain = rankingMessage(page([row('111')], { total: 25 }), 'points', ctx(), { askerId: '9', community: 'k', order: 'points', pages: [] });
     expect(plain.embed?.title).toBe('Ranking del servidor');
+    expect(plain.ranking).not.toHaveProperty('period');
+    // The walk decides the period of the message: a context naming another one is not followed.
+    expect(rankingMessage(page([row('111')], { total: 25 }), 'points', ctx('last-7-days'), { askerId: '9', community: 'k', order: 'points', pages: [] }).embed?.title).toBe('Ranking del servidor');
   });
 });
 
@@ -99,7 +103,7 @@ describe('FR-582 (sentence part) the empty window', () => {
       for (const order of ['points', 'correct', 'wins', 'accuracy'] as const) {
         const empty = { items: [], total: 0 };
         expect(rankingEmbed(empty, order, ctx(period)), `${period} ${order}`).toEqual({ text: sentence, buttons: [] });
-        const message = rankingMessage(empty, order, ctx(period), { askerId: '9', community: 'k', order, pages: [empty] });
+        const message = rankingMessage(empty, order, ctx(), { askerId: '9', community: 'k', order, period, pages: [empty] });
         expect(message, `${period} ${order}`).toEqual({ text: sentence, buttons: [] });
       }
     }
