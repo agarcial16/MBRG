@@ -38,5 +38,11 @@ Changed pins, each with its reason (all in `apps/bot/test/`):
 - The next two full runs showed 15 timeouts in the heavy `apps/server`/`apps/web` perf tests (restart-after-every-step, tour-shade at 1920x1080, label placement) under full-suite CPU contention — the MEMORY lesson "Node timings are noisy: run perf tests alone". Rerun alone: all five server files green (73 tests), all five web files green (121 tests); a final clean full run: 412 files passed, 6056 tests passed, 6 skipped, 0 failed. No bot test ever failed after the code landed.
 - Untested: nothing known. Next: push and the PR.
 
+## Step 5 — the PR and the handover
+- Branch `feat/history-embed-presentation` pushed; PR opened into `main`: https://github.com/agarcial16/MBRG/pull/85, head `32c36aa` (the board row now carries it).
+- `MEMORY.md` updated per repo convention (specs 001-026, candidate line); the spec status stays `approved` as ordered — the merge acceptance bumps it to `implemented` and moves this folder to `specs/archive/`.
+- Handover: branch `feat/history-embed-presentation`, state: spec, tests, code, mutation proofs and full verification complete (`npm test` 412 files green, `npm run typecheck` green, protected paths byte-identical); next step: the reviewer reads PR #85, then squash-merge and archive the spec.
+
+
 
 
