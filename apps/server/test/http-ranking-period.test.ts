@@ -189,9 +189,9 @@ describe('FR-575 FR-578 (HTTP) the request names its period, never a floor, and 
     }
     const raw = (text: string): Promise<{ status: number; text: string }> =>
       request(h.port, { method: 'POST', path: '/ranking', body: text, headers: { authorization: `Bearer ${DISCORD.credential}`, 'content-type': 'application/json' } });
-    // A repeated `period` in the raw text is read as the last one, exactly as a repeated `order` of 025 is (only `community` and
-    // `joinPolicy` have a body-level repeat guard); a repeated unknown one is refused by name.
-    expect((await raw(`{"community":"${KEY_A}","period":"last-30-days","period":"last-7-days","limit":500}`)).text).toBe((await send({ community: KEY_A, period: 'last-7-days', limit: 500 })));
+    // A repeated `period` in the raw text is refused by name, like `community` and `joinPolicy` (FR-575: at most one window);
+    // a repeated unknown member is refused by name as before.
+    expect((await raw(`{"community":"${KEY_A}","period":"last-30-days","period":"last-7-days","limit":500}`)).text).toBe(invalid(['period']));
     expect((await raw(`{"community":"${KEY_A}","period":"last-7-days","period":"nope"}`)).text).toBe(invalid(['period']));
     // `all` and no period are the same request: the same bytes, the cursor included.
     expect(await send({ community: KEY_A, period: 'all', limit: 4, playerId: 'u2' })).toBe(await send({ community: KEY_A, limit: 4, playerId: 'u2' }));

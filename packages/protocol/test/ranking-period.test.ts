@@ -32,11 +32,12 @@ describe('FR-575 (reader part) the period member of the ranking request', () => 
     expect(all.ok && 'period' in all.value).toBe(false);
   });
 
-  it('FR-575 (reader part) any other value, a non-text and a repeated or inherited member are invalid-request naming period', () => {
+  it('FR-575 (reader part) any other value, a non-text and a list of values are invalid-request naming period; an inherited member is ignored', () => {
     for (const period of ['week', 'month', 'semana', 'ALL', 'All', 'last-1-day', 'last-7-days ', '', 7, 30, null, true, [], ['all'], {}, undefined]) {
       expect(readRankingRequest({ community: KEY, period }), String(period)).toStrictEqual(invalid('period'));
     }
-    // A repeated member is not representable in a parsed JSON object, and an array of values is refused above.
+    // A raw JSON text with two `period` members is refused by the body guard at the HTTP layer (as `community` is); the
+    // reader only ever sees the parsed object, where a list of values stands in for the duplicate and is refused above.
     expect(readRankingRequest({ community: KEY, period: ['last-7-days', 'last-30-days'] })).toStrictEqual(invalid('period'));
     // An inherited member is ignored, as every other member of the body.
     const inherited = Object.assign(Object.create({ period: 'week' }) as object, { community: KEY });

@@ -44,6 +44,8 @@ export function parseBodyBytes(bytes: Uint8Array): BodyParse {
   if (repeatsMember(text, 'joinPolicy')) return { kind: 'error', error: errorReply('invalid-request', ['joinPolicy']) };
   // Spec 024 FR-546: the same for a repeated `community` (two keys in one creation are never read as the last one).
   if (repeatsMember(text, 'community')) return { kind: 'error', error: errorReply('invalid-request', ['community']) };
+  // Spec 027 FR-575: a ranking names at most one window, so a repeated `period` is refused the same way.
+  if (repeatsMember(text, 'period')) return { kind: 'error', error: errorReply('invalid-request', ['period']) };
   return { kind: 'body', value: value as Record<string, unknown> };
 }
 
