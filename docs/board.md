@@ -4,3 +4,4 @@ Live work, one row per task; the orchestrator updates it, the feature PR closes 
 | task | tier | model | thread | branch | state | next step |
 |---|---|---|---|---|---|---|
 | History embed presentation pass: top on one line with medals, viewer link merged into the asker's line, winner bold, ordinal computed from the snapshot total | small | opencode-go/glm-5.3 implements, claude-sonnet-5-5 reviews | — | — | queued (mockup approved by the user on 2026-11-20) | next session |
+| Deployment guide (`docs/deployment.md`): server + bot + viewer on a Linux VPS, env contract, systemd, TLS | small | opencode-go/glm-5.3 implements, user reviews | — | chore/deployment-guide | in review (PR) | done when merged |
