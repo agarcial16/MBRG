@@ -1,4 +1,4 @@
-### M1 — Period engine (2 / 3)
+### M1 — Period engine (3 / 3)
 Plan sections 1, 2, 3 (PD2, PD3, PD4). Closes no id: every part is traced by part-named test titles and closed in M2 or M3.
 
 - [x] **T1.1. Ledger, the period member and the windowed cursor.** (closes none)
@@ -7,6 +7,6 @@ Plan sections 1, 2, 3 (PD2, PD3, PD4). Closes no id: every part is traced by par
 - [x] **T1.2. The floor bound of the two ranking reads.** (closes none)
   - Files: `apps/server/src/store/sqlite.ts`, `store.ts`, `faults.ts` (pass-through), a new `apps/server/test/store-ranking-period.test.ts`.
   - Done when: `rankingResults` and `rankingNames` take an optional trailing `floor`; with a floor they return only the rows of counted matches finished at or after it (a match finished exactly at the floor is in, 1 ms before is out), with no floor the same rows as a floor below every finish instant (and the 025 store tests green unchanged); a head older than the floor gives `[]` from both; a name stored only in a match before the floor is never returned; a floor that is not a safe integer is a RangeError; `EXPLAIN QUERY PLAN` of both statements with a floor shows no `SCAN` of `matches`, `results`, `communities` or `client_names`; a counting wrapper shows the same 2 statements with and without a floor; the source scan still counts 5 community-read calls in the service; the 025 store tests are green unchanged.
-- [ ] **T1.3. Pure floor and membership.** (closes none)
+- [x] **T1.3. Pure floor and membership.** (closes none)
   - Files: `apps/server/src/core/ranking.ts`, a new `apps/server/test/core-ranking-period.test.ts`.
   - Done when: `PERIOD_LENGTH_MS` holds 7 × 86,400,000 and 30 × 86,400,000; `periodFloorOf('all', now)` is undefined and the others give `now - length`; a non-whole `now` is a RangeError; `isInPeriod(at, floor)` is true at the floor, false 1 ms before, always true without a floor; folding the in-period rows with the unchanged `statsOf`/`shownNameOf`/`rankingOf`: a player with 9 scored predictions inside a window and 40 outside is in the accuracy tail, one with 10 inside is ranked, a player with rows only outside has no row, a name stored only outside is not shown; the core purity scan covers the file and stays green.
