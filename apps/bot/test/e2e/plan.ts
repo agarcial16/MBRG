@@ -71,6 +71,13 @@ export const PLAN: readonly RoundPlan[] = [
 export const correctVictimOf = (r: RoundPlan): string[] => PLAYERS.filter((p) => r.pickVictim[p.userId] === r.victim).map((p) => p.userId);
 export const correctAbsorberOf = (r: RoundPlan): string[] => PLAYERS.filter((p) => r.pickAbsorber[p.userId] === r.absorber).map((p) => p.userId);
 
+/**
+ * How many scored predictions a player makes in a match's plan: one per victim pick and one per absorber pick (the plans hold no
+ * winner picks). The independent count behind the ranking pins' `scored` and `played` (the leaderboards carry no such number).
+ */
+export const picksOf = (plan: readonly RoundPlan[], userId: string): number =>
+  plan.reduce((n, r) => n + (r.pickVictim[userId] !== undefined ? 1 : 0) + (r.pickAbsorber[userId] !== undefined ? 1 : 0), 0);
+
 export const factionName = (faction: number): string => FACTION_NAMES[faction] ?? `Facción ${faction}`;
 const say = (key: keyof typeof STRINGS, values: Readonly<Record<string, string | number>> = {}): string => fill(STRINGS[key], values);
 

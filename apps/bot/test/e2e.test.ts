@@ -10,7 +10,7 @@ import { EMBED_COLORS } from '../src/core/embeds';
 import type { OutMessage, Reply } from '../src/core/model';
 import { STRINGS } from '../src/core/strings';
 import { GUILD_A, GUILD_B, KEY_A, KEY_B } from './helpers/harness';
-import { ANA_AFTER_FIRST, BOARD_B, EXPECTED_POST_TEXTS, FACTION_NAMES, PLAN, PLAYERS, RANKING_ORDER, RANKING_PINS, askerLine, boardTextB, rankingDescription } from './e2e/plan';
+import { ANA_AFTER_FIRST, BOARD_B, EXPECTED_POST_TEXTS, FACTION_NAMES, PLAN, PLAN_B, PLAYERS, RANKING_ORDER, RANKING_PINS, askerLine, boardTextB, picksOf, rankingDescription } from './e2e/plan';
 import type { RankOrder } from './e2e/plan';
 import { renderEmbedsHtml, renderTranscript } from './e2e/render';
 import { secrecyViolations } from './e2e/secrecy';
@@ -149,7 +149,7 @@ describe('spec 023 e2e: real server + real bot core, Discord faked', () => {
     expect(r.second.leaderboard.at(-1)).toMatchObject({ total: 0, name: 'Ana' });
   });
 
-  it('FR-572 the pinned statistics of the plan are the sums of what the public leaderboards of the two matches say (an oracle that shares nothing with the ranking code)', () => {
+  it('FR-572 the pinned statistics of the plan are the sums of what the public leaderboards of the two matches say, and the scored counts are counted from the plans themselves (an oracle that shares nothing with the ranking code)', () => {
     const r = run!;
     for (const pin of RANKING_PINS) {
       const id = `discord:${pin.userId}`;
@@ -162,7 +162,10 @@ describe('spec 023 e2e: real server + real bot core, Discord faked', () => {
         return best > 0 && board.find((row) => row.playerId === id)!.total === best;
       }).length;
       expect(won, `${id} won`).toBe(pin.won);
-      expect(pin.played).toBe(2);
+      // Scored and played, counted from the scripted picks (the leaderboards carry no count of scored predictions, and the
+      // 10-prediction qualification of the accuracy order hangs on this number).
+      expect(picksOf(PLAN, pin.userId) + picksOf(PLAN_B, pin.userId), `${id} scored`).toBe(pin.scored);
+      expect([PLAN, PLAN_B].filter((p) => picksOf(p, pin.userId) > 0).length, `${id} played`).toBe(pin.played);
     }
   });
 
