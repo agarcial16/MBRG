@@ -1,0 +1,126 @@
+# Spec 028 — Map importer
+Status: draft (presented 2026-11-20)
+Tier: Full SDD (a new map source: whatever it writes is read by the server's map checks and the viewer, and a bad package halts matches). Depends on 001/002 (map format, validation, sea zones, land + sea connectivity), 003a (presentation data, id image values, contact adjacency), 003b (PNG file format, piece cleanup, self-check, atomic package write, build report, preview), 003c (enclosed water, amended cleanup), 004 (viewer package checks, capability check, faction colours) and 008 (map list and map digest). Ids: FR-586 to FR-607, NFR-132 to NFR-138.
+
+This draft assumes the recommended answer of each open question (an offline operator command inside the existing map builder tool, a painted PNG plus a legend file, painted sea zones, exact colours with an optional border colour, a scan that writes a draft legend a human must finish, owners named per territory in the legend, the conservative limits, and an output folder the operator lists by hand). A different answer changes the requirements that name that question.
+
+## Context and goal
+The roadmap's next feature is "upload an image, turn it into a playable map". Today the only map source is the offline builder of 003b: it turns committed Natural Earth province polygons, a grouping table, sea seeds and three parameters into a map package (`map.json`, `ids.png`, `presentation.json`); running it on the committed inputs reproduces `maps/dev` byte for byte. Nobody can make a map of their own without writing a grouping table over real-world geography.
+
+Everything after the source data is already generic: piece cleanup (003b FR-117), adjacency by 4-connected pixel contact (003a FR-108, 003b FR-118), the self-check (003b FR-122: map validation, presentation check, id image check, PNG round trip) and the atomic package write (003b FR-123). The id image is already "one colour per territory". This spec adds a second source in front of that pipeline: a flat-painted image, where each territory is one colour, plus a small legend a human writes to say what each colour is. Its output is an ordinary map package that the server lists through its map list (008) and the viewer draws (004) with no change to either.
+
+The importer decides only how a raw image becomes those artifacts. What a valid package is stays exactly what 001 to 004 already say.
+
+## Users
+- **Map author**: paints a map in any image editor and wants it playable without learning the builder's geography inputs.
+- **Operator**: curates the maps a server offers (the map list, 008) and must be able to trust that an imported package is valid before listing it.
+- **Spectator / predictor** (indirect): sees named territories and factions, and borders that match what is drawn.
+
+## User stories
+- US-1. As a map author, I want to paint one flat colour per territory and get a map package, so that I can make a map without writing coordinates or links.
+- US-2. As a map author, I want the importer to list every colour it found, so that I only have to name territories and pick their owners.
+- US-3. As a map author, I want every problem of my image or legend reported in one run with a pixel position, so that I can fix them all at once.
+- US-4. As an operator, I want an imported package to pass the same checks as the dev map, so that listing it can never halt a match or break the viewer.
+- US-5. As an operator, I want the importer to never overwrite a package, so that a running match on a listed map never sees its files change.
+
+## Definitions
+- **Source image**: the PNG file the author paints. Only its pixel colours matter.
+- **Colour**: the 24-bit value R × 65,536 + G × 256 + B of a pixel, written as `#` plus 6 lowercase hexadecimal digits (003a FR-88 format).
+- **Legend**: a JSON file written by the author that says what each colour of the source image is (FR-590). It is an importer input, not part of the map package.
+- **Background colour**: the colour the legend names as outside the map; its pixels, and every fully transparent pixel, become value 0 (outside, other land, lakes; 004 FR-143).
+- **Border colour**: an optional colour the legend names for painted outline lines; its pixels are given to the nearest entry (FR-595) and never form a territory.
+- **Listed colour**: a colour the legend lists as a land territory or a sea zone.
+- **Stray colour**: a colour present in the source image that is neither the background colour, the border colour nor a listed colour.
+- **Piece**, **minimum piece size (S)**, **map order**: as in 003b.
+- **Scan**: the importer mode that reads only a source image and writes a draft legend (FR-587).
+- **Import**: the importer mode that reads a source image and a legend and writes a map package (FR-588).
+- **Caps**: side 64 to 2,048 pixels, square; at most 4,096 distinct colours; at most 2,047 map entries; at most 255 factions; source file at most 32 MiB; legend file at most 1 MiB (OQ7 A).
+
+## Functional requirements
+### Where it runs (OQ1 A)
+- FR-586: THE importer SHALL be an offline command of the existing map builder tool (003b), run by the operator or a map author on local files, with two modes: scan and import. It SHALL NOT open a network connection, and neither the server nor the viewer SHALL run it, call it or accept an image upload. Its exit status, usage errors and error output SHALL follow 003b FR-111 (0 success, 1 failure, 2 usage error; one JSON object per error per line on standard error, English `kind` identifiers).
+
+### Scan and draft legend (OQ4 A, OQ5 A)
+- FR-587: WHEN the scan mode reads a source image that passes FR-589 to FR-591, THE importer SHALL write a draft legend to a file the author names (never inside a package folder) listing every distinct colour of the image in order of its first pixel (row-major), each with its pixel count, its piece count, its first pixel (x, y), its bounding box and the colours it touches by 4-adjacency. The draft SHALL propose as background the colour of pixel (0, 0) (or none when that pixel is transparent) and SHALL leave every other colour with an empty `name`, no `kind` and no `faction`, so that an unedited draft always fails import (FR-591). The same image SHALL always give the same draft, byte for byte.
+
+### Source image (OQ2 A)
+- FR-588: WHEN the import mode is given a source image, a legend and an output folder, THE importer SHALL either write a valid map package (FR-604) or write nothing to the output folder and report every error it found, in the order source image, legend, colour matching, pixel steps, package checks.
+- FR-589: THE importer SHALL accept as source image only a PNG file (the PNG signature) of 8 bits per channel, in any colour type (grey, RGB, palette, grey + alpha, RGB + alpha), interlaced or not, ancillary chunks ignored. IF the file is not such a PNG (including JPEG, WebP, GIF and 16-bit PNG), THEN THE importer SHALL fail with `unsupported-image`. Pixel colours SHALL be read exactly as stored: no gamma, colour profile or colour management is applied, so a colour in the file is the colour matched against the legend.
+- FR-590: THE importer SHALL read the width and height from the PNG header and check the file size before inflating any pixel data. IF the file is larger than 32 MiB, THEN `image-file-too-large`; IF the width differs from the height, THEN `image-not-square`; IF the side is below 64 or above 2,048 pixels, THEN `image-size-out-of-range` with the side found (OQ7 A).
+- FR-591: THE importer SHALL treat a pixel with alpha 0 as background whatever its colour; IF any pixel has an alpha between 1 and 254, THEN THE importer SHALL fail with `partial-alpha` giving the count of such pixels and the first one (x, y) in row-major order. IF the image has more than 4,096 distinct colours among its opaque pixels, THEN THE importer SHALL fail with `too-many-colors` giving the count found (it is not a flat painted image), in both modes.
+
+### Legend (OQ2 A, OQ3 A, OQ6 A)
+- FR-592: THE legend SHALL be a JSON object, at most 1 MiB, with exactly these members: `background` (a colour, or `null` when only transparent pixels are background), optional `border` (a colour), optional `minPieceSize` (an integer 1 to 10,000, default 40, the S of 003b FR-117), `factions` (a list of objects `{ key, name, color? }`) and `territories` (a list of objects `{ color, kind, name, faction? }`, `kind` being `land` or `sea`). Keys are 1 to 64 characters of `a-z`, `0-9`, `-`. Names follow 003a FR-87 and colours 003a FR-88, both used exactly as given (never trimmed or normalised). A land territory SHALL name one faction key; a sea zone SHALL name none.
+- FR-593: IF the legend breaks FR-592, THEN THE importer SHALL fail and report, in this order and each in list order: `invalid-legend` (not a JSON object, a member missing or of the wrong type, or an unknown member, naming the member and the list position), `invalid-name`, `invalid-color`, `duplicate-faction-key`, `duplicate-legend-color` (a colour listed twice, or the background or border colour also listed as a territory, or background equal to border), `unknown-faction` (a land territory naming a key not in `factions`), `missing-faction` (a land territory without one), `sea-with-faction`, `faction-without-territory` (a faction no land territory names). Faction names that repeat and faction colours that repeat are reported by the presentation check (003a FR-102, FR-103) in FR-603.
+
+### From colours to entries (OQ4 A)
+- FR-594: THE importer SHALL match colours exactly (equal 24-bit values; no tolerance and no nearest-colour snapping). IF a stray colour has any pixel, THEN THE importer SHALL fail with one `stray-color` per such colour (colour, pixel count, first pixel), in order of first pixel. IF a listed colour has no pixel, THEN THE importer SHALL fail with `unused-legend-color` naming it.
+- FR-595: WHERE the legend names a border colour, THE importer SHALL give every border pixel to the entry reached from it in the fewest 4-adjacent steps through border pixels, ties to the entry first in map order (the rule of 003b FR-116 with border pixels in the place of water and entries in the place of seeds); border pixels no entry can reach become background. Border pixels SHALL never form or rename an entry, and the border step SHALL run before piece cleanup.
+- FR-596: THE importer SHALL number the entries as 003b FR-119 and FR-120 do, with the legend in the place of the grouping table: faction ids 1..K in the legend's faction order; land territory ids 1..L grouped by faction in faction order and, inside a faction, in legend order; sea zone ids L+1.. in legend order. Map order is id order. The colour of a territory in the source image SHALL NOT be its id, its faction colour or anything else in the package.
+- FR-597: THE importer SHALL apply the piece cleanup of 003b FR-117 (as amended by 003c FR-163) with the legend's S to the assigned pixels, including its `vanished-entry` failure. A listed colour painted in several separate areas is one entry with several pieces (an island territory); every such entry SHALL be listed in the report (FR-605), never refused for it.
+- FR-598: THE importer SHALL derive adjacency only from pixel contact (003a FR-108, 003b FR-118); the legend has no field for links, and no link is added or removed by hand. Two areas separated by background (a lake, a gap) are not neighbours.
+- FR-599: THE importer SHALL write the presentation data from the legend: each faction's name and, when given, its colour; each land territory's and sea zone's name; in faction order and map order (003a FR-84 to FR-86).
+
+### Factions and starts (OQ6 A)
+- FR-600: THE starting owner of every land territory SHALL be the faction its legend entry names; the importer SHALL NOT read owners from the image and SHALL NOT invent factions. A faction's territories need not touch each other (as in the dev map, where islands join their faction through the sea); THE report SHALL list every faction whose land territories form more than one group over land links (information only, never an error).
+
+### Package checks (OQ7 A)
+- FR-601: THE importer SHALL run the self-check of 003b FR-122 on the final map, presentation data, id image values and encoded PNG; any error it reports (including `too-few-factions` and `disconnected-map` of 001/002: every entry reachable from every other over land and sea links) SHALL fail the import with that error as reported.
+- FR-602: THE importer SHALL refuse a package the viewer could not draw on every WebGL 2 device: IF the map has more than 2,047 entries, THEN `too-many-entries`; IF more than 255 factions, THEN `too-many-factions`; IF the faction colour assignment of 004 FR-141 would fail, THEN `palette-exhausted` naming the faction, as the viewer would.
+- FR-603: IF any check of FR-589 to FR-602 fails, THEN THE importer SHALL create, modify or delete no file in the output folder.
+
+### Output, report and preview (OQ8 A)
+- FR-604: WHEN every check passes, THE importer SHALL write `map.json`, `presentation.json` and `ids.png` in the formats of 003a and 003b FR-105, as the builder writes them (same JSON layout, same PNG encoding), with the write rules of 003b FR-123. IF the output folder exists and is not empty, THEN THE importer SHALL fail with `output-not-empty` before reading the inputs, so that no listed package is ever replaced.
+- FR-605: WHEN an import succeeds, THE importer SHALL print a deterministic report with English labels: the side, S, the counts of factions, land territories and sea zones, the smallest piece, every reassigned piece and every border pixel count per entry, every entry with more than one piece, every faction of FR-600 with more than one group, and the background pixel count.
+- FR-606: WHEN asked, THE importer SHALL write a preview image outside the output folder as 003b FR-126 does (a path inside it is a usage error); WHEN an import fails after colour matching, it SHALL still write the preview of the last assignment it computed.
+
+### Sample and integration (OQ8 A)
+- FR-607: THE repository SHALL hold a small committed sample (a painted source image of side 64 to 256, its legend and its expected package) with at least 3 factions, 10 land territories, 2 sea zones, one island territory of two pieces, one lake, a border colour and a faction split by the sea; a test SHALL import it and compare the three files byte for byte with the expected package. The sample SHALL NOT be added to the server settings, the e2e harness (023) or `maps/`; the deployment guide SHALL gain the operator steps (scan, edit the legend, import, add the folder to `MBRG_MAPS` with an absolute path, optionally to `MBRG_PUBLIC_MAPS`).
+
+## Non-functional requirements
+- NFR-132 (Compatibility): the map format, presentation format, id image and PNG formats, `MatchState`, the protocol, the server, the viewer, the bot and the sim do not change; `maps/dev` and every golden stay byte for byte; the builder's rebuild test of the dev map stays green; the builder command and its report are unchanged. Any function the importer shares with the builder or the viewer (for example the colour assignment of 004 FR-141) may be moved only with unchanged behaviour, proven by the existing tests passing unedited.
+- NFR-133 (Dependencies): no new dependency. The importer reuses the PNG library approved for the builder (003b NFR-20) within the builder tool; the manifest pin test of 003b NFR-20 stays unchanged.
+- NFR-134 (Purity and determinism): the scan and import cores take bytes in and give bytes out, with the PNG codec injected; no file system, clock, randomness or network inside them (003b NFR-14, same `node:zlib` exemption). Verified by a scan test and an import test each run twice on the same inputs with byte-identical outputs, and by the purity scan extended to the importer sources.
+- NFR-135 (Input safety): every cap of FR-590 is checked before inflating pixel data: a test with a PNG under 1 KiB whose header declares 100,000 × 100,000 pixels fails with `image-size-out-of-range` without allocating the pixel buffer; a legend over 1 MiB fails before parsing.
+- NFR-136 (Scale): an import at the caps (a generated 2,048 × 2,048 image with 2,000 land territories, 47 sea zones, 255 factions and a border colour) and a scan of an image with 4,096 colours each complete within 60 seconds on the development machine, run alone (lesson: test at real scale).
+- NFR-137 (Language): code, identifiers, error kinds, report labels and docs in English; no UI strings are added. Legend names are the author's content.
+- NFR-138 (Testability): tests first for every id; fixtures mimic what real editors write (a palette PNG, an RGB + alpha PNG with a transparent background, an antialiased edge giving stray colours, a 16-bit PNG, a JPEG renamed `.png`); the traceability ledger is extended with FR-586 to FR-607 and NFR-132 to NFR-138.
+
+## Edge cases
+- A map painted with dark outline lines and no border colour in the legend: the outline colour is a stray colour (FR-594). Listed as background instead, every territory is cut off from every other and the import fails with `disconnected-map`.
+- An antialiased brush: blended edge colours are stray colours, each reported with its first pixel; the author repaints with a hard-edged tool or names one colour as border (only one is allowed).
+- An island painted in a territory's colour but touching no painted sea: a second piece of that territory, not a link; if a whole territory touches neither land nor sea, `disconnected-map`.
+- The same colour used by mistake for two distant territories: one territory with two pieces, listed in the report; the author sees it there and in the preview.
+- A territory painted smaller than S: its pieces are reassigned and the import fails with `vanished-entry` naming it.
+- More than 12 factions touching one sea zone: they are all direct candidates of each other, so the 12-colour palette may run out (`palette-exhausted`); preferred colours in the legend avoid it.
+- A legend with every territory its own faction: valid (one faction per territory, T = territories − 1 rounds), within the faction cap.
+- A source image with a colour profile or gamma chunk: ignored; the stored values are matched.
+- Re-importing a corrected map: a new output folder; reusing a listed folder is refused (FR-604), because a changed package halts its running matches with `map-changed` (008 FR-250).
+- An unedited draft legend: fails with `invalid-legend` for every colour without `kind` and `invalid-name` for every empty name.
+- Pixel (0, 0) painted in a territory colour: the draft proposes it as background; the author must correct it.
+
+## Out of scope
+- An in-browser importer page and any server upload route (OQ1 B and C); a map editor.
+- GeoJSON or real-world sources beyond the existing builder; Azgaar and other generator formats (OQ2 B).
+- A background art or sprite layer, textures, relief or any viewer change; a map title in the package (OQ9).
+- Seeded sea growth from one water colour (OQ3 B); colour tolerance or nearest-colour snapping (OQ4 C).
+- Non-square images and sides above 2,048 (OQ7 B).
+- Listing the map automatically in the server settings, hot reload of the map list, or adding the sample to the e2e harness.
+
+## Done criteria
+- Tests first for every id; traceability ledger extended with FR-586 to FR-607 and NFR-132 to NFR-138; `maps/dev`, goldens and the dev map rebuild unchanged.
+- `npm test`, `npm run typecheck` and CI green.
+- The committed sample of FR-607 imports byte for byte; the scale test of NFR-136 passes.
+- Hand run: the operator scans and imports a map painted by the user in an ordinary editor (at least 30 territories, 4 factions), lists it in a local server's `MBRG_MAPS`, creates and plays a match in the viewer to the end; screenshots (desktop + mobile) of the imported map at round 0 and at the last round are reviewed.
+- The deployment guide holds the operator steps; the user accepts; status becomes `implemented`; MEMORY.md, `docs/lessons/map.md` and `docs/board.md` updated in the feature PR.
+
+## Open questions
+- [NEEDS CLARIFICATION] OQ1. Who imports, and where? **A (recommended):** an offline command of the existing builder tool, run by the operator or an author: maps are curated by the operator through `MBRG_MAPS` anyway; it reuses the builder's cleanup, adjacency, self-check, atomic write, report and preview, and its already approved PNG library (no new dependency, constitution rule 1); nothing touches the server, the protocol or the secrecy of rounds. **B:** an in-browser page that downloads the package: friendliest for authors, but the viewer's own PNG decoder reads only 8-bit RGB without alpha (004 FR-134), a canvas decode may apply colour management and change exact values, and it needs a curation UI (Spanish strings); the package still has to reach the operator's folder. Possible later as a front-end over the same pure core (Light SDD). **C:** an operator-only server upload: a new authenticated route, decoding untrusted images on the server, stored maps instead of a settings file, and a map list that changes at runtime; the most risk for the least gain.
+- [NEEDS CLARIFICATION] OQ2. The input contract? **A (recommended):** a flat-painted PNG plus a legend JSON (colour → kind, name, faction; factions with name and optional colour). **B:** a GeoJSON + image pair: note the builder takes GeoJSON-like polygons, never a PNG (its PNG is an output); a general GeoJSON importer means generalising its projection, grouping and sea seeds, a different feature. **C:** both. Sub-question: a separate background art layer beside the ids texture? Recommended no: the viewer draws only the id image and the owner palette (004 FR-136), so art needs a viewer and package format change, a spec of its own.
+- [NEEDS CLARIFICATION] OQ3. How is the sea given? **A (recommended):** painted: each sea zone its own colour, `kind: sea` in the legend; what is painted is what is played. **B:** one water colour plus named seed pixels, grown into zones by 003b FR-116 and FR-162: less painting, but zone shapes are computed, not drawn.
+- [NEEDS CLARIFICATION] OQ4. Stray colours and outlines? **A (recommended):** exact colours, any stray colour fails with its first pixel, plus one optional border colour grown into the nearest entries (FR-595), so outlined maps import. **B:** stray pieces smaller than S merged like small pieces: silently absorbs antialiasing, but also hides painting mistakes. **C:** nearest-colour snapping with a tolerance: a magic number, and two close territory colours can swap pixels.
+- [NEEDS CLARIFICATION] OQ5. How much is automatic before a human must look? **A (recommended):** the scan finds every colour, counts and contacts automatically; a human must name every territory, choose land or sea and pick every owner (an unedited draft cannot import), and checks the preview. **B:** fully automatic (names "Territorio 1"…, each territory its own faction, largest colour as background): playable at once but meaningless names, and a wrong background guess passes silently. **C:** interactive prompts in the terminal: no reviewable file and not repeatable.
+- [NEEDS CLARIFICATION] OQ6. Who paints the starting owners? **A (recommended):** the legend: each land territory names its faction key. **B:** a second painted image of faction colours: more painting, and a territory split between two faction colours needs another error. **C:** each territory its own faction by default, the legend grouping only when asked. Sub-question: require each faction's land to be contiguous? Recommended no: the sim and validation never required it (the dev map has island regions joined through the sea); the report lists split factions instead (FR-600).
+- [NEEDS CLARIFICATION] OQ7. The limits? **A (recommended):** square, side 64 to 2,048 (WebGL 2 only guarantees a 2,048 texture and the viewer needs one at least as large as the image and the entry table, 004 FR-135), at most 2,047 entries, 255 factions (the viewer's owner table byte), 4,096 distinct colours, a 32 MiB source and a 1 MiB legend. **B:** side up to 4,096 and up to 4,095 entries: richer maps, but the viewer refuses them on devices limited to 2,048 (many phones). Non-square images: the id image contract allows them, but the builder only ever made square ones and the viewer was never judged on one; recommended later.
+- [NEEDS CLARIFICATION] OQ8. Integration? **A (recommended):** the importer writes a fresh package folder (never overwriting one); the operator adds it to `MBRG_MAPS` by hand (no server change); a small committed sample with a byte-for-byte test; the e2e harness and its goldens stay on `maps/dev`. **B:** also commit an imported map under `maps/` and run the e2e harness on it: a second full match in `npm test` for little extra coverage, since the server treats every package alike.
+- [NEEDS CLARIFICATION] OQ9. A map title (the author's name for the map)? **A (recommended):** none: the package format has no title and the map id of `MBRG_MAPS` names it; adding one changes the map format (ask first). **B:** a title member in the presentation data, shown by the viewer and the bot: a format change across 003a, 004 and 017, a spec of its own.
