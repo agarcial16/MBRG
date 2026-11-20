@@ -92,14 +92,15 @@ export interface Spread extends Ranked {
  * fake clock moving `gapMs` between the end of one match and the creation of the next, so the finish instants are planted by
  * the injected clock alone. With the default gap of 5.5 days the matches end about 33, 27.5, 22, 16.5, 11, 5.5 and 0 days
  * before the clock: the last 7 days hold the last two, the last 30 days the last six, all time the seven. Each finish instant
- * is read back from the history (never computed), so a test can set the clock to the exact floor of a match.
+ * is read back from the history (never computed), so a test can set the clock to the exact floor of a match. `scripted: false`
+ * plays the first match with arbitrary picks too (a harness whose known secret an earlier creation consumed).
  */
-export async function populateSpread(h: ServerHarness, gapMs = 475_200_000): Promise<Spread> {
+export async function populateSpread(h: ServerHarness, gapMs = 475_200_000, scripted = true): Promise<Spread> {
   const matches: Made[] = [];
   for (const [i, players] of SPREAD_POPULATION.entries()) {
     if (i > 0) h.clock.advance(gapMs);
     const made = await createCommunityMatch(h, DISCORD, `s-${i}`, KEY_A);
-    playMatch(h, made, players, i === 0);
+    playMatch(h, made, players, scripted && i === 0);
     matches.push(made);
   }
   const listed = (await walk(h, DISCORD, { community: KEY_A }, 500)).pages.flatMap((p) => p.items);
