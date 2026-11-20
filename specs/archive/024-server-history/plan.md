@@ -25,7 +25,7 @@ Spec: `spec.md` (approved 2026-11-18). Status: approved (by the user on 2026-11-
 
 ## 4. Pure functions
 - Server `core/history.ts`: `compareHistory(a, b)`, `withinSnapshot(key, head)`, `entryOf(match, ranked, names, askerId?)`.
-- Bot `core/history.ts`: `historyEmbed(page, ctx)` → `OutMessage` (embed, plain fallback, buttons); `historyEmpty()`; date `<t:SECONDS:d>`.
+- Bot `core/history.ts`: `historyEmbed(page, ctx)` → `OutMessage` (embed, plain fallback, buttons); `historyEmpty()`; date `<t:SECONDS:d>`; each entry's viewer link without a round, so the viewer opens the match's last round.
 - Bot `io/community.ts`: `communityKey(guildId)` = lowercase hex SHA-256 of the guild id text (ASCII).
 
 ## 5. Interface
@@ -37,7 +37,7 @@ Spec: `spec.md` (approved 2026-11-18). Status: approved (by the user on 2026-11-
 - PD2 Separate `communities` table. Discarded: a column on `client_matches` (rewrites an existing table).
 - PD3 Snapshot head in the cursor; total counted up to the head. Discarded: totals without snapshot (N/M drifts) and `stale-cursor` (forces restarts).
 - PD4 POST read with the key in the body. Discarded: GET query (access logs, constitution §5) and a custom header (no precedent).
-- PD5 Cursor stack in the bot's memory per message. Discarded: cursor in the button id (100-character limit, cursor up to 256).
+- PD5 The bot keeps the pages it has SHOWN, each with its own `next` cursor, in memory per message: page 1 has no cursor (asking for it again opens a new snapshot), Previous and a repeated Next answer from memory with no request. Discarded: cursor in the button id (100-character limit, cursor up to 256) and a bare cursor stack (Previous could not replay a shown page without a new request).
 - PD6 An older server (`invalid-request` naming `community`): the bot says the server is unavailable and never retries without the key (as 018 FR-505); bot and server ship together.
 
 ## 7. Tests (Vitest)
