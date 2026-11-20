@@ -1,5 +1,5 @@
 # Tasks 027 — Ranking by time window
-Plan: `plan.md`. Spec: `spec.md` (approved 2026-11-20). Status: draft (presented 2026-11-20). One file per milestone; each task is at most 20-30 minutes and ends with tests green, a PROGRESS.md entry and one commit.
+Plan: `plan.md`. Spec: `spec.md` (approved 2026-11-20). Status: approved (by the user on 2026-11-20). One file per milestone; each task is at most 20-30 minutes and ends with tests green, a PROGRESS.md entry and one commit.
 
 ## Milestones
 | Milestone | File | Content | Tasks |

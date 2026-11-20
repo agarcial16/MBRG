@@ -1,7 +1,7 @@
-### M1 — Period engine (0 / 3)
+### M1 — Period engine (1 / 3)
 Plan sections 1, 2, 3 (PD2, PD3, PD4). Closes no id: every part is traced by part-named test titles and closed in M2 or M3.
 
-- [ ] **T1.1. Ledger, the period member and the windowed cursor.** (closes none)
+- [x] **T1.1. Ledger, the period member and the windowed cursor.** (closes none)
   - Files: `packages/sim/test/traceability.test.ts`, `packages/protocol/src/wire.ts` (`RANKING_PERIODS`, `RankingPeriod`, `period` in `RANKING_FIELDS` after `order`), `read.ts` (`readRankingRequest`), `page.ts` (`ranking` key), tests in `packages/protocol/test/` (a new `ranking-period.test.ts`; `ranking.test.ts` changes only its `RANKING_FIELDS` pin).
   - Done when (red first): the ledger has the ranges and `PENDING_027` with the 16 ids, and the ranges comment no longer reserves 574 onward and NFR-127 onward for later specs except FR-574; the reader accepts `period` `all`, `last-7-days`, `last-30-days`, decodes `all` and absence to the same value (no `period` key), refuses any other value, a non-text and a repeated member as `invalid-request ['period']`, keeps the 025 member order of checks (community, order, period, playerId, limit, cursor, unknown); the `ranking` key accepts the 025 4-part form unchanged and a 6-part form `[order, headAt, headId, localId, periodIndex 1|2, floor safe integer]`; a 6-part key with index 0, a 5- or 7-part key and a re-encoded text are refused; the request reader refuses a windowed cursor with no `period` or `all`, and an all-time cursor with a period, as `invalid-request ['cursor']`; the longest windowed cursor (64-character ids, negative floor) encodes within 256 characters; every 025 protocol test is green unchanged except the `RANKING_FIELDS` pin.
 - [ ] **T1.2. The floor bound of the two ranking reads.** (closes none)

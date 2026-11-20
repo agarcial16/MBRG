@@ -1,5 +1,5 @@
 # Plan 027 — Ranking by time window
-Spec: `spec.md` (approved 2026-11-20). Status: draft (presented 2026-11-20). Milestones: M1 protocol + store bound + pure core, M2 service + route + proofs, M3 bot + e2e. Rides on the code of 025 (ranking read, cursor, bot command) and 024 (community key, settled head). No schema change; the reply shape is 025's (OQ5 B).
+Spec: `spec.md` (approved 2026-11-20). Status: approved (by the user on 2026-11-20). Milestones: M1 protocol + store bound + pure core, M2 service + route + proofs, M3 bot + e2e. Rides on the code of 025 (ranking read, cursor, bot command) and 024 (community key, settled head). No schema change; the reply shape is 025's (OQ5 B).
 
 ## 1. Files and responsibilities
 - `packages/protocol/src/wire.ts`, `read.ts`: `RANKING_PERIODS = ['all', 'last-7-days', 'last-30-days']`, member `period` in `RANKING_FIELDS` (after `order`); `readRankingRequest` reads it (PD1, PD2). FR-575, FR-578 (reader part).

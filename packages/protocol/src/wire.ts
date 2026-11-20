@@ -461,8 +461,16 @@ export const HISTORY_TOP_MAX = 5;
 export const RANKING_ORDERS = ['points', 'correct', 'wins', 'accuracy'] as const;
 export type RankingOrder = (typeof RANKING_ORDERS)[number];
 
-/** Members of the ranking request body (spec 025, by FR-568 of 024 FR-573): the community key, the order, the asker's local player id, the page size and the cursor. */
-export const RANKING_FIELDS = ['community', 'order', 'playerId', 'limit', 'cursor'] as const;
+/**
+ * The time periods of the ranking (spec 027 FR-575): `all` is the default and reads the same as no member. A period is a
+ * rolling cut of the oldest side of the counted matches (the last 7 or 30 days), never a calendar unit. The wire member is
+ * named `period`, never the browser global's name, which the purity scans of the protocol forbid (plan PD2).
+ */
+export const RANKING_PERIODS = ['all', 'last-7-days', 'last-30-days'] as const;
+export type RankingPeriod = (typeof RANKING_PERIODS)[number];
+
+/** Members of the ranking request body (spec 025, by FR-568 of 024 FR-573; spec 027 FR-575 adds the period): the community key, the order, the period, the asker's local player id, the page size and the cursor. */
+export const RANKING_FIELDS = ['community', 'order', 'period', 'playerId', 'limit', 'cursor'] as const;
 
 /**
  * One row of the community ranking (spec 025 FR-563): a namespaced player id, the shown name when 022 stored one, and the

@@ -93,8 +93,8 @@ export { MAX_INTERVAL_SECONDS, readTiming, readTimingShape, timingRuleFailures }
 export type { TimingResult, TimingRule } from './timing';
 export { readAdvance, readCreation, readHistoryRequest, readJoin, readRankingRequest, readStart, readSubmission } from './read';
 export type { HistoryRequest, RankingRequest, ReadResult } from './read';
-export { ADVANCE_FIELDS, CREATION_FIELDS, HISTORY_FIELDS, JOIN_FIELDS, JOIN_POLICIES, PREDICTION_KINDS, RANKING_FIELDS, RANKING_ORDERS, START_FIELDS, STEP_KINDS, SUBMISSION_FIELDS } from './wire';
-export type { AdvanceBody, CreationBody, JoinBody, JoinPolicy, PredictionKind, RankingOrder, StartBody, StepKind, SubmissionBody, Timing } from './wire';
+export { ADVANCE_FIELDS, CREATION_FIELDS, HISTORY_FIELDS, JOIN_FIELDS, JOIN_POLICIES, PREDICTION_KINDS, RANKING_FIELDS, RANKING_ORDERS, RANKING_PERIODS, START_FIELDS, STEP_KINDS, SUBMISSION_FIELDS } from './wire';
+export type { AdvanceBody, CreationBody, JoinBody, JoinPolicy, PredictionKind, RankingOrder, RankingPeriod, StartBody, StepKind, SubmissionBody, Timing } from './wire';
 export { MAP_FILE_NAMES, REQUEST_ID_KEY, canonicalBody, mapDigestBytes, stateText } from './canonical';
 export type { MapFileName } from './canonical';
 export { encodePublicMatch } from './public';
