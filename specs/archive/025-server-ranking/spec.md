@@ -1,5 +1,5 @@
 # Spec 025 — Per-Discord-server ranking
-Status: approved (by the user on 2026-11-18)
+Status: implemented (accepted by the user on 2026-11-20; hand run passed)
 Tier: Full SDD (touches a server read, the protocol and the secrecy of rounds). Depends on 024 (community key, counted matches, history order, snapshot paging, body transport) and on 008, 017, 018 and 022. Ids: FR-563 to FR-572, NFR-123 to NFR-126 (split from 024, which keeps FR-545 to FR-562, FR-573 and NFR-117 to NFR-122).
 
 Answers of 2026-11-18 (user, via orchestrator): split from 024 (OQ10 B); a match is won by the highest points above 0, ties all win (OQ11 A); the four statistics plus accuracy as an order, only for players with at least 10 scored predictions (OQ12).

@@ -19,6 +19,8 @@ import {
   type NewPlayer,
   type PlayerResultKey,
   type PredictionKey,
+  type RankingNameRow,
+  type RankingSourceRow,
   type Store,
   type StoredLobby,
   type StoredMatch,
@@ -217,6 +219,28 @@ export const READ_SQL = {
     JOIN client_matches cm ON cm.match_id = c.match_id
     WHERE c.community = ? AND cm.namespace = ? AND m.stage = 'finished' AND m.last_step_ms < ?
       AND (? IS NULL OR m.last_step_ms < ? OR (m.last_step_ms = ? AND m.id >= ?))`,
+  // The ranking reads (spec 025 FR-564, NFR-125): ONE statement each, the whole snapshot of the community, no page limit.
+  // The same path as the history reads (key through `communities_by_key`, each match by its primary key, the namespace by the
+  // primary key of `client_matches`, only a finished match counts, the head bound optional); the results are reached through
+  // their per-match key and aggregated per (match, player), so the statement count never grows with the stored matches.
+  rankingResults: `SELECT m.id AS match_id, m.last_step_ms AS finished_ms, r.player_id AS player_id,
+    SUM(r.points) AS points, SUM(r.correct) AS correct, COUNT(*) AS scored
+    FROM communities k INDEXED BY communities_by_key
+    JOIN matches m ON m.id = k.match_id
+    JOIN client_matches cm ON cm.match_id = k.match_id
+    JOIN results r ON r.match_id = k.match_id
+    WHERE k.community = ? AND cm.namespace = ? AND m.stage = 'finished'
+      AND (? IS NULL OR m.last_step_ms < ? OR (m.last_step_ms = ? AND m.id >= ?))
+    GROUP BY m.id, r.player_id
+    ORDER BY m.last_step_ms DESC, m.id ASC, r.player_id ASC`,
+  rankingNames: `SELECT m.id AS match_id, m.last_step_ms AS finished_ms, n.player_id AS player_id, n.name AS name
+    FROM communities k INDEXED BY communities_by_key
+    JOIN matches m ON m.id = k.match_id
+    JOIN client_matches cm ON cm.match_id = k.match_id
+    JOIN client_names n ON n.match_id = k.match_id
+    WHERE k.community = ? AND cm.namespace = ? AND m.stage = 'finished'
+      AND (? IS NULL OR m.last_step_ms < ? OR (m.last_step_ms = ? AND m.id >= ?))
+    ORDER BY m.last_step_ms DESC, m.id ASC`,
 } as const;
 
 const checkLimit = (limit: number): void => {
@@ -732,6 +756,28 @@ export const openStore = (path: string): Store => {
       const [headAt, headId] = checkHistoryKey(head, 'a history head');
       const row = one(READ_SQL.historyCount, community, namespace, settledBefore, headAt, headAt, headAt, headId);
       return row === undefined ? 0 : num(row, 'n');
+    },
+    rankingResults(community: string, namespace: string, head: HistoryKey | undefined): RankingSourceRow[] {
+      checkHistoryScope(community, namespace);
+      const [headAt, headId] = checkHistoryKey(head, 'a ranking head');
+      return all(READ_SQL.rankingResults, community, namespace, headAt, headAt, headAt, headId).map((r) => ({
+        matchId: str(r, 'match_id'),
+        finishedAt: num(r, 'finished_ms'),
+        playerId: str(r, 'player_id'),
+        points: num(r, 'points'),
+        correct: num(r, 'correct'),
+        scored: num(r, 'scored'),
+      }));
+    },
+    rankingNames(community: string, namespace: string, head: HistoryKey | undefined): RankingNameRow[] {
+      checkHistoryScope(community, namespace);
+      const [headAt, headId] = checkHistoryKey(head, 'a ranking head');
+      return all(READ_SQL.rankingNames, community, namespace, headAt, headAt, headAt, headId).map((r) => ({
+        matchId: str(r, 'match_id'),
+        finishedAt: num(r, 'finished_ms'),
+        playerId: str(r, 'player_id'),
+        name: str(r, 'name'),
+      }));
     },
     recordsAfter(matchId: string, round: number, limit: number): StoredRecord[] {
       if (!Number.isSafeInteger(round) || round < 0) throw new RangeError('a record keyset is a round of at least 0');

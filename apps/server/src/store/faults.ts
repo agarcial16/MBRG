@@ -112,6 +112,8 @@ export const withFaults = (store: Store, plan: FaultPlan): Store => {
     listMatches: (after, limit) => store.listMatches(after, limit),
     historyAfter: (community, namespace, settledBefore, head, after, limit) => store.historyAfter(community, namespace, settledBefore, head, after, limit),
     historyCount: (community, namespace, settledBefore, head) => store.historyCount(community, namespace, settledBefore, head),
+    rankingResults: (community, namespace, head) => store.rankingResults(community, namespace, head),
+    rankingNames: (community, namespace, head) => store.rankingNames(community, namespace, head),
     recordsAfter: (matchId, round, limit) => store.recordsAfter(matchId, round, limit),
     predictionsInNamespace: (matchId, namespace, after, limit, localId) => store.predictionsInNamespace(matchId, namespace, after, limit, localId),
     hostTokenDigest: (matchId) => store.hostTokenDigest(matchId),

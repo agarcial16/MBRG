@@ -5,8 +5,9 @@ import type { Action } from '../core/actions';
 import { lobbyMessage } from '../core/announce';
 import { boardView } from '../core/board';
 import { historyMessage, stackAfter } from '../core/history';
+import { rankingMessage, rankingUnavailable } from '../core/ranking';
 import { nameBook } from '../core/names';
-import type { HistoryPage } from '@mbrg/protocol';
+import type { HistoryPage, RankingOrder, RankingPage } from '@mbrg/protocol';
 import { cleanDisplayName } from '../core/display-name';
 import type { Reply } from '../core/model';
 import { matchCandidates } from '../core/text';
@@ -68,6 +69,13 @@ export function createHandler(options: HandlerOptions): (action: Action, who: Wh
     return { type: 'channel', messages: [message] };
   }
 
+  /** A ranking page as the public message; the last row of the page before it (from the stack) tells where the unranked tail begins. */
+  function rankingReply(page: RankingPage, number: number, pages: readonly RankingPage[], order: RankingOrder, community: string, who: Who): Reply {
+    const previous = pages[number - 2]?.items.at(-1);
+    const message = rankingMessage(page, order, { page: number, ...(previous === undefined ? {} : { previous }) }, { askerId: who.userId, community, order, pages });
+    return { type: 'channel', messages: [message] };
+  }
+
   return async (action, who) => {
     const entry = store.get(who.channelId);
     switch (action.do) {
@@ -115,6 +123,21 @@ export function createHandler(options: HandlerOptions): (action: Action, who: Wh
         // One request, whatever the answer: an outage or a refusal is "unavailable" for the member alone, never retried (FR-558).
         const first = await client.history({ community: action.community, playerId: who.userId });
         return first.ok ? historyReply(first.value, 1, [first.value], action.community, who) : text(STRINGS.historyUnavailable);
+      }
+      case 'ranking': {
+        // One request, whatever the answer: an outage or a refusal (an older server included) is "unavailable" for the member alone, never retried (FR-571).
+        const first = await client.ranking({ community: action.community, order: action.order, playerId: who.userId });
+        return first.ok ? rankingReply(first.value, 1, [first.value], action.order, action.community, who) : rankingUnavailable();
+      }
+      case 'ranking-page': {
+        // Back to a page already shown (no cursor): the same data, the same snapshot, nothing asked of the server.
+        if (action.cursor === undefined) {
+          const shown = action.pages[action.page - 1];
+          return shown === undefined ? text(STRINGS.errUnexpected) : rankingReply(shown, action.page, action.pages, action.order, action.community, who);
+        }
+        const next = await client.ranking({ community: action.community, order: action.order, playerId: who.userId, cursor: action.cursor });
+        if (!next.ok) return rankingUnavailable();
+        return rankingReply(next.value, action.page, stackAfter(action.pages, action.page, next.value), action.order, action.community, who);
       }
       case 'history-page': {
         // Back to a page already shown (no cursor): the same data, the same snapshot, nothing asked of the server.

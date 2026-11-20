@@ -2,8 +2,8 @@
 Durable decisions, limits and lessons; no per-task diary (that is `specs/<id>/PROGRESS.md`; live work is `docs/board.md`). Area lessons: `docs/lessons/{web,bot,server,map}.md`. Keep <= ~4 KB.
 
 ## State
-Specs 001-024 implemented. Branch from `main`, PR into `main`.
-Spec 025 (per-server ranking) in flight, stacked on the 024 work. Next candidates: deployment guide.
+Specs 001-025 implemented. Branch from `main`, PR into `main`.
+Next candidates: deployment guide; history embed presentation pass (queued on the board).
 
 ## Game
 Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random alive faction dies; a random neighbor takes all its territories; repeat until one remains. Players predict; they never control.

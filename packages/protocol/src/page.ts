@@ -1,7 +1,7 @@
 import { errorReply } from './errors';
 import { isLocalId, isPlayerId } from './ids';
 import type { ReadResult } from './read';
-import { PREDICTION_KINDS, type PredictionKind } from './wire';
+import { PREDICTION_KINDS, RANKING_ORDERS, type PredictionKind } from './wire';
 
 /**
  * Paging of every list read (FR-279, P38, PD20). A page has 1 to 500 items (default 100); a page that is not the last
@@ -16,8 +16,8 @@ export const PAGE_LIMIT_DEFAULT = 100;
 export const PAGE_LIMIT_MAX = 500;
 export const CURSOR_MAX_LENGTH = 256;
 
-/** The list tags: the three of M3a, the results lists (phase results, a player's results, the leaderboard), then the players, the winners of a phase and the per-community history (spec 024). */
-export const CURSOR_LISTS = ['matches', 'records', 'predictions', 'phase-results', 'player-results', 'leaderboard', 'players', 'phase-winners', 'history'] as const;
+/** The list tags: the three of M3a, the results lists (phase results, a player's results, the leaderboard), then the players, the winners of a phase, the per-community history (spec 024) and the per-community ranking (spec 025). */
+export const CURSOR_LISTS = ['matches', 'records', 'predictions', 'phase-results', 'player-results', 'leaderboard', 'players', 'phase-winners', 'history', 'ranking'] as const;
 export type CursorList = (typeof CURSOR_LISTS)[number];
 
 /**
@@ -39,6 +39,14 @@ export interface CursorKeys {
   readonly 'phase-winners': readonly [playerId: string];
   /** The snapshot head (newest counted match of the walk) then the last entry of the page: finish instant, match id (spec 024 FR-549). */
   readonly history: readonly [headFinishedAt: number, headMatchId: string, finishedAt: number, matchId: string];
+  /**
+   * The order word's index in `RANKING_ORDERS`, then the snapshot head and the local player id of the row the page ended on
+   * (spec 025 FR-565). An identity keyset: inside a snapshot the rows, their statistics and every order are frozen (a counted
+   * match is immutable and a newer one is excluded by the head bound), so the local id identifies the row's place in any one
+   * order. The order travels in the key, so a walk cannot continue in another order (the request reader refuses the mismatch);
+   * the id carries no secret.
+   */
+  readonly ranking: readonly [order: number, headFinishedAt: number, headMatchId: string, localId: string];
 }
 export type CursorKey<L extends CursorList> = CursorKeys[L];
 
@@ -92,6 +100,11 @@ function isKeyOf(list: CursorList, parts: readonly unknown[]): boolean {
       // History order is finish instant descending, then match id ascending: the last key cannot be newer than the head.
       return at < headAt || (at === headAt && id >= headId);
     }
+    case 'ranking':
+      return (
+        parts.length === 4 && isInt(parts[0], 0) && parts[0] <= RANKING_ORDERS.length - 1 && isInt(parts[1], 0) &&
+        typeof parts[2] === 'string' && MATCH_ID.test(parts[2]) && isLocalId(parts[3])
+      );
     default:
       return false;
   }

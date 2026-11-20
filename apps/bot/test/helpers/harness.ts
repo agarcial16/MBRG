@@ -80,6 +80,8 @@ export interface Bot {
   slowEdits: boolean;
   /** A press on a history button of message `messageId`, as the shell does it: the walk it knows, the handler, then the walk updated in place (spec 024). */
   pressHistory(messageId: string, customId: string, who: Who): Promise<Reply>;
+  /** A press on a ranking button of message `messageId`, as the shell does it: the walk it knows, the handler, then the walk updated in place (spec 025). */
+  pressRanking(messageId: string, customId: string, who: Who): Promise<Reply>;
   /** Runs an action the pure core has already decided on (a step of a flow that is not a command). */
   act(action: Action, who?: Who): Promise<Reply>;
   run(interaction: Interaction, who?: Who): Promise<Reply>;
@@ -152,6 +154,11 @@ export function boot(server: { readonly url: string }, statePath: string, option
     },
     async pressHistory(messageId, customId, who) {
       const reply = await bot.run({ type: 'history-press', customId, userId: who.userId, entry: boards.lookupHistory(messageId), now: bot.clock }, who);
+      if (reply.type === 'channel') updateSent(boards, messageId, reply.messages[0]);
+      return reply;
+    },
+    async pressRanking(messageId, customId, who) {
+      const reply = await bot.run({ type: 'ranking-press', customId, userId: who.userId, entry: boards.lookupRanking(messageId), now: bot.clock }, who);
       if (reply.type === 'channel') updateSent(boards, messageId, reply.messages[0]);
       return reply;
     },

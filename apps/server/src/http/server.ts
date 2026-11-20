@@ -12,7 +12,8 @@
 //   (an event-stream route also takes a place in the open-stream gauge at stage 1 and hands it to the hub at stage 7)
 //   8 unexpected   any exception: ONE `request-failed` event (name and stage only), then 500 `{"kind":"unavailable"}`
 // The command and read routes are tables of `Route` (router.ts): `productionRoutes` holds the three command routes and the
-// read routes (list, match, states, records, own predictions, map files, and the public config of spec 014) and the history read of spec 024 (a POST); `routes` is the injection point of the pipeline tests
+// read routes (list, match, states, records, own predictions, map files, and the public config of spec 014) and the history and
+// ranking reads of specs 024 and 025 (POSTs); `routes` is the injection point of the pipeline tests
 // (it cannot carry a seed source: PD18). A route's `decide` may be asynchronous (a map file is read once per request).
 // Connection hardening is the platform's own (PD21): the four server options below; no custom socket timers.
 
@@ -35,6 +36,7 @@ import {
   encodePrediction,
   encodePublicConfig,
   encodePublicMatch,
+  encodeRankingPage,
   encodeRecord,
   encodeState,
   errorReply,
@@ -45,6 +47,7 @@ import {
   readHistoryRequest,
   readJoin,
   readPageQuery,
+  readRankingRequest,
   readSubmission,
 } from '@mbrg/protocol';
 import type { ErrorReply } from '@mbrg/protocol';
@@ -429,6 +432,34 @@ export const productionRoutes = (service: MatchService, settings: ServerSettings
         service.history({ namespace: caller.namespace, community, limit, ...(playerId === undefined ? {} : { playerId }), ...(after === undefined ? {} : { after }) }),
         200,
         encodeHistoryPage,
+      );
+    },
+  },
+  {
+    // The ranking of a Discord server (spec 025 FR-563 to FR-568): a POST like the history read, so the community key, the
+    // order, the asker's id, the page size and the cursor travel in the body and never in the path or query (no access log can
+    // hold them). Only a client credential reads it; every other caller, a bad credential included, is `forbidden`. Any query
+    // text is refused by one constant name, never by the text sent (it could be the key). Nothing is stored, memoised or logged.
+    method: 'POST',
+    path: '/ranking',
+    body: 'object',
+    checkQuery: (ctx) => (ctx.query === '' ? undefined : errorReply('invalid-request', ['query'])),
+    shape: (ctx) => {
+      const read = readRankingRequest(ctx.body);
+      return read.ok ? undefined : read.error;
+    },
+    authorize: (ctx) => (ctx.identity.role === 'client' ? undefined : errorReply('forbidden')),
+    decide: (ctx) => {
+      const caller = ctx.identity;
+      if (caller.role !== 'client') return { kind: 'error', error: errorReply('forbidden') };
+      const read = readRankingRequest(ctx.body);
+      if (!read.ok) return { kind: 'error', error: read.error };
+      const { community, order, playerId, limit, after } = read.value;
+      // The namespace is the credential's; the body names none (FR-568 of 024 FR-552).
+      return replyOf(
+        service.ranking({ namespace: caller.namespace, community, order, limit, ...(playerId === undefined ? {} : { playerId }), ...(after === undefined ? {} : { after }) }),
+        200,
+        encodeRankingPage,
       );
     },
   },

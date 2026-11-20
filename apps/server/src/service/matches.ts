@@ -38,6 +38,7 @@
 import {
   PAGE_LIMIT_MAX,
   PLAYER_NAMESPACE,
+  RANKING_ORDERS,
   canonicalBody,
   encodeCursor,
   encodeJoinReply,
@@ -78,6 +79,8 @@ import type {
   PredictionReply,
   PublicConfig,
   PublicMatch,
+  RankingPage,
+  RankingOrder,
   RecordReply,
   StateReply,
   StepKind,
@@ -92,6 +95,7 @@ import { MEMO_RETENTION_MS, decideMemo, isMemoisable } from '../core/memo';
 import type { MemoScope } from '../core/memo';
 import { decideSubmission } from '../core/predictions';
 import { readRound } from '../core/reads';
+import { rankingOf, shownNameOf, statsOf } from '../core/ranking';
 import { rankLeaderboard, readResultsRound, scorePhase, scoredPhaseCount } from '../core/scoring';
 import type { StoredPrediction, Submission } from '../core/predictions';
 import { haltMatch, runDue } from '../core/steps';
@@ -273,6 +277,21 @@ export interface HistoryRequest {
   readonly after?: CursorKey<'history'>;
 }
 
+/**
+ * One page request of the ranking of a community (spec 025 FR-563 to FR-567): `namespace` is the one of the client credential
+ * (resolved by the HTTP layer, never taken from the body), `community` the key of the body, `order` one of the four words
+ * (`points` the default the reader holds), `playerId` the optional LOCAL id of the asker, and `after` the decoded cursor
+ * `[order, headFinishedAt, headMatchId, localId]` of the walk (absent for its first page).
+ */
+export interface RankingRequest {
+  readonly namespace: string;
+  readonly community: string;
+  readonly order: RankingOrder;
+  readonly playerId?: string;
+  readonly limit: number;
+  readonly after?: CursorKey<'ranking'>;
+}
+
 /** The own predictions of a client (FR-270, FR-281 (h), C3): every player of its namespace, or one local id when given. */
 export type OwnPredictionsPageRequest = PageRequest<'predictions'> &
   (
@@ -438,6 +457,15 @@ export interface MatchService {
    * total: 0 }`. Writes nothing, memoises nothing; the key and the asker are never echoed, logged or kept.
    */
   history(request: HistoryRequest): ReadOutcome<HistoryPage>;
+  /**
+   * Spec 025 FR-563 to FR-568: one page of the ranking of a community under a client namespace, computed at read time over the
+   * counted matches of the snapshot (the newest counted match on a first page, the cursor's head with a cursor), in one of the
+   * four orders, with the competition ranks, the snapshot `total`, the asker's row when the request named one and `next` exactly
+   * when more rows follow. An unknown key or another namespace is `{ items: [], total: 0 }`; a cursor naming a row the snapshot
+   * holds none of (another community or namespace) answers the same empty page, so no read tells whether the key exists under
+   * this namespace. Writes nothing, memoises nothing; the key and the asker are never echoed, logged or kept.
+   */
+  ranking(request: RankingRequest): ReadOutcome<RankingPage>;
   /** FR-300 (host-token check): whether the credential is the host token of the match, by digest comparison; false for an unknown match. */
   hostTokenMatches(matchId: string, credential: string): ReadOutcome<boolean>;
   /**
@@ -1687,6 +1715,44 @@ export function createMatchService(options: ServiceOptions): MatchService {
         return {
           ok: true,
           reply: rows.length > limit && last !== undefined ? { items, total, next: encodeCursor('history', [head.finishedAt, head.matchId, last.finishedAt, last.matchId]) } : { items, total },
+        };
+      });
+    },
+
+    ranking(request: RankingRequest): ReadOutcome<RankingPage> {
+      const { namespace, community, order, playerId, limit, after } = request;
+      checkPageSize(limit);
+      if (!isNamespace(namespace)) throw new RangeError('the namespace of a ranking read is a client namespace');
+      if (!isCommunityKey(community)) return { ok: false, error: errorReply('invalid-request', ['community']) };
+      if (playerId !== undefined && !isLocalId(playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+      // The asker is a player of the credential's own namespace: the local id never names another one.
+      const askerId = playerId === undefined ? undefined : playerIdOf(namespace, playerId);
+      return read(() => {
+        // The head of the walk (FR-565): the cursor's, or the newest SETTLED counted match of the community (even one with no
+        // scored results: the shown name may still come from it) - the same settledBefore as the history read (FR-549), so a
+        // match that finishes after this read sorts newer than the head and can never join the snapshot. No counted match, no
+        // rows, whatever the request names.
+        const head =
+          after !== undefined
+            ? { finishedAt: after[1], matchId: after[2] }
+            : store.historyAfter(community, namespace, wholeMs(clock.now()) - TOLERANCE_MS, undefined, undefined, 1)[0];
+        if (head === undefined) return { ok: true, reply: { items: [], total: 0 } };
+        const rows = store.rankingResults(community, namespace, head);
+        // A cursor of another community or namespace names a row this snapshot holds none of (an issued cursor always names one
+        // of its own: a counted match is immutable): the empty page, byte-identical to the reply of an unknown key or another
+        // namespace (FR-568 of 024 FR-552), so no read tells whether the key exists under this namespace.
+        if (after !== undefined && !rows.some((row) => row.playerId === playerIdOf(namespace, after[3]))) {
+          return { ok: true, reply: { items: [], total: 0 } };
+        }
+        const page = rankingOf(statsOf(rows), shownNameOf(store.rankingNames(community, namespace, head)), order, namespace, after === undefined ? undefined : after[3], limit, askerId === undefined ? undefined : playerId);
+        return {
+          ok: true,
+          reply: {
+            items: page.rows,
+            total: page.total,
+            ...(page.next === undefined ? {} : { next: encodeCursor('ranking', [RANKING_ORDERS.indexOf(order), head.finishedAt, head.matchId, page.next]) }),
+            ...(page.asker === undefined ? {} : { asker: page.asker }),
+          },
         };
       });
     },

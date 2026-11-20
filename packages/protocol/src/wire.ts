@@ -457,6 +457,51 @@ export const HISTORY_PAGE_KEYS = ['items', 'total', 'next'] as const;
 /** The most rows a history entry's top holds (FR-550). */
 export const HISTORY_TOP_MAX = 5;
 
+/** The orders of the ranking (spec 025 FR-565): `points` is the default. */
+export const RANKING_ORDERS = ['points', 'correct', 'wins', 'accuracy'] as const;
+export type RankingOrder = (typeof RANKING_ORDERS)[number];
+
+/** Members of the ranking request body (spec 025, by FR-568 of 024 FR-573): the community key, the order, the asker's local player id, the page size and the cursor. */
+export const RANKING_FIELDS = ['community', 'order', 'playerId', 'limit', 'cursor'] as const;
+
+/**
+ * One row of the community ranking (spec 025 FR-563): a namespaced player id, the shown name when 022 stored one, and the
+ * statistics of FR-564 over the counted matches of the snapshot (points, correct, scored, played, won). `rank` carries
+ * FR-565's competition rank of the row's order (shared on a tie of the ordering statistic); it is absent exactly for the
+ * unranked tail of the accuracy order (FR-566), where the bot shows "—".
+ */
+export interface RankingRow {
+  readonly playerId: string;
+  readonly name?: string;
+  readonly points: number;
+  readonly correct: number;
+  readonly scored: number;
+  readonly played: number;
+  readonly won: number;
+  readonly rank?: number;
+}
+
+/**
+ * The asker's own row (spec 025 FR-567): their statistics with their rank, absent exactly when they are not qualified in
+ * the accuracy order, or the mark that they have no row at all (as the history asker).
+ */
+export type RankingAsker =
+  | { readonly points: number; readonly correct: number; readonly scored: number; readonly played: number; readonly won: number; readonly rank?: number }
+  | { readonly played: false };
+
+/** One page of the ranking (FR-565): the rows, the snapshot `total`, `next` when present, and the asker when the request named a player. */
+export interface RankingPage {
+  readonly items: readonly RankingRow[];
+  readonly total: number;
+  readonly next?: string;
+  readonly asker?: RankingAsker;
+}
+
+/** Wire key order of the ranking replies (spec 025): fixed, whatever the order of the input object. */
+export const RANKING_ROW_KEYS = ['playerId', 'name', 'points', 'correct', 'scored', 'played', 'won', 'rank'] as const;
+export const RANKING_ASKER_KEYS = ['points', 'correct', 'scored', 'played', 'won', 'rank'] as const;
+export const RANKING_PAGE_KEYS = ['items', 'total', 'next', 'asker'] as const;
+
 /** Wire key order of each reply (FR-257 (encoders)): fixed, whatever the order of the input object. */
 export const CREATION_REPLY_KEYS = ['matchId', 'match', 'hostToken'] as const;
 export const JOIN_REPLY_KEYS = ['playerId', 'name', 'playerToken', 'match'] as const;

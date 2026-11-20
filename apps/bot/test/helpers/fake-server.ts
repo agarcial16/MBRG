@@ -3,8 +3,8 @@
 // a test then proves no message of the bot contains them (NFR-88, NFR-89).
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
-import { encodeEvent, encodeHistoryPage, encodePublicMatch } from '@mbrg/protocol';
-import type { HistoryEntry, MatchEvent, PublicMatch } from '@mbrg/protocol';
+import { RANKING_ORDERS, encodeEvent, encodeHistoryPage, encodePublicMatch, encodeRankingPage } from '@mbrg/protocol';
+import type { HistoryEntry, MatchEvent, PublicMatch, RankingAsker, RankingOrder, RankingRow } from '@mbrg/protocol';
 
 export const CREDENTIAL = 'discord-credential-PLANTED-0123456789';
 export const HOST_TOKEN = 'host-token-PLANTED-0123456789abcdef';
@@ -33,6 +33,13 @@ export interface FakeOptions {
   readonly factions?: readonly { readonly id: number; readonly name: string }[];
 }
 
+/** What the fake knows of the ranking of one community (spec 025): the rows of each order, already ranked, and the answer for an asker. */
+export interface FakeRanking {
+  readonly rows: Partial<Record<RankingOrder, readonly RankingRow[]>>;
+  /** The asker's line for a local player id under an order; none: the player has no row. */
+  readonly asker?: (playerId: string, order: RankingOrder) => RankingAsker | undefined;
+}
+
 export interface Fake {
   readonly url: string;
   readonly requests: Recorded[];
@@ -50,6 +57,10 @@ export interface Fake {
   history: Map<string, HistoryEntry[]>;
   /** The error every history read gets, when set; otherwise it is answered from `history`. */
   historyError: { status: number; body: unknown } | undefined;
+  /** The ranking of each community key (spec 025); a key with none is an empty ranking. */
+  ranking: Map<string, FakeRanking>;
+  /** The error every ranking read gets, when set; otherwise it is answered from `ranking`. */
+  rankingError: { status: number; body: unknown } | undefined;
   /** While true the server refuses every connection and request (a crash). */
   down: boolean;
   /** Page size of the phase results (to exercise paging). */
@@ -133,6 +144,26 @@ export async function startFake(options: FakeOptions = {}): Promise<Fake> {
         const more = offset + limit < (snapshot as number);
         return json(res, 200, JSON.parse(encodeHistoryPage({ items, total: snapshot as number, ...(more ? { next: `${offset + limit}.${snapshot}` } : {}) })));
       }
+      if (path === '/ranking' && req.method === 'POST') {
+        if (bearer !== CREDENTIAL) return json(res, 403, { kind: 'forbidden' });
+        if (state.rankingError !== undefined) return json(res, state.rankingError.status, state.rankingError.body);
+        const b = (body ?? {}) as { community?: unknown; order?: unknown; playerId?: unknown; limit?: unknown; cursor?: unknown };
+        if (typeof b.community !== 'string' || !/^[0-9a-f]{64}$/.test(b.community)) return json(res, 400, { kind: 'invalid-request', items: ['community'] });
+        const order = b.order === undefined ? 'points' : b.order;
+        if (!(RANKING_ORDERS as readonly unknown[]).includes(order)) return json(res, 400, { kind: 'invalid-request', items: ['order'] });
+        const known = state.ranking.get(b.community);
+        const all = known?.rows[order as RankingOrder] ?? [];
+        // The cursor is `<order>.<offset>.<snapshot size>`: a walk keeps its order and the size its first page saw, as the real server does.
+        const parts = typeof b.cursor === 'string' ? b.cursor.split('.') : undefined;
+        if (parts !== undefined && parts[0] !== order) return json(res, 400, { kind: 'invalid-request', items: ['cursor'] });
+        const offset = parts === undefined ? 0 : Number(parts[1]);
+        const snapshot = parts === undefined ? all.length : Number(parts[2]);
+        const limit = typeof b.limit === 'number' ? b.limit : 100;
+        const items = all.slice(offset, offset + limit);
+        const more = offset + limit < snapshot;
+        const asker = typeof b.playerId === 'string' && snapshot > 0 ? (known?.asker?.(b.playerId, order as RankingOrder) ?? { played: false as const }) : undefined;
+        return json(res, 200, JSON.parse(encodeRankingPage({ items, total: snapshot, ...(more ? { next: `${order}.${offset + limit}.${snapshot}` } : {}), ...(asker === undefined ? {} : { asker }) })));
+      }
       if (path === `/matches/${MATCH_ID}`) return json(res, 200, JSON.parse(encodePublicMatch(state.match)));
       if (path === `/matches/${MATCH_ID}/events`) {
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store' });
@@ -194,6 +225,8 @@ export async function startFake(options: FakeOptions = {}): Promise<Fake> {
     createError: undefined,
     history: new Map<string, HistoryEntry[]>(),
     historyError: undefined,
+    ranking: new Map<string, FakeRanking>(),
+    rankingError: undefined,
     down: false,
     pageSize: 500,
     predictions: [],

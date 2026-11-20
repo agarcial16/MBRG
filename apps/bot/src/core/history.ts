@@ -106,5 +106,5 @@ export function historyMessage(page: HistoryPage, ctx: HistoryContext, walk: His
 }
 
 /** The pages shown after showing page `page`: a page fetched replaces the stack from its place on; a page shown again changes nothing. */
-export const stackAfter = (pages: readonly HistoryPage[], page: number, fetched: HistoryPage | undefined): readonly HistoryPage[] =>
+export const stackAfter = <T>(pages: readonly T[], page: number, fetched: T | undefined): readonly T[] =>
   fetched === undefined ? pages : [...pages.slice(0, page - 1), fetched];

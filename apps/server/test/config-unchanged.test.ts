@@ -75,10 +75,10 @@ async function productionTable(): Promise<string[]> {
 describe('spec 014 leaves the existing wire as it was', () => {
   it('FR-420 the production route table is the previous 18 routes plus exactly GET /config', async () => {
     const table = await productionTable();
-    // Spec 024 adds the history read, `POST /history`; spec 014's own addition is `GET /config`.
-    expect(table).toHaveLength(PREVIOUS_ROUTES.length + 2);
-    expect([...table].sort()).toStrictEqual([...PREVIOUS_ROUTES, 'GET /config', 'POST /history'].sort());
-    expect(table.filter((r) => !PREVIOUS_ROUTES.includes(r)).sort()).toStrictEqual(['GET /config', 'POST /history']);
+    // Spec 024 adds the history read, `POST /history`; spec 025 the ranking read, `POST /ranking`; spec 014's own addition is `GET /config`.
+    expect(table).toHaveLength(PREVIOUS_ROUTES.length + 3);
+    expect([...table].sort()).toStrictEqual([...PREVIOUS_ROUTES, 'GET /config', 'POST /history', 'POST /ranking'].sort());
+    expect(table.filter((r) => !PREVIOUS_ROUTES.includes(r)).sort()).toStrictEqual(['GET /config', 'POST /history', 'POST /ranking']);
   });
 
   it('FR-420 the error kinds and the 30 settings variables are the ones of spec 011', () => {
