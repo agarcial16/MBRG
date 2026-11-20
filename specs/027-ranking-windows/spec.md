@@ -1,5 +1,5 @@
 # Spec 027 — Ranking by time window
-Status: draft (presented 2026-11-20)
+Status: approved (by the user on 2026-11-20 via the orchestrator, all five open questions taken as recommended)
 Tier: Full SDD (touches a server read, the protocol and the secrecy of rounds). Depends on 024 (community key, counted matches, history order, snapshot paging, body transport) and 025 (the ranking read, its statistics, orders, accuracy qualification, cursor and bot command), and on 008, 017 and 022. Ids: FR-575 to FR-585, NFR-127 to NFR-131 (FR-574 left free).
 
 This draft assumes the recommended answer of each open question (rolling windows, a second option on `/mbrg ranking`, the qualification measured inside the window, the bound as a parameter of the existing reads). A different answer changes the requirements that name that question.
