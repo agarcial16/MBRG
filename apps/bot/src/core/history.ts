@@ -52,9 +52,10 @@ const playersOf = (n: number): string => (n === 1 ? STRINGS.historyPlayersOne : 
 /** The podium templates: the first three rows of a top show their medal, the rest their position number (spec 026). */
 const MEDALS = [STRINGS.historyGold, STRINGS.historySilver, STRINGS.historyBronze] as const;
 
-/** The top of an entry on one line: `🥇 <@a> 12 · 🥈 <@b> 9 · 🥉 <@c> 7 · 4. <@d> 5 · 5. <@e> 3`, with ` · y N más` at the end when
- * rows above 0 were left out. The position is shown, not the server rank: equal points keep ties visible and the rank stays in the
- * asker's line. Embeds stretch to the client width, so nothing is shortened for narrow clients. */
+/** The top of an entry on one line: the first three rows show their medal (gold, silver, bronze, from the strings module), the rest
+ * their position number, with the "historyMore" sentence at the end when rows above 0 were left out. The position is shown, not the
+ * server rank: equal points keep ties visible and the rank stays in the asker's line. Embeds stretch to the client width, so nothing
+ * is shortened for narrow clients. */
 function topLine(entry: HistoryEntry): string {
   const cells = entry.top.map((row, index) => fill(MEDALS[index] ?? STRINGS.historyTopRow, { n: index + 1, who: whoOf(row), points: row.points }));
   const more = entry.more > 0 ? [fill(STRINGS.historyMore, { n: entry.more })] : [];
