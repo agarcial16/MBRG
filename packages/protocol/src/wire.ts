@@ -17,6 +17,8 @@ export interface CreationBody {
   readonly requestId: string;
   /** Absent means `open` (spec 018 FR-490). */
   readonly joinPolicy?: JoinPolicy;
+  /** The community key of the Discord server that creates the match (spec 024 FR-545): 64 lowercase hexadecimal characters. */
+  readonly community?: string;
 }
 
 export interface AdvanceBody {
@@ -49,7 +51,7 @@ export interface SubmissionBody {
 }
 
 /** Documented field order of each body (FR-296): the first failing field in this order is named. */
-export const CREATION_FIELDS = ['mapId', 'timing', 'requestId', 'joinPolicy'] as const;
+export const CREATION_FIELDS = ['mapId', 'timing', 'requestId', 'joinPolicy', 'community'] as const;
 
 /** Who may join a match (spec 018 FR-490): `open` is the 011 behaviour, `client` admits only the creating client's players. */
 export const JOIN_POLICIES = ['open', 'client'] as const;
@@ -58,6 +60,8 @@ export const ADVANCE_FIELDS = ['round', 'step', 'requestId'] as const;
 export const START_FIELDS = ['requestId'] as const;
 export const JOIN_FIELDS = ['name', 'requestId'] as const;
 export const SUBMISSION_FIELDS = ['kind', 'round', 'faction', 'playerId', 'requestId', 'name'] as const;
+/** Members of the history request body (spec 024 FR-573): the community key, the asker's local player id, the page size and the cursor. */
+export const HISTORY_FIELDS = ['community', 'playerId', 'limit', 'cursor'] as const;
 
 /**
  * Stages of a match (spec Definitions "Stage"). `lobby` (created, not started) and `expired` (never started, closed) have
@@ -409,6 +413,49 @@ export interface Page<T> {
   readonly items: readonly T[];
   readonly next?: string;
 }
+
+/** One row of the top 5 of a counted match (spec 024 FR-550): only rows above 0 points; the name only when 022 stored one for that match. */
+export interface HistoryTopRow {
+  readonly playerId: string;
+  readonly name?: string;
+  readonly points: number;
+  readonly rank: number;
+}
+
+/** The asker's own row in a counted match (FR-551): their points and rank (0 points included), or that they have no row in it. */
+export type HistoryAsker = { readonly points: number; readonly rank: number } | { readonly played: false };
+
+/** What the history shows of one counted match (FR-550): public data only, no community key and no namespace. */
+export interface HistoryEntry {
+  readonly matchId: string;
+  readonly mapId: string;
+  /** The instant of the step that applied the last round. */
+  readonly finishedAt: number;
+  readonly winner: number;
+  /** Rows of the public leaderboard, 0-point rows included. */
+  readonly playerCount: number;
+  /** At most 5 rows above 0 points, in leaderboard order. */
+  readonly top: readonly HistoryTopRow[];
+  /** Rows above 0 points left out of the top. */
+  readonly more: number;
+  /** Present exactly when the request named a player id. */
+  readonly asker?: HistoryAsker;
+}
+
+/** One page of the history (FR-549): the 008 page shape plus `total`, the counted matches of the walk's snapshot. */
+export interface HistoryPage {
+  readonly items: readonly HistoryEntry[];
+  readonly total: number;
+  readonly next?: string;
+}
+
+/** Wire key order of the history replies (spec 024): fixed, whatever the order of the input object. */
+export const HISTORY_TOP_KEYS = ['playerId', 'name', 'points', 'rank'] as const;
+export const HISTORY_ASKER_KEYS = ['points', 'rank', 'played'] as const;
+export const HISTORY_ENTRY_KEYS = ['matchId', 'mapId', 'finishedAt', 'winner', 'playerCount', 'top', 'more', 'asker'] as const;
+export const HISTORY_PAGE_KEYS = ['items', 'total', 'next'] as const;
+/** The most rows a history entry's top holds (FR-550). */
+export const HISTORY_TOP_MAX = 5;
 
 /** Wire key order of each reply (FR-257 (encoders)): fixed, whatever the order of the input object. */
 export const CREATION_REPLY_KEYS = ['matchId', 'match', 'hostToken'] as const;

@@ -4,6 +4,13 @@ const MAP_ID = /^[a-z0-9-]{1,64}$/;
 const NAMESPACE = /^[a-z0-9]{1,16}$/;
 const CREDENTIAL = /^[A-Za-z0-9_-]{22,256}$/;
 
+const COMMUNITY_KEY = /^[0-9a-f]{64}$/;
+
+/** The community key of a Discord server (spec 024 FR-546): exactly 64 lowercase hexadecimal characters. */
+export function isCommunityKey(value: unknown): value is string {
+  return typeof value === 'string' && COMMUNITY_KEY.test(value);
+}
+
 /** The credential namespace of players who joined a match by name (FR-377); no client credential may use it. */
 export const PLAYER_NAMESPACE = 'player';
 

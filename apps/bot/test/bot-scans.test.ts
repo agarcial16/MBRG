@@ -43,6 +43,45 @@ describe('NFR-90 the core is pure', () => {
   });
 });
 
+describe('NFR-118 the guild id never leaves the bot', () => {
+  const guildLines = (text: string): string[] => text.split('\n').filter((line) => /guild/i.test(line.replace(/GatewayIntentBits\.Guilds/g, '')));
+
+  it('NFR-118 only the shell, the translation and the key module name a guild, and no line that does logs, replies, sends or builds a request', () => {
+    const named = all.filter((f) => guildLines(f.text).length > 0);
+    expect(named.map((f) => f.path).sort()).toEqual(['discord/shell.ts', 'discord/translate.ts', 'io/community.ts']);
+    for (const file of named) {
+      for (const line of guildLines(file.text)) expect(line, `${file.path}: ${line}`).not.toMatch(/log\(|console\.|reply\(|send\(|fetch\(|JSON\.stringify/);
+    }
+  });
+
+  it('NFR-118 the shell reads the guild id once, to hand it to the translation, and the core never sees it', () => {
+    const shell = all.find((f) => f.path === 'discord/shell.ts')!.text;
+    expect(shell.match(/guildId/g)).toHaveLength(1);
+    for (const file of core) expect(/guild/i.test(file.text), file.path).toBe(false);
+  });
+});
+
+describe('FR-573 NFR-118 the bot logs closed codes and never a body', () => {
+  const logCalls = (text: string): string[] => text.split('\n').filter((line) => /\blog\(|console\./.test(line));
+
+  it('FR-573 NFR-118 every log call of the bot is a closed code written as a literal, and the server client logs nothing', () => {
+    for (const file of all) {
+      for (const line of logCalls(file.text)) {
+        // Either a call with a quoted code, the definition of the logger, or one of the fixed start-up messages of the operator console.
+        expect(line, `${file.path}: ${line}`).toMatch(/log\('[a-z-]+'\)|const log = |console\.(error|log)\((fill\(STRINGS\.\w+|STRINGS\.\w+)/);
+      }
+    }
+    expect(logCalls(all.find((f) => f.path === 'io/server-client.ts')!.text)).toEqual([]);
+  });
+
+  it('FR-573 the history request is built in one place: the key, the asker and the cursor go in the body, and the path is a constant', () => {
+    const client = all.find((f) => f.path === 'io/server-client.ts')!.text;
+    expect(client.match(/'\/history'/g)).toHaveLength(1);
+    expect(client).toMatch(/call\('POST', '\/history', decoded\(readHistoryPage\), options\.credential, \{/);
+    expect(client).not.toMatch(/\/history\$\{|\/history\?/);
+  });
+});
+
 describe('NFR-89 start-up', () => {
   it('NFR-89 the bot refuses to start naming the missing variable and echoes no secret', () => {
     const entry = join(SRC, 'main.ts');

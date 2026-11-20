@@ -100,7 +100,8 @@ describe('NFR-112 NFR-113 the sources reach the names in one way only', () => {
   it('NFR-112 clientNames is read only through the one helper of the service, which only three service reads call', () => {
     expect(files.filter((f) => /\bclientNames\(/.test(textOf(f))).map(rel).sort()).toStrictEqual(['service/matches.ts', 'store/faults.ts', 'store/sqlite.ts', 'store/store.ts']);
     const service = textOf(join(src, 'service', 'matches.ts'));
-    expect(service.match(/store\.clientNames\(/g)).toHaveLength(1);
+    // one in the helper, one in the history read of spec 024 (the names of a counted match's top rows; they have result rows).
+    expect(service.match(/store\.clientNames\(/g)).toHaveLength(2);
     // the helper is called by exactly three service reads (phase results, own-player read, leaderboard)
     expect(service.match(/\bnamesOf\(/g)).toHaveLength(3);
     for (const reader of ['phaseResults', 'playerResults', 'leaderboard']) {

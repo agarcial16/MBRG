@@ -1,4 +1,5 @@
 // The plain shapes the pure core and the shells share (spec 012 NFR-90). No Discord library types here.
+import type { HistoryPage } from '@mbrg/protocol';
 
 export type ButtonSpec =
   | { readonly type: 'custom'; readonly customId: string; readonly label: string; readonly style: 'primary' | 'success'; readonly disabled?: boolean }
@@ -25,6 +26,16 @@ export interface BoardTag {
 }
 
 /**
+ * What the shell remembers of a history message it posted (spec 024 FR-555): who asked, the community key and the pages shown so far.
+ * The first page has no cursor, so the pages themselves are kept (each holds its own cursor to the next): going back shows the same snapshot.
+ */
+export interface HistoryTag {
+  readonly askerId: string;
+  readonly community: string;
+  readonly pages: readonly HistoryPage[];
+}
+
+/**
  * One message for the channel: its text and at most a few buttons (never one per candidate). Mentions are written in the text.
  * `embed` is what is shown when the bot may embed; `text` is always the plain version of 012, the fallback without Embed Links (FR-475).
  */
@@ -34,6 +45,8 @@ export interface OutMessage {
   readonly embed?: EmbedSpec;
   /** Set on a leaderboard message whose buttons page it: the shell registers it by message id (FR-480, FR-481). */
   readonly board?: BoardTag;
+  /** Set on a history message whose buttons page it: the shell registers it by message id (FR-555). */
+  readonly history?: HistoryTag;
 }
 
 export interface SelectOption {

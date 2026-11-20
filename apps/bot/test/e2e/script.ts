@@ -11,7 +11,9 @@ import { PREDICT_ID, START_ID, pickId } from '../../src/core/custom-ids';
 import type { OutMessage, Reply } from '../../src/core/model';
 import { STRINGS } from '../../src/core/strings';
 import type { Who } from '../../src/io/handler';
-import { CHANNEL, MANAGER, manager, waitFor } from '../helpers/harness';
+import { fromCommand } from '../../src/discord/translate';
+import { TOLERANCE_MS } from '../../../server/src/core/time';
+import { CHANNEL, GUILD_A, GUILD_B, MANAGER, waitFor } from '../helpers/harness';
 import type { Edited, Posted } from '../helpers/harness';
 import { EXPECTED_POST_TEXTS, PLAN, PLAYERS } from './plan';
 import { secrecyViolations } from './secrecy';
@@ -40,6 +42,21 @@ export interface MatchRun {
   readonly checkedPosts: number;
   /** The final leaderboard as the server ranks it, with the display names the predictions carried (spec 022). */
   readonly leaderboard: readonly LeaderboardRow[];
+  /** What `/mbrg history` answered after the match (spec 024 FR-562). */
+  readonly history: HistoryRun;
+}
+
+/** The replies of the history step: the same command in the server of the match (A) and in another server (B). */
+export interface HistoryRun {
+  /** In A, right after the finish: the match is not settled yet (its finish instant is not more than `TOLERANCE_MS` behind the clock). */
+  readonly unsettled: Reply;
+  /** In A, once the clock is past `TOLERANCE_MS` after the finish, asked by the first player. */
+  readonly listed: Reply;
+  /** The same, asked by the player with 0 points and by a member who never predicted. */
+  readonly zeroPoints: Reply;
+  readonly outsider: Reply;
+  /** In B: a server with no finished match. */
+  readonly otherServer: Reply;
 }
 
 const isLastRound = (round: number): boolean => PLAN[PLAN.length - 1]!.round === round;
@@ -114,7 +131,10 @@ export async function playScriptedMatch(world: E2EWorld): Promise<MatchRun> {
 
   // --- The manager creates a client-only match on the dev map; the shell posts the lobby message (FR-540). ---
   const made = await stage('create', 0, async () => {
-    const reply = await bot.run(manager({ map: 'dev', pace: 'fast' }));
+    // The command as Discord sends it: the guild id goes through the translation, so only its community key reaches the server (spec 024).
+    const command = fromCommand('create', { map: 'dev', pace: 'fast' }, true, MANAGER.userId, GUILD_A);
+    if (command === undefined) throw new Error('the create command was not translated');
+    const reply = await bot.run(command);
     await waitFor(() => world.server.streams.openCount() === 1, 20_000, () => 'the follower stream did not open');
     return reply;
   });
@@ -187,6 +207,24 @@ export async function playScriptedMatch(world: E2EWorld): Promise<MatchRun> {
   const leaderboardRead = readLeaderboardPage(await leaderboardResponse.json());
   if (!leaderboardRead.ok) throw new Error('the leaderboard read failed');
 
+  // --- The history (spec 024 FR-562): the finished match is listed in its own server and in no other. ---
+  async function ask(player: Player | undefined, guildId: string, to: string): Promise<Reply> {
+    const userId = player?.userId ?? MANAGER.userId;
+    const command = fromCommand('history', {}, false, userId, guildId);
+    if (command === undefined) throw new Error('the history command was not translated');
+    const who: Who = { channelId: CHANNEL, userId, ...(player === undefined ? {} : { displayName: player.displayName }) };
+    const reply = await bot.run(command, who);
+    entries.push({ kind: 'reply', stage: 'history', to, reply });
+    return reply;
+  }
+  // The finish instant is the step's own: a match is listed once it is SETTLED, so the clock moves past `TOLERANCE_MS` before the read.
+  const unsettled = await ask(PLAYERS[0], GUILD_A, 'Ana (recién terminada)');
+  world.server.clock.advance(TOLERANCE_MS + 1);
+  const listed = await ask(PLAYERS[0], GUILD_A, 'Ana');
+  const zeroPoints = await ask(PLAYERS[3], GUILD_A, 'Diego');
+  const outsider = await ask(undefined, GUILD_A, 'quien no jugó');
+  const otherServer = await ask(PLAYERS[0], GUILD_B, 'Ana (otro servidor)');
+
   return {
     world,
     matchId,
@@ -199,5 +237,6 @@ export async function playScriptedMatch(world: E2EWorld): Promise<MatchRun> {
     violations,
     checkedPosts,
     leaderboard: leaderboardRead.value.items,
+    history: { unsettled, listed, zeroPoints, outsider, otherServer },
   };
 }

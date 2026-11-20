@@ -37,6 +37,21 @@ export const STRINGS = {
   boardExpired: 'Esta clasificación caducó. Usa /mbrg board para verla de nuevo.',
   playerFallback: 'Jugador',
 
+  // History of the finished matches of a Discord server (spec 024 FR-554, FR-556).
+  historyTitle: 'Partidas terminadas',
+  historyEntry: '{date} · {map}',
+  historyWinner: 'Ganó **{winner}** · {players}',
+  historyPlayersOne: '1 jugador',
+  historyPlayersMany: '{n} jugadores',
+  historyMore: 'y {n} más',
+  historyNobody: 'Nadie sumó puntos',
+  historyOwn: 'Tus puntos: {points} (puesto {rank})',
+  historyNotPlayed: 'No jugaste esta partida',
+  historyEmpty: 'Este servidor todavía no tiene partidas terminadas.',
+  historyNotYours: 'Solo quien pidió el historial puede cambiar de página. Usa /mbrg history para ver el tuyo.',
+  historyExpired: 'Este historial caducó. Usa /mbrg history para verlo de nuevo.',
+  historyUnavailable: 'El historial no está disponible ahora. Inténtalo más tarde.',
+
   // Embeds of the announcements (spec 017 FR-472, FR-473).
   embedOpenedTitle: 'Ronda {round} abierta',
   embedOpenedText: '¿Qué facción será eliminada? Pulsa Predecir.',
@@ -67,6 +82,7 @@ export const STRINGS = {
   createDisabled: 'La creación de partidas públicas no está activa.',
   unknownMap: 'Ese mapa no está disponible.',
   unknownPace: 'Ese ritmo no existe.',
+  noServer: 'Este comando solo funciona dentro de un servidor de Discord.',
   started: 'Partida iniciada.',
   stopped: 'Este canal deja de seguir la partida. La partida continúa en el servidor.',
   chosen: 'Elegido: {name}.',
@@ -103,6 +119,8 @@ export const STRINGS = {
   cmdBoardText: 'Muestra la clasificación',
   cmdPredict: 'predict',
   cmdPredictText: 'Predice en la fase abierta',
+  cmdHistory: 'history',
+  cmdHistoryText: 'Muestra las partidas terminadas de este servidor',
   optMap: 'map',
   optMapText: 'Mapa de la partida',
   optPace: 'pace',

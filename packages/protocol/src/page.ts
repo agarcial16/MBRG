@@ -16,8 +16,8 @@ export const PAGE_LIMIT_DEFAULT = 100;
 export const PAGE_LIMIT_MAX = 500;
 export const CURSOR_MAX_LENGTH = 256;
 
-/** The list tags: the three of M3a, the results lists (phase results, a player's results, the leaderboard), then the players and the winners of a phase. */
-export const CURSOR_LISTS = ['matches', 'records', 'predictions', 'phase-results', 'player-results', 'leaderboard', 'players', 'phase-winners'] as const;
+/** The list tags: the three of M3a, the results lists (phase results, a player's results, the leaderboard), then the players, the winners of a phase and the per-community history (spec 024). */
+export const CURSOR_LISTS = ['matches', 'records', 'predictions', 'phase-results', 'player-results', 'leaderboard', 'players', 'phase-winners', 'history'] as const;
 export type CursorList = (typeof CURSOR_LISTS)[number];
 
 /**
@@ -37,6 +37,8 @@ export interface CursorKeys {
   readonly leaderboard: readonly [generation: number, rank: number, playerId: string];
   readonly players: readonly [joinedSeq: number];
   readonly 'phase-winners': readonly [playerId: string];
+  /** The snapshot head (newest counted match of the walk) then the last entry of the page: finish instant, match id (spec 024 FR-549). */
+  readonly history: readonly [headFinishedAt: number, headMatchId: string, finishedAt: number, matchId: string];
 }
 export type CursorKey<L extends CursorList> = CursorKeys[L];
 
@@ -82,6 +84,14 @@ function isKeyOf(list: CursorList, parts: readonly unknown[]): boolean {
       return parts.length === 1 && isInt(parts[0], 1);
     case 'phase-winners':
       return parts.length === 1 && isPlayerId(parts[0]);
+    case 'history': {
+      if (parts.length !== 4) return false;
+      const [headAt, headId, at, id] = parts;
+      if (!isInt(headAt, 0) || !isInt(at, 0)) return false;
+      if (typeof headId !== 'string' || !MATCH_ID.test(headId) || typeof id !== 'string' || !MATCH_ID.test(id)) return false;
+      // History order is finish instant descending, then match id ascending: the last key cannot be newer than the head.
+      return at < headAt || (at === headAt && id >= headId);
+    }
     default:
       return false;
   }

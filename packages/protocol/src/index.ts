@@ -4,6 +4,7 @@ export {
   encodeCreation,
   encodeError,
   encodeEvent,
+  encodeHistoryPage,
   encodeJoinReply,
   encodeLeaderboardRow,
   encodeMatchSummary,
@@ -33,6 +34,11 @@ export type { CursorKey, CursorKeys, CursorList, PageQuery } from './page';
 export {
   ADVANCE_REPLY_KEYS,
   CREATION_REPLY_KEYS,
+  HISTORY_ASKER_KEYS,
+  HISTORY_ENTRY_KEYS,
+  HISTORY_PAGE_KEYS,
+  HISTORY_TOP_KEYS,
+  HISTORY_TOP_MAX,
   JOIN_REPLY_KEYS,
   LEADERBOARD_ROW_KEYS,
   MATCH_SUMMARY_KEYS,
@@ -52,6 +58,10 @@ export {
   STEP_INFO_KEYS,
 } from './wire';
 export type {
+  HistoryAsker,
+  HistoryEntry,
+  HistoryPage,
+  HistoryTopRow,
   JoinReply,
   LeaderboardRow,
   MatchSummary,
@@ -69,14 +79,14 @@ export type {
   StateReply,
 } from './wire';
 export type { ErrorKind, ErrorReply } from './errors';
-export { NAMESPACE_SEPARATOR, PLAYER_NAMESPACE, isCredentialText, isJoinedPlayerId, isLocalId, isMapId, isNamespace, isPlayerId, playerIdOf } from './ids';
+export { NAMESPACE_SEPARATOR, PLAYER_NAMESPACE, isCommunityKey, isCredentialText, isJoinedPlayerId, isLocalId, isMapId, isNamespace, isPlayerId, playerIdOf } from './ids';
 export { NAME_MAX, nameKey, readName } from './names';
 export type { NameResult } from './names';
 export { MAX_INTERVAL_SECONDS, readTiming, readTimingShape, timingRuleFailures } from './timing';
 export type { TimingResult, TimingRule } from './timing';
-export { readAdvance, readCreation, readJoin, readStart, readSubmission } from './read';
-export type { ReadResult } from './read';
-export { ADVANCE_FIELDS, CREATION_FIELDS, JOIN_FIELDS, JOIN_POLICIES, PREDICTION_KINDS, START_FIELDS, STEP_KINDS, SUBMISSION_FIELDS } from './wire';
+export { readAdvance, readCreation, readHistoryRequest, readJoin, readStart, readSubmission } from './read';
+export type { HistoryRequest, ReadResult } from './read';
+export { ADVANCE_FIELDS, CREATION_FIELDS, HISTORY_FIELDS, JOIN_FIELDS, JOIN_POLICIES, PREDICTION_KINDS, START_FIELDS, STEP_KINDS, SUBMISSION_FIELDS } from './wire';
 export type { AdvanceBody, CreationBody, JoinBody, JoinPolicy, PredictionKind, StartBody, StepKind, SubmissionBody, Timing } from './wire';
 export { MAP_FILE_NAMES, REQUEST_ID_KEY, canonicalBody, mapDigestBytes, stateText } from './canonical';
 export type { MapFileName } from './canonical';
@@ -107,6 +117,7 @@ export type {
 export {
   readErrorReply,
   readEvent,
+  readHistoryPage,
   readJoinReply,
   readLeaderboardPage,
   readOwnPredictionsPage,

@@ -1,6 +1,7 @@
 // From a press, a window or a command to the action to run (spec 012 FR-451, FR-452, FR-454, FR-457, FR-458, NFR-90). Pure: the
 // Discord shell turns a Discord interaction into an `Interaction` and runs the `Action` this gives. Who may manage the channel
 // arrives as a plain flag (the shell reads the permission); the user id decides only who may start (FR-464), else it goes to the server.
+import type { HistoryPage } from '@mbrg/protocol';
 import { parseCustomId } from './custom-ids';
 import type { Pace, PhaseKind } from './model';
 import { isPace } from './paces';
@@ -13,28 +14,43 @@ export interface BoardEntryView {
   readonly expiresAt: number;
 }
 
+/** What the shell knows of a history message a press came from (spec 024 FR-555): its asker, key, the pages shown so far and when it stops paging. */
+export interface HistoryWalkView {
+  readonly askerId: string;
+  readonly community: string;
+  readonly expiresAt: number;
+  readonly pages: readonly HistoryPage[];
+}
+
 export type Interaction =
-  | { readonly type: 'create'; readonly canManage: boolean; readonly map: string; readonly pace: string | undefined }
+  | { readonly type: 'create'; readonly canManage: boolean; readonly map: string; readonly pace: string | undefined; /** The community key of the server (spec 024 FR-548); none: the interaction came without a server (FR-557). */ readonly community: string | undefined }
   | { readonly type: 'start'; readonly canManage: boolean; readonly userId: string }
   | { readonly type: 'stop'; readonly canManage: boolean }
   | { readonly type: 'board' }
   | { readonly type: 'predict'; readonly faction: string | undefined }
+  /** The history of the finished matches of this server (spec 024 FR-554); `community` as in `create` (none: no server, FR-557). */
+  | { readonly type: 'history'; readonly community: string | undefined }
   | { readonly type: 'button'; readonly customId: string; readonly canManage: boolean; readonly userId: string }
   | { readonly type: 'select'; readonly customId: string; readonly values: readonly string[] }
   | { readonly type: 'modal'; readonly customId: string; readonly text: string }
   | { readonly type: 'autocomplete'; readonly option: 'map' | 'faction'; readonly text: string }
-  | { readonly type: 'board-press'; readonly customId: string; readonly userId: string; readonly entry: BoardEntryView | undefined; readonly now: number };
+  | { readonly type: 'board-press'; readonly customId: string; readonly userId: string; readonly entry: BoardEntryView | undefined; readonly now: number }
+  | { readonly type: 'history-press'; readonly customId: string; readonly userId: string; readonly entry: HistoryWalkView | undefined; readonly now: number };
 
 export type Action =
   | { readonly do: 'say'; readonly text: string }
-  | { readonly do: 'create'; readonly mapId: string; readonly pace: Pace }
+  | { readonly do: 'create'; readonly mapId: string; readonly pace: Pace; readonly community: string }
   | { readonly do: 'start' | 'stop' | 'board' | 'predict-open' }
   | { readonly do: 'predict-text'; readonly text: string }
   | { readonly do: 'choose'; readonly kind: PhaseKind; readonly round: number; readonly faction: number }
   | { readonly do: 'find'; readonly kind: PhaseKind; readonly round: number; readonly text: string }
   | { readonly do: 'suggest'; readonly option: 'map' | 'faction'; readonly text: string }
   /** A leaderboard page: in place on the asker's public message, as a new private reply (final post), or in place on a private page (FR-480). */
-  | { readonly do: 'board-page'; readonly matchId: string; readonly page: number; readonly mode: 'asker' | 'new-private' | 'update-private' };
+  | { readonly do: 'board-page'; readonly matchId: string; readonly page: number; readonly mode: 'asker' | 'new-private' | 'update-private' }
+  /** The first page of the history of the asker's community, as a public reply (spec 024 FR-554); the paging follows with `history-page`. */
+  | { readonly do: 'history'; readonly community: string }
+  /** A page of a history message, in place: from the pages already shown (no `cursor`), or the next page of the walk by its cursor (spec 024 FR-555). */
+  | { readonly do: 'history-page'; readonly community: string; readonly page: number; readonly pages: readonly HistoryPage[]; readonly cursor?: string };
 
 /** How the answer is sent: deferred at once (the work may take longer than Discord's three seconds) as public or private, direct, or as the edit of the message pressed (`update`). */
 export type Delivery = 'public' | 'private' | 'direct' | 'update';
@@ -54,11 +70,13 @@ const mayStart = (userId: string, canManage: boolean, info: ChannelInfo): boolea
 export function decide(interaction: Interaction, following: boolean, info: ChannelInfo = {}): Action {
   switch (interaction.type) {
     case 'create': {
+      // A command without a server is refused before anything else and sends nothing (spec 024 FR-557).
+      if (interaction.community === undefined) return say(STRINGS.noServer);
       if (!interaction.canManage) return say(STRINGS.noPermission);
       if (following) return say(STRINGS.alreadyFollowing);
       const pace = interaction.pace ?? 'normal';
       if (!isPace(pace)) return say(STRINGS.unknownPace);
-      return { do: 'create', mapId: interaction.map, pace };
+      return { do: 'create', mapId: interaction.map, pace, community: interaction.community };
     }
     case 'start':
       if (!following) return say(STRINGS.notFollowing);
@@ -68,6 +86,8 @@ export function decide(interaction: Interaction, following: boolean, info: Chann
       return following ? { do: 'stop' } : say(STRINGS.notFollowing);
     case 'board':
       return following || info.hasLast === true ? { do: 'board' } : say(STRINGS.notFollowing);
+    case 'history':
+      return interaction.community === undefined ? say(STRINGS.noServer) : { do: 'history', community: interaction.community };
     case 'predict':
       if (!following) return say(STRINGS.notFollowing);
       return interaction.faction === undefined || interaction.faction.trim() === '' ? { do: 'predict-open' } : { do: 'predict-text', text: interaction.faction };
@@ -103,6 +123,19 @@ export function decide(interaction: Interaction, following: boolean, info: Chann
       if (entry.askerId === undefined) return { do: 'board-page', matchId: entry.matchId, page: id.page, mode: 'new-private' };
       return entry.askerId === interaction.userId ? { do: 'board-page', matchId: entry.matchId, page: id.page, mode: 'asker' } : say(STRINGS.boardNotYours);
     }
+    case 'history-press': {
+      const id = parseCustomId(interaction.customId);
+      if (id?.type !== 'history') return say(STRINGS.errUnexpected);
+      const walk = interaction.entry;
+      // The message is unknown (the bot restarted) or past its five minutes: nothing is served, whoever presses (FR-555).
+      if (walk === undefined || interaction.now >= walk.expiresAt) return say(STRINGS.historyExpired);
+      if (walk.askerId !== interaction.userId) return say(STRINGS.historyNotYours);
+      const base = { do: 'history-page' as const, community: walk.community, page: id.page, pages: walk.pages };
+      // A page already shown comes back as it was (the same snapshot); the next one follows the cursor of the page shown.
+      if (id.page <= walk.pages.length) return base;
+      const cursor = id.page === walk.pages.length + 1 ? walk.pages[walk.pages.length - 1]?.next : undefined;
+      return cursor === undefined ? say(STRINGS.errUnexpected) : { ...base, cursor };
+    }
   }
 }
 
@@ -115,7 +148,10 @@ export function deliveryOf(action: Action): Delivery {
     case 'create':
     case 'stop':
     case 'board':
+    case 'history':
       return 'public';
+    case 'history-page':
+      return 'update';
     case 'board-page':
       return action.mode === 'new-private' ? 'private' : 'update';
     case 'start':

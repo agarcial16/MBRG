@@ -8,6 +8,7 @@ import { nameBook } from '../src/core/names';
 import { paceTiming } from '../src/core/paces';
 import { chosenText, closedSentence, errorSentence, offerFor, openPhaseOf, resolveText, suggestionsFor } from '../src/core/predict';
 import type { OpenPhase } from '../src/core/predict';
+import { KEY_A as KEY } from './helpers/harness';
 
 const matchOf = (over: Partial<PublicMatch> & { stage: PublicMatch['stage'] }, owners: number[] = [1, 2, 3]): PublicMatch =>
   ({
@@ -52,14 +53,29 @@ describe('FR-452 who may start, stop and create', () => {
     expect(decide({ type: 'board' }, true)).toEqual({ do: 'board' });
     expect(decide({ type: 'board' }, false, { hasLast: true })).toEqual({ do: 'board' });
     expect(decide({ type: 'board' }, false, { hasLast: false })).toEqual({ do: 'say', text: 'Este canal no sigue ninguna partida.' });
-    expect(decide({ type: 'create', canManage: true, map: 'europe', pace: 'fast' }, false, { hasLast: true })).toEqual({ do: 'create', mapId: 'europe', pace: 'fast' });
+    expect(decide({ type: 'create', canManage: true, map: 'europe', pace: 'fast', community: KEY }, false, { hasLast: true })).toEqual({ do: 'create', mapId: 'europe', pace: 'fast', community: KEY });
   });
 
   it('FR-451 create needs a manager, refuses a channel that already follows, and defaults to the normal pace', () => {
-    expect(decide({ type: 'create', canManage: true, map: 'europe', pace: undefined }, false)).toEqual({ do: 'create', mapId: 'europe', pace: 'normal' });
-    expect(decide({ type: 'create', canManage: true, map: 'europe', pace: 'fast' }, true).do).toBe('say');
-    expect(decide({ type: 'create', canManage: false, map: 'europe', pace: 'fast' }, false).do).toBe('say');
-    expect(decide({ type: 'create', canManage: true, map: 'europe', pace: 'warp' }, false)).toEqual({ do: 'say', text: 'Ese ritmo no existe.' });
+    expect(decide({ type: 'create', canManage: true, map: 'europe', pace: undefined, community: KEY }, false)).toEqual({ do: 'create', mapId: 'europe', pace: 'normal', community: KEY });
+    expect(decide({ type: 'create', canManage: true, map: 'europe', pace: 'fast', community: KEY }, true).do).toBe('say');
+    expect(decide({ type: 'create', canManage: false, map: 'europe', pace: 'fast', community: KEY }, false).do).toBe('say');
+    expect(decide({ type: 'create', canManage: true, map: 'europe', pace: 'warp', community: KEY }, false)).toEqual({ do: 'say', text: 'Ese ritmo no existe.' });
+  });
+
+  it('FR-557 an interaction that arrives without a server (no community key) is refused with one sentence and does nothing, manager or not', () => {
+    for (const canManage of [true, false]) {
+      expect(decide({ type: 'create', canManage, map: 'europe', pace: 'fast', community: undefined }, false)).toEqual({ do: 'say', text: 'Este comando solo funciona dentro de un servidor de Discord.' });
+    }
+  });
+
+  it('FR-554 FR-557 the history command is answered in public for a server, and refused with one sentence, sending nothing, without one', () => {
+    expect(decide({ type: 'history', community: KEY }, false)).toEqual({ do: 'history', community: KEY });
+    expect(decide({ type: 'history', community: KEY }, true)).toEqual({ do: 'history', community: KEY });
+    expect(deliveryOf({ do: 'history', community: KEY })).toBe('public');
+    const refused = decide({ type: 'history', community: undefined }, false);
+    expect(refused).toEqual({ do: 'say', text: 'Este comando solo funciona dentro de un servidor de Discord.' });
+    expect(deliveryOf(refused)).toBe('direct');
   });
 
   it('FR-451 the pace stays inside the public bounds', () => {
@@ -132,7 +148,7 @@ describe('FR-454 prediction flow', () => {
   });
 
   it('NFR-91 the work that calls the server is deferred; a press that may open a window is answered directly', () => {
-    expect(deliveryOf({ do: 'create', mapId: 'europe', pace: 'fast' })).toBe('public');
+    expect(deliveryOf({ do: 'create', mapId: 'europe', pace: 'fast', community: KEY })).toBe('public');
     expect(deliveryOf({ do: 'choose', kind: 'victim', round: 1, faction: 1 })).toBe('private');
     expect(deliveryOf({ do: 'predict-open' })).toBe('direct');
     expect(deliveryOf({ do: 'suggest', option: 'map', text: '' })).toBe('direct');

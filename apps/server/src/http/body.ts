@@ -42,6 +42,8 @@ export function parseBodyBytes(bytes: Uint8Array): BodyParse {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return invalidBody();
   // Spec 018 FR-490: `JSON.parse` keeps the last of two equal members, so a repeated `joinPolicy` is refused here, by name.
   if (repeatsMember(text, 'joinPolicy')) return { kind: 'error', error: errorReply('invalid-request', ['joinPolicy']) };
+  // Spec 024 FR-546: the same for a repeated `community` (two keys in one creation are never read as the last one).
+  if (repeatsMember(text, 'community')) return { kind: 'error', error: errorReply('invalid-request', ['community']) };
   return { kind: 'body', value: value as Record<string, unknown> };
 }
 

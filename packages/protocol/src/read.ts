@@ -1,10 +1,12 @@
 import { errorReply, type ErrorReply } from './errors';
-import { isLocalId, isMapId } from './ids';
+import { isCommunityKey, isLocalId, isMapId } from './ids';
 import { readName } from './names';
+import { PAGE_LIMIT_DEFAULT, PAGE_LIMIT_MAX, decodeCursor, type CursorKey } from './page';
 import { readTimingShape, timingRuleFailures } from './timing';
 import {
   ADVANCE_FIELDS,
   CREATION_FIELDS,
+  HISTORY_FIELDS,
   JOIN_FIELDS,
   JOIN_POLICIES,
   PREDICTION_KINDS,
@@ -22,6 +24,14 @@ import {
 } from './wire';
 
 export type ReadResult<T> = { ok: true; value: T } | { ok: false; error: ErrorReply };
+
+/** A read history request (spec 024 FR-573): `limit` already holds the default and `after` is the decoded cursor key. */
+export interface HistoryRequest {
+  readonly community: string;
+  readonly playerId?: string;
+  readonly limit: number;
+  readonly after?: CursorKey<'history'>;
+}
 
 const MAX_ID = 16_777_215; // faction ids are 24-bit (shared map format)
 const fail = (kind: 'invalid-request' | 'invalid-player-id', field: string): { ok: false; error: ErrorReply } => ({
@@ -41,7 +51,7 @@ const isOneOf = <T extends string>(list: readonly T[], v: unknown): v is T => ty
 /** True when the request id is missing (and required) or present and outside the FR-297 set. */
 const requestIdProblem = (o: Body, required: boolean): boolean => (own(o, 'requestId') ? !isLocalId(o.requestId) : required);
 
-/** Creation body `{ mapId, timing, requestId, joinPolicy? }` (FR-231, FR-233, FR-296, spec 018 FR-490). */
+/** Creation body `{ mapId, timing, requestId, joinPolicy?, community? }` (FR-231, FR-233, FR-296, spec 018 FR-490, spec 024 FR-546). */
 export function readCreation(input: unknown): ReadResult<CreationBody> {
   const o = bodyOf(input);
   if (o === undefined) return fail('invalid-request', 'body');
@@ -51,13 +61,57 @@ export function readCreation(input: unknown): ReadResult<CreationBody> {
   if (!timing.ok) return fail('invalid-request', timing.field);
   if (requestIdProblem(o, true)) return fail('invalid-request', 'requestId');
   if (own(o, 'joinPolicy') && !isOneOf<JoinPolicy>(JOIN_POLICIES, o.joinPolicy)) return fail('invalid-request', 'joinPolicy');
+  if (own(o, 'community') && !isCommunityKey(o.community)) return fail('invalid-request', 'community');
   const extra = firstUnknown(o, CREATION_FIELDS);
   if (extra !== undefined) return fail('invalid-request', extra);
   const failed = timingRuleFailures(timing.value);
   if (failed.length > 0) return { ok: false, error: errorReply('invalid-timing', failed) };
   return {
     ok: true,
-    value: { mapId: o.mapId, timing: timing.value, requestId: o.requestId as string, ...(own(o, 'joinPolicy') ? { joinPolicy: o.joinPolicy as JoinPolicy } : {}) },
+    value: {
+      mapId: o.mapId,
+      timing: timing.value,
+      requestId: o.requestId as string,
+      ...(own(o, 'joinPolicy') ? { joinPolicy: o.joinPolicy as JoinPolicy } : {}),
+      ...(own(o, 'community') ? { community: o.community as string } : {}),
+    },
+  };
+}
+
+/**
+ * History request body `{ community, playerId?, limit?, cursor? }` (spec 024 FR-573). The community key, the local player id of
+ * the asker, the page size (a whole number 1 to 500, default 100) and the cursor travel only in the body. The first failing member
+ * in that order is named; an unknown member is named last (the first in sorted order). A player id that is a text but not a local
+ * id is `invalid-player-id`, after every structural check (the FR-301 order). The cursor comes back decoded as `after`.
+ */
+export function readHistoryRequest(input: unknown): ReadResult<HistoryRequest> {
+  const o = bodyOf(input);
+  if (o === undefined) return fail('invalid-request', 'body');
+  if (!own(o, 'community') || !isCommunityKey(o.community)) return fail('invalid-request', 'community');
+  if (own(o, 'playerId') && typeof o.playerId !== 'string') return fail('invalid-request', 'playerId');
+  let limit = PAGE_LIMIT_DEFAULT;
+  if (own(o, 'limit')) {
+    if (typeof o.limit !== 'number' || !Number.isSafeInteger(o.limit) || o.limit < 1 || o.limit > PAGE_LIMIT_MAX) return fail('invalid-request', 'limit');
+    limit = o.limit;
+  }
+  let after: CursorKey<'history'> | undefined;
+  if (own(o, 'cursor')) {
+    if (typeof o.cursor !== 'string') return fail('invalid-request', 'cursor');
+    const decoded = decodeCursor('history', o.cursor);
+    if (!decoded.ok) return decoded;
+    after = decoded.value;
+  }
+  const extra = firstUnknown(o, HISTORY_FIELDS);
+  if (extra !== undefined) return fail('invalid-request', extra);
+  if (own(o, 'playerId') && !isLocalId(o.playerId)) return fail('invalid-player-id', 'playerId');
+  return {
+    ok: true,
+    value: {
+      community: o.community,
+      ...(own(o, 'playerId') ? { playerId: o.playerId as string } : {}),
+      limit,
+      ...(after === undefined ? {} : { after }),
+    },
   };
 }
 

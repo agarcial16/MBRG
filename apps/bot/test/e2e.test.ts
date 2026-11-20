@@ -7,8 +7,10 @@ import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PREDICT_ID } from '../src/core/custom-ids';
 import { EMBED_COLORS } from '../src/core/embeds';
+import type { OutMessage, Reply } from '../src/core/model';
 import { STRINGS } from '../src/core/strings';
-import { EXPECTED_POST_TEXTS, PLAYERS } from './e2e/plan';
+import { GUILD_A, GUILD_B, KEY_A, KEY_B } from './helpers/harness';
+import { EXPECTED_POST_TEXTS, FACTION_NAMES, PLAN, PLAYERS } from './e2e/plan';
 import { renderEmbedsHtml, renderTranscript } from './e2e/render';
 import { secrecyViolations } from './e2e/secrecy';
 import { playScriptedMatch } from './e2e/script';
@@ -90,6 +92,47 @@ describe('spec 023 e2e: real server + real bot core, Discord faked', () => {
     expect(JSON.stringify(r.entries)).not.toContain(r.hostToken);
     // The state file of the run holds no secret either once the match ended: the channel entry was retired.
     expect(readFileSync(r.world.statePath, 'utf8')).not.toContain(r.hostToken);
+  });
+
+  it('FR-562 the finished match is listed in the history of its own server, with the asker lines and the viewer link, and in no other server', () => {
+    const r = run!;
+    const messageOf = (reply: Reply): OutMessage => {
+      expect(reply.type).toBe('channel');
+      return (reply as Extract<Reply, { type: 'channel' }>).messages[0]!;
+    };
+    const listed = messageOf(r.history.listed);
+    expect(listed.embed?.title).toBe(STRINGS.historyTitle);
+    expect(listed.embed?.footer).toBe('Página 1/1');
+    expect(listed.embed?.fields).toHaveLength(1);
+    const [field] = listed.embed!.fields;
+    // The oracle is another route: the public leaderboard of the match, read over HTTP by the run.
+    const scored = r.leaderboard.filter((row) => row.total > 0);
+    expect(scored.length).toBeGreaterThan(0);
+    expect(field!.name).toMatch(/^<t:\d+:d> · dev$/);
+    expect(field!.value.split('\n')).toEqual([
+      `Ganó **${FACTION_NAMES[PLAN[PLAN.length - 1]!.absorber]}** · ${r.leaderboard.length} jugadores`,
+      ...scored.map((row) => `${row.rank}. <@${row.playerId.slice('discord:'.length)}> - ${row.total} pts`),
+      `Tus puntos: ${r.leaderboard[0]!.total} (puesto 1)`,
+      `[${STRINGS.viewerButton}](${VIEWER_URL}?match=${r.matchId}&spectate=1)`,
+    ]);
+    // Nothing to page: both buttons are disabled, and the message is not a walk the bot keeps.
+    expect(listed.buttons.every((b) => b.type === 'custom' && b.disabled === true)).toBe(true);
+    // A player with 0 points still has a row and a rank; a member who never predicted has none.
+    const zero = r.leaderboard.find((row) => row.total === 0)!;
+    expect(messageOf(r.history.zeroPoints).embed?.fields[0]?.value).toContain(`Tus puntos: 0 (puesto ${zero.rank})`);
+    expect(messageOf(r.history.outsider).embed?.fields[0]?.value).toContain(STRINGS.historyNotPlayed);
+    // Another server of the same bot sees nothing: one sentence, no embed, no buttons.
+    expect(messageOf(r.history.otherServer)).toEqual({ text: STRINGS.historyEmpty, buttons: [] });
+  });
+
+  it('FR-562 FR-561 right after the finish the match is not listed yet (its finish instant is not more than the tolerance behind the clock): the same sentence as an empty history', () => {
+    expect(run!.history.unsettled).toEqual({ type: 'channel', messages: [{ text: STRINGS.historyEmpty, buttons: [] }] });
+  });
+
+  it('NFR-118 FR-548 the raw guild ids and the community keys are in no post, edit, reply or file of the run', () => {
+    const r = run!;
+    const everything = JSON.stringify([r.posts, r.edits, r.entries.map((e) => (e.kind === 'reply' ? e.reply : e.message))]) + readFileSync(r.world.statePath, 'utf8');
+    for (const secret of [GUILD_A, GUILD_B, KEY_A, KEY_B]) expect(everything, secret).not.toContain(secret);
   });
 
   it('FR-542 FR-543 renders the same run as a readable transcript and as an HTML page of the embeds', () => {

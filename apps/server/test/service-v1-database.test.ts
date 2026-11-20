@@ -19,11 +19,12 @@ import type { Harness } from './helpers/service-harness';
 const V1_FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'v1-database.db');
 const S = 1000;
 
-/** Rewrites a closed version 2 file as a version 1 file: the v2 and v3 tables dropped and `user_version` back to 1 (`meta` is not rewritten by any upgrade since spec 018, so it is left as it is). */
+/** Rewrites a closed version 2 file as a version 1 file: the v2 to v5 tables dropped and `user_version` back to 1 (`meta` is not rewritten by any upgrade since spec 018, so it is left as it is). */
 const cutBackToV1 = (file: string): void => {
   const db = new DatabaseSync(file);
   try {
     db.exec('BEGIN');
+    db.exec('DROP TABLE communities');
     db.exec('DROP TABLE client_names');
     db.exec('DROP TABLE client_matches');
     db.exec('DROP TABLE players');
@@ -56,7 +57,7 @@ describe('a database written before the lobby tables', () => {
       copyFileSync(V1_FIXTURE, file);
       const h = harnessOn(file, START_MS + 10_000);
       try {
-        expect(h.store.settings().userVersion).toBe(4);
+        expect(h.store.settings().userVersion).toBe(5);
         const a = h.service.publicMatch('AAAAAAAAAAAAAAAA');
         const b = h.service.publicMatch('BBBBBBBBBBBBBBBB');
         expect(a).toMatchObject({ stage: 'phase-2', appliedRounds: 1, lastSeq: 3 });
@@ -127,7 +128,7 @@ describe('a database written before the lobby tables', () => {
       expect(JSON.parse(a.results).players['web:p1'].items.length).toBeGreaterThan(0);
       // The stored rows end equal, the upgrade included (both files are version 3 now).
       expect(withRawDb(old, dumpRows) === withRawDb(native, dumpRows)).toBe(true);
-      expect(withRawDb(old, (db) => Number(db.prepare('PRAGMA user_version').get()?.user_version))).toBe(4);
+      expect(withRawDb(old, (db) => Number(db.prepare('PRAGMA user_version').get()?.user_version))).toBe(5);
     });
   });
 });

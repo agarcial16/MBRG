@@ -3,8 +3,8 @@
 // a test then proves no message of the bot contains them (NFR-88, NFR-89).
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
-import { encodeEvent, encodePublicMatch } from '@mbrg/protocol';
-import type { MatchEvent, PublicMatch } from '@mbrg/protocol';
+import { encodeEvent, encodeHistoryPage, encodePublicMatch } from '@mbrg/protocol';
+import type { HistoryEntry, MatchEvent, PublicMatch } from '@mbrg/protocol';
 
 export const CREDENTIAL = 'discord-credential-PLANTED-0123456789';
 export const HOST_TOKEN = 'host-token-PLANTED-0123456789abcdef';
@@ -46,6 +46,10 @@ export interface Fake {
   createError: { status: number; body: unknown } | undefined;
   /** The error every prediction gets, when set; otherwise it is accepted. */
   submitError: { status: number; body: unknown } | undefined;
+  /** The history of each community key, newest first (spec 024); a key with none is an empty history. */
+  history: Map<string, HistoryEntry[]>;
+  /** The error every history read gets, when set; otherwise it is answered from `history`. */
+  historyError: { status: number; body: unknown } | undefined;
   /** While true the server refuses every connection and request (a crash). */
   down: boolean;
   /** Page size of the phase results (to exercise paging). */
@@ -116,6 +120,19 @@ export async function startFake(options: FakeOptions = {}): Promise<Fake> {
         state.emit({ type: 'schedule', stage: 'phase-1', schedule: SCHEDULE, reportedTime: 2000 }, { stage: 'phase-1', schedule: SCHEDULE });
         return json(res, 200, JSON.parse(encodePublicMatch(state.match)));
       }
+      if (path === '/history' && req.method === 'POST') {
+        if (bearer !== CREDENTIAL) return json(res, 403, { kind: 'forbidden' });
+        if (state.historyError !== undefined) return json(res, state.historyError.status, state.historyError.body);
+        const b = (body ?? {}) as { community?: unknown; limit?: unknown; cursor?: unknown };
+        if (typeof b.community !== 'string' || !/^[0-9a-f]{64}$/.test(b.community)) return json(res, 400, { kind: 'invalid-request', items: ['community'] });
+        const all = state.history.get(b.community) ?? [];
+        // The cursor is `<offset>.<snapshot size>`: a walk keeps the size its first page saw, as the real server keeps its snapshot.
+        const [offset, snapshot] = typeof b.cursor === 'string' ? b.cursor.split('.').map(Number) as [number, number] : [0, all.length];
+        const limit = typeof b.limit === 'number' ? b.limit : 5;
+        const items = all.slice(offset, offset + limit);
+        const more = offset + limit < (snapshot as number);
+        return json(res, 200, JSON.parse(encodeHistoryPage({ items, total: snapshot as number, ...(more ? { next: `${offset + limit}.${snapshot}` } : {}) })));
+      }
       if (path === `/matches/${MATCH_ID}`) return json(res, 200, JSON.parse(encodePublicMatch(state.match)));
       if (path === `/matches/${MATCH_ID}/events`) {
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store' });
@@ -175,6 +192,8 @@ export async function startFake(options: FakeOptions = {}): Promise<Fake> {
     leaderboard: [],
     submitError: undefined,
     createError: undefined,
+    history: new Map<string, HistoryEntry[]>(),
+    historyError: undefined,
     down: false,
     pageSize: 500,
     predictions: [],

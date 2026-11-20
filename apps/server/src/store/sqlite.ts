@@ -1,14 +1,15 @@
 // The SQLite adapter (spec 008 FR-291, FR-292; plan PD9, PD10): the only module that imports `node:sqlite`.
 // It does not depend on the ExperimentalWarning being printed: warnings.ts only hides it where Node prints it.
 import { DatabaseSync } from 'node:sqlite';
-import { isJoinedPlayerId, isLocalId, isPlayerId, isNamespace, NAMESPACE_SEPARATOR, PREDICTION_KINDS } from '@mbrg/protocol';
+import { isCommunityKey, isJoinedPlayerId, isLocalId, isPlayerId, isNamespace, NAMESPACE_SEPARATOR, PREDICTION_KINDS } from '@mbrg/protocol';
 import type { MatchEvent, MatchSummary, PredictionKind, PublicState, PublicVictim, Timing } from '@mbrg/protocol';
 import { MEMO_RETENTION_MS, type MemoScope } from '../core/memo';
 import type { StoredPrediction } from '../core/predictions';
 import type { PlayerTotals, ResultRow, ScorablePrediction } from '../core/scoring';
+import type { HistoryKey, HistoryMatch } from '../core/history';
 import type { Anchors } from '../core/time';
 import type { CoreMatch } from '../core/view';
-import { SCHEMA_V1, SCHEMA_V2_ADDITIONS, SCHEMA_V3_ADDITIONS, SCHEMA_V4_ADDITIONS, SCHEMA_VERSION, TABLES } from './schema';
+import { SCHEMA_V1, SCHEMA_V2_ADDITIONS, SCHEMA_V3_ADDITIONS, SCHEMA_V4_ADDITIONS, SCHEMA_V5_ADDITIONS, SCHEMA_VERSION, TABLES } from './schema';
 import {
   LOBBY_RETENTION_MS,
   NameTakenError,
@@ -196,10 +197,48 @@ export const READ_SQL = {
     SUM(CASE WHEN kind = 'absorber' AND correct = 1 THEN 1 ELSE 0 END) AS correct_absorbers,
     SUM(CASE WHEN kind = 'winner' AND correct = 1 THEN 1 ELSE 0 END) AS correct_winner
     FROM results WHERE match_id = ? GROUP BY player_id ORDER BY player_id`,
+  // The history reads (spec 024 FR-549, FR-561): the only statements that read `communities`. The key reaches its rows through
+  // `communities_by_key`, each match by its primary key, the namespace by the primary key of `client_matches`; only a finished
+  // match counts, and only once it is SETTLED: its finish instant is below `settledBefore` (the service passes now - TOLERANCE_MS: a step
+  // run on time keeps its scheduled instant, up to TOLERANCE_MS before the instant it is committed at, so a match that finishes after a
+  // read could otherwise sort behind a head already taken). The head ("at or after") and the keyset ("strictly after") are optional (a NULL first parameter turns the
+  // condition off); history order is the finish instant (`last_step_ms`) descending, then the match id ascending.
+  historyAfter: `SELECT m.id AS id, m.map_id AS map_id, m.last_step_ms AS finished_ms, m.winner AS winner
+    FROM communities c INDEXED BY communities_by_key
+    JOIN matches m ON m.id = c.match_id
+    JOIN client_matches cm ON cm.match_id = c.match_id
+    WHERE c.community = ? AND cm.namespace = ? AND m.stage = 'finished' AND m.last_step_ms < ?
+      AND (? IS NULL OR m.last_step_ms < ? OR (m.last_step_ms = ? AND m.id >= ?))
+      AND (? IS NULL OR m.last_step_ms < ? OR (m.last_step_ms = ? AND m.id > ?))
+    ORDER BY m.last_step_ms DESC, m.id ASC LIMIT ?`,
+  historyCount: `SELECT COUNT(*) AS n
+    FROM communities c INDEXED BY communities_by_key
+    JOIN matches m ON m.id = c.match_id
+    JOIN client_matches cm ON cm.match_id = c.match_id
+    WHERE c.community = ? AND cm.namespace = ? AND m.stage = 'finished' AND m.last_step_ms < ?
+      AND (? IS NULL OR m.last_step_ms < ? OR (m.last_step_ms = ? AND m.id >= ?))`,
 } as const;
 
 const checkLimit = (limit: number): void => {
   if (!Number.isSafeInteger(limit) || limit < 1) throw new RangeError('a read limit is a whole number of at least 1');
+};
+
+const HISTORY_ID = /^[A-Za-z0-9_-]{1,64}$/;
+/** A history position (finish instant, match id) of a read: a whole instant and a match id text. */
+const checkHistoryKey = (key: HistoryKey | undefined, what: string): readonly [number | null, string] => {
+  if (key === undefined) return [null, ''];
+  if (typeof key !== 'object' || key === null || !Number.isSafeInteger(key.finishedAt) || key.finishedAt < 0 || typeof key.matchId !== 'string' || !HISTORY_ID.test(key.matchId)) {
+    throw new RangeError(`${what} is a finish instant and a match id`);
+  }
+  return [key.finishedAt, key.matchId];
+};
+/** The settled bound of a history read: a whole instant (it may be negative on a young clock; it only has to be a safe integer). */
+const checkSettled = (settledBefore: number): void => {
+  if (!Number.isSafeInteger(settledBefore)) throw new RangeError('a settled bound is a whole instant');
+};
+const checkHistoryScope = (community: string, namespace: string): void => {
+  if (!isCommunityKey(community)) throw new RangeError('a community key is 64 lowercase hexadecimal characters');
+  if (!isNamespace(namespace)) throw new RangeError('a history namespace is 1 to 16 characters of a-z and 0-9');
 };
 
 const recordOf = (r: Row): StoredRecord => ({
@@ -261,13 +300,15 @@ export const openStore = (path: string): Store => {
         for (const statement of SCHEMA_V2_ADDITIONS) db.exec(statement);
         for (const statement of SCHEMA_V3_ADDITIONS) db.exec(statement);
         for (const statement of SCHEMA_V4_ADDITIONS) db.exec(statement);
+        for (const statement of SCHEMA_V5_ADDITIONS) db.exec(statement);
         db.prepare('INSERT INTO meta (schema_version) VALUES (?)').run(SCHEMA_VERSION);
         db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
-      } else if (version === 1 || version === 2 || version === 3) {
-        // Storage is only added (FR-506): no row of an existing table is written, `meta` included (nothing reads it).
+      } else if (version >= 1 && version <= 4) {
+        // Storage is only added (FR-506, FR-560): no row of an existing table is written, `meta` included (nothing reads it).
         if (version === 1) for (const statement of SCHEMA_V2_ADDITIONS) db.exec(statement);
-        if (version !== 3) for (const statement of SCHEMA_V3_ADDITIONS) db.exec(statement);
-        for (const statement of SCHEMA_V4_ADDITIONS) db.exec(statement);
+        if (version <= 2) for (const statement of SCHEMA_V3_ADDITIONS) db.exec(statement);
+        if (version <= 3) for (const statement of SCHEMA_V4_ADDITIONS) db.exec(statement);
+        for (const statement of SCHEMA_V5_ADDITIONS) db.exec(statement);
         db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
       } else if (version !== SCHEMA_VERSION) {
         throw new StoreError('unknown-schema-version', `the database has schema version ${version}; this server supports version ${SCHEMA_VERSION}`);
@@ -485,6 +526,13 @@ export const openStore = (path: string): Store => {
       if (one('SELECT 1 AS found FROM client_matches WHERE match_id = ?', matchId) !== undefined) throw invalid(`the match ${matchId} already has a client row`);
       run('INSERT INTO client_matches (match_id, namespace) VALUES (?, ?)', matchId, namespace);
     },
+    insertCommunity(matchId: string, community: string): void {
+      requireTransaction();
+      if (!isCommunityKey(community)) throw invalid('a community key is 64 lowercase hexadecimal characters');
+      if (one('SELECT 1 AS found FROM matches WHERE id = ?', matchId) === undefined) throw invalid(`the match ${matchId} does not exist`);
+      if (one('SELECT 1 AS found FROM communities WHERE match_id = ?', matchId) !== undefined) throw invalid(`the match ${matchId} already has a community row`);
+      run('INSERT INTO communities (match_id, community) VALUES (?, ?)', matchId, community);
+    },
     getClientNamespace(matchId: string): string | undefined {
       const row = one('SELECT namespace FROM client_matches WHERE match_id = ?', matchId);
       return row === undefined ? undefined : str(row, 'namespace');
@@ -537,7 +585,7 @@ export const openStore = (path: string): Store => {
       const ids = all('SELECT match_id FROM lobbies WHERE expired_ms IS NOT NULL AND started_ms IS NULL AND ? - expired_ms > ? ORDER BY match_id', now, LOBBY_RETENTION_MS).map((r) => str(r, 'match_id'));
       for (const matchId of ids) {
         // Children first: every table that refers to the match, then the lobby row, then the match.
-        for (const table of ['results', 'predictions', 'steps', 'records', 'events', 'states', 'players', 'lobbies', 'client_matches', 'client_names']) {
+        for (const table of ['results', 'predictions', 'steps', 'records', 'events', 'states', 'players', 'lobbies', 'communities', 'client_matches', 'client_names']) {
           run(`DELETE FROM ${table} WHERE match_id = ?`, matchId);
         }
         run('DELETE FROM matches WHERE id = ?', matchId);
@@ -663,6 +711,27 @@ export const openStore = (path: string): Store => {
         const summary = { matchId: str(r, 'id'), mapId: str(r, 'map_id'), stage: stage as MatchSummary['stage'], appliedRounds: num(r, 'n'), totalRounds: num(r, 't'), createdAt: num(r, 'created_ms') };
         return num(r, 'client_only') === 1 ? { ...summary, clientOnly: true as const } : summary;
       });
+    },
+    historyAfter(community: string, namespace: string, settledBefore: number, head: HistoryKey | undefined, after: HistoryKey | undefined, limit: number): HistoryMatch[] {
+      checkHistoryScope(community, namespace);
+      checkSettled(settledBefore);
+      const [headAt, headId] = checkHistoryKey(head, 'a history head');
+      const [afterAt, afterId] = checkHistoryKey(after, 'a history cursor key');
+      checkLimit(limit);
+      // A page of up to 500 plus the one row that tells whether more follow.
+      if (limit > 501) throw new RangeError('a history read holds at most 501 matches');
+      return all(READ_SQL.historyAfter, community, namespace, settledBefore, headAt, headAt, headAt, headId, afterAt, afterAt, afterAt, afterId, limit).map((r) => {
+        const winner = optNum(r, 'winner');
+        if (winner === null) throw corrupt('a finished match has no winner');
+        return { matchId: str(r, 'id'), mapId: str(r, 'map_id'), finishedAt: num(r, 'finished_ms'), winner };
+      });
+    },
+    historyCount(community: string, namespace: string, settledBefore: number, head: HistoryKey | undefined): number {
+      checkHistoryScope(community, namespace);
+      checkSettled(settledBefore);
+      const [headAt, headId] = checkHistoryKey(head, 'a history head');
+      const row = one(READ_SQL.historyCount, community, namespace, settledBefore, headAt, headAt, headAt, headId);
+      return row === undefined ? 0 : num(row, 'n');
     },
     recordsAfter(matchId: string, round: number, limit: number): StoredRecord[] {
       if (!Number.isSafeInteger(round) || round < 0) throw new RangeError('a record keyset is a round of at least 0');

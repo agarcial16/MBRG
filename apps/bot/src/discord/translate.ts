@@ -1,10 +1,11 @@
 // The translation between Discord's shapes and the core's (spec 012 NFR-90). Pure functions over plain values: the thin shell
 // reads the discord.js objects, calls these and sends what they return. Nothing here imports the Discord library; the payloads
 // are the raw API shapes (numeric component and button types) that the library sends as they are.
-import type { BoardEntryView, Interaction } from '../core/actions';
+import type { BoardEntryView, HistoryWalkView, Interaction } from '../core/actions';
 import { fitEmbed, rowsOf, splitMessage } from '../core/limits';
 import type { ButtonSpec, EmbedSpec, OutMessage, Reply } from '../core/model';
 import { STRINGS } from '../core/strings';
+import { communityKey } from '../io/community';
 
 const ACTION_ROW = 1;
 const BUTTON = 2;
@@ -24,11 +25,15 @@ export function displayNameOf(source: { readonly nick?: string | null; readonly 
   return undefined;
 }
 
-/** The core interaction of a slash command, from the subcommand name and its text options. */
-export function fromCommand(sub: string, options: { readonly map?: string | null; readonly pace?: string | null; readonly faction?: string | null }, canManage: boolean, userId: string): Interaction | undefined {
+/**
+ * The core interaction of a slash command, from the subcommand name and its text options. The Discord server of the command comes in as
+ * its id and goes no further: only its community key reaches the interaction (spec 024 FR-548); a command with no server has none.
+ */
+export function fromCommand(sub: string, options: { readonly map?: string | null; readonly pace?: string | null; readonly faction?: string | null }, canManage: boolean, userId: string, guildId?: string | null): Interaction | undefined {
+  const community = guildId === undefined || guildId === null || guildId === '' ? undefined : communityKey(guildId);
   switch (sub) {
     case 'create':
-      return { type: 'create', canManage, map: options.map ?? '', pace: options.pace ?? undefined };
+      return { type: 'create', canManage, map: options.map ?? '', pace: options.pace ?? undefined, community };
     case 'start':
       return { type: 'start', canManage, userId };
     case 'stop':
@@ -37,6 +42,8 @@ export function fromCommand(sub: string, options: { readonly map?: string | null
       return { type: 'board' };
     case 'predict':
       return { type: 'predict', faction: options.faction ?? undefined };
+    case 'history':
+      return { type: 'history', community };
     default:
       return undefined;
   }
@@ -45,6 +52,8 @@ export function fromCommand(sub: string, options: { readonly map?: string | null
 export const fromButton = (customId: string, canManage: boolean, userId: string): Interaction => ({ type: 'button', customId, canManage, userId });
 /** A press on a leaderboard button: the shell adds what it knows of the message (FR-480, FR-481). */
 export const fromBoardButton = (customId: string, userId: string, entry: BoardEntryView | undefined, now: number): Interaction => ({ type: 'board-press', customId, userId, entry, now });
+/** A press on a history button: the shell adds what it knows of the message (spec 024 FR-555). */
+export const fromHistoryButton = (customId: string, userId: string, entry: HistoryWalkView | undefined, now: number): Interaction => ({ type: 'history-press', customId, userId, entry, now });
 export const fromSelect = (customId: string, values: readonly string[]): Interaction => ({ type: 'select', customId, values });
 export const fromModal = (customId: string, text: string): Interaction => ({ type: 'modal', customId, text });
 export const fromAutocomplete = (focused: string, text: string): Interaction | undefined =>
@@ -169,6 +178,7 @@ export function commandDefinitions() {
           description: STRINGS.cmdPredictText,
           options: [{ type: text, name: STRINGS.optFaction, description: STRINGS.optFactionText, required: false, autocomplete: true }],
         },
+        { type: sub, name: STRINGS.cmdHistory, description: STRINGS.cmdHistoryText },
       ],
     },
   ];

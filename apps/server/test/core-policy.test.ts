@@ -36,6 +36,47 @@ describe('creation policy', () => {
   });
 });
 
+// Spec 024 FR-545: the community key travels with the client-only policy and nothing else. The values are planted literals.
+const KEY = 'd3adbeef5eed0123456789abcdef0123456789abcdef0123456789abcdef0123';
+const refusedKey = { ok: false, error: errorReply('invalid-request', ['community']) };
+
+describe('creation policy with the community key (spec 024)', () => {
+  it('FR-545 (policy) a client credential with joinPolicy client and a key is accepted and the decision carries the key', () => {
+    expect(creationPolicy('client', owner, false, KEY)).toStrictEqual({ ok: true, policy: 'client', namespace: 'discord', community: KEY });
+    expect(creationPolicy('client', otherClient, false, KEY)).toStrictEqual({ ok: true, policy: 'client', namespace: 'telegram', community: KEY });
+  });
+
+  it('FR-545 (policy) a key without joinPolicy client, from any caller, is invalid-request naming community', () => {
+    for (const requested of [undefined, 'open'] as const) {
+      for (const [name, caller] of callers) expect(creationPolicy(requested, caller, false, KEY), `${String(requested)} ${name}`).toStrictEqual(refusedKey);
+    }
+  });
+
+  it('FR-545 (policy) a key from a player, an anonymous caller or any non-client caller is invalid-request naming community, even with joinPolicy client', () => {
+    expect(creationPolicy('client', other, false, KEY)).toStrictEqual(refusedKey);
+    expect(creationPolicy(undefined, other, false, KEY)).toStrictEqual(refusedKey);
+  });
+
+  it('FR-545 (policy) on the operator path a key is invalid-request naming community, and a joinPolicy still wins by order', () => {
+    expect(creationPolicy(undefined, other, true, KEY)).toStrictEqual(refusedKey);
+    expect(creationPolicy('open', other, true, KEY)).toStrictEqual({ ok: false, error: errorReply('invalid-request', ['joinPolicy']) });
+    expect(creationPolicy('client', other, true, KEY)).toStrictEqual({ ok: false, error: errorReply('invalid-request', ['joinPolicy']) });
+  });
+
+  it('FR-545 (policy) without a key the decision has no community member and every 018 answer is the same', () => {
+    expect(creationPolicy('client', owner, false, undefined)).toStrictEqual({ ok: true, policy: 'client', namespace: 'discord' });
+    expect(creationPolicy('client', other, false, undefined)).toStrictEqual({ ok: false, error: errorReply('forbidden') });
+    expect(creationPolicy(undefined, other, true, undefined)).toStrictEqual({ ok: true, policy: 'open' });
+    expect(Object.keys(creationPolicy('client', owner, false) as object)).toStrictEqual(['ok', 'policy', 'namespace']);
+  });
+
+  it('FR-545 (policy) the refusal repeats the same reply whatever the key text, and never echoes it', () => {
+    const reply = creationPolicy(undefined, owner, false, KEY);
+    expect(JSON.stringify(reply)).not.toContain(KEY);
+    expect(creationPolicy(undefined, owner, false, `${KEY.slice(0, 63)}1`)).toStrictEqual(reply);
+  });
+});
+
 describe('join policy', () => {
   it('FR-496 a match with an owning namespace refuses every join with joins-closed', () => {
     expect(joinPolicy('discord')).toStrictEqual({ ok: false, error: errorReply('joins-closed') });
@@ -72,7 +113,7 @@ describe('the policy decisions are pure functions', () => {
       expect(joinPolicy('discord')).toStrictEqual({ ok: false, error: errorReply('joins-closed') });
       expect(submitPolicy('discord', caller)).toStrictEqual({ ok: true });
     }
-    expect(creationPolicy.length).toBe(3);
+    expect(creationPolicy.length).toBe(4); // spec 024 adds the optional community key as the fourth parameter
     expect(joinPolicy.length).toBe(1);
     expect(submitPolicy.length).toBe(2);
   });

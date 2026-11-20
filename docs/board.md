@@ -3,10 +3,5 @@ Live work, one row per task; the orchestrator updates it, the feature PR closes 
 
 | task | tier | model | thread | branch | state | next step |
 |---|---|---|---|---|---|---|
-| Versioned agent config (AGENTS, MEMORY, agents, sdd skill, lessons, board, archive, OpenCode agents) | small | claude-sonnet-5-5 | chore-agent-config | `chore/agent-config` | merged (#73) | done |
-| Before/after widget rule for visual tasks | small | claude-sonnet-5-5 | chore-agent-config | `chore/visual-widget-rule` | PR open | user reviews and merges |
-| e2e test automation: real server + bot + fake Discord at handler level, scripted match with text transcript, embeds drawn as an HTML preview with screenshots in the thread | Light SDD | glm-5.3 implements, claude-sonnet-5-5 reviews | feat-023-e2e-harness | `feat/023-e2e-harness` | merged (#75) | done |
-| Close spec 023 on the board, worktree lesson | small | deepseek-v4.1-flash | chore-close-023 | `chore/close-023` | PR open | user merges |
-| Orchestrator launches tasks with delegate_task | small | deepseek-v4.1-flash | child task | `chore/orchestrator-delegate` | PR open | user merges |
-| Close spec 010, ignore .vitest | small | deepseek-v4.1-flash | child task | `chore/close-010` | PR open | user merges |
-| Test flake fix: short needle `Cy` matched inside random player ids (service-players-flow, lobby-public, players list); package-purity ENOENT not reproduced | small | claude-sonnet-5-5 | child task | `fix/package-purity-flake` | PR open | user reviews and merges |
+| Spec 025: per-Discord-server ranking (M1 engine; M2 service + route + proofs; M3 bot + e2e) | Full SDD | claude-sonnet-5-5 implements, claude-opus-5-5 reviews | feat-025-server-ranking | `feat/025-server-ranking` | all milestones implemented and reviewed; user hand run accepted (history + ranking) | closing PR (status implemented, archive, MEMORY, e2e nit) |
+| History embed presentation pass: top on one line with medals, viewer link merged into the asker's line, winner bold, ordinal computed from the snapshot total | small | opencode-go/glm-5.3 implements, claude-sonnet-5-5 reviews | — | — | queued (mockup approved by the user on 2026-11-20) | after 024 and 025 land on `main` |

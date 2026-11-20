@@ -4,6 +4,11 @@ import { readName } from './names';
 import {
   EVENT_KEYS,
   HALT_REASONS,
+  HISTORY_ASKER_KEYS,
+  HISTORY_ENTRY_KEYS,
+  HISTORY_PAGE_KEYS,
+  HISTORY_TOP_KEYS,
+  HISTORY_TOP_MAX,
   JOIN_REPLY_KEYS,
   LEADERBOARD_ROW_KEYS,
   OWN_PREDICTION_KEYS,
@@ -21,6 +26,10 @@ import {
   RECORD_REPLY_KEYS,
   STAGES,
   STATE_REPLY_KEYS,
+  type HistoryAsker,
+  type HistoryEntry,
+  type HistoryPage,
+  type HistoryTopRow,
   type JoinReply,
   type LeaderboardRow,
   type MatchEvent,
@@ -369,6 +378,54 @@ const leaderboardRow: Reader<LeaderboardRow> = (v, f) =>
 /** A page of the leaderboard. */
 export function readLeaderboardPage(input: unknown): Decoded<Page<LeaderboardRow>> {
   return run(() => pageOf(leaderboardRow)(input, ''));
+}
+
+const historyTop: Reader<HistoryTopRow> = (v, f) =>
+  object(v, f, HISTORY_TOP_KEYS, (m) => {
+    const playerId = m.get('playerId', textWhere(isPlayerId));
+    const name = m.has('name') ? m.get('name', nameOf) : undefined;
+    return { playerId, ...(name === undefined ? {} : { name }), points: m.get('points', int(1)), rank: m.get('rank', int(1)) };
+  });
+
+/** `{ played: false }` or `{ points, rank }`, and nothing else. */
+const historyAsker: Reader<HistoryAsker> = (v, f) =>
+  object(v, f, HISTORY_ASKER_KEYS, (m) => {
+    if (m.has('played')) {
+      m.get('played', (x, ff) => (x === false ? x : refuse(ff)));
+      if (m.has('points')) refuse(m.path('points'));
+      if (m.has('rank')) refuse(m.path('rank'));
+      return { played: false };
+    }
+    return { points: m.get('points', int(0)), rank: m.get('rank', int(1)) };
+  });
+
+const historyEntry: Reader<HistoryEntry> = (v, f) =>
+  object(v, f, HISTORY_ENTRY_KEYS, (m) => {
+    const matchId = m.get('matchId', text);
+    const mapId = m.get('mapId', textWhere(isMapId));
+    const finishedAt = m.get('finishedAt', int(0));
+    const winner = m.get('winner', int(1));
+    const playerCount = m.get('playerCount', int(0));
+    const top = m.get('top', (x, ff) => {
+      const rows = list(historyTop)(x, ff);
+      return rows.length <= HISTORY_TOP_MAX ? rows : refuse(ff);
+    });
+    const more = m.get('more', int(0));
+    if (top.length + more > playerCount) refuse(m.path('more'));
+    const base = { matchId, mapId, finishedAt, winner, playerCount, top, more };
+    return m.has('asker') ? { ...base, asker: m.get('asker', historyAsker) } : base;
+  });
+
+/** A page of the history of a community: `items`, the snapshot `total` (at least the items) and `next` when present. */
+export function readHistoryPage(input: unknown): Decoded<HistoryPage> {
+  return run(() =>
+    object(input, '', HISTORY_PAGE_KEYS, (m) => {
+      const items = m.get('items', list(historyEntry));
+      const total = m.get('total', int(0));
+      if (items.length > total) refuse(m.path('total'));
+      return m.has('next') ? { items, total, next: m.get('next', text) } : { items, total };
+    }),
+  );
 }
 
 const phaseWinner: Reader<PhaseWinner> = (v, f) =>
