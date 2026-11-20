@@ -1,5 +1,8 @@
 // The plain shapes the pure core and the shells share (spec 012 NFR-90). No Discord library types here.
-import type { HistoryPage, RankingOrder, RankingPage } from '@mbrg/protocol';
+import type { HistoryPage, RankingOrder, RankingPage, RankingPeriod } from '@mbrg/protocol';
+
+/** A ranking period that is a time window (spec 027): all time is the absence of one, so it is never named on the wire or in a walk. */
+export type TimePeriod = Exclude<RankingPeriod, 'all'>;
 
 export type ButtonSpec =
   | { readonly type: 'custom'; readonly customId: string; readonly label: string; readonly style: 'primary' | 'success'; readonly disabled?: boolean }

@@ -126,7 +126,7 @@ export function createHandler(options: HandlerOptions): (action: Action, who: Wh
       }
       case 'ranking': {
         // One request, whatever the answer: an outage or a refusal (an older server included) is "unavailable" for the member alone, never retried (FR-571).
-        const first = await client.ranking({ community: action.community, order: action.order, playerId: who.userId });
+        const first = await client.ranking({ community: action.community, order: action.order, ...(action.period === undefined ? {} : { period: action.period }), playerId: who.userId });
         return first.ok ? rankingReply(first.value, 1, [first.value], action.order, action.community, who) : rankingUnavailable();
       }
       case 'ranking-page': {

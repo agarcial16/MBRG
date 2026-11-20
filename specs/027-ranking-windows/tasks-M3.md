@@ -1,7 +1,7 @@
-### M3 — Bot and e2e (0 / 4)
+### M3 — Bot and e2e (1 / 4)
 Plan sections 1, 5 (PD6). Depends on M2.
 
-- [ ] **T3.1. Period option, translation and failures.** FR-584
+- [x] **T3.1. Period option, translation and failures.** FR-584
   - Files: `apps/bot/src/discord/translate.ts`, `core/actions.ts`, `core/ranking.ts` (`PERIOD_WORDS`, `periodOf`), `core/strings.ts`, `io/server-client.ts`, tests (`discord-translate.test.ts` changes only its "one option" ranking test).
   - Done when: `/mbrg ranking` has two optional options, `order` (unchanged) and `period` with choices `semana` and `mes` (no `siempre`), in any combination; the words map to `last-7-days` and `last-30-days`; the client sends `period` only when it is not all time, so an all-time body is byte-identical to 025's (digest pin); the community key and the raw guild id rules are as 025 (scan with a planted id); an interaction without a guild is refused privately and sends nothing; an older server refusing the `period` member, a server refusal or a transport failure gives the private "unavailable" reply with no retry loop; `dm_permission: false` unchanged; the 025 bot tests are green unchanged.
 - [ ] **T3.2. Titles, sentences and the worst case.** NFR-130

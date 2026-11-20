@@ -4,7 +4,7 @@
 import type { BoardEntryView, HistoryWalkView, Interaction, RankingWalkView } from '../core/actions';
 import { fitEmbed, rowsOf, splitMessage } from '../core/limits';
 import type { ButtonSpec, EmbedSpec, OutMessage, Reply } from '../core/model';
-import { ORDER_WORDS } from '../core/ranking';
+import { ORDER_WORDS, PERIOD_WORDS } from '../core/ranking';
 import { STRINGS } from '../core/strings';
 import { communityKey } from '../io/community';
 
@@ -30,7 +30,7 @@ export function displayNameOf(source: { readonly nick?: string | null; readonly 
  * The core interaction of a slash command, from the subcommand name and its text options. The Discord server of the command comes in as
  * its id and goes no further: only its community key reaches the interaction (spec 024 FR-548); a command with no server has none.
  */
-export function fromCommand(sub: string, options: { readonly map?: string | null; readonly pace?: string | null; readonly faction?: string | null; readonly order?: string | null }, canManage: boolean, userId: string, guildId?: string | null): Interaction | undefined {
+export function fromCommand(sub: string, options: { readonly map?: string | null; readonly pace?: string | null; readonly faction?: string | null; readonly order?: string | null; readonly period?: string | null }, canManage: boolean, userId: string, guildId?: string | null): Interaction | undefined {
   const community = guildId === undefined || guildId === null || guildId === '' ? undefined : communityKey(guildId);
   switch (sub) {
     case 'create':
@@ -46,7 +46,7 @@ export function fromCommand(sub: string, options: { readonly map?: string | null
     case 'history':
       return { type: 'history', community };
     case 'ranking':
-      return { type: 'ranking', community, order: options.order ?? undefined };
+      return { type: 'ranking', community, order: options.order ?? undefined, ...(options.period === undefined || options.period === null ? {} : { period: options.period }) };
     default:
       return undefined;
   }
@@ -195,6 +195,13 @@ export function commandDefinitions() {
               description: STRINGS.optOrderText,
               required: false,
               choices: ORDER_WORDS.map(([word]) => ({ name: word, value: word })),
+            },
+            {
+              type: text,
+              name: STRINGS.optPeriod,
+              description: STRINGS.optPeriodText,
+              required: false,
+              choices: PERIOD_WORDS.map(([word]) => ({ name: word, value: word })),
             },
           ],
         },

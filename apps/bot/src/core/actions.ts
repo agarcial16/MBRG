@@ -3,9 +3,9 @@
 // arrives as a plain flag (the shell reads the permission); the user id decides only who may start (FR-464), else it goes to the server.
 import type { HistoryPage, RankingOrder, RankingPage } from '@mbrg/protocol';
 import { parseCustomId } from './custom-ids';
-import type { Pace, PhaseKind } from './model';
+import type { Pace, PhaseKind, TimePeriod } from './model';
 import { isPace } from './paces';
-import { orderOf } from './ranking';
+import { orderOf, periodOf } from './ranking';
 import { STRINGS } from './strings';
 
 /** What the shell knows of a leaderboard message a press came from: its match, who asked (none: the final post) and when it stops paging. */
@@ -40,8 +40,8 @@ export type Interaction =
   | { readonly type: 'predict'; readonly faction: string | undefined }
   /** The history of the finished matches of this server (spec 024 FR-554); `community` as in `create` (none: no server, FR-557). */
   | { readonly type: 'history'; readonly community: string | undefined }
-  /** The ranking of the members of this server (spec 025 FR-569); `community` as in `history`, `order` the word as typed (none: points). */
-  | { readonly type: 'ranking'; readonly community: string | undefined; readonly order: string | undefined }
+  /** The ranking of the members of this server (spec 025 FR-569); `community` as in `history`, `order` the word as typed (none: points), `period` the period word as typed (none: all time, spec 027 FR-580). */
+  | { readonly type: 'ranking'; readonly community: string | undefined; readonly order: string | undefined; readonly period?: string | undefined }
   | { readonly type: 'button'; readonly customId: string; readonly canManage: boolean; readonly userId: string }
   | { readonly type: 'select'; readonly customId: string; readonly values: readonly string[] }
   | { readonly type: 'modal'; readonly customId: string; readonly text: string }
@@ -64,8 +64,8 @@ export type Action =
   | { readonly do: 'history'; readonly community: string }
   /** A page of a history message, in place: from the pages already shown (no `cursor`), or the next page of the walk by its cursor (spec 024 FR-555). */
   | { readonly do: 'history-page'; readonly community: string; readonly page: number; readonly pages: readonly HistoryPage[]; readonly cursor?: string }
-  /** The first page of the ranking of the asker's community under an order, as a public reply (spec 025 FR-569). */
-  | { readonly do: 'ranking'; readonly community: string; readonly order: RankingOrder }
+  /** The first page of the ranking of the asker's community under an order, as a public reply (spec 025 FR-569); `period` only for a time window (spec 027), none is all time. */
+  | { readonly do: 'ranking'; readonly community: string; readonly order: RankingOrder; readonly period?: TimePeriod }
   /** A page of a ranking message, in place: from the pages already shown (no `cursor`), or the next page of the walk by its cursor (spec 025 FR-569, as `history-page`). */
   | { readonly do: 'ranking-page'; readonly community: string; readonly order: RankingOrder; readonly page: number; readonly pages: readonly RankingPage[]; readonly cursor?: string };
 
@@ -109,7 +109,11 @@ export function decide(interaction: Interaction, following: boolean, info: Chann
       // As the history: a command without a server is refused before anything else, then the order word is read (spec 025 FR-571).
       if (interaction.community === undefined) return say(STRINGS.noServer);
       const order = orderOf(interaction.order);
-      return order === undefined ? say(STRINGS.unknownOrder) : { do: 'ranking', community: interaction.community, order };
+      if (order === undefined) return say(STRINGS.unknownOrder);
+      const period = periodOf(interaction.period);
+      if (period === undefined) return say(STRINGS.unknownPeriod);
+      // All time is the absence of a period: the action carries none, so the request is the 025 one (spec 027 NFR-129).
+      return period === 'all' ? { do: 'ranking', community: interaction.community, order } : { do: 'ranking', community: interaction.community, order, period };
     }
     case 'predict':
       if (!following) return say(STRINGS.notFollowing);

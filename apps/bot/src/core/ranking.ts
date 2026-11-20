@@ -2,10 +2,10 @@
 // plain-text twin, the empty sentence and the unavailable reply come out. Names come only from Discord (mentions) or the server's own row
 // (as the leaderboard, 017 FR-483); everything shown is already public data of finished matches (008 FR-246). The order words of the command
 // live in the strings module (PD4): the wire takes the enum, only the bot speaks Spanish.
-import type { RankingOrder, RankingPage, RankingRow } from '@mbrg/protocol';
+import type { RankingOrder, RankingPage, RankingPeriod, RankingRow } from '@mbrg/protocol';
 import { clampPage } from './board';
 import { rankingId } from './custom-ids';
-import type { ButtonSpec, OutMessage, RankingTag, Reply } from './model';
+import type { ButtonSpec, OutMessage, RankingTag, Reply, TimePeriod } from './model';
 import { mentionOf, userIdOf } from './results';
 import { STRINGS, fill } from './strings';
 
@@ -28,6 +28,19 @@ export function orderOf(word: string | undefined): RankingOrder | undefined {
   if (word === undefined) return 'points';
   const typed = word.trim().toLowerCase();
   return ORDER_WORDS.find(([known]) => known === typed)?.[1];
+}
+
+/** The period words, in the order the command offers them, each with the wire period it asks for (spec 027 FR-580). No word is all time, so there is no "siempre". */
+export const PERIOD_WORDS: readonly (readonly [string, TimePeriod])[] = [
+  [STRINGS.periodWeek, 'last-7-days'],
+  [STRINGS.periodMonth, 'last-30-days'],
+];
+
+/** The wire period of a word as typed (case and surrounding spaces ignored); no word means all time, a word that is not a period none. */
+export function periodOf(word: string | undefined): RankingPeriod | undefined {
+  if (word === undefined) return 'all';
+  const typed = word.trim().toLowerCase();
+  return PERIOD_WORDS.find(([known]) => known === typed)?.[1];
 }
 
 /** What the shell knows of the page it shows: its number and the last row of the page before it (none on page 1), which tells where the unranked tail begins. */

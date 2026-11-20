@@ -165,12 +165,12 @@ const DONE_025: readonly string[] = ['FR-564', 'FR-563', 'FR-565', 'FR-566', 'FR
  * moves it to DONE_027 in its own commit; M1 closes none (its parts are traced by part-named titles); T3.4 leaves it empty.
  */
 const PENDING_027: readonly string[] = [
-  'FR-580', 'FR-581', 'FR-582', 'FR-583', 'FR-584', 'FR-585',
+  'FR-580', 'FR-581', 'FR-582', 'FR-583', 'FR-585',
   'NFR-130', 'NFR-131',
 ];
 
-/** Ids of spec 027 closed so far (M2 T2.2: FR-575 to FR-579, the route with a period over a real server; the reader and cursor parts were traced in M1, the core, store and service parts in M1 and T2.1. M2 T2.3: NFR-127, the secrecy twin per period; its isolation twin is traced by NFR-128 part-named titles. M2 T2.4: NFR-128 (the isolation twin per period and the source scan) and NFR-129 (the byte-identical all-time walk); NFR-130 keeps its server part traced by part-named titles and closes in M3 with the embed worst case). */
-const DONE_027: readonly string[] = ['FR-575', 'FR-576', 'FR-577', 'FR-578', 'FR-579', 'NFR-127', 'NFR-128', 'NFR-129'];
+/** Ids of spec 027 closed so far (M2 T2.2: FR-575 to FR-579, the route with a period over a real server; the reader and cursor parts were traced in M1, the core, store and service parts in M1 and T2.1. M2 T2.3: NFR-127, the secrecy twin per period; its isolation twin is traced by NFR-128 part-named titles. M2 T2.4: NFR-128 (the isolation twin per period and the source scan) and NFR-129 (the byte-identical all-time walk); NFR-130 keeps its server part traced by part-named titles and closes in M3 with the embed worst case. M3 T3.1: FR-584, the failure rules of the ranking command with a period; the command part of FR-580 is traced by part-named titles). */
+const DONE_027: readonly string[] = ['FR-575', 'FR-576', 'FR-577', 'FR-578', 'FR-579', 'NFR-127', 'NFR-128', 'NFR-129', 'FR-584'];
 
 const DONE_014: readonly string[] = ['FR-416', 'FR-414', 'FR-413', 'FR-418', 'FR-419', 'FR-415', 'FR-417', 'NFR-81', 'NFR-83', 'FR-421', 'FR-420', 'NFR-82'];
 
@@ -1109,7 +1109,7 @@ describe('traceability', () => {
     // The ids next to the ranges stay outside the ledger.
     for (const id of ['FR-574', 'FR-586', 'NFR-132']) expect(expected, id).not.toContain(id);
     // M1 closed none (its parts are traced by part-named titles); each later task closes the ids of its header, a literal list.
-    expect(DONE_027).toStrictEqual(['FR-575', 'FR-576', 'FR-577', 'FR-578', 'FR-579', 'NFR-127', 'NFR-128', 'NFR-129']);
+    expect(DONE_027).toStrictEqual(['FR-575', 'FR-576', 'FR-577', 'FR-578', 'FR-579', 'NFR-127', 'NFR-128', 'NFR-129', 'FR-584']);
     const used = tracedIds(testSources);
     for (const id of TRACED_HERE) used.add(id);
     for (const id of DONE_027) expect(used.has(id), id).toBe(true);

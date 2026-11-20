@@ -105,7 +105,7 @@ export function createShell(options: ShellOptions): Shell {
   async function interactionOf(i: DiscordInteraction): Promise<Interaction | undefined> {
     const canManage = (i.memberPermissions?.has(PermissionFlagsBits.ManageChannels) ?? false) === true;
     if (i.isChatInputCommand()) {
-      return fromCommand(i.options.getSubcommand(), { map: i.options.getString(STRINGS.optMap), pace: i.options.getString(STRINGS.optPace), faction: i.options.getString(STRINGS.optFaction), order: i.options.getString(STRINGS.optOrder) }, canManage, i.user.id, i.guildId);
+      return fromCommand(i.options.getSubcommand(), { map: i.options.getString(STRINGS.optMap), pace: i.options.getString(STRINGS.optPace), faction: i.options.getString(STRINGS.optFaction), order: i.options.getString(STRINGS.optOrder), period: i.options.getString(STRINGS.optPeriod) }, canManage, i.user.id, i.guildId);
     }
     if (i.isAutocomplete()) {
       const focused = i.options.getFocused(true);
