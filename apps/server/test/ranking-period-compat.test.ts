@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { decodeCursor, encodeCursor } from '@mbrg/protocol';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DISCORD, KEY_A, populateRanking, postRanking, startHistory, walkRanking } from './helpers/ranking-kit';
 import { closeAllServers } from './helpers/server-harness';
@@ -63,5 +64,31 @@ describe('NFR-129 (compat, service part) the all-time reply is byte-identical to
   it('NFR-129 (compat, service part) every page of a full all-time walk, in every order, with and without a player named, hashes to the digest the 025 service gave', async () => {
     const got = { ...(await digestsOf({}, 'plain', false)), ...(await digestsOf({}, 'asker', true)) };
     expect(got).toStrictEqual(PINNED_ALL_TIME);
+  });
+});
+
+describe('NFR-129 a request that names no period, or all time, gets the 025 reply byte for byte', () => {
+  it('NFR-129 `period: "all"` and no period give the digests the 025 service gave, over the full walk in every order, `next` included', async () => {
+    const named = { ...(await digestsOf({ period: 'all' }, 'plain', false)), ...(await digestsOf({ period: 'all' }, 'asker', true)) };
+    expect(named).toStrictEqual(PINNED_ALL_TIME);
+    const bare = { ...(await digestsOf({}, 'plain', false)), ...(await digestsOf({}, 'asker', true)) };
+    expect(bare).toStrictEqual(PINNED_ALL_TIME);
+  });
+
+  it('NFR-129 a cursor of the 025 form (four parts) continues an all-time walk, with no period and with `all`, and the page is the pinned one', async () => {
+    const h = await startHistory();
+    await populateRanking(h);
+    const firstPage = await postRanking(h, DISCORD.credential, { community: KEY_A, order: 'points', limit: 7 });
+    expect(sha(firstPage.text)).toBe(PINNED_ALL_TIME['points/plain/0']);
+    const cursor = (firstPage.json() as { next: string }).next;
+    // The cursor decodes to the 025 key, four parts, and encoding those parts again gives the same text.
+    const decoded = decodeCursor('ranking', cursor);
+    expect(decoded.ok && (decoded.value as readonly unknown[]).length).toBe(4);
+    expect(encodeCursor('ranking', decoded.ok ? decoded.value! : [0, 0, '', ''])).toBe(cursor);
+    for (const extra of [{}, { period: 'all' }]) {
+      const second = await postRanking(h, DISCORD.credential, { community: KEY_A, order: 'points', limit: 7, cursor, ...extra });
+      expect(sha(second.text), JSON.stringify(extra)).toBe(PINNED_ALL_TIME['points/plain/1']);
+    }
+    await h.close();
   });
 });
