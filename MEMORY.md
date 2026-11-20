@@ -3,7 +3,7 @@ Durable decisions, limits and lessons; no per-task diary (that is `specs/<id>/PR
 
 ## State
 Specs 001-026 implemented. Branch from `main`, PR into `main`.
-Next candidates: deployment guide.
+Next candidates: ranking by time window (weekly, monthly - the deliberate out-of-scope of spec 025); viewer replay of finished matches. Deployment guide done (#84).
 
 ## Game
 Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random alive faction dies; a random neighbor takes all its territories; repeat until one remains. Players predict; they never control.

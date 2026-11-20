@@ -1,5 +1,5 @@
 # Spec 026 — History embed presentation pass
-Status: approved (the user approved the mockup on 2026-11-20 and ordered this session)
+Status: implemented (accepted by the user on 2026-11-20; the mockup was approved before the session, the PR after the review)
 Tier: Light SDD (presentation only, inside the wording of 024 FR-554). Outside the traceability ledger, like the old specs 012/013: no FR ids are added anywhere, `packages/sim/test/traceability.test.ts` is not touched.
 
 ## Goal

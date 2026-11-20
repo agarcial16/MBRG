@@ -46,3 +46,7 @@ Changed pins, each with its reason (all in `apps/bot/test/`):
 
 
 
+
+## Closing (2026-11-20)
+- The Sonnet review approved with no objections (the positional podium ratified against FR-554's wording, the ordinal math pinned page by page, the worst case asserted, mutants re-applied and killed). The user accepted the PR ("mergea"). This closing commit flips the status to implemented, archives the spec, and leaves MEMORY (001-026, deployment guide done) and the board (spec 027 queued) ready for the squash.
+- Next: spec 027 (ranking by time window) drafting. Branch feat/history-embed-presentation, state: DONE.

@@ -3,4 +3,4 @@ Live work, one row per task; the orchestrator updates it, the feature PR closes 
 
 | task | tier | model | thread | branch | state | next step |
 |---|---|---|---|---|---|---|
-| History embed presentation pass: top on one line with medals, viewer link merged into the asker's line, winner bold, ordinal computed from the snapshot total | small | opencode-go/glm-5.3 implements, claude-sonnet-5-5 reviews | — | feat/history-embed-presentation | in review (PR https://github.com/agarcial16/MBRG/pull/85) | reviewer |
+| Spec 027: ranking by time window (weekly, monthly) over the community matches | Full SDD | claude-opus-5-5 drafts the spec, the user approves | — | — | queued (the deliberate out-of-scope of spec 025) | spec draft for the user's approval |
