@@ -2,8 +2,8 @@
 Durable decisions, limits and lessons; no per-task diary (that is `specs/<id>/PROGRESS.md`; live work is `docs/board.md`). Area lessons: `docs/lessons/{web,bot,server,map}.md`. Keep <= ~4 KB.
 
 ## State
-Specs 001-026 implemented. Branch from `main`, PR into `main`.
-Next candidates: ranking by time window (weekly, monthly - the deliberate out-of-scope of spec 025); viewer replay of finished matches. Deployment guide done (#84).
+Specs 001-026 implemented; 027 (ranking by time window) built on `feat/027-ranking-windows`, awaiting review and the user's acceptance. Branch from `main`, PR into `main`.
+Next candidate: viewer replay of finished matches. Deployment guide done (#84).
 
 ## Game
 Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random alive faction dies; a random neighbor takes all its territories; repeat until one remains. Players predict; they never control.
@@ -14,6 +14,7 @@ Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random
 - Map package = `map.json` + `ids.png` + `presentation.json`, built offline by `tools/build-map`; adjacency = 4-connected pixel contact, no hand-written links; importers only convert to it.
 - State stores owner per territory, so modes are rule changes, not model changes. Ids 1..16,777,215 (24-bit texture). Round k uses `roundRng(seed, k)`: any round is computable alone.
 - Per-server history (024): the bot sends only a SHA-256 community key (never the guild id), in request bodies; a finished match is listed once settled (> `TOLERANCE_MS` after its finish) so a paging walk keeps one snapshot.
+- Ranking windows (027): rolling 7/30 days; the server fixes the floor at the first page and the cursor carries it; wire member `period` (absent = all time).
 - Sea is an explicit entry kind (no owner); enclosed water joins the nearest sea zone; lakes stay background.
 
 ## Limits

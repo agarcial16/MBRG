@@ -72,6 +72,33 @@ export interface RankingRun {
   readonly otherServer: Reply;
   /** The pages of the ranking of server A as the REAL server answers them (one request per order, asked by Ana): the statistics, ranks and shown names the bot's embed was built from. */
   readonly raw: Readonly<Record<RankingOrder, RankingPage>>;
+  /** The same ranking in each time window (spec 027 FR-585), read right after the all-time reads: both finished matches are inside every window. */
+  readonly windows: Readonly<Record<'semana' | 'mes', WindowRun>>;
+  /** The windows read again after the REAL server's clock moved on (spec 027 NFR-131): the floor follows the server's clock. */
+  readonly aged: AgedRun;
+}
+
+/** What the ranking step read in one window (spec 027 FR-585). */
+export interface WindowRun {
+  /** In A, asked by Ana: with no order word, then each order word. */
+  readonly byWord: Readonly<Record<string, Reply>>;
+  /** The accuracy order asked by Diego (fewer than 10 scored predictions) and by a member who never predicted. */
+  readonly unqualified: Reply;
+  readonly outsider: Reply;
+  /** In B: a server with no finished match. */
+  readonly otherServer: Reply;
+  /** The pages of the window as the real server answers them, one request per order, asked by Ana. */
+  readonly raw: Readonly<Record<RankingOrder, RankingPage>>;
+  /** A walk of the points order two rows at a time, by cursor, from the real server. */
+  readonly walk: readonly RankingPage[];
+}
+
+/** The replies of the aging step: the clock of the real server moved 8 days, then 23 more (31 in all). */
+export interface AgedRun {
+  readonly weekAfter8: Reply;
+  readonly monthAfter8: Reply;
+  readonly monthAfter31: Reply;
+  readonly allTimeAfter31: Reply;
 }
 
 /** The replies of the history step: the same command in the server of the match (A) and in another server (B). */
@@ -284,9 +311,9 @@ export async function playScriptedMatch(world: E2EWorld): Promise<MatchRun> {
   const postsOfSecond = bot.posts.slice(base.posts).map((p) => p.message);
 
   // --- The ranking (spec 025 FR-572): asked right after the second finish, then once it is settled, in every order, by whoever asks. ---
-  async function rank(player: Player | undefined, guildId: string, word: string | undefined, to: string): Promise<Reply> {
+  async function rank(player: Player | undefined, guildId: string, word: string | undefined, to: string, period?: string): Promise<Reply> {
     const userId = player?.userId ?? MANAGER.userId;
-    const command = fromCommand('ranking', word === undefined ? {} : { order: word }, false, userId, guildId);
+    const command = fromCommand('ranking', { ...(word === undefined ? {} : { order: word }), ...(period === undefined ? {} : { period }) }, false, userId, guildId);
     if (command === undefined) throw new Error('the ranking command was not translated');
     const who: Who = { channelId: CHANNEL, userId, ...(player === undefined ? {} : { displayName: player.displayName }) };
     const reply = await bot.run(command, who);
@@ -304,17 +331,49 @@ export async function playScriptedMatch(world: E2EWorld): Promise<MatchRun> {
   const rankingOutsider = await rank(undefined, GUILD_A, STRINGS.orderPoints, 'quien no jugó');
   const rankingOtherServer = await rank(PLAYERS[0], GUILD_B, undefined, 'Ana (otro servidor)');
   // The same ranking straight from the server (the community key is the hash of the planted guild id; the credential the bot's own).
-  const raw = {} as Record<RankingOrder, RankingPage>;
-  for (const order of RANKING_ORDERS) {
+  const rawPage = async (body: Record<string, unknown>): Promise<RankingPage> => {
     const response = await fetch(`${url}/ranking`, {
       method: 'POST',
       headers: { authorization: `Bearer ${CREDENTIAL}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ community: KEY_A, order, playerId: PLAYERS[0]!.userId, limit: 10 }),
+      body: JSON.stringify(body),
     });
     const read = readRankingPage(await response.json());
-    if (!read.ok) throw new Error(`the ranking read of ${order} failed`);
-    raw[order] = read.value;
+    if (!read.ok) throw new Error(`the ranking read of ${JSON.stringify(Object.keys(body))} failed`);
+    return read.value;
+  };
+  const raw = {} as Record<RankingOrder, RankingPage>;
+  for (const order of RANKING_ORDERS) raw[order] = await rawPage({ community: KEY_A, order, playerId: PLAYERS[0]!.userId, limit: 10 });
+
+  // --- The ranking in each time window (spec 027 FR-585): the same command with the period word, after the two matches settled; both are inside every window. ---
+  const windows = {} as Record<'semana' | 'mes', WindowRun>;
+  for (const [word, period] of [[STRINGS.periodWeek, 'last-7-days'], [STRINGS.periodMonth, 'last-30-days']] as const) {
+    const byWordInWindow: Record<string, Reply> = {};
+    for (const order of [undefined, STRINGS.orderPoints, STRINGS.orderCorrect, STRINGS.orderWins, STRINGS.orderAccuracy]) {
+      byWordInWindow[order ?? 'default'] = await rank(PLAYERS[0], GUILD_A, order, `Ana (${word}, ${order ?? 'sin orden'})`, word);
+    }
+    const unqualifiedInWindow = await rank(PLAYERS[3], GUILD_A, STRINGS.orderAccuracy, `Diego (${word}, precisión)`, word);
+    const outsiderInWindow = await rank(undefined, GUILD_A, STRINGS.orderPoints, `quien no jugó (${word})`, word);
+    const otherServerInWindow = await rank(PLAYERS[0], GUILD_B, undefined, `Ana (${word}, otro servidor)`, word);
+    const rawInWindow = {} as Record<RankingOrder, RankingPage>;
+    for (const order of RANKING_ORDERS) rawInWindow[order] = await rawPage({ community: KEY_A, order, period, playerId: PLAYERS[0]!.userId, limit: 10 });
+    const walk: RankingPage[] = [];
+    for (let cursor: string | undefined; walk.length < 10; ) {
+      const next: RankingPage = await rawPage({ community: KEY_A, order: 'points', period, playerId: PLAYERS[0]!.userId, limit: 2, ...(cursor === undefined ? {} : { cursor }) });
+      walk.push(next);
+      cursor = next.next;
+      if (cursor === undefined) break;
+    }
+    windows[word as 'semana' | 'mes'] = { byWord: byWordInWindow, unqualified: unqualifiedInWindow, outsider: outsiderInWindow, otherServer: otherServerInWindow, raw: rawInWindow, walk };
   }
+
+  // --- The aging step (spec 027 NFR-131): the window is measured by the real server's clock, so moving that clock changes what a window holds. ---
+  const DAY_MS = 86_400_000;
+  world.server.clock.advance(8 * DAY_MS);
+  const weekAfter8 = await rank(PLAYERS[0], GUILD_A, undefined, 'Ana (semana, 8 días después)', STRINGS.periodWeek);
+  const monthAfter8 = await rank(PLAYERS[0], GUILD_A, undefined, 'Ana (mes, 8 días después)', STRINGS.periodMonth);
+  world.server.clock.advance(23 * DAY_MS);
+  const monthAfter31 = await rank(PLAYERS[0], GUILD_A, undefined, 'Ana (mes, 31 días después)', STRINGS.periodMonth);
+  const allTimeAfter31 = await rank(PLAYERS[0], GUILD_A, undefined, 'Ana (siempre, 31 días después)');
 
   return {
     world,
@@ -330,6 +389,6 @@ export async function playScriptedMatch(world: E2EWorld): Promise<MatchRun> {
     leaderboard: firstMatch.leaderboard,
     history: { unsettled, listed, zeroPoints, outsider, otherServer },
     second: { matchId: secondMatch.matchId, posts: postsOfSecond, leaderboard: secondMatch.leaderboard },
-    ranking: { unsettled: rankingUnsettled, byWord, unqualified, outsider: rankingOutsider, otherServer: rankingOtherServer, raw },
+    ranking: { unsettled: rankingUnsettled, byWord, unqualified, outsider: rankingOutsider, otherServer: rankingOtherServer, raw, windows, aged: { weekAfter8, monthAfter8, monthAfter31, allTimeAfter31 } },
   };
 }

@@ -1,4 +1,4 @@
-### M3 — Bot and e2e (3 / 4)
+### M3 — Bot and e2e (4 / 4)
 Plan sections 1, 5 (PD6). Depends on M2.
 
 - [x] **T3.1. Period option, translation and failures.** FR-584
@@ -10,6 +10,6 @@ Plan sections 1, 5 (PD6). Depends on M2.
 - [x] **T3.3. The walk keeps its period.** FR-580, FR-581, FR-582, FR-583
   - Files: `apps/bot/src/core/model.ts` (`RankingTag.period?`), `core/actions.ts` (`RankingWalkView.period?`), `io/boards.ts`, `io/handler.ts`, a new `apps/bot/test/bot-flow-ranking-period.test.ts`.
   - Done when (bot flow against a scripted server): the command in each period and order replies publicly with page 1 of that period; the board keeps the period beside the order and pages; Next follows the cursor of the page shown and Previous returns to a page already shown, both with the same title, snapshot and "Página N/M"; only the asker pages; an expired walk refuses as 025; the windowed empty case carries no buttons; custom ids carry only the target page (no period, no floor).
-- [ ] **T3.4. e2e step and close.** FR-585, NFR-131
+- [x] **T3.4. e2e step and close.** FR-585, NFR-131
   - Files: `apps/bot/test/e2e/` (`plan.ts`, `script.ts`, `render.ts`), `apps/bot/test/e2e.test.ts`, the traceability ledger, `spec.md`, `MEMORY.md`, `docs/board.md`, `docs/lessons/server.md` if a lesson emerged.
   - Done when: after the two finished matches of 025 FR-572 the harness reads the ranking of community A with no period, `semana` and `mes` (rows equal across the three, titles as T3.2) and the `semana` ranking of community B (the empty window sentence), against the real server; the ledger moves the last ids to `DONE_027` and `PENDING_027` is empty; NFR-131 is traced by the pure tests of M1 and T3.2 and the clock-advance walk of T2.2; spec status set to implemented once the user accepts; MEMORY.md and docs/board.md updated; hand run as the spec's done criteria.
