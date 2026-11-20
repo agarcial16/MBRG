@@ -51,7 +51,11 @@ export interface RankingContext {
   /** The page number shown, from 1. */
   readonly page: number;
   readonly previous?: RankingRow;
-  /** The time window of the ranking shown (spec 027 FR-580); none is all time. */
+  /**
+   * The time window of the ranking shown (spec 027 FR-580); none is all time. `rankingMessage` overrides this with the
+   * period of the message's own walk before rendering: the walk is the one source of truth, so a caller's value is only
+   * the fallback when no walk exists.
+   */
   readonly period?: TimePeriod;
 }
 
