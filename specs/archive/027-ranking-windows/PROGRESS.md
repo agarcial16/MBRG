@@ -116,3 +116,8 @@
 - Untested: the real Discord shell (it is not driven by automation: the bot lessons); a real 5-minute expiry with a window (faked timers); `CI=1 npm test` (before the PR).
 - Next: the FINAL REVIEW of M3 (strong tier), then the PR, the user's hand run and acceptance. Branch `feat/027-ranking-windows`, state: T3.4 committed, M3 complete.
 - Tests run at the end of M3: full `npm test` green (426 files passed, 1 skipped; 6,197 tests passed, 6 skipped) and `npm run typecheck` clean; protected-path diff vs origin/main empty; the 14 protected 025 test files byte-identical vs origin/main (the only pinned tests differing from main are the two named by the spec: `packages/protocol/test/ranking.test.ts` in M1 and `apps/bot/test/discord-translate.test.ts` in T3.1). No test was flaky in this run. `CI=1 npm test` is left for before the PR.
+
+## Closing (2026-11-20)
+- The user's hand run passed on a real Discord server: semana, mes and all time over two orders, the windowed paging, another server's empty window, and the private failure path unchanged. The final review approved with no objections; its three notes are closed (the walk-period doc line, CI=1 green before the PR, and the hand run itself). The all-time compatibility was proven twice over: the 24 pre-pinned reply digests and the user's own eye on the unchanged ranking.
+- This commit flips the status to implemented, archives the spec, and leaves MEMORY (001-027, the map importer as the next big feature) and the board (spec 028 queued) ready for the squash.
+- Next: spec 028, the map importer. Branch feat/027-ranking-windows, state: DONE.
