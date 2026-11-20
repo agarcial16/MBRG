@@ -31,4 +31,12 @@ Changed pins, each with its reason (all in `apps/bot/test/`):
   - link dropped from the asker's line (own line always): 5 failures across the two files (the exact asker-line pins and the full-value flow pins).
 - Untested: the rest of the repo suite (full run next) and `npm run typecheck`. Next: the full verification.
 
+## Step 4 — the full verification
+- `npm run typecheck` — green (all twelve tsconfig projects).
+- `git diff --exit-code origin/main -- packages/shared/src packages/sim/src packages/sim/test/golden maps/dev apps/server/test/golden apps/web/src` — empty: protected paths byte-identical.
+- First full `npm test`: one real failure — the FR-461 ASCII scan caught the medal emoji and middle dots I had put in a `core/history.ts` doc comment (only `core/strings.ts` may hold non-ASCII). Fixed by rewording the comment (names, not glyphs); the strings live in strings.ts as the spec requires. That is the one deviation the scan caught and closed.
+- The next two full runs showed 15 timeouts in the heavy `apps/server`/`apps/web` perf tests (restart-after-every-step, tour-shade at 1920x1080, label placement) under full-suite CPU contention — the MEMORY lesson "Node timings are noisy: run perf tests alone". Rerun alone: all five server files green (73 tests), all five web files green (121 tests); a final clean full run: 412 files passed, 6056 tests passed, 6 skipped, 0 failed. No bot test ever failed after the code landed.
+- Untested: nothing known. Next: push and the PR.
+
+
 
