@@ -109,19 +109,22 @@ describe('spec 023 e2e: real server + real bot core, Discord faked', () => {
     // The oracle is another route: the public leaderboard of the match, read over HTTP by the run.
     const scored = r.leaderboard.filter((row) => row.total > 0);
     expect(scored.length).toBeGreaterThan(0);
-    expect(field!.name).toMatch(/^<t:\d+:d> · dev$/);
+    expect(field!.name).toMatch(/^#1 · <t:\d+:d> · dev$/);
+    // The top compacted onto one line: medals for the first three scored rows, their position number for the rest.
+    const medals = ['🥇', '🥈', '🥉'];
+    const top = scored.slice(0, 5).map((row, i) => `${i < 3 ? medals[i] : `${i + 1}.`} <@${row.playerId.slice('discord:'.length)}> ${row.total}`).join(' · ') + (scored.length > 5 ? ` · y ${scored.length - 5} más` : '');
     expect(field!.value.split('\n')).toEqual([
       `Ganó **${FACTION_NAMES[PLAN[PLAN.length - 1]!.absorber]}** · ${r.leaderboard.length} jugadores`,
-      ...scored.map((row) => `${row.rank}. <@${row.playerId.slice('discord:'.length)}> - ${row.total} pts`),
-      `Tus puntos: ${r.leaderboard[0]!.total} (puesto 1)`,
-      `[${STRINGS.viewerButton}](${VIEWER_URL}?match=${r.matchId}&spectate=1)`,
+      top,
+      `Tus puntos: ${r.leaderboard[0]!.total} (puesto 1) · [${STRINGS.viewerButton}](${VIEWER_URL}?match=${r.matchId}&spectate=1)`,
     ]);
     // Nothing to page: both buttons are disabled, and the message is not a walk the bot keeps.
     expect(listed.buttons.every((b) => b.type === 'custom' && b.disabled === true)).toBe(true);
-    // A player with 0 points still has a row and a rank; a member who never predicted has none.
+    // A player with 0 points still has a row and a rank; a member who never predicted has none. Both carry the link on their line.
     const zero = r.leaderboard.find((row) => row.total === 0)!;
-    expect(messageOf(r.history.zeroPoints).embed?.fields[0]?.value).toContain(`Tus puntos: 0 (puesto ${zero.rank})`);
-    expect(messageOf(r.history.outsider).embed?.fields[0]?.value).toContain(STRINGS.historyNotPlayed);
+    const own = (reply: typeof r.history.zeroPoints) => messageOf(reply).embed?.fields[0]?.value ?? '';
+    expect(own(r.history.zeroPoints)).toContain(`Tus puntos: 0 (puesto ${zero.rank}) · [${STRINGS.viewerButton}](${VIEWER_URL}?match=${r.matchId}&spectate=1)`);
+    expect(own(r.history.outsider)).toContain(`${STRINGS.historyNotPlayed} · [${STRINGS.viewerButton}](${VIEWER_URL}?match=${r.matchId}&spectate=1)`);
     // Another server of the same bot sees nothing: one sentence, no embed, no buttons.
     expect(messageOf(r.history.otherServer)).toEqual({ text: STRINGS.historyEmpty, buttons: [] });
   });

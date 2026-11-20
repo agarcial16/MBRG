@@ -49,10 +49,12 @@ describe('FR-554 the history command', () => {
     const message = (reply as Extract<Reply, { type: 'channel' }>).messages[0]!;
     expect(message.embed?.title).toBe('Partidas terminadas');
     expect(message.embed?.footer).toBe('Página 1/1');
-    expect(message.embed?.fields.map((f) => f.value.split('\n').slice(-2))).toEqual([
-      ['Tus puntos: 4 (puesto 2)', '[Ver en el visor](https://viewer.example/?match=match-001&spectate=1)'],
-      ['No jugaste esta partida', '[Ver en el visor](https://viewer.example/?match=match-002&spectate=1)'],
-      ['Tus puntos: 0 (puesto 1)', '[Ver en el visor](https://viewer.example/?match=match-003&spectate=1)'],
+    expect(message.embed?.fields.map((f) => f.name.slice(0, 3))).toEqual(['#3 ', '#2 ', '#1 ']);
+    const top = '🥇 <@111> 9 · 🥈 <@222> 4';
+    expect(message.embed?.fields.map((f) => f.value.split('\n'))).toEqual([
+      ['Ganó **Francia** · 3 jugadores', top, 'Tus puntos: 4 (puesto 2) · [Ver en el visor](https://viewer.example/?match=match-001&spectate=1)'],
+      ['Ganó **Francia** · 3 jugadores', top, 'No jugaste esta partida · [Ver en el visor](https://viewer.example/?match=match-002&spectate=1)'],
+      ['Ganó **Francia** · 3 jugadores', 'Nadie sumó puntos', 'Tus puntos: 0 (puesto 1) · [Ver en el visor](https://viewer.example/?match=match-003&spectate=1)'],
     ]);
     expect(message.embed?.fields[2]?.value).toContain('Nadie sumó puntos');
     expect(reads(fake)).toHaveLength(1);
