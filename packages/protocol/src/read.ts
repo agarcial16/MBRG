@@ -12,6 +12,7 @@ import {
   PREDICTION_KINDS,
   RANKING_FIELDS,
   RANKING_ORDERS,
+  RANKING_PERIODS,
   START_FIELDS,
   STEP_KINDS,
   SUBMISSION_FIELDS,
@@ -21,6 +22,7 @@ import {
   type JoinPolicy,
   type PredictionKind,
   type RankingOrder,
+  type RankingPeriod,
   type StartBody,
   type StepKind,
   type SubmissionBody,
@@ -118,19 +120,24 @@ export function readHistoryRequest(input: unknown): ReadResult<HistoryRequest> {
   };
 }
 
-/** A read ranking request (spec 025 FR-568 of 024 FR-573): `order` already holds the default and `after` is the decoded cursor key. */
+/**
+ * A read ranking request (spec 025 FR-568 of 024 FR-573): `order` already holds the default and `after` is the decoded cursor
+ * key. `period` is present only for a windowed period (spec 027 FR-575): all time and no member decode to the same request.
+ */
 export interface RankingRequest {
   readonly community: string;
   readonly order: RankingOrder;
+  readonly period?: Exclude<RankingPeriod, 'all'>;
   readonly playerId?: string;
   readonly limit: number;
   readonly after?: CursorKey<'ranking'>;
 }
 
 /**
- * Ranking request body `{ community, order?, playerId?, limit?, cursor? }` (spec 025, by FR-568 of 024 FR-573). The community
- * key, the order (one of the four words, `points` by default), the asker's local player id, the page size (a whole number
- * 1 to 500, default 100) and the cursor travel only in the body. The first failing member in that order is named; an unknown
+ * Ranking request body `{ community, order?, period?, playerId?, limit?, cursor? }` (spec 025, by FR-568 of 024 FR-573; spec 027
+ * FR-575 adds the period). The community key, the order (one of the four words, `points` by default), the period (`all`,
+ * `last-7-days` or `last-30-days`; `all` reads as no member), the asker's local player id, the page size (a whole number
+ * 1 to 500, default 100) and the cursor travel only in the body; the request carries no floor and no instant. The first failing member in that order is named; an unknown
  * member is named last (the first in sorted order). A player id that is a text but not a local id is `invalid-player-id`,
  * after every structural check (the FR-301 order). The cursor comes back decoded as `after`.
  */
@@ -142,6 +149,11 @@ export function readRankingRequest(input: unknown): ReadResult<RankingRequest> {
   if (own(o, 'order')) {
     if (!isOneOf<RankingOrder>(RANKING_ORDERS, o.order)) return fail('invalid-request', 'order');
     order = o.order;
+  }
+  let period: RankingPeriod = 'all';
+  if (own(o, 'period')) {
+    if (!isOneOf<RankingPeriod>(RANKING_PERIODS, o.period)) return fail('invalid-request', 'period');
+    period = o.period;
   }
   if (own(o, 'playerId') && typeof o.playerId !== 'string') return fail('invalid-request', 'playerId');
   let limit = PAGE_LIMIT_DEFAULT;
@@ -156,6 +168,9 @@ export function readRankingRequest(input: unknown): ReadResult<RankingRequest> {
     if (!decoded.ok) return decoded;
     // The order travels in the cursor (FR-565): a walk of one order cannot continue in another.
     if (decoded.value[0] !== RANKING_ORDERS.indexOf(order)) return fail('invalid-request', 'cursor');
+    // So does the period (spec 027 FR-578): the 6-part key names it, the 4-part key is all time; any disagreement is refused.
+    const walked = decoded.value.length === 6 ? RANKING_PERIODS[decoded.value[4]] : 'all';
+    if (walked !== period) return fail('invalid-request', 'cursor');
     after = decoded.value;
   }
   const extra = firstUnknown(o, RANKING_FIELDS);
@@ -166,6 +181,7 @@ export function readRankingRequest(input: unknown): ReadResult<RankingRequest> {
     value: {
       community: o.community,
       order,
+      ...(period === 'all' ? {} : { period }),
       ...(own(o, 'playerId') ? { playerId: o.playerId as string } : {}),
       limit,
       ...(after === undefined ? {} : { after }),

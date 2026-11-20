@@ -39,6 +39,7 @@ import {
   PAGE_LIMIT_MAX,
   PLAYER_NAMESPACE,
   RANKING_ORDERS,
+  RANKING_PERIODS,
   canonicalBody,
   encodeCursor,
   encodeJoinReply,
@@ -81,6 +82,7 @@ import type {
   PublicMatch,
   RankingPage,
   RankingOrder,
+  RankingPeriod,
   RecordReply,
   StateReply,
   StepKind,
@@ -95,7 +97,7 @@ import { MEMO_RETENTION_MS, decideMemo, isMemoisable } from '../core/memo';
 import type { MemoScope } from '../core/memo';
 import { decideSubmission } from '../core/predictions';
 import { readRound } from '../core/reads';
-import { rankingOf, shownNameOf, statsOf } from '../core/ranking';
+import { periodFloorOf, rankingOf, shownNameOf, statsOf } from '../core/ranking';
 import { rankLeaderboard, readResultsRound, scorePhase, scoredPhaseCount } from '../core/scoring';
 import type { StoredPrediction, Submission } from '../core/predictions';
 import { haltMatch, runDue } from '../core/steps';
@@ -281,12 +283,15 @@ export interface HistoryRequest {
  * One page request of the ranking of a community (spec 025 FR-563 to FR-567): `namespace` is the one of the client credential
  * (resolved by the HTTP layer, never taken from the body), `community` the key of the body, `order` one of the four words
  * (`points` the default the reader holds), `playerId` the optional LOCAL id of the asker, and `after` the decoded cursor
- * `[order, headFinishedAt, headMatchId, localId]` of the walk (absent for its first page).
+ * `[order, headFinishedAt, headMatchId, localId]` of the walk (absent for its first page). Spec 027 adds `period` (absent or
+ * `all`: all time, the 025 read); a windowed walk's cursor is the 6-part key that also carries the period index and the floor
+ * the first page fixed (FR-576, FR-578), and its period must be the request's.
  */
 export interface RankingRequest {
   readonly namespace: string;
   readonly community: string;
   readonly order: RankingOrder;
+  readonly period?: RankingPeriod;
   readonly playerId?: string;
   readonly limit: number;
   readonly after?: CursorKey<'ranking'>;
@@ -1721,36 +1726,55 @@ export function createMatchService(options: ServiceOptions): MatchService {
 
     ranking(request: RankingRequest): ReadOutcome<RankingPage> {
       const { namespace, community, order, playerId, limit, after } = request;
+      const period = request.period ?? 'all';
       checkPageSize(limit);
       if (!isNamespace(namespace)) throw new RangeError('the namespace of a ranking read is a client namespace');
       if (!isCommunityKey(community)) return { ok: false, error: errorReply('invalid-request', ['community']) };
       if (playerId !== undefined && !isLocalId(playerId)) return { ok: false, error: errorReply('invalid-player-id', ['playerId']) };
+      // A walk is held to its period (FR-578): the 6-part key names it by index, the 4-part key is all time. The route checks it
+      // too; this is the service's own check, so a caller that skips the route cannot mix a windowed cursor with another period.
+      if (after !== undefined && (after.length === 6 ? RANKING_PERIODS[after[4]] : 'all') !== period) return { ok: false, error: errorReply('invalid-request', ['cursor']) };
       // The asker is a player of the credential's own namespace: the local id never names another one.
       const askerId = playerId === undefined ? undefined : playerIdOf(namespace, playerId);
       return read(() => {
-        // The head of the walk (FR-565): the cursor's, or the newest SETTLED counted match of the community (even one with no
-        // scored results: the shown name may still come from it) - the same settledBefore as the history read (FR-549), so a
-        // match that finishes after this read sorts newer than the head and can never join the snapshot. No counted match, no
-        // rows, whatever the request names.
-        const head =
-          after !== undefined
-            ? { finishedAt: after[1], matchId: after[2] }
-            : store.historyAfter(community, namespace, wholeMs(clock.now()) - TOLERANCE_MS, undefined, undefined, 1)[0];
+        // The head and the floor of the walk (FR-565, FR-576): the cursor's, or, on the first page, from ONE reading of the clock.
+        // The head is the newest SETTLED counted match of the community (even one with no scored results: the shown name may
+        // still come from it) - the same settledBefore as the history read (FR-549), so a match that finishes after this read
+        // sorts newer than the head and can never join the snapshot. The floor (a period only) is that same reading minus the
+        // period length; a later page reads it back from its cursor and never from the clock, so no match enters or leaves the
+        // window while it is paged. No counted match, no rows, whatever the request names.
+        let head: { finishedAt: number; matchId: string } | undefined;
+        let floor: number | undefined;
+        if (after !== undefined) {
+          head = { finishedAt: after[1], matchId: after[2] };
+          floor = after.length === 6 ? after[5] : undefined;
+        } else {
+          const now = wholeMs(clock.now());
+          head = store.historyAfter(community, namespace, now - TOLERANCE_MS, undefined, undefined, 1)[0];
+          floor = periodFloorOf(period, now);
+        }
         if (head === undefined) return { ok: true, reply: { items: [], total: 0 } };
-        const rows = store.rankingResults(community, namespace, head);
+        const rows = store.rankingResults(community, namespace, head, floor);
+        // A windowed snapshot with no row (no counted match in the period, or none with a scored result) answers the bare empty
+        // reply even when a player is named (FR-579): the window may simply hold no match of theirs, and the reply must not
+        // differ from an unknown key's. The all-time path keeps the 025 reply (`asker: { played: false }`, NFR-129).
+        if (floor !== undefined && rows.length === 0) return { ok: true, reply: { items: [], total: 0 } };
         // A cursor of another community or namespace names a row this snapshot holds none of (an issued cursor always names one
         // of its own: a counted match is immutable): the empty page, byte-identical to the reply of an unknown key or another
         // namespace (FR-568 of 024 FR-552), so no read tells whether the key exists under this namespace.
         if (after !== undefined && !rows.some((row) => row.playerId === playerIdOf(namespace, after[3]))) {
           return { ok: true, reply: { items: [], total: 0 } };
         }
-        const page = rankingOf(statsOf(rows), shownNameOf(store.rankingNames(community, namespace, head)), order, namespace, after === undefined ? undefined : after[3], limit, askerId === undefined ? undefined : playerId);
+        const page = rankingOf(statsOf(rows), shownNameOf(store.rankingNames(community, namespace, head, floor)), order, namespace, after === undefined ? undefined : after[3], limit, askerId === undefined ? undefined : playerId);
+        // A windowed `next` is the 6-part key with the period index and the floor of the walk (as read above); an all-time one is
+        // the 025 4-part key, byte for byte.
+        const key = [RANKING_ORDERS.indexOf(order), head.finishedAt, head.matchId] as const;
         return {
           ok: true,
           reply: {
             items: page.rows,
             total: page.total,
-            ...(page.next === undefined ? {} : { next: encodeCursor('ranking', [RANKING_ORDERS.indexOf(order), head.finishedAt, head.matchId, page.next]) }),
+            ...(page.next === undefined ? {} : { next: encodeCursor('ranking', floor === undefined ? [...key, page.next] : [...key, page.next, RANKING_PERIODS.indexOf(period), floor]) }),
             ...(page.asker === undefined ? {} : { asker: page.asker }),
           },
         };

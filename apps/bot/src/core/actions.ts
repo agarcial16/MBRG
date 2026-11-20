@@ -3,9 +3,9 @@
 // arrives as a plain flag (the shell reads the permission); the user id decides only who may start (FR-464), else it goes to the server.
 import type { HistoryPage, RankingOrder, RankingPage } from '@mbrg/protocol';
 import { parseCustomId } from './custom-ids';
-import type { Pace, PhaseKind } from './model';
+import type { Pace, PhaseKind, TimePeriod } from './model';
 import { isPace } from './paces';
-import { orderOf } from './ranking';
+import { orderOf, periodOf } from './ranking';
 import { STRINGS } from './strings';
 
 /** What the shell knows of a leaderboard message a press came from: its match, who asked (none: the final post) and when it stops paging. */
@@ -28,6 +28,8 @@ export interface RankingWalkView {
   readonly askerId: string;
   readonly community: string;
   readonly order: RankingOrder;
+  /** The time window of the walk (spec 027 FR-583); none is all time. */
+  readonly period?: TimePeriod;
   readonly expiresAt: number;
   readonly pages: readonly RankingPage[];
 }
@@ -40,8 +42,8 @@ export type Interaction =
   | { readonly type: 'predict'; readonly faction: string | undefined }
   /** The history of the finished matches of this server (spec 024 FR-554); `community` as in `create` (none: no server, FR-557). */
   | { readonly type: 'history'; readonly community: string | undefined }
-  /** The ranking of the members of this server (spec 025 FR-569); `community` as in `history`, `order` the word as typed (none: points). */
-  | { readonly type: 'ranking'; readonly community: string | undefined; readonly order: string | undefined }
+  /** The ranking of the members of this server (spec 025 FR-569); `community` as in `history`, `order` the word as typed (none: points), `period` the period word as typed (none: all time, spec 027 FR-580). */
+  | { readonly type: 'ranking'; readonly community: string | undefined; readonly order: string | undefined; readonly period?: string | undefined }
   | { readonly type: 'button'; readonly customId: string; readonly canManage: boolean; readonly userId: string }
   | { readonly type: 'select'; readonly customId: string; readonly values: readonly string[] }
   | { readonly type: 'modal'; readonly customId: string; readonly text: string }
@@ -64,10 +66,10 @@ export type Action =
   | { readonly do: 'history'; readonly community: string }
   /** A page of a history message, in place: from the pages already shown (no `cursor`), or the next page of the walk by its cursor (spec 024 FR-555). */
   | { readonly do: 'history-page'; readonly community: string; readonly page: number; readonly pages: readonly HistoryPage[]; readonly cursor?: string }
-  /** The first page of the ranking of the asker's community under an order, as a public reply (spec 025 FR-569). */
-  | { readonly do: 'ranking'; readonly community: string; readonly order: RankingOrder }
+  /** The first page of the ranking of the asker's community under an order, as a public reply (spec 025 FR-569); `period` only for a time window (spec 027), none is all time. */
+  | { readonly do: 'ranking'; readonly community: string; readonly order: RankingOrder; readonly period?: TimePeriod }
   /** A page of a ranking message, in place: from the pages already shown (no `cursor`), or the next page of the walk by its cursor (spec 025 FR-569, as `history-page`). */
-  | { readonly do: 'ranking-page'; readonly community: string; readonly order: RankingOrder; readonly page: number; readonly pages: readonly RankingPage[]; readonly cursor?: string };
+  | { readonly do: 'ranking-page'; readonly community: string; readonly order: RankingOrder; readonly period?: TimePeriod; readonly page: number; readonly pages: readonly RankingPage[]; readonly cursor?: string };
 
 /** How the answer is sent: deferred at once (the work may take longer than Discord's three seconds) as public or private, direct, or as the edit of the message pressed (`update`). */
 export type Delivery = 'public' | 'private' | 'direct' | 'update';
@@ -109,7 +111,11 @@ export function decide(interaction: Interaction, following: boolean, info: Chann
       // As the history: a command without a server is refused before anything else, then the order word is read (spec 025 FR-571).
       if (interaction.community === undefined) return say(STRINGS.noServer);
       const order = orderOf(interaction.order);
-      return order === undefined ? say(STRINGS.unknownOrder) : { do: 'ranking', community: interaction.community, order };
+      if (order === undefined) return say(STRINGS.unknownOrder);
+      const period = periodOf(interaction.period);
+      if (period === undefined) return say(STRINGS.unknownPeriod);
+      // All time is the absence of a period: the action carries none, so the request is the 025 one (spec 027 NFR-129).
+      return period === 'all' ? { do: 'ranking', community: interaction.community, order } : { do: 'ranking', community: interaction.community, order, period };
     }
     case 'predict':
       if (!following) return say(STRINGS.notFollowing);
@@ -166,7 +172,8 @@ export function decide(interaction: Interaction, following: boolean, info: Chann
       // The message is unknown (the bot restarted) or past its five minutes: nothing is served, whoever presses (spec 025 FR-569, as the history's).
       if (walk === undefined || interaction.now >= walk.expiresAt) return say(STRINGS.rankingExpired);
       if (walk.askerId !== interaction.userId) return say(STRINGS.rankingNotYours);
-      const base = { do: 'ranking-page' as const, community: walk.community, order: walk.order, page: id.page, pages: walk.pages };
+      // The period of the walk goes with every press (spec 027 FR-583): a press never asks in another window than the one its message shows.
+      const base = { do: 'ranking-page' as const, community: walk.community, order: walk.order, ...(walk.period === undefined ? {} : { period: walk.period }), page: id.page, pages: walk.pages };
       if (id.page <= walk.pages.length) return base;
       const cursor = id.page === walk.pages.length + 1 ? walk.pages[walk.pages.length - 1]?.next : undefined;
       return cursor === undefined ? say(STRINGS.errUnexpected) : { ...base, cursor };

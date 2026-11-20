@@ -311,15 +311,18 @@ export interface Store {
    * The ranking source rows of a community (spec 025 FR-564): one aggregate per (match, player) of the same matches
    * `historyAfter` reads (finished, of the key and the namespace, no newer than `head`), with the match id, the finish
    * instant, the player id, the summed points, the correct rows and the scored rows, in history order. ONE statement,
-   * no page limit: the whole snapshot of the community, whatever the stored matches (NFR-125).
+   * no page limit: the whole snapshot of the community, whatever the stored matches (NFR-125). The optional `floor` (spec 027,
+   * the lower instant of a ranking period, any whole number) keeps only the matches finished at or after it: one at the floor
+   * is in, one 1 ms before is out; none reads every counted match, as before. It adds no statement and no scan (NFR-130).
    */
-  rankingResults(community: string, namespace: string, head: HistoryKey | undefined): RankingSourceRow[];
+  rankingResults(community: string, namespace: string, head: HistoryKey | undefined, floor?: number): RankingSourceRow[];
   /**
    * Every name the counted matches of the same scope stored (spec 025 FR-563, the shown-name rule's source): the match
    * id, the finish instant, the player id and the name, in history order. Names of matches in any other stage are never
-   * read (NFR-123). ONE statement, no page limit (NFR-125).
+   * read (NFR-123). ONE statement, no page limit (NFR-125). The optional `floor` is the one of `rankingResults`: a name stored
+   * only in a match before it is never read.
    */
-  rankingNames(community: string, namespace: string, head: HistoryKey | undefined): RankingNameRow[];
+  rankingNames(community: string, namespace: string, head: HistoryKey | undefined, floor?: number): RankingNameRow[];
   /** The records of the rounds above `round`, in round order, at most `limit` (FR-279). */
   recordsAfter(matchId: string, round: number, limit: number): StoredRecord[];
   /**

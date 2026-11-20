@@ -2,10 +2,10 @@
 // plain-text twin, the empty sentence and the unavailable reply come out. Names come only from Discord (mentions) or the server's own row
 // (as the leaderboard, 017 FR-483); everything shown is already public data of finished matches (008 FR-246). The order words of the command
 // live in the strings module (PD4): the wire takes the enum, only the bot speaks Spanish.
-import type { RankingOrder, RankingPage, RankingRow } from '@mbrg/protocol';
+import type { RankingOrder, RankingPage, RankingPeriod, RankingRow } from '@mbrg/protocol';
 import { clampPage } from './board';
 import { rankingId } from './custom-ids';
-import type { ButtonSpec, OutMessage, RankingTag, Reply } from './model';
+import type { ButtonSpec, OutMessage, RankingTag, Reply, TimePeriod } from './model';
 import { mentionOf, userIdOf } from './results';
 import { STRINGS, fill } from './strings';
 
@@ -30,11 +30,33 @@ export function orderOf(word: string | undefined): RankingOrder | undefined {
   return ORDER_WORDS.find(([known]) => known === typed)?.[1];
 }
 
-/** What the shell knows of the page it shows: its number and the last row of the page before it (none on page 1), which tells where the unranked tail begins. */
+/** The period words, in the order the command offers them, each with the wire period it asks for (spec 027 FR-580). No word is all time, so there is no "siempre". */
+export const PERIOD_WORDS: readonly (readonly [string, TimePeriod])[] = [
+  [STRINGS.periodWeek, 'last-7-days'],
+  [STRINGS.periodMonth, 'last-30-days'],
+];
+
+/** The wire period of a word as typed (case and surrounding spaces ignored); no word means all time, a word that is not a period none. */
+export function periodOf(word: string | undefined): RankingPeriod | undefined {
+  if (word === undefined) return 'all';
+  const typed = word.trim().toLowerCase();
+  return PERIOD_WORDS.find(([known]) => known === typed)?.[1];
+}
+
+/** The days a time window covers (spec 027): the number its title and its sentences name. */
+export const PERIOD_DAYS: Readonly<Record<TimePeriod, number>> = { 'last-7-days': 7, 'last-30-days': 30 };
+
+/** What the shell knows of the page it shows: its number, the last row of the page before it (none on page 1), which tells where the unranked tail begins, and its time window (none: all time). */
 export interface RankingContext {
   /** The page number shown, from 1. */
   readonly page: number;
   readonly previous?: RankingRow;
+  /**
+   * The time window of the ranking shown (spec 027 FR-580); none is all time. `rankingMessage` overrides this with the
+   * period of the message's own walk before rendering: the walk is the one source of truth, so a caller's value is only
+   * the fallback when no walk exists.
+   */
+  readonly period?: TimePeriod;
 }
 
 /** The statistics of a player, as a row or the asker's own line carries them. */
@@ -92,16 +114,16 @@ function noteAt(items: readonly RankingRow[], previous: RankingRow | undefined):
 }
 
 /** The "Tu puesto" value of the asker; none in the accuracy order for an asker who is not qualified (their row is in the tail). */
-function askerValue(page: RankingPage, order: RankingOrder): string | undefined {
+function askerValue(page: RankingPage, order: RankingOrder, period: TimePeriod | undefined): string | undefined {
   const asker = page.asker;
   if (asker === undefined) return undefined;
-  if ('played' in asker && asker.played === false) return STRINGS.rankingNotPlayed;
+  if ('played' in asker && asker.played === false) return period === undefined ? STRINGS.rankingNotPlayed : fill(STRINGS.rankingNotPlayedDays, { n: PERIOD_DAYS[period] });
   if (typeof asker.played !== 'number' || !('points' in asker) || asker.rank === undefined) return undefined;
   return fill(STRINGS.rankingOwn, { rank: asker.rank, stats: statsText(asker, order) });
 }
 
-/** The reply for a community with no counted match: one sentence, no embed, no buttons (FR-570). */
-export const rankingEmpty = (): OutMessage => ({ text: STRINGS.rankingEmpty, buttons: [] });
+/** The reply for a community with no counted match, or none in the time window: one sentence, no embed, no buttons (FR-570, spec 027 FR-582). */
+export const rankingEmpty = (period?: TimePeriod): OutMessage => ({ text: period === undefined ? STRINGS.rankingEmpty : fill(STRINGS.rankingEmptyDays, { n: PERIOD_DAYS[period] }), buttons: [] });
 
 /** The reply when the server refuses or cannot answer: one sentence the member alone sees (FR-571). */
 export const rankingUnavailable = (): Reply => ({ type: 'text', text: STRINGS.rankingUnavailable });
@@ -111,14 +133,14 @@ export const rankingUnavailable = (): Reply => ({ type: 'text', text: STRINGS.ra
  * added by the paging of the message.
  */
 export function rankingEmbed(page: RankingPage, order: RankingOrder, ctx: RankingContext): OutMessage {
-  if (page.items.length === 0) return rankingEmpty();
+  if (page.items.length === 0) return rankingEmpty(ctx.period);
   const pages = rankingPageCount(page.total);
   const footer = fill(STRINGS.boardPage, { page: clampPage(ctx.page, pages), pages });
   const lines = page.items.map((row) => lineOf(row, order));
   const note = noteAt(page.items, ctx.previous);
   if (note !== -1) lines.splice(note, 0, STRINGS.rankingUnrankedNote);
-  const own = askerValue(page, order);
-  const title = STRINGS.rankingTitle;
+  const own = askerValue(page, order, ctx.period);
+  const title = ctx.period === undefined ? STRINGS.rankingTitle : fill(STRINGS.rankingTitleDays, { n: PERIOD_DAYS[ctx.period] });
   const text = [title, ...lines, footer, ...(own === undefined ? [] : [`${STRINGS.boardOwnField}: ${own}`])].join('\n');
   return {
     text,
@@ -137,7 +159,9 @@ const buttonsOf = (page: number, pages: number): ButtonSpec[] => [
  * there is more than one page, the walk the shell remembers to page it (FR-569). An empty ranking is the one sentence alone (FR-570).
  */
 export function rankingMessage(page: RankingPage, order: RankingOrder, ctx: RankingContext, walk: RankingTag): OutMessage {
-  const view = rankingEmbed(page, order, ctx);
+  // The period of the message is the walk's, so the title and the pages the buttons walk are always those of one window (spec 027 FR-583).
+  const { period: _shown, ...plain } = ctx;
+  const view = rankingEmbed(page, order, walk.period === undefined ? plain : { ...plain, period: walk.period });
   if (page.items.length === 0) return view;
   const pages = rankingPageCount(page.total);
   return { ...view, buttons: buttonsOf(clampPage(ctx.page, pages), pages), ...(pages > 1 ? { ranking: walk } : {}) };

@@ -65,12 +65,12 @@ describe('FR-548 the community key', () => {
     expect(fromCommand('ranking', {}, true, '42')).toEqual({ type: 'ranking', community: undefined, order: undefined });
   });
 
-  it('FR-569 the registered ranking subcommand has one optional text option whose four choices are the order words, and takes no other option', () => {
+  it('FR-569 the registered ranking subcommand has the optional order option (spec 027 adds the period option after it, tested in its own file) whose four choices are the order words', () => {
     const root = commandDefinitions()[0]!;
     const subs = root.options as { name: string; options?: { name: string; required?: boolean; type: number; choices?: { name: string; value: string }[] }[] }[];
     const ranking = subs.filter((s) => s.name === 'ranking');
     expect(ranking).toHaveLength(1);
-    expect(ranking[0]!.options).toHaveLength(1);
+    expect(ranking[0]!.options).toHaveLength(2);
     expect(ranking[0]!.options![0]).toMatchObject({ name: 'order', type: 3, required: false });
     expect(ranking[0]!.options![0]!.choices).toEqual([
       { name: 'puntos', value: 'puntos' },

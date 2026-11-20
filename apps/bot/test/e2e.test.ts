@@ -242,6 +242,86 @@ describe('spec 023 e2e: real server + real bot core, Discord faked', () => {
     expect(message.embed!.description).not.toContain('partidas 2');
   });
 
+  // --- Spec 027 FR-585: the same ranking in each time window, read after the two finished matches of the run (both are in every window) ---
+  const WINDOWS = [['semana', 'last-7-days', 7], ['mes', 'last-30-days', 30]] as const;
+
+  it('FR-585 each window (semana, mes) read after the two finished matches lists the same rows as all time in every order, titled with its window: each row, rank, statistic, the note, the asker line and the page indicator are the pinned ones', () => {
+    const r = run!;
+    for (const [word, , days] of WINDOWS) {
+      for (const [orderWord, order] of WORDS) {
+        const message = messageOfReply(r.ranking.windows[word].byWord[orderWord]!);
+        const label = `${word} ${orderWord}`;
+        expect(message.embed?.title, label).toBe(`Ranking del servidor · últimos ${days} días`);
+        // The rows and the footer are the all-time ones, and the pinned ones of the plans: the window cuts nothing here.
+        expect(message.embed?.description, label).toBe(messageOfReply(r.ranking.byWord[orderWord]!).embed?.description);
+        expect(message.embed?.description?.split('\n'), label).toEqual(rankingDescription(order));
+        expect(message.embed?.footer, label).toBe('Página 1/1');
+        const own = askerLine(order, PLAYERS[0]!.userId);
+        expect(message.embed?.fields, label).toEqual(own === undefined ? [] : [{ name: 'Tu puesto', value: own }]);
+        expect(message.buttons.every((b) => b.type === 'custom' && b.disabled === true), label).toBe(true);
+        expect(message.ranking, label).toBeUndefined();
+        expect(message.text.split('\n')[0], label).toBe(`Ranking del servidor · últimos ${days} días`);
+      }
+    }
+    // The all-time title stays the plain one.
+    expect(messageOfReply(r.ranking.byWord.default!).embed?.title).toBe('Ranking del servidor');
+  });
+
+  it('FR-585 in each window Diego (9 scored predictions inside it) is in the accuracy tail after the note with no "Tu puesto" line, and a member who never predicted gets the sentence of the window', () => {
+    const r = run!;
+    for (const [word, , days] of WINDOWS) {
+      const unqualified = messageOfReply(r.ranking.windows[word].unqualified);
+      expect(unqualified.embed!.description!.split('\n'), word).toEqual(rankingDescription('accuracy'));
+      expect(unqualified.embed!.fields, word).toEqual([]);
+      expect(messageOfReply(r.ranking.windows[word].outsider).embed?.fields, word).toEqual([
+        { name: 'Tu puesto', value: `No has jugado ninguna partida terminada en este servidor en los últimos ${days} días.` },
+      ]);
+    }
+  });
+
+  it('FR-585 another server asks the same windows and gets the empty sentence of each, with no embed and no buttons', () => {
+    const r = run!;
+    for (const [word, , days] of WINDOWS) {
+      expect(messageOfReply(r.ranking.windows[word].otherServer), word).toEqual({ text: `Nadie ha jugado una partida terminada en este servidor en los últimos ${days} días.`, buttons: [] });
+    }
+  });
+
+  it('FR-585 the server rows of each window carry the pinned statistics, ranks, shown names and asker line (the same as all time: both matches are inside), and a walk of the week paged two rows at a time by cursor lists the points order whole, with one total', () => {
+    const r = run!;
+    const names = new Map(PLAYERS.map((p) => [`discord:${p.userId}`, p.displayName]));
+    for (const [word] of WINDOWS) {
+      for (const order of ['points', 'correct', 'wins', 'accuracy'] as const) {
+        const page = r.ranking.windows[word].raw[order];
+        expect(page, `${word} ${order}`).toEqual(r.ranking.raw[order]);
+        expect(page.total, `${word} ${order}`).toBe(4);
+        expect(page.items.map((row) => [row.playerId.slice('discord:'.length), row.rank]), `${word} ${order}`).toEqual(RANKING_ORDER[order].map(([userId, rank]) => [userId, rank]));
+        for (const row of page.items) {
+          const pin = RANKING_PINS.find((p) => `discord:${p.userId}` === row.playerId)!;
+          expect([row.points, row.correct, row.scored, row.played, row.won], `${word} ${order} ${row.playerId}`).toEqual([pin.points, pin.correct, pin.scored, pin.played, pin.won]);
+          expect(row.name, `${word} ${order} ${row.playerId}`).toBe(names.get(row.playerId));
+        }
+      }
+    }
+    const walk = r.ranking.windows.semana.walk;
+    expect(walk.map((p) => p.items.length)).toEqual([2, 2]);
+    expect(walk.map((p) => p.total)).toEqual([4, 4]);
+    expect(walk.flatMap((p) => p.items.map((row) => row.playerId.slice('discord:'.length)))).toEqual(RANKING_ORDER.points.map(([userId]) => userId));
+    expect(walk[0]!.next).toBeDefined();
+    expect(walk[1]!.next).toBeUndefined();
+  });
+
+  it('NFR-131 the floor of a window is the real server\'s injected clock, never the bot\'s: 8 days later the week is empty and the month still lists, 31 days later the month is empty too, and all time never changes', () => {
+    const { aged } = run!.ranking;
+    const plain = messageOfReply(run!.ranking.byWord.default!);
+    expect(aged.weekAfter8).toEqual({ type: 'channel', messages: [{ text: 'Nadie ha jugado una partida terminada en este servidor en los últimos 7 días.', buttons: [] }] });
+    const month8 = messageOfReply(aged.monthAfter8);
+    expect(month8.embed?.title).toBe('Ranking del servidor · últimos 30 días');
+    expect(month8.embed?.description).toBe(plain.embed?.description);
+    expect(messageOfReply(aged.monthAfter31)).toEqual({ text: 'Nadie ha jugado una partida terminada en este servidor en los últimos 30 días.', buttons: [] });
+    expect(messageOfReply(aged.allTimeAfter31).embed?.description).toBe(plain.embed?.description);
+    expect(messageOfReply(aged.allTimeAfter31).embed?.title).toBe('Ranking del servidor');
+  });
+
   it('FR-542 FR-543 renders the same run as a readable transcript and as an HTML page of the embeds', () => {
     const r = run!;
     const transcript = renderTranscript(r);

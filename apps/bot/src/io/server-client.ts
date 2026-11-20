@@ -8,6 +8,7 @@ import { HISTORY_PAGE_SIZE } from '../core/history';
 import { RANKING_PAGE_SIZE } from '../core/ranking';
 import { livingCount, readCorrectPage, readCreated } from '../core/decode-results';
 import type { Created } from '../core/decode-results';
+import type { TimePeriod } from '../core/model';
 import { readFactionNames } from '../core/names';
 import type { Named } from '../core/text';
 
@@ -53,7 +54,7 @@ export interface ServerClient {
    * One page of the ranking of a community under an order (spec 025, 024 FR-573): the same transport rules as `history`: the key, the order,
    * the asker's local id, the page size and the cursor go in the BODY with the credential; one request, never retried.
    */
-  ranking(request: { readonly community: string; readonly order: RankingOrder; readonly playerId: string; readonly cursor?: string }): Promise<Result<RankingPage>>;
+  ranking(request: { readonly community: string; readonly order: RankingOrder; readonly period?: TimePeriod; readonly playerId: string; readonly cursor?: string }): Promise<Result<RankingPage>>;
 }
 
 const DOWN: Failure = { type: 'down' };
@@ -132,6 +133,8 @@ export function createServerClient(options: ClientOptions): ServerClient {
       call('POST', '/ranking', decoded(readRankingPage), options.credential, {
         community: r.community,
         order: r.order,
+        // A time window (spec 027) is a member only when there is one: an all-time body is the 025 body, byte for byte (NFR-129).
+        ...(r.period === undefined ? {} : { period: r.period }),
         playerId: r.playerId,
         limit: RANKING_PAGE_SIZE,
         ...(r.cursor === undefined ? {} : { cursor: r.cursor }),

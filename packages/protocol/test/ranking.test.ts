@@ -43,7 +43,7 @@ describe('FR-573 (shape part) the ranking request reader', () => {
     });
     const cursor = encodeCursor('ranking', [0, 20, 'AAAA', 'u1']);
     expect(readRankingRequest({ community: KEY, cursor })).toStrictEqual({ ok: true, value: { community: KEY, order: 'points', limit: 100, after: [0, 20, 'AAAA', 'u1'] } });
-    expect([...RANKING_FIELDS]).toStrictEqual(['community', 'order', 'playerId', 'limit', 'cursor']);
+    expect([...RANKING_FIELDS]).toStrictEqual(['community', 'order', 'period', 'playerId', 'limit', 'cursor']);
     expect([...RANKING_ORDERS]).toStrictEqual(['points', 'correct', 'wins', 'accuracy']);
   });
 

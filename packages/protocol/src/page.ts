@@ -1,7 +1,7 @@
 import { errorReply } from './errors';
 import { isLocalId, isPlayerId } from './ids';
 import type { ReadResult } from './read';
-import { PREDICTION_KINDS, RANKING_ORDERS, type PredictionKind } from './wire';
+import { PREDICTION_KINDS, RANKING_ORDERS, RANKING_PERIODS, type PredictionKind } from './wire';
 
 /**
  * Paging of every list read (FR-279, P38, PD20). A page has 1 to 500 items (default 100); a page that is not the last
@@ -46,8 +46,17 @@ export interface CursorKeys {
    * order. The order travels in the key, so a walk cannot continue in another order (the request reader refuses the mismatch);
    * the id carries no secret.
    */
-  readonly ranking: readonly [order: number, headFinishedAt: number, headMatchId: string, localId: string];
+  readonly ranking: RankingKey | WindowedRankingKey;
 }
+
+/** The all-time ranking key (spec 025), unchanged: an all-time walk keeps it, so old cursors keep working and an all-time `next` stays byte-identical (spec 027 NFR-129). */
+export type RankingKey = readonly [order: number, headFinishedAt: number, headMatchId: string, localId: string];
+/**
+ * The windowed ranking key (spec 027 FR-578, plan PD3): the 025 key, then the period's index in `RANKING_PERIODS` (1 or 2:
+ * index 0 is all time, which never has this form) and the floor, the lower instant of the walk in whole milliseconds (any
+ * safe integer, negative under a test clock). The floor is fixed by the first page; it travels only in this opaque cursor.
+ */
+export type WindowedRankingKey = readonly [order: number, headFinishedAt: number, headMatchId: string, localId: string, periodIndex: number, floor: number];
 export type CursorKey<L extends CursorList> = CursorKeys[L];
 
 export interface PageQuery<L extends CursorList> {
@@ -100,11 +109,15 @@ function isKeyOf(list: CursorList, parts: readonly unknown[]): boolean {
       // History order is finish instant descending, then match id ascending: the last key cannot be newer than the head.
       return at < headAt || (at === headAt && id >= headId);
     }
-    case 'ranking':
-      return (
-        parts.length === 4 && isInt(parts[0], 0) && parts[0] <= RANKING_ORDERS.length - 1 && isInt(parts[1], 0) &&
-        typeof parts[2] === 'string' && MATCH_ID.test(parts[2]) && isLocalId(parts[3])
-      );
+    case 'ranking': {
+      if (parts.length !== 4 && parts.length !== 6) return false;
+      const base =
+        isInt(parts[0], 0) && parts[0] <= RANKING_ORDERS.length - 1 && isInt(parts[1], 0) &&
+        typeof parts[2] === 'string' && MATCH_ID.test(parts[2]) && isLocalId(parts[3]);
+      if (!base || parts.length === 4) return base;
+      // The windowed form (spec 027): a period other than all time, and a floor that is any whole number.
+      return isInt(parts[4], 1) && parts[4] <= RANKING_PERIODS.length - 1 && typeof parts[5] === 'number' && Number.isSafeInteger(parts[5]);
+    }
     default:
       return false;
   }

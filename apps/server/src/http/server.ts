@@ -454,10 +454,12 @@ export const productionRoutes = (service: MatchService, settings: ServerSettings
       if (caller.role !== 'client') return { kind: 'error', error: errorReply('forbidden') };
       const read = readRankingRequest(ctx.body);
       if (!read.ok) return { kind: 'error', error: read.error };
-      const { community, order, playerId, limit, after } = read.value;
-      // The namespace is the credential's; the body names none (FR-568 of 024 FR-552).
+      const { community, order, period, playerId, limit, after } = read.value;
+      // The namespace is the credential's; the body names none (FR-568 of 024 FR-552). The period (spec 027 FR-575) is present
+      // only for a window: an all-time request reaches the service exactly as in 025. The floor is never the caller's: the
+      // service fixes it from its own clock (FR-576).
       return replyOf(
-        service.ranking({ namespace: caller.namespace, community, order, limit, ...(playerId === undefined ? {} : { playerId }), ...(after === undefined ? {} : { after }) }),
+        service.ranking({ namespace: caller.namespace, community, order, limit, ...(period === undefined ? {} : { period }), ...(playerId === undefined ? {} : { playerId }), ...(after === undefined ? {} : { after }) }),
         200,
         encodeRankingPage,
       );

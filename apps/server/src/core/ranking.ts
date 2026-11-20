@@ -1,8 +1,35 @@
-import { isNamespace, PAGE_LIMIT_MAX, type RankingAsker, type RankingOrder, type RankingRow } from '@mbrg/protocol';
+import { isNamespace, PAGE_LIMIT_MAX, RANKING_PERIODS, type RankingAsker, type RankingOrder, type RankingPeriod, type RankingRow } from '@mbrg/protocol';
 import { compareHistory, type HistoryKey } from './history';
 
 // Pure core of the per-community ranking (spec 025): the statistics of one player over the counted matches of a snapshot
 // and the shown-name rule. No I/O: the store reads the source rows (T1.2), the service passes them here (plan 3).
+
+/**
+ * The length of each windowed period of the ranking (spec 027, Definitions) in whole milliseconds: 7 and 30 days of 86,400,000.
+ * A period is a rolling cut, not a calendar unit, so it needs no time zone; all time has no length.
+ */
+export const PERIOD_LENGTH_MS: Readonly<Record<Exclude<RankingPeriod, 'all'>, number>> = {
+  'last-7-days': 7 * 86_400_000,
+  'last-30-days': 30 * 86_400_000,
+};
+
+/**
+ * The floor of a period (spec 027, Definitions): the lower instant of a windowed walk, the server clock reading `now` (whole
+ * milliseconds, passed in: the clock is the service's, never read here) minus the period's length; undefined for all time.
+ * The floor may be negative under a test clock. A reading that is not a whole number, or a period that is not one of the
+ * three, is a RangeError.
+ */
+export function periodFloorOf(period: RankingPeriod, now: number): number | undefined {
+  if (typeof now !== 'number' || !Number.isSafeInteger(now)) throw new RangeError('a clock reading is a whole number of milliseconds');
+  if (!(RANKING_PERIODS as readonly string[]).includes(period)) throw new RangeError('unknown ranking period');
+  return period === 'all' ? undefined : now - PERIOD_LENGTH_MS[period];
+}
+
+/**
+ * Whether a counted match finished at `at` is in the period (spec 027, Definitions): at or after the floor (a match finished
+ * exactly at the floor is in, one 1 ms before is out); with no floor (all time) every instant is in.
+ */
+export const isInPeriod = (at: number, floor: number | undefined): boolean => floor === undefined || at >= floor;
 
 /** One ranking source row (FR-564): the aggregate of one player in one counted match, as the store reads it. */
 export interface RankingSourceRow {

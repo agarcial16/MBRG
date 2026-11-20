@@ -4,7 +4,7 @@
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { RANKING_ORDERS, encodeEvent, encodeHistoryPage, encodePublicMatch, encodeRankingPage } from '@mbrg/protocol';
-import type { HistoryEntry, MatchEvent, PublicMatch, RankingAsker, RankingOrder, RankingRow } from '@mbrg/protocol';
+import type { HistoryEntry, MatchEvent, PublicMatch, RankingAsker, RankingOrder, RankingPeriod, RankingRow } from '@mbrg/protocol';
 
 export const CREDENTIAL = 'discord-credential-PLANTED-0123456789';
 export const HOST_TOKEN = 'host-token-PLANTED-0123456789abcdef';
@@ -38,6 +38,8 @@ export interface FakeRanking {
   readonly rows: Partial<Record<RankingOrder, readonly RankingRow[]>>;
   /** The asker's line for a local player id under an order; none: the player has no row. */
   readonly asker?: (playerId: string, order: RankingOrder) => RankingAsker | undefined;
+  /** The same for a time window (spec 027): a window with no entry is an empty snapshot. */
+  readonly periods?: Partial<Record<Exclude<RankingPeriod, 'all'>, Pick<FakeRanking, 'rows' | 'asker'>>>;
 }
 
 export interface Fake {
@@ -61,6 +63,8 @@ export interface Fake {
   ranking: Map<string, FakeRanking>;
   /** The error every ranking read gets, when set; otherwise it is answered from `ranking`. */
   rankingError: { status: number; body: unknown } | undefined;
+  /** While true the ranking read refuses a `period` member as an older server does (`invalid-request` naming it). */
+  refusePeriod: boolean;
   /** While true the server refuses every connection and request (a crash). */
   down: boolean;
   /** Page size of the phase results (to exercise paging). */
@@ -147,22 +151,26 @@ export async function startFake(options: FakeOptions = {}): Promise<Fake> {
       if (path === '/ranking' && req.method === 'POST') {
         if (bearer !== CREDENTIAL) return json(res, 403, { kind: 'forbidden' });
         if (state.rankingError !== undefined) return json(res, state.rankingError.status, state.rankingError.body);
-        const b = (body ?? {}) as { community?: unknown; order?: unknown; playerId?: unknown; limit?: unknown; cursor?: unknown };
+        const b = (body ?? {}) as { community?: unknown; order?: unknown; period?: unknown; playerId?: unknown; limit?: unknown; cursor?: unknown };
         if (typeof b.community !== 'string' || !/^[0-9a-f]{64}$/.test(b.community)) return json(res, 400, { kind: 'invalid-request', items: ['community'] });
         const order = b.order === undefined ? 'points' : b.order;
         if (!(RANKING_ORDERS as readonly unknown[]).includes(order)) return json(res, 400, { kind: 'invalid-request', items: ['order'] });
+        // Spec 027: a window is a member `period` (an older server refuses it by name); `all` and no member are the same request.
+        if (b.period !== undefined && (state.refusePeriod || !['all', 'last-7-days', 'last-30-days'].includes(b.period as string))) return json(res, 400, { kind: 'invalid-request', items: ['period'] });
+        const period = b.period === undefined || b.period === 'all' ? undefined : (b.period as Exclude<RankingPeriod, 'all'>);
         const known = state.ranking.get(b.community);
-        const all = known?.rows[order as RankingOrder] ?? [];
-        // The cursor is `<order>.<offset>.<snapshot size>`: a walk keeps its order and the size its first page saw, as the real server does.
+        const source = period === undefined ? known : known?.periods?.[period];
+        const all = source?.rows[order as RankingOrder] ?? [];
+        // The cursor is `<order>.<offset>.<snapshot size>` (a window adds `.<period>`): a walk keeps its order, its window and the size its first page saw, as the real server does.
         const parts = typeof b.cursor === 'string' ? b.cursor.split('.') : undefined;
-        if (parts !== undefined && parts[0] !== order) return json(res, 400, { kind: 'invalid-request', items: ['cursor'] });
+        if (parts !== undefined && (parts[0] !== order || parts[3] !== period)) return json(res, 400, { kind: 'invalid-request', items: ['cursor'] });
         const offset = parts === undefined ? 0 : Number(parts[1]);
         const snapshot = parts === undefined ? all.length : Number(parts[2]);
         const limit = typeof b.limit === 'number' ? b.limit : 100;
         const items = all.slice(offset, offset + limit);
         const more = offset + limit < snapshot;
-        const asker = typeof b.playerId === 'string' && snapshot > 0 ? (known?.asker?.(b.playerId, order as RankingOrder) ?? { played: false as const }) : undefined;
-        return json(res, 200, JSON.parse(encodeRankingPage({ items, total: snapshot, ...(more ? { next: `${order}.${offset + limit}.${snapshot}` } : {}), ...(asker === undefined ? {} : { asker }) })));
+        const asker = typeof b.playerId === 'string' && snapshot > 0 ? (source?.asker?.(b.playerId, order as RankingOrder) ?? { played: false as const }) : undefined;
+        return json(res, 200, JSON.parse(encodeRankingPage({ items, total: snapshot, ...(more ? { next: `${order}.${offset + limit}.${snapshot}${period === undefined ? '' : `.${period}`}` } : {}), ...(asker === undefined ? {} : { asker }) })));
       }
       if (path === `/matches/${MATCH_ID}`) return json(res, 200, JSON.parse(encodePublicMatch(state.match)));
       if (path === `/matches/${MATCH_ID}/events`) {
@@ -227,6 +235,7 @@ export async function startFake(options: FakeOptions = {}): Promise<Fake> {
     historyError: undefined,
     ranking: new Map<string, FakeRanking>(),
     rankingError: undefined,
+    refusePeriod: false,
     down: false,
     pageSize: 500,
     predictions: [],
