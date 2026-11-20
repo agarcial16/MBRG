@@ -4,6 +4,7 @@ import { EMBED_LIMITS, fitEmbed } from '../src/core/limits';
 import { HISTORY_PAGE_SIZE, historyEmbed, historyEmpty, historyLink } from '../src/core/history';
 import type { HistoryContext } from '../src/core/history';
 import { nameBook } from '../src/core/names';
+import { STRINGS } from '../src/core/strings';
 import { embedPayload, messagePayload } from '../src/discord/translate';
 
 const VIEWER = 'https://viewer.example/play';

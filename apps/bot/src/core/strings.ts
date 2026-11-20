@@ -37,9 +37,14 @@ export const STRINGS = {
   boardExpired: 'Esta clasificación caducó. Usa /mbrg board para verla de nuevo.',
   playerFallback: 'Jugador',
 
-  // History of the finished matches of a Discord server (spec 024 FR-554, FR-556).
+  // History of the finished matches of a Discord server (spec 024 FR-554, FR-556; presentation pass: spec 026).
   historyTitle: 'Partidas terminadas',
-  historyEntry: '{date} · {map}',
+  historyEntry: '#{n} · {date} · {map}',
+  historyGold: '🥇 {who} {points}',
+  historySilver: '🥈 {who} {points}',
+  historyBronze: '🥉 {who} {points}',
+  historyTopRow: '{n}. {who} {points}',
+  historySep: ' · ',
   historyWinner: 'Ganó **{winner}** · {players}',
   historyPlayersOne: '1 jugador',
   historyPlayersMany: '{n} jugadores',

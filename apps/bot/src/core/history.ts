@@ -1,5 +1,5 @@
-// The history of the finished matches of a Discord server (spec 024 FR-554 to FR-556, FR-559). Pure: a page of the history comes in,
-// the embed, its plain-text fallback and the empty sentence come out. Names come only from Discord (mentions) or the server's own row
+// The history of the finished matches of a Discord server (spec 024 FR-554 to FR-556, FR-559; presentation pass: spec 026). Pure: a page of the history
+// comes in, the embed, its plain-text fallback and the empty sentence come out. Names come only from Discord (mentions) or the server's own row
 // (as the leaderboard, 017 FR-483); everything shown is already public data of a finished match (008 FR-246).
 import type { HistoryEntry, HistoryPage, HistoryTopRow } from '@mbrg/protocol';
 import { clampPage } from './board';
@@ -49,6 +49,18 @@ function whoOf(row: HistoryTopRow): string {
 
 const playersOf = (n: number): string => (n === 1 ? STRINGS.historyPlayersOne : fill(STRINGS.historyPlayersMany, { n }));
 
+/** The podium templates: the first three rows of a top show their medal, the rest their position number (spec 026). */
+const MEDALS = [STRINGS.historyGold, STRINGS.historySilver, STRINGS.historyBronze] as const;
+
+/** The top of an entry on one line: `🥇 <@a> 12 · 🥈 <@b> 9 · 🥉 <@c> 7 · 4. <@d> 5 · 5. <@e> 3`, with ` · y N más` at the end when
+ * rows above 0 were left out. The position is shown, not the server rank: equal points keep ties visible and the rank stays in the
+ * asker's line. Embeds stretch to the client width, so nothing is shortened for narrow clients. */
+function topLine(entry: HistoryEntry): string {
+  const cells = entry.top.map((row, index) => fill(MEDALS[index] ?? STRINGS.historyTopRow, { n: index + 1, who: whoOf(row), points: row.points }));
+  const more = entry.more > 0 ? [fill(STRINGS.historyMore, { n: entry.more })] : [];
+  return [...cells, ...more].join(STRINGS.historySep);
+}
+
 function askerLine(entry: HistoryEntry): string | undefined {
   const asker = entry.asker;
   if (asker === undefined) return undefined;
@@ -57,35 +69,46 @@ function askerLine(entry: HistoryEntry): string | undefined {
 
 interface Shown {
   readonly name: string;
-  /** The lines of the entry other than the viewer link. */
+  /** The lines of the entry other than the asker's line and the viewer link. */
   readonly lines: readonly string[];
+  readonly own: string | undefined;
   readonly link: string | undefined;
 }
 
-function shown(entry: HistoryEntry, ctx: HistoryContext): Shown {
+function shown(entry: HistoryEntry, ctx: HistoryContext, ordinal: number): Shown {
   const map = ctx.mapName?.(entry.mapId) ?? entry.mapId;
-  const name = fill(STRINGS.historyEntry, { date: `<t:${Math.floor(entry.finishedAt / 1000)}:d>`, map });
+  const name = fill(STRINGS.historyEntry, { n: ordinal, date: `<t:${Math.floor(entry.finishedAt / 1000)}:d>`, map });
   const winner = fill(STRINGS.historyWinner, { winner: ctx.book(entry.mapId).nameOf(entry.winner), players: playersOf(entry.playerCount) });
-  const rows = entry.top.length === 0 ? [STRINGS.historyNobody] : entry.top.map((row) => fill(STRINGS.boardRow, { rank: row.rank, who: whoOf(row), points: row.points }));
-  const more = entry.more > 0 ? [fill(STRINGS.historyMore, { n: entry.more })] : [];
-  const own = askerLine(entry);
-  return { name, lines: [winner, ...rows, ...more, ...(own === undefined ? [] : [own])], link: historyLink(ctx.viewerUrl, entry.matchId) };
+  const top = entry.top.length === 0 ? STRINGS.historyNobody : topLine(entry);
+  return { name, lines: [winner, top], own: askerLine(entry), link: historyLink(ctx.viewerUrl, entry.matchId) };
+}
+
+/** The viewer link as it renders: a markdown link in the embed, the bare address in the plain-text fallback (FR-475). */
+const linkOf = (url: string, embed: boolean): string => (embed ? `[${STRINGS.viewerButton}](${url})` : url);
+
+/** The lines of an entry as rendered: the link rides the asker's line; an entry without an asker keeps the link as its own last
+ * line (spec 026). */
+function valueLines(entry: Shown, embed: boolean): readonly string[] {
+  const link = entry.link === undefined ? undefined : linkOf(entry.link, embed);
+  return [...entry.lines, ...(entry.own === undefined ? (link === undefined ? [] : [link]) : [entry.own + (link === undefined ? '' : `${STRINGS.historySep}${link}`)])];
 }
 
 /** The reply for a community with no counted match: one sentence, no embed, no buttons (FR-556). */
 export const historyEmpty = (): OutMessage => ({ text: STRINGS.historyEmpty, buttons: [] });
 
 /**
- * One page of the history as an embed with its plain-text twin (FR-475). The message has no buttons here: the paging buttons are added
- * by the paging of the message (FR-555).
+ * One page of the history as an embed with its plain-text twin (FR-475). The field name of an entry carries its ordinal in the
+ * whole history, newest first, computed from the walk's snapshot total and the page offset (spec 026). The message has no buttons
+ * here: the paging buttons are added by the paging of the message (FR-555).
  */
 export function historyEmbed(page: HistoryPage, ctx: HistoryContext): OutMessage {
   if (page.items.length === 0) return historyEmpty();
   const pages = historyPageCount(page.total);
-  const footer = fill(STRINGS.boardPage, { page: clampPage(ctx.page, pages), pages });
-  const entries = page.items.map((entry) => shown(entry, ctx));
-  const fields: EmbedField[] = entries.map((e) => ({ name: e.name, value: [...e.lines, ...(e.link === undefined ? [] : [`[${STRINGS.viewerButton}](${e.link})`])].join('\n') }));
-  const text = [STRINGS.historyTitle, ...entries.flatMap((e) => [e.name, ...e.lines, ...(e.link === undefined ? [] : [e.link])]), footer].join('\n');
+  const shownPage = clampPage(ctx.page, pages);
+  const footer = fill(STRINGS.boardPage, { page: shownPage, pages });
+  const entries = page.items.map((entry, index) => shown(entry, ctx, page.total - (shownPage - 1) * HISTORY_PAGE_SIZE - index));
+  const fields: EmbedField[] = entries.map((e) => ({ name: e.name, value: valueLines(e, true).join('\n') }));
+  const text = [STRINGS.historyTitle, ...entries.flatMap((e) => [e.name, ...valueLines(e, false)]), footer].join('\n');
   return { text, buttons: [], embed: { color: COLOR, title: STRINGS.historyTitle, fields, footer } };
 }
 
