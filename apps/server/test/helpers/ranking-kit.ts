@@ -1,6 +1,6 @@
 import type { ClientReply } from './http-client';
 import { request } from './http-client';
-import { DISCORD, KEY_A, WEB, createCommunityMatch, playMatch, startHistory } from './history-kit';
+import { DISCORD, KEY_A, WEB, createCommunityMatch, playMatch, startHistory, walk } from './history-kit';
 import type { Client, Made, Player } from './history-kit';
 import type { ServerHarness } from './server-harness';
 
@@ -75,6 +75,42 @@ export async function populateRanking(h: ServerHarness, options: { scripted?: bo
   return { matches };
 }
 
+/** The player of the oldest match of the spread population, who plays no other: a row only all time (and not the month) holds. */
+export const OLD: RankPlayer = { client: DISCORD, local: 'u00', name: 'Old Timer', victim: 'right', absorber: 'wrong', winner: 'wrong' };
+
+/** The spread population: the first match has a fourth player, the others are the population of the ranking kit's. */
+export const SPREAD_POPULATION: readonly (readonly RankPlayer[])[] = [[ANA, BEA, CAL, OLD], ...POPULATION.slice(1)];
+
+/** The finish instants of a spread community: newest match last, as `matches`. */
+export interface Spread extends Ranked {
+  /** The finish instant of each match, in the same order as `matches` (read back from the history of the community). */
+  readonly finishedAt: readonly number[];
+}
+
+/**
+ * The ranking community spread over time (spec 027): the seven matches of `SPREAD_POPULATION` (KEY_A, Discord namespace), the
+ * fake clock moving `gapMs` between the end of one match and the creation of the next, so the finish instants are planted by
+ * the injected clock alone. With the default gap of 5.5 days the matches end about 33, 27.5, 22, 16.5, 11, 5.5 and 0 days
+ * before the clock: the last 7 days hold the last two, the last 30 days the last six, all time the seven. Each finish instant
+ * is read back from the history (never computed), so a test can set the clock to the exact floor of a match.
+ */
+export async function populateSpread(h: ServerHarness, gapMs = 475_200_000): Promise<Spread> {
+  const matches: Made[] = [];
+  for (const [i, players] of SPREAD_POPULATION.entries()) {
+    if (i > 0) h.clock.advance(gapMs);
+    const made = await createCommunityMatch(h, DISCORD, `s-${i}`, KEY_A);
+    playMatch(h, made, players, i === 0);
+    matches.push(made);
+  }
+  const listed = (await walk(h, DISCORD, { community: KEY_A }, 500)).pages.flatMap((p) => p.items);
+  const finishedAt = matches.map((m) => {
+    const item = listed.find((entry) => entry.matchId === m.id);
+    if (item === undefined) throw new Error('a spread match is not in the history');
+    return item.finishedAt as number;
+  });
+  return { matches, finishedAt };
+}
+
 /** `POST /ranking` with an optional bearer token. */
 export const postRanking = (h: ServerHarness, token: string | undefined, body: unknown, path = '/ranking'): Promise<ClientReply> =>
   request(h.port, { method: 'POST', path, body, headers: token === undefined ? {} : { authorization: `Bearer ${token}` } });
@@ -82,6 +118,8 @@ export const postRanking = (h: ServerHarness, token: string | undefined, body: u
 export interface RankingBody {
   readonly community: string;
   readonly order?: string;
+  /** Spec 027: `last-7-days` or `last-30-days` (`all` and absent are the same request). */
+  readonly period?: string;
   readonly playerId?: string;
   readonly limit?: number;
   readonly cursor?: string;
