@@ -43,11 +43,16 @@ export function periodOf(word: string | undefined): RankingPeriod | undefined {
   return PERIOD_WORDS.find(([known]) => known === typed)?.[1];
 }
 
-/** What the shell knows of the page it shows: its number and the last row of the page before it (none on page 1), which tells where the unranked tail begins. */
+/** The days a time window covers (spec 027): the number its title and its sentences name. */
+export const PERIOD_DAYS: Readonly<Record<TimePeriod, number>> = { 'last-7-days': 7, 'last-30-days': 30 };
+
+/** What the shell knows of the page it shows: its number, the last row of the page before it (none on page 1), which tells where the unranked tail begins, and its time window (none: all time). */
 export interface RankingContext {
   /** The page number shown, from 1. */
   readonly page: number;
   readonly previous?: RankingRow;
+  /** The time window of the ranking shown (spec 027 FR-580); none is all time. */
+  readonly period?: TimePeriod;
 }
 
 /** The statistics of a player, as a row or the asker's own line carries them. */
@@ -105,16 +110,16 @@ function noteAt(items: readonly RankingRow[], previous: RankingRow | undefined):
 }
 
 /** The "Tu puesto" value of the asker; none in the accuracy order for an asker who is not qualified (their row is in the tail). */
-function askerValue(page: RankingPage, order: RankingOrder): string | undefined {
+function askerValue(page: RankingPage, order: RankingOrder, period: TimePeriod | undefined): string | undefined {
   const asker = page.asker;
   if (asker === undefined) return undefined;
-  if ('played' in asker && asker.played === false) return STRINGS.rankingNotPlayed;
+  if ('played' in asker && asker.played === false) return period === undefined ? STRINGS.rankingNotPlayed : fill(STRINGS.rankingNotPlayedDays, { n: PERIOD_DAYS[period] });
   if (typeof asker.played !== 'number' || !('points' in asker) || asker.rank === undefined) return undefined;
   return fill(STRINGS.rankingOwn, { rank: asker.rank, stats: statsText(asker, order) });
 }
 
-/** The reply for a community with no counted match: one sentence, no embed, no buttons (FR-570). */
-export const rankingEmpty = (): OutMessage => ({ text: STRINGS.rankingEmpty, buttons: [] });
+/** The reply for a community with no counted match, or none in the time window: one sentence, no embed, no buttons (FR-570, spec 027 FR-582). */
+export const rankingEmpty = (period?: TimePeriod): OutMessage => ({ text: period === undefined ? STRINGS.rankingEmpty : fill(STRINGS.rankingEmptyDays, { n: PERIOD_DAYS[period] }), buttons: [] });
 
 /** The reply when the server refuses or cannot answer: one sentence the member alone sees (FR-571). */
 export const rankingUnavailable = (): Reply => ({ type: 'text', text: STRINGS.rankingUnavailable });
@@ -124,14 +129,14 @@ export const rankingUnavailable = (): Reply => ({ type: 'text', text: STRINGS.ra
  * added by the paging of the message.
  */
 export function rankingEmbed(page: RankingPage, order: RankingOrder, ctx: RankingContext): OutMessage {
-  if (page.items.length === 0) return rankingEmpty();
+  if (page.items.length === 0) return rankingEmpty(ctx.period);
   const pages = rankingPageCount(page.total);
   const footer = fill(STRINGS.boardPage, { page: clampPage(ctx.page, pages), pages });
   const lines = page.items.map((row) => lineOf(row, order));
   const note = noteAt(page.items, ctx.previous);
   if (note !== -1) lines.splice(note, 0, STRINGS.rankingUnrankedNote);
-  const own = askerValue(page, order);
-  const title = STRINGS.rankingTitle;
+  const own = askerValue(page, order, ctx.period);
+  const title = ctx.period === undefined ? STRINGS.rankingTitle : fill(STRINGS.rankingTitleDays, { n: PERIOD_DAYS[ctx.period] });
   const text = [title, ...lines, footer, ...(own === undefined ? [] : [`${STRINGS.boardOwnField}: ${own}`])].join('\n');
   return {
     text,
