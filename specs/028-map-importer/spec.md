@@ -1,5 +1,5 @@
 # Spec 028 — Map importer (vector route)
-Status: draft (presented 2026-11-21, route chosen by the user: vector first, painted later; amended 2026-11-21 with the user's answers to OQ5 and OQ6)
+Status: approved (2026-11-21, by the user via the orchestrator: vector route first, painted later; amended the same day with the user's answers to OQ5 and OQ6)
 Tier: Full SDD (a new map source: whatever it writes is read by the server's map checks and the viewer, and a bad package halts matches). Depends on 001/002 (map format, validation, sea zones, land + sea connectivity), 003a (presentation data, id image values, contact adjacency, names, colours), 003b (projection, centre-point rasterization, sea seeds, piece cleanup, self-check, atomic write, report, preview, extraction step, libraries), 003c (enclosed water, amended cleanup), 004 (viewer package checks, capability check, faction colours) and 008 (map list, map digest). Ids: FR-586 to FR-614, NFR-132 to NFR-138.
 
 Answers of 2026-11-21 (user, via orchestrator), both different from the draft's recommendation:
