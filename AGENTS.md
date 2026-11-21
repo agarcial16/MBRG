@@ -30,11 +30,11 @@ Flow, templates, plan/tasks rules: `.claude/skills/sdd/SKILL.md`.
 Rules name a tier, never a model. One table maps tiers to models.
 | Tier | Use | Primary | Fallbacks in order |
 |---|---|---|---|
-| strong | Full-SDD coordination; planner/reviewer touching secrecy, determinism, persistence | claude-opus-5-5 | antigravity/claude-opus-5-5 (its own quota) → opencode-go/glm-5.3, and an Opus review before merge |
-| medium | implementer; Light-SDD planner/reviewer; small Full-SDD milestones | claude-sonnet-5-5 | antigravity/claude-sonnet-5-5 → opencode-go/glm-5.3 |
+| strong | Full-SDD coordination; planner/reviewer touching secrecy, determinism, persistence | claude-opus-5-5 | antigravity/gemini-4-neon (thought high; Opus on antigravity only when its quota has clear headroom - it drains it fast) → opencode-go/glm-5.3, and an Opus review before merge |
+| medium | implementer; Light-SDD planner/reviewer; small Full-SDD milestones | claude-sonnet-5-5 | antigravity/gemini-4-neon → opencode-go/glm-5.3 |
 | mechanical | status marks, renames, copy, file moves, run tests and summarize, code search | claude-haiku-5-5 | opencode-go/deepseek-v4.1-flash |
 | image | visual exploration and art mockups | antigravity (Gemini image generation) | HTML + headless Chrome, for pixel-faithful Discord mocks |
-- Antigravity runs child tasks with worktree isolation like the rest, and its Claude models ride a separate quota: a 5-hour limit on one subscription no longer strands a milestone.
+- Antigravity runs child tasks with worktree isolation like the rest; prefer its Gemini models there (the Claude models on that subscription drain its quota quickly), and remember its quota is separate: a limit on one subscription no longer strands a milestone.
 - Optional cross-family second reviewer (e.g. GLM or Gemini reviewing Sonnet work).
 - DeepSeek never reviews and never touches `sim`, `shared` or `protocol`.
 - OpenCode agents for the fallback: `.opencode/agents/`.
