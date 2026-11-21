@@ -13,7 +13,7 @@ import { checkReveal, parseAddress, problemMessage, revealAfterRoundChange, reve
 import { initialCamera, screenToMap } from '../core/camera';
 import { factionIndexOf } from '../core/entries';
 import type { Camera, ScreenPoint, Viewport } from '../core/camera';
-import { capabilityMessage, checkCapabilities } from '../core/capabilities';
+import { capabilityMessage, checkCapabilities, checkCounts } from '../core/capabilities';
 import { assignFactionColors, paletteMessage } from '../core/colors';
 import { debugTourState, digestLine, drawnScene, frameTextLine, revealRequests } from '../core/debug-reveal';
 import { navigate, parseTypedRound, typedRoundMessage } from '../core/navigation';
@@ -70,6 +70,11 @@ async function start(): Promise<void> {
   const map = pkg.map as MapData;
   const presentation = pkg.presentation as PresentationData;
   const entryCount = map.territories.length;
+
+  // The viewer's own tables refuse the counts first (spec 029): the named cause is the viewer's
+  // limit, never a browser fact or a palette row, and the load stops before the drawing setup.
+  const refusals = checkCounts(map);
+  if (refusals.length > 0) return showError(capabilityMessage(refusals[0]!));
 
   const problems = checkCapabilities(probeCapabilities(), pkg.width, pkg.height, entryCount + 1);
   if (problems.length > 0) return showError(capabilityMessage(problems[0]!));
