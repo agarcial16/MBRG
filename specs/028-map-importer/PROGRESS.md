@@ -1,0 +1,13 @@
+# PROGRESS 028 — Map importer (vector route)
+
+## 2026-11-21 — Plan revision after the strong-tier review (docs only)
+Branch: `t3/028-plan-revision-glm`, pushed to `origin/docs/028-spec-draft`. State: plan and tasks revised for the user's approval; no code touched, no implementation started.
+
+What changed (docs only; six reviewer objections plus two minor FR-611 items):
+- `spec.md`: PD6 amendment per the user's quoted decision ("A: insets recentran") — FR-600's 0° central meridian now applies to the main map only; FR-601 insets keep their own central meridian lon0; longitudes wrap as `lon − lon0` into (−180, 180] and `antimeridian-edge` is judged per view (answers block + status line + out-of-scope wording updated).
+- `plan.md`: rewritten from 14.4 KB to ~6.3 KB (the ~6 KB SDD cap). New content: the own sea pass of section 4 (why `core/sea.ts` is not reused: fused BFS + private join, water stays water with no seeds, later source pixels overwrite earlier zones; six-step order: sources, enclosed-set isolation **before** zone assignment, gapFill before zones, BFS, 003c join, zero zones → background); the NFR-136 prototype task (T1.10) inside the plan confirming 120 s before M2; the `invalid-key` placement (curation stage, never `invalid-curation`); `factionBy { property: "adm0_a3" }` in the golden curation; the 288-provinces-merge-into-70-territories wording; the new-`importer-*.test.ts`-only rule.
+- `tasks.md` + `tasks-M1/M2/M3.md`: M1 is now 10 tasks (26 total); T1.1 also shifts the `FR-586`/`NFR-132` exclusion assertions of the 024/025/027 ledger tests (traceability.test.ts L1077/L1093/L1107); T1.9, T2.4 and T3.6 no longer edit `builder-purity.test.ts`, `builder-language.test.ts` or `libraries.test.ts` (new `importer-purity`, `importer-language`, `importer-libraries` test files carry the importer checks; exactly two existing test files change, as the rules claim); T1.5 passes over-length keys to the curation stage; T2.1–T2.3 produce and collect `invalid-key` (curated and generated keys); T2.5 wraps longitudes per view and judges `antimeridian-edge` against the view's own meridian; T2.7/T2.8 spell out the own zone pass and the isolation-before-assignment gapFill order; T3.2 gains `factionBy` and the 288→70 wording; T3.4 reuses the T1.10 generator; T3.6 pins the three 003b pin tests as never edited.
+
+Tests: none run (docs-only revision; no file under `packages/`, `apps/` or `tools/` was touched, per the brief).
+
+Next step: the user approves the revised plan on `docs/028-spec-draft` (or asks for changes); implementation then starts from `tasks.md` on `feat/028-map-importer`, with T1.1 and T1.10 first.
