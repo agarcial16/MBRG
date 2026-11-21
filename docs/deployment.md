@@ -50,7 +50,7 @@ Two variables are required; the rest have defaults:
 | Variable | Meaning | Default |
 |---|---|---|
 | `MBRG_OPERATOR_CREDENTIAL` | operator credential; the only one that may create running matches directly | **required** |
-| `MBRG_MAPS` | JSON object of map id -> package folder (holds `map.json`, `ids.png`, `presentation.json`), e.g. `{"dev":"/opt/mbrg/maps/dev"}`. Ids: `[a-z0-9-]{1,64}`. Use **absolute** paths: a relative path resolves from `apps/server`, the npm workspace cwd, and a wrong one fails map validation. | **required** |
+| `MBRG_MAPS` | JSON object of map id -> package folder (holds `map.json`, `ids.png`, `presentation.json`), e.g. `{"dev":"/opt/mbrg/maps/dev","spain-provinces":"/opt/mbrg/maps/spain-provinces","world-countries":"/opt/mbrg/maps/world-countries"}`. Predefined packages are committed under `maps/` (`dev`, `spain-provinces`, `world-countries`). Ids: `[a-z0-9-]{1,64}`. Use **absolute** paths: a relative path resolves from `apps/server`, the npm workspace cwd, and a wrong one fails map validation. | **required** |
 | `MBRG_CLIENTS` | JSON array of `{"namespace":"...","credential":"..."}`. Namespace `[a-z0-9]{1,16}`, `player` is reserved; duplicate namespaces/credentials, or a client credential equal to the operator's, are refused at start. | none |
 | `MBRG_DATABASE` | SQLite file path (or `:memory:`). Put it somewhere backed up. | `mbrg.sqlite` (cwd) |
 | `MBRG_HOST` / `MBRG_PORT` | listener bind. Keep `127.0.0.1` and put the reverse proxy in front. | `127.0.0.1` / `8787` |

@@ -3,7 +3,7 @@ Durable decisions, limits and lessons; no per-task diary (that is `specs/<id>/PR
 
 ## State
 Specs 001-027 implemented. Branch from `main`, PR into `main`.
-Next big feature: the map importer (image in, playable map out). Next candidate behind it: viewer replay of finished matches. Deployment guide done (#84).
+Predefined maps: `maps/spain-provinces` (52 provinces) and `maps/world-countries` (193 sovereign countries, 7 sea zones; data in `tools/build-map/data/world-countries/`, provenance and micro-country decisions in its README). Next big feature: the map importer. Deployment guide done (#84).
 
 ## Game
 Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random alive faction dies; a random neighbor takes all its territories; repeat until one remains. Players predict; they never control.
@@ -12,6 +12,7 @@ Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random
 - TypeScript everywhere: one deterministic engine for browser, server, bot and tests. Tag `legacy-v0.1` keeps the old code.
 - Three.js/WebGL, EU4 technique (id texture + owner palette + shader borders): 3D later = camera/material change.
 - Map package = `map.json` + `ids.png` + `presentation.json`, built offline by `tools/build-map`; adjacency = 4-connected pixel contact, no hand-written links; importers only convert to it.
+- Predefined maps are data-only (builder source never changes): each has its own `tools/build-map/data/<map>/` dir (inner `natural-earth/` + `dev-map/` names are fixed by the CLI). One faction per admin unit via an `adm1_code := adm0_a3` (or the reverse) rewrite in the committed subset; the world map uses the 1:50m admin-0 dataset provided under the extract CLI's fixed 1:10m file names (documented in its README).
 - State stores owner per territory, so modes are rule changes, not model changes. Ids 1..16,777,215 (24-bit texture). Round k uses `roundRng(seed, k)`: any round is computable alone.
 - Per-server history (024): the bot sends only a SHA-256 community key (never the guild id), in request bodies; a finished match is listed once settled (> `TOLERANCE_MS` after its finish) so a paging walk keeps one snapshot.
 - Ranking windows (027): rolling 7/30 days; the server fixes the floor at the first page and the cursor carries it; wire member `period` (absent = all time).
