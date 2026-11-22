@@ -1,0 +1,24 @@
+{
+  "primary": "primary.json",
+  "context": ["context.json"],
+  "columns": { "key": "code", "name": ["name"] },
+  "select": [
+    { "property": "from", "gte": "1900-01-01" },
+    { "property": "to", "lte": "2000-01-01" }
+  ],
+  "exclude": ["VIEJO"],
+  "params": { "side": 128, "margin": 0.02, "minPieceSize": 4, "projection": "laea", "gapFill": 20 },
+  "units": {
+    "MAR": { "kind": "sea" },
+    "SUR": { "faction": "C3" }
+  },
+  "territoryBy": { "property": "region", "nameProperty": "region_name" },
+  "factions": [
+    { "key": "C1", "name": "Faccion Uno" },
+    { "key": "C2", "name": "Faccion Dos" },
+    { "key": "C3", "name": "Faccion Tres" }
+  ],
+  "factionBy": { "property": "country" },
+  "seas": [{ "name": "Mar Abierto", "lon": -10, "lat": 40 }],
+  "insets": [{ "select": [{ "property": "region", "eq": "ISLANDS" }], "at": [100, 2] }]
+}
