@@ -43,7 +43,8 @@ describe('NFR-133 the importer adds no dependency', () => {
   });
 
   it('NFR-133 the importer sources import only relative files, the shared package and the node:zlib exemption', () => {
-    expect(Object.keys(importerSources).length).toBeGreaterThan(10);
+    expect(Object.keys(importerSources)).toHaveLength(22);
+    expect(Object.keys(cliSources)).toHaveLength(3);
     const offenders: string[] = [];
     for (const [file, src] of Object.entries(importerSources)) {
       for (const spec of specifiers(src)) {

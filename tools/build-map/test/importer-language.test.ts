@@ -440,28 +440,29 @@ async function allErrors(): Promise<Err[]> {
 }
 
 const sources = import.meta.glob('../src/importer/**/*.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const cliSources = import.meta.glob(['../src/cli/import.ts', '../src/cli/scale-prototype.ts', '../src/cli/scale-import.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
-describe('the language of the importer', () => {
-  it('the curation kind order in the source equals the literal list', () => {
+describe('NFR-137 the language of the importer', () => {
+  it('NFR-137 the curation kind order in the source equals the literal list', () => {
     expect(CURATION_KIND_ORDER[0]).toBe('invalid-curation');
     expect(CURATION_KIND_ORDER).toHaveLength(20);
   });
 
-  it('every importer error kind produced is in the literal list, and every listed kind is produced', async () => {
+  it('NFR-137 every importer error kind produced is in the literal list, and every listed kind is produced', async () => {
     const kinds = new Set((await allErrors()).map((e) => e.kind as string));
     for (const k of kinds) expect(IMPORTER_KINDS).toContain(k);
     // 'invalid-input' is the builder's own kind, reused by the extract mode with English reasons
     expect([...kinds].sort()).toStrictEqual([...IMPORTER_KINDS].sort());
   });
 
-  it('every key of every produced error is a listed data field, and every listed field is produced', async () => {
+  it('NFR-137 every key of every produced error is a listed data field, and every listed field is produced', async () => {
     const produced = new Set<string>();
     for (const e of await allErrors()) for (const k of Object.keys(e)) produced.add(k);
     for (const k of produced) expect(ALLOWED_KEYS, k).toContain(k);
     expect([...produced].sort()).toStrictEqual([...ALLOWED_KEYS].sort());
   });
 
-  it('every reason, cap name and error text is English ASCII, and the source reasons and cap names are the listed ones', async () => {
+  it('NFR-137 every reason, cap name and error text is English ASCII, and the source reasons and cap names are the listed ones', async () => {
     const all = await allErrors();
     const reasons = new Set(all.filter((e) => e.kind === 'invalid-source').map((e) => e.reason as string));
     expect([...reasons].sort()).toStrictEqual([...INVALID_SOURCE_REASONS].sort());
@@ -478,7 +479,7 @@ describe('the language of the importer', () => {
     for (const reason of inputReasons) expect(reason).toMatch(/^[a-z][a-z ]+$/);
   });
 
-  it('the inspect summary uses the listed English labels and the listed value type names', () => {
+  it('NFR-137 the inspect summary uses the listed English labels and the listed value type names', () => {
     const r = readSource({ file: 's', bytes: bytesOf(collection([feat({ a: 'x' }, polygon(0, 0))])) }, { usedProperties: [] });
     if (!r.ok) throw new Error('the source should read');
     const { summary } = inspectSource(r.value, 's.geojson');
@@ -490,21 +491,34 @@ describe('the language of the importer', () => {
     expect([...VALUE_TYPES]).toStrictEqual(VALUE_TYPE_NAMES);
   });
 
-  it('the US spelling color is used and colour appears in no importer kind, field, label or source', async () => {
-    expect([...IMPORTER_KINDS, ...DATA_FIELDS, ...SUMMARY_LABELS, ...PROPERTY_LABELS, ...CURATION_KIND_ORDER].some((s) => /colour/i.test(s))).toBe(false);
+  it('NFR-137 the US spelling color is used and colour appears in no importer kind, field, label or source', async () => {
+    expect(
+      [
+        ...IMPORTER_KINDS,
+        ...DATA_FIELDS,
+        ...SUMMARY_LABELS,
+        ...PROPERTY_LABELS,
+        ...CURATION_KIND_ORDER,
+        ...REPORT_LABELS,
+        ...REPORT_SECTION_LABELS,
+        ...REPORT_WARNING_LABELS,
+        ...REPORT_ITEM_WORDS,
+      ].some((s) => /colour/i.test(s)),
+    ).toBe(false);
     expect(CURATION_KIND_ORDER).toContain('invalid-color');
     expect(JSON.stringify(await allErrors())).not.toMatch(/colour/i);
-    for (const [file, src] of Object.entries(sources)) expect(/colour/i.test(src), file).toBe(false);
+    for (const [file, src] of Object.entries({ ...sources, ...cliSources })) expect(/colour/i.test(src), file).toBe(false);
   });
 
-  it('every importer source is ASCII-only', () => {
-    const files = Object.keys(sources);
-    expect(files.length).toBeGreaterThanOrEqual(9);
-    const offenders = files.filter((f) => /[^\x00-\x7f]/.test(sources[f]!));
+  it('NFR-137 every importer source and CLI file is ASCII-only', () => {
+    const allSources = { ...sources, ...cliSources };
+    expect(Object.keys(sources)).toHaveLength(22);
+    expect(Object.keys(cliSources)).toHaveLength(3);
+    const offenders = Object.keys(allSources).filter((f) => /[^\x00-\x7f]/.test(allSources[f]!));
     expect(offenders).toStrictEqual([]);
   });
 
-  it('the import report uses the listed English labels, section labels, warnings and item words', async () => {
+  it('NFR-137 the import report uses the listed English labels, section labels, warnings and item words', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'mbrg-report-language-'));
     try {
       const curation = smallImportFiles(dir);

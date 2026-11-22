@@ -1,16 +1,26 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { extractGeo } from '../src/importer/extract-geo';
 import { ErrorCollector } from '../src/importer/errors';
 import { parseCuration } from '../src/importer/curation';
+import { buildPackage } from '../src/importer/import';
 import { inspectSource } from '../src/importer/inspect';
+import { readDbfHeader, readDbfRows } from '../src/importer/read-dbf';
 import { readSource, readSources } from '../src/importer/read-source';
+import { formatImportReport } from '../src/importer/report';
 import { generateScaleFixture } from '../src/importer/scale-fixture';
 import { selectUnits } from '../src/importer/select';
+import { sha256Hex } from '../src/importer/sha256';
 import { buildUnits } from '../src/importer/units';
 import type { ShpGeometry } from '../src/importer/types';
+import { pngCodec } from '../src/io/png-codec';
 import { dbfRaw } from './helpers/dbf-fixture';
 import { bytesOf, collection, feat, multi, polygon, ring, textBytes } from './helpers/geo-fixture';
 import { codeOnly, scanSource } from './helpers/scan';
+
+const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 // The importer sources are a scanned pure core (the same scan as the builder core, extended by this file only).
 const importerSources = import.meta.glob('../src/importer/**/*.ts', {
@@ -19,8 +29,8 @@ const importerSources = import.meta.glob('../src/importer/**/*.ts', {
   eager: true,
 }) as Record<string, string>;
 
-describe('the source scan of the importer core', () => {
-  it('the scan covers every importer source written so far and none of the adapters', () => {
+describe('NFR-134 the source scan of the importer core', () => {
+  it('NFR-134 the scan covers every importer source and none of the adapters', () => {
     const files = Object.keys(importerSources).sort();
     expect(files).toStrictEqual([
       '../src/importer/check-curation.ts',
@@ -49,7 +59,7 @@ describe('the source scan of the importer core', () => {
     expect(files.some((f) => f.includes('/cli/') || f.includes('/io/') || f.includes('/extract/'))).toBe(false);
   });
 
-  it('the importer core uses no file, clock, randomness, network or other built-in module', () => {
+  it('NFR-134 the importer core uses no file, clock, randomness, network or other built-in module', () => {
     const violations: string[] = [];
     for (const [file, src] of Object.entries(importerSources)) {
       for (const v of scanSource(src)) violations.push(`${file}: ${v}`);
@@ -126,12 +136,24 @@ function withoutClock<T>(body: () => T): T {
 
 const same = (a: Uint8Array, b: Uint8Array): boolean => Buffer.from(a).equals(Buffer.from(b));
 
-describe('the importer cores take bytes in and give bytes out, whatever the clock says', () => {
+describe('NFR-134 the importer cores take bytes in and give bytes out, whatever the clock says', () => {
   const sourceBytes = bytesOf(
     collection([feat({ code: 'A', name: 'Alfa', n: 1 }, polygon(0, 0)), feat({ code: 'B', name: 'Beta' }, multi([2, 0], [4, 0])), feat(null, null)]),
   );
 
-  it('the extract core runs twice with byte-identical output while the clock and randomness throw', () => {
+  it('NFR-134 the dbf reader runs twice with identical rows while the clock and randomness throw', () => {
+    const dbf = dbfRaw([{ name: 'NAME', type: 'C', length: 12 }], [['Alfa'], ['  Beta']]);
+    const read = () => {
+      const header = readDbfHeader(dbf);
+      if (!header.ok) throw new Error('the dbf header should read');
+      return readDbfRows(dbf, header.value, 'utf-8', ['NAME']);
+    };
+    const [a, b] = withoutClock(() => [read(), read()]);
+    expect(a!.ok && b!.ok).toBe(true);
+    expect(a).toStrictEqual(b);
+  });
+
+  it('NFR-134 the extract core runs twice with byte-identical output while the clock and randomness throw', () => {
     const geometries: ShpGeometry[] = [
       { type: 'Polygon', coordinates: [ring(0, 0) as [number, number][]] },
       { type: 'MultiPolygon', coordinates: [[ring(2, 0) as [number, number][]], [ring(4, 0) as [number, number][]]] },
@@ -182,4 +204,47 @@ describe('the importer cores take bytes in and give bytes out, whatever the cloc
     expect(a).toBe(b);
     expect(a!.length).toBeGreaterThan(100);
   });
+
+  it(
+    'NFR-134 the whole import core (including the real PNG codec, SHA-256 and report) runs twice byte-identical while the clock and randomness throw',
+    () => {
+      const sample = join(repo, 'tools', 'build-map', 'data', 'importer', 'sample');
+      const curationBytes = Uint8Array.from(readFileSync(join(sample, 'curation.json')));
+      const primaryBytes = Uint8Array.from(readFileSync(join(sample, 'primary.json')));
+      const contextBytes = Uint8Array.from(readFileSync(join(sample, 'context.json')));
+      const run = () => {
+        const curation = parseCuration(curationBytes, 'curation.json');
+        if (!curation.ok) throw new Error('the sample curation should parse');
+        const outcome = buildPackage({
+          curation: curation.value,
+          primary: { file: 'primary.json', bytes: primaryBytes },
+          context: [{ file: 'context.json', bytes: contextBytes }],
+          codec: pngCodec,
+        });
+        if (!outcome.ok) throw new Error('the sample import should succeed');
+        const rawBytes = [primaryBytes, contextBytes];
+        const report = formatImportReport({
+          curation: { file: 'curation.json', sha256: sha256Hex(curationBytes) },
+          sources: outcome.details.sources.map((s, i) => ({
+            file: s.file,
+            sha256: sha256Hex(rawBytes[i]!),
+            features: s.features.length,
+            skippedNull: s.skippedNull,
+          })),
+          details: outcome.details,
+          map: outcome.map,
+          presentation: outcome.presentation,
+          width: outcome.width,
+          pixels: outcome.pixels,
+        });
+        return { files: outcome.files, report };
+      };
+      const [a, b] = withoutClock(() => [run(), run()]);
+      expect(same(a!.files.map, b!.files.map)).toBe(true);
+      expect(same(a!.files.presentation, b!.files.presentation)).toBe(true);
+      expect(same(a!.files.image, b!.files.image)).toBe(true);
+      expect(a!.report).toBe(b!.report);
+    },
+    60_000,
+  );
 });
