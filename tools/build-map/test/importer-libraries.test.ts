@@ -11,7 +11,7 @@ const repo = join(here, '..', '..', '..');
 const readJson = (...parts: string[]): any => JSON.parse(readFileSync(join(repo, ...parts), 'utf8'));
 
 const importerSources = import.meta.glob('../src/importer/**/*.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
-const cliSources = import.meta.glob(['../src/cli/import.ts', '../src/cli/scale-prototype.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const cliSources = import.meta.glob(['../src/cli/import.ts', '../src/cli/scale-prototype.ts', '../src/cli/scale-import.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 /** The module specifiers a source imports, re-exports, requires or imports dynamically (comments stripped first). */
 function specifiers(src: string): string[] {
@@ -22,9 +22,9 @@ function specifiers(src: string): string[] {
 }
 
 describe('NFR-133 the importer adds no dependency', () => {
-  it('NFR-133 the builder manifest holds exactly the dependencies approved in 003b, at the same exact versions', () => {
+  it('NFR-133 the builder manifest holds exactly the dependencies approved in 003b, at the same exact versions, plus the protocol workspace dependency of T3.5 (PD3)', () => {
     const manifest = readJson('tools', 'build-map', 'package.json');
-    expect(manifest.dependencies).toStrictEqual({ '@mbrg/shared': '*', pngjs: '7.0.0', shapefile: '0.6.6' });
+    expect(manifest.dependencies).toStrictEqual({ '@mbrg/protocol': '*', '@mbrg/shared': '*', pngjs: '7.0.0', shapefile: '0.6.6' });
     expect(manifest.devDependencies).toStrictEqual({ '@types/node': '24.19.2', '@types/pngjs': '6.0.5', tsx: '4.23.15' });
     expect(manifest.peerDependencies).toBeUndefined();
     expect(manifest.optionalDependencies).toBeUndefined();
