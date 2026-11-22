@@ -18,3 +18,12 @@
 - Untested: real physical phone touch feel and live server match-creation roundtrip from the drawer (existing `mountCreate` shell unchanged).
 - State: ready for reviewer pass and PR merge into `main`.
 - Next step: reviewer inspects PR and visual before/after slider, then squash-merge into `main`.
+
+## Step 3 — Final verification, visual captures & PR
+- Branch: `feat/030-start-menu`.
+- Verified `npm run typecheck`, `npm run build` (all 4 WebP atlas plates present in `apps/web/dist/atlas/`), and Vite dev server serving `/` (landing) and `/atlas/*.webp` (`200 OK`, `RIFF/WEBP`).
+- Full test suite (`vitest run`, 132 files / 2111 tests): 127 files passed (1 skipped) on initial run; 4 untouched label/panel test files (`label-axis`, `label-input`, `label-steps`, `panel-text`) hit 5 s timeouts under parallel CPU load and passed 78/78 in 5.16 s when rerun without contention (`landing.test.ts` 12/12 passed).
+- Captured fresh desktop (1280x720) and mobile (390x844) before (`/?seed=1`, `main` root) and after (`/`, landing) screenshots under `.claude/review/030-start-menu/` with verified zero horizontal overflow (`scrollWidth === innerWidth`), and rendered the interactive before/after slider widget.
+- Untested: real physical phone touch feel and live server match-creation roundtrip from the drawer.
+- State: PR opened into `main`; awaiting reviewer pass and CI.
+- Next step: reviewer inspects PR and visual before/after captures, then squash-merge into `main`.
