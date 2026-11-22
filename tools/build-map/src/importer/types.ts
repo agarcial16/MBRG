@@ -52,3 +52,16 @@ export type SourceError =
       feature?: number;
       property?: string;
     };
+
+/** FR-590: a polygon geometry of a shapefile record as the shapefile adapter reads it (outer ring first, then holes). */
+export type ShpGeometry =
+  | { type: 'Polygon'; coordinates: [number, number][][] }
+  | { type: 'MultiPolygon'; coordinates: [number, number][][][] };
+
+/** FR-590: the errors of the extract mode (`invalid-input` is the builder's existing kind, with an English reason). */
+export type ExtractGeoError =
+  | { kind: 'unknown-dbf-encoding'; encoding: string }
+  | { kind: 'unknown-field'; field: string }
+  | { kind: 'invalid-dbf-text'; field: string; record: number }
+  | { kind: 'projected-crs' }
+  | { kind: 'invalid-input'; reason: string };

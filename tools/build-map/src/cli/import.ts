@@ -1,8 +1,11 @@
 import type { Result } from '@mbrg/shared';
 import { statSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import type { SourceError } from '../importer/types';
+import { openShpGeometry } from '../extract/read-shapefile';
+import { extractGeo, MAX_ROUND, MIN_ROUND } from '../importer/extract-geo';
+import { SOURCE_CAPS } from '../importer/read-source';
+import type { ExtractGeoError, SourceError } from '../importer/types';
 import { realFs, type FsOps } from '../io/fs-ops';
 
 /** The file operations of the import command: those of the builder plus the size of a file (`stat`, never a read). */
@@ -52,9 +55,136 @@ export type ImportMode = (typeof IMPORT_MODES)[number];
 
 export const IMPORT_USAGE = `usage: import-map ${IMPORT_MODES.join('|')} [options]`;
 
+const EXTRACT_USAGE =
+  'usage: import-map extract --shp=<file.shp> --out=<file.geojson> [--keep=<name,...>] ' +
+  '[--encoding=<utf-8|windows-1252|iso-8859-1>] [--round=<6..15>]';
+
+interface ExtractOptions {
+  shp: string;
+  out: string;
+  keep?: string[];
+  encoding?: string;
+  round?: number;
+}
+
+/** Every option needs a non-empty value after `=`, and none may be given twice. */
+function parseExtractArgs(args: string[], root: string): ExtractOptions | string {
+  const seen = new Map<string, string>();
+  for (const arg of args) {
+    const at = arg.indexOf('=');
+    const flag = at < 0 ? arg : arg.slice(0, at);
+    if (!['--shp', '--out', '--keep', '--encoding', '--round'].includes(flag)) return `unknown option: ${arg}`;
+    const value = at < 0 ? '' : arg.slice(at + 1);
+    if (value === '') return `missing value for ${flag}`;
+    if (seen.has(flag)) return `duplicate option: ${flag}`;
+    seen.set(flag, value);
+  }
+  const shp = seen.get('--shp');
+  const out = seen.get('--out');
+  if (shp === undefined) return 'the --shp file is required';
+  if (out === undefined) return 'the --out file is required';
+  const options: ExtractOptions = { shp: resolve(root, shp), out: resolve(root, out) };
+  const keep = seen.get('--keep');
+  if (keep !== undefined) {
+    options.keep = keep.split(',');
+    if (options.keep.some((name) => name === '')) return 'empty name in --keep';
+  }
+  const encoding = seen.get('--encoding');
+  if (encoding !== undefined) options.encoding = encoding;
+  const round = seen.get('--round');
+  if (round !== undefined) {
+    if (!/^\d+$/.test(round)) return `--round must be a whole number: ${round}`;
+    options.round = Number(round);
+    if (options.round < MIN_ROUND || options.round > MAX_ROUND) return `--round must be ${MIN_ROUND} to ${MAX_ROUND}`;
+  }
+  return options;
+}
+
+const arrayBufferOf = (bytes: Uint8Array): ArrayBuffer =>
+  bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+
+const invalidInput = (reason: string): ExtractGeoError => ({ kind: 'invalid-input', reason });
+
+/** The bytes of the first of `paths` that can be read, or undefined. */
+function firstReadable(fs: ImportFs, paths: readonly string[]): Uint8Array | undefined {
+  for (const path of paths) {
+    try {
+      return fs.readFile(path);
+    } catch {
+      // try the next spelling
+    }
+  }
+  return undefined;
+}
+
+/**
+ * FR-590: the extract mode. Reads `--shp` and the files next to it (`.dbf` required; `.cpg` and `.prj` optional), writes
+ * the source to `--out`. Errors are JSON lines on stderr; exit 0 success, 1 failure (nothing written), 2 usage error.
+ */
+export async function runExtractMode(args: string[], deps: ImportDeps): Promise<number> {
+  const options = parseExtractArgs(args, deps.root);
+  if (typeof options === 'string') {
+    deps.stderr(`${options}\n${EXTRACT_USAGE}\n`);
+    return 2;
+  }
+  const fail = (errors: readonly (ExtractGeoError | SourceError)[]): number => {
+    for (const error of errors) deps.stderr(JSON.stringify(error) + '\n');
+    return 1;
+  };
+  const stem = options.shp.replace(/\.shp$/i, '');
+  const readRequired = (path: string): Result<Uint8Array, ExtractGeoError | SourceError> => {
+    const read = readBounded(deps.fs, path, basename(path), SOURCE_CAPS.bytes);
+    if (read.ok) return read;
+    return { ok: false, errors: read.errors.map((e) => (e.kind === 'invalid-source' ? invalidInput(`${e.file} cannot be read`) : e)) };
+  };
+  const shp = readRequired(options.shp);
+  if (!shp.ok) return fail(shp.errors);
+  const dbf = readRequired(stem + '.dbf');
+  if (!dbf.ok) return fail(dbf.errors);
+  const optionalText = (...extensions: string[]): string | undefined => {
+    const bytes = firstReadable(deps.fs, extensions.map((x) => stem + x));
+    return bytes === undefined ? undefined : new TextDecoder().decode(bytes);
+  };
+  const cpg = optionalText('.cpg', '.CPG');
+  const prj = optionalText('.prj', '.PRJ');
+
+  let geometries;
+  try {
+    geometries = await openShpGeometry(arrayBufferOf(shp.value));
+  } catch {
+    return fail([invalidInput(`${basename(options.shp)} is not a readable polygon shapefile`)]);
+  }
+  const result = extractGeo({
+    geometries,
+    dbf: dbf.value,
+    ...(cpg === undefined ? {} : { cpg }),
+    ...(prj === undefined ? {} : { prj }),
+    ...(options.encoding === undefined ? {} : { encoding: options.encoding }),
+    ...(options.keep === undefined ? {} : { keep: options.keep }),
+    ...(options.round === undefined ? {} : { round: options.round }),
+  });
+  if (!result.ok) return fail(result.errors);
+
+  const temp = options.out + '.tmp';
+  try {
+    deps.fs.mkdir(dirname(options.out));
+    deps.fs.writeFile(temp, result.value);
+    deps.fs.rename(temp, options.out);
+  } catch {
+    try {
+      deps.fs.unlink(temp);
+    } catch {
+      // no temporary file to remove
+    }
+    return fail([invalidInput(`${basename(options.out)} cannot be written`)]);
+  }
+  deps.stdout(`extracted ${geometries.length} features to ${basename(options.out)}\n`);
+  return 0;
+}
+
 /** The part of a mode that runs it; later tasks register extract, inspect and import here. */
 export type ModeHandler = (args: string[], deps: ImportDeps) => number | Promise<number>;
-export const MODE_HANDLERS: Partial<Record<ImportMode, ModeHandler>> = {};
+export const MODE_HANDLERS: Partial<Record<ImportMode, ModeHandler>> = { extract: runExtractMode };
 
 /** FR-586: the mode word is the first argument, exactly one of the three (case-sensitive); the rest is the mode's own. */
 export function parseMode(args: string[]): { mode: ImportMode; rest: string[] } | string {
