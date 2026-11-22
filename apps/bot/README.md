@@ -1,7 +1,7 @@
-# MBRG Discord bot (operator guide)
+# FactionFall Discord bot (operator guide)
 
-The bot lets a Discord channel follow one public MBRG match: it announces each round as an embed, members predict with buttons,
-and `/mbrg board` shows a paged leaderboard. Specs: `specs/archive/012-discord-bot` and `specs/archive/017-bot-embeds`.
+The bot lets a Discord channel follow one public FactionFall match: it announces each round as an embed, members predict with buttons,
+and `/ff board` shows a paged leaderboard. Specs: `specs/archive/012-discord-bot` and `specs/archive/017-bot-embeds`.
 
 ## Run
 
@@ -29,7 +29,7 @@ In the [Discord developer portal](https://discord.com/developers/applications), 
 3. Open the generated URL and choose the server.
 
 The bot needs no privileged gateway intent (it uses `Guilds` only). A channel manager (Discord permission **Manage Channel**) runs
-`/mbrg create`; only the member who ran it can start the match.
+`/ff create`; only the member who ran it can start the match.
 
 If a channel overrides the permissions of the bot role, grant **Embed Links** and **Read Message History** in that channel too.
 
@@ -37,7 +37,7 @@ If a channel overrides the permissions of the bot role, grant **Embed Links** an
 
 - Each announcement (round opened, victim revealed, round applied, scored phase, match finished, match halted) is an embed with its
   own color and no image. Mentions never ping.
-- `/mbrg board` posts the leaderboard in the channel, 10 rows per page, with **Anterior** and **Siguiente**. Only the member who ran
+- `/ff board` posts the leaderboard in the channel, 10 rows per page, with **Anterior** and **Siguiente**. Only the member who ran
   the command can page it; anyone else gets a private sentence. After 5 minutes its buttons are disabled.
 - When a match finishes the bot posts the winner and then the public leaderboard (page 1). Any member can press its buttons and
   gets a private page with their own "Tu puesto" line; the public message never changes.

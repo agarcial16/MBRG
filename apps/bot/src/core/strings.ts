@@ -33,8 +33,8 @@ export const STRINGS = {
   boardOwnNone: 'Todavía no tienes puntos en esta partida.',
   boardPrev: 'Anterior',
   boardNext: 'Siguiente',
-  boardNotYours: 'Solo quien pidió la clasificación puede cambiar de página. Usa /mbrg board para ver la tuya.',
-  boardExpired: 'Esta clasificación caducó. Usa /mbrg board para verla de nuevo.',
+  boardNotYours: 'Solo quien pidió la clasificación puede cambiar de página. Usa /ff board para ver la tuya.',
+  boardExpired: 'Esta clasificación caducó. Usa /ff board para verla de nuevo.',
   playerFallback: 'Jugador',
 
   // History of the finished matches of a Discord server (spec 024 FR-554, FR-556; presentation pass: spec 026).
@@ -53,8 +53,8 @@ export const STRINGS = {
   historyOwn: 'Tus puntos: {points} (puesto {rank})',
   historyNotPlayed: 'No jugaste esta partida',
   historyEmpty: 'Este servidor todavía no tiene partidas terminadas.',
-  historyNotYours: 'Solo quien pidió el historial puede cambiar de página. Usa /mbrg history para ver el tuyo.',
-  historyExpired: 'Este historial caducó. Usa /mbrg history para verlo de nuevo.',
+  historyNotYours: 'Solo quien pidió el historial puede cambiar de página. Usa /ff history para ver el tuyo.',
+  historyExpired: 'Este historial caducó. Usa /ff history para verlo de nuevo.',
   historyUnavailable: 'El historial no está disponible ahora. Inténtalo más tarde.',
 
   // Ranking of a Discord server (spec 025 FR-569 to FR-571): the order words of the command (also its choices) and the failures.
@@ -71,8 +71,8 @@ export const STRINGS = {
   rankingNotPlayedDays: 'No has jugado ninguna partida terminada en este servidor en los últimos {n} días.',
   rankingEmptyDays: 'Nadie ha jugado una partida terminada en este servidor en los últimos {n} días.',
   rankingUnavailable: 'El ranking no está disponible ahora. Inténtalo más tarde.',
-  rankingNotYours: 'Solo quien pidió el ranking puede cambiar de página. Usa /mbrg ranking para ver el tuyo.',
-  rankingExpired: 'Este ranking caducó. Usa /mbrg ranking para verlo de nuevo.',
+  rankingNotYours: 'Solo quien pidió el ranking puede cambiar de página. Usa /ff ranking para ver el tuyo.',
+  rankingExpired: 'Este ranking caducó. Usa /ff ranking para verlo de nuevo.',
   rankingEmpty: 'Este servidor todavía no tiene ranking.',
   rankingTitle: 'Ranking del servidor',
   rankingRow: '{rank} {who} - {stats}',
@@ -112,7 +112,7 @@ export const STRINGS = {
   // Replies to commands and presses (FR-452, FR-454, FR-455, FR-458).
   noPermission: 'Solo quien gestiona el canal puede hacer eso.',
   onlyCreator: 'Solo quien creó la partida puede iniciarla.',
-  alreadyFollowing: 'Este canal ya sigue una partida. Usa /mbrg stop antes de crear otra.',
+  alreadyFollowing: 'Este canal ya sigue una partida. Usa /ff stop antes de crear otra.',
   notFollowing: 'Este canal no sigue ninguna partida.',
   serverDown: 'El servidor no está disponible ahora. Inténtalo más tarde.',
   createDisabled: 'La creación de partidas públicas no está activa.',
@@ -143,8 +143,8 @@ export const STRINGS = {
   errUnexpected: 'Algo falló. Inténtalo de nuevo.',
 
   // Slash command definitions (FR-451 to FR-458).
-  cmdRoot: 'mbrg',
-  cmdRootText: 'Partidas de Map Battle Royale',
+  cmdRoot: 'ff',
+  cmdRootText: 'Partidas de FactionFall (Map Battle Royale)',
   cmdCreate: 'create',
   cmdCreateText: 'Crea una partida pública en este canal',
   cmdStart: 'start',

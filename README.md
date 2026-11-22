@@ -1,4 +1,4 @@
-# MBRG — Map Battle Royale Game
+# FactionFall — Map Battle Royale
 
 A **Battle Royale for EU4 / RISK-style maps**: every round one faction is
 wiped out at random, and a neighbour swallows **all** of its provinces, until
@@ -13,7 +13,7 @@ happens next instead of watching a foregone conclusion.
 
 ## Status: `v0.3.0-alpha`
 
-MBRG is a full stack now, not just a viewer:
+FactionFall is a full stack now, not just a viewer:
 
 - ✅ **Deterministic engine** — the "Clásico" mode, same seed, same match, in
   the browser, the server, the bot and the tests.
@@ -23,10 +23,10 @@ MBRG is a full stack now, not just a viewer:
 - ✅ **Real matches with predictions** — each round has two phases (guess the
   victim, then guess who absorbs it), a forced-absorber case when only one
   neighbour is possible, and points for every right guess.
-- ✅ **Discord bot** — `/mbrg create` opens a lobby, the channel follows the
+- ✅ **Discord bot** — `/ff create` opens a lobby, the channel follows the
   match live (one embed per round), members predict with buttons, and the
-  bot keeps a **per-server history** (`/mbrg history`) and a **per-server
-  ranking** (`/mbrg ranking`) in four orders: points, hits, wins and accuracy.
+  bot keeps a **per-server history** (`/ff history`) and a **per-server
+  ranking** (`/ff ranking`) in four orders: points, hits, wins and accuracy.
   The bot's interface is in Spanish.
 - ✅ **Viewer** — WebGL map with round playback, chronicle, faction table,
   minimap, a live leaderboard and **spectator links** (`?match=…&spectate=1`)
@@ -51,7 +51,7 @@ server.
 
 ## How to follow a match
 
-1. Run `/mbrg create` in a Discord channel (needs *Manage Channels*) and press
+1. Run `/ff create` in a Discord channel (needs *Manage Channels*) and press
    **Start** when the lobby is ready.
 2. Members press **Predict** and pick the victim, then the absorber, each
    round. Scoring: a right victim is worth the number of factions alive at
@@ -59,7 +59,7 @@ server.
 3. Anyone opens the spectator link the bot posts to watch the map update.
    Playback controls let you review earlier rounds (and jump back to live).
 4. When the match ends the bot posts the winner and the final leaderboard;
-   `/mbrg history` and `/mbrg ranking` keep the server's record.
+   `/ff history` and `/ff ranking` keep the server's record.
 
 ![The match at the start](docs/captura-visor-inicio.png)
 

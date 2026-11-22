@@ -37,7 +37,7 @@ const replyLines = (entry: Extract<RunEntry, { kind: 'reply' }>): string[] => {
 /** The whole run as text: a stage header per stage, then each post, edit and private reply in order. */
 export function renderTranscript(run: MatchRun): string {
   const lines: string[] = [
-    'MBRG e2e — un partido completo contra el servidor real (Discord simulado)',
+    'FactionFall e2e — un partido completo contra el servidor real (Discord simulado)',
     `Partida ${run.matchId} · mapa ${run.mapId} · jugadoras: ${PLAYERS.map((p) => p.displayName).join(', ')}`,
     `Visor: ${run.viewerMatchUrl}`,
     '',
@@ -144,9 +144,9 @@ export function renderEmbedsHtml(run: MatchRun): string {
     const editedButtons = finalButtons.get(entry.messageId);
     body.push(`
   <div class="msg">
-    <div class="avatar">M</div>
+    <div class="avatar">FF</div>
     <div class="content">
-      <div class="who"><span class="name">MBRG</span><span class="tag">bot</span></div>
+      <div class="who"><span class="name">FactionFall</span><span class="tag">bot</span></div>
       <div class="text">${textHtml(entry.message.text)}</div>
       ${entry.message.embed === undefined ? '' : embedHtml(entry.message.embed)}
       ${buttonsHtml(entry.message.buttons)}
@@ -160,7 +160,7 @@ export function renderEmbedsHtml(run: MatchRun): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MBRG e2e — ${escapeHtml(run.matchId)}</title>
+<title>FactionFall e2e — ${escapeHtml(run.matchId)}</title>
 <style>${STYLE}</style>
 </head>
 <body>
