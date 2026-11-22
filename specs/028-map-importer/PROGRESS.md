@@ -11,3 +11,18 @@ What changed (docs only; six reviewer objections plus two minor FR-611 items):
 Tests: none run (docs-only revision; no file under `packages/`, `apps/` or `tools/` was touched, per the brief).
 
 Next step: the user approves the revised plan on `docs/028-spec-draft` (or asks for changes); implementation then starts from `tasks.md` on `feat/028-map-importer`, with T1.1 and T1.10 first.
+
+## 2026-11-22 — Second plan revision (the strong-tier re-review's objections; docs only)
+Branch: `docs/028-spec-draft` (checked out in the revision worktree). State: plan, tasks and two spec lines revised for the re-review; no code touched, no implementation started, no tests run.
+
+What changed (docs only; the review's seven objections):
+- Size: `plan.md` rewritten 6,488 -> **6,134 bytes** (<= the ~6 KB SDD cap), file lists compressed, the curation schema folded to a pointer, every file, seam and PD kept.
+- Seams: (a) `core/sea.ts` stays **not reused** — the own pass's pre-BFS reachability pass is now specified with its cost (~16.8M pixel visits at the 4,096 fixture, ~268M at the 16,384 guard, accepted and untimed); (b) insets rasterize into their **own square of side max(rect.w, rect.h)**, the rect.w x rect.h window blitted to (x, y) — never `rasterize(W)` per inset (another 1 GiB at 16,384); (c) the other-land layer now names the **unselected primary units** (context features, then excluded and unselected units, value 0, never water).
+- PD5 **retracted**: nothing moves to `@mbrg/shared` (the 003a NFR-22 export pin forbids it; a move needs the user's approval of the pin change). `assignFactionColours` (length-3), `paletteMessage`, the palette and `Theme` stay untouched in `apps/web`; the report's `palette-exhausted` warning is an importer-local copy of FR-141 with the same 12 colours, pinned by importer fixtures. `spec.md` FR-607's "same shared function" wording aligned; the tasks rules now allow **exactly one** existing-test exception (the ledger) and no file outside `tools/build-map` except it.
+- Spec: the out-of-scope line amended — the **global** projection keeps central meridian 0; an **inset** may re-centre (what FR-601 pins); every view wraps `lon − lon0` into (−180, 180], never left unwrapped (also stated in plan section 3 and T2.5).
+- Byte identity: (a) the dev-map curation's `factionBy { property: "adm0_a3" }` confirmed in T3.3 (was already placed); (b) T2.4 now feeds centre and frame **pre-normalisation outer+hole vertices exactly as `build.ts` L57-61**; (c) T2.7 orders sea territories **before** seeds (the FR-605 order, matching T2.9's numbering).
+- Smaller gaps: T1.9 dedupes on the **full data tuple** (same first field, different property -> both kept); the FR-599 `invalid-key` placement re-verified present in T1.5/T2.1–T2.3; T1.3's 1,024-char cap now applies **only to used properties** (named by the curation, passed to the reader as a parameter); T3.1 split into SHA-256 (T3.1) + report/viewer limits (T3.2) — **M3 is now 7 tasks, 27 total**; T3.3's NFR-132 statement names the ledger as the only change outside `tools/build-map`.
+
+Tests: none run (docs-only revision; no file under `packages/`, `apps/` or `tools/` was touched, per the brief).
+
+Next step: the Neon re-review of `docs/028-spec-draft`, then the user's approval; implementation starts from `tasks.md` on `feat/028-map-importer` only after both.
