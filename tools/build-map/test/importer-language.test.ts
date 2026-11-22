@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readBounded, runImport, type ImportFs } from '../src/cli/import';
 import { CURATION_KIND_ORDER } from '../src/importer/errors';
 import { extractGeo } from '../src/importer/extract-geo';
+import { groupTerritories } from '../src/importer/grouping';
 import { parseCuration } from '../src/importer/curation';
 import { inspectSource, VALUE_TYPES } from '../src/importer/inspect';
 import { readSource, readSources } from '../src/importer/read-source';
@@ -21,8 +22,9 @@ const EXTRACT_KINDS = ['unknown-dbf-encoding', 'unknown-field', 'invalid-dbf-tex
 const CURATION_KINDS = ['invalid-curation'];
 const UNIT_KINDS = ['missing-unit-key', 'invalid-unit-key', 'conflicting-unit-property', 'sea-with-faction'];
 const SELECT_KINDS = ['unknown-unit', 'empty-selection'];
+const GROUP_KINDS = ['invalid-key', 'missing-group-value', 'mixed-territory-kind', 'conflicting-group-name', 'missing-territory-name'];
 const COMMAND_KINDS = ['usage-error'];
-const IMPORTER_KINDS = [...SOURCE_KINDS, ...EXTRACT_KINDS, ...CURATION_KINDS, ...UNIT_KINDS, ...SELECT_KINDS, ...COMMAND_KINDS];
+const IMPORTER_KINDS = [...SOURCE_KINDS, ...EXTRACT_KINDS, ...CURATION_KINDS, ...UNIT_KINDS, ...SELECT_KINDS, ...GROUP_KINDS, ...COMMAND_KINDS];
 /** Data fields of the importer errors (the kind is always present). */
 const DATA_FIELDS = [
   'file',
@@ -40,6 +42,7 @@ const DATA_FIELDS = [
   'path',
   'unit',
   'draft',
+  'territory',
 ];
 const ALLOWED_KEYS = ['kind', ...DATA_FIELDS];
 const INVALID_SOURCE_REASONS = ['not-utf8', 'not-json', 'not-feature-collection', 'bad-feature', 'bad-geometry', 'unreadable'];
@@ -154,6 +157,33 @@ function unitErrors(): Err[] {
   return [...errs(units), ...errs(selectUnits(ok.value, c.value)), ...errs(empty)];
 }
 
+function groupErrors(): Err[] {
+  const c = parseCuration(
+    curationText((x) => {
+      x.territoryBy = { property: 'g', nameProperty: 'gname' };
+      x.territoryNames = { m: 'Mixed' };
+      x.units = { S: { kind: 'sea', territory: 'm' }, L: { territory: 'm' } };
+    }),
+    'c.json',
+  );
+  if (!c.ok) throw new Error('the curation should parse');
+  const units = buildUnits(
+    [
+      feature(0, { code: 'A', name: 'a', g: 'x', gname: 'One' }),
+      feature(1, { code: 'B', name: 'b', g: 'x', gname: 'Two' }),
+      feature(2, { code: 'C', name: 'c' }),
+      feature(3, { code: 'D', g: 'y' }),
+      feature(4, { code: 'E', g: 'y' }),
+      feature(5, { code: 'F', name: 'f', g: 'k'.repeat(300) }),
+      feature(6, { code: 'S', name: 's', g: 'q' }),
+      feature(7, { code: 'L', name: 'l', g: 'q' }),
+    ],
+    c.value,
+  );
+  if (!units.ok) throw new Error('the units should form');
+  return errs(groupTerritories(units.value, c.value));
+}
+
 async function commandErrors(): Promise<Err[]> {
   const dir = mkdtempSync(join(tmpdir(), 'mbrg-language-'));
   try {
@@ -175,7 +205,7 @@ async function commandErrors(): Promise<Err[]> {
 }
 
 async function allErrors(): Promise<Err[]> {
-  return [...sourceErrors(), ...extractErrors(), ...curationErrors(), ...unitErrors(), ...(await commandErrors())];
+  return [...sourceErrors(), ...extractErrors(), ...curationErrors(), ...unitErrors(), ...groupErrors(), ...(await commandErrors())];
 }
 
 const sources = import.meta.glob('../src/importer/**/*.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;

@@ -26,6 +26,7 @@ describe('the source scan of the importer core', () => {
       '../src/importer/curation.ts',
       '../src/importer/errors.ts',
       '../src/importer/extract-geo.ts',
+      '../src/importer/grouping.ts',
       '../src/importer/inspect.ts',
       '../src/importer/read-dbf.ts',
       '../src/importer/read-source.ts',
