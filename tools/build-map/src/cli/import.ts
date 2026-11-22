@@ -1,10 +1,11 @@
 import type { Result } from '@mbrg/shared';
 import { statSync } from 'node:fs';
-import { basename, dirname, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openShpGeometry } from '../extract/read-shapefile';
 import { extractGeo, MAX_ROUND, MIN_ROUND } from '../importer/extract-geo';
-import { SOURCE_CAPS } from '../importer/read-source';
+import { inspectSource } from '../importer/inspect';
+import { readSource, SOURCE_CAPS } from '../importer/read-source';
 import type { ExtractGeoError, SourceError } from '../importer/types';
 import { realFs, type FsOps } from '../io/fs-ops';
 
@@ -182,9 +183,95 @@ export async function runExtractMode(args: string[], deps: ImportDeps): Promise<
   return 0;
 }
 
+const INSPECT_USAGE = 'usage: import-map inspect --source=<file.geojson> [--draft=<file.json>]';
+
+/** The path from `from` (a folder) to `to`, with forward slashes, as a curation file wants its paths. */
+function relativeText(from: string, to: string): string {
+  return relative(from, to).split(sep).join('/');
+}
+
+/** True when the file or folder exists (a `stat` that succeeds). */
+function exists(fs: ImportFs, path: string): boolean {
+  try {
+    fs.size(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * FR-591: the inspect mode. Reads a source (`--source`), prints its summary on stdout and, when asked, writes the
+ * draft curation to `--draft` (never into a folder that holds a `map.json`, PD7). Errors are JSON lines on stderr;
+ * exit 0 success, 1 failure (nothing written), 2 usage error.
+ */
+export function runInspectMode(args: string[], deps: ImportDeps): number {
+  const seen = new Map<string, string>();
+  for (const arg of args) {
+    const at = arg.indexOf('=');
+    const flag = at < 0 ? arg : arg.slice(0, at);
+    const value = at < 0 ? '' : arg.slice(at + 1);
+    const problem = !['--source', '--draft'].includes(flag)
+      ? `unknown option: ${arg}`
+      : value === ''
+        ? `missing value for ${flag}`
+        : seen.has(flag)
+          ? `duplicate option: ${flag}`
+          : undefined;
+    if (problem !== undefined) {
+      deps.stderr(`${problem}\n${INSPECT_USAGE}\n`);
+      return 2;
+    }
+    seen.set(flag, value);
+  }
+  const sourceArg = seen.get('--source');
+  if (sourceArg === undefined) {
+    deps.stderr(`the --source file is required\n${INSPECT_USAGE}\n`);
+    return 2;
+  }
+  const source = resolve(deps.root, sourceArg);
+  const draftArg = seen.get('--draft');
+  const draft = draftArg === undefined ? undefined : resolve(deps.root, draftArg);
+  if (draft !== undefined && exists(deps.fs, join(dirname(draft), 'map.json'))) {
+    deps.stderr(JSON.stringify({ kind: 'usage-error', reason: 'draft-inside-package', draft }) + '\n');
+    deps.stderr(`${INSPECT_USAGE}\n`);
+    return 2;
+  }
+
+  const fail = (errors: readonly SourceError[]): number => {
+    for (const error of errors) deps.stderr(JSON.stringify(error) + '\n');
+    return 1;
+  };
+  const label = basename(source);
+  const bytes = readBounded(deps.fs, source, label, SOURCE_CAPS.bytes);
+  if (!bytes.ok) return fail(bytes.errors);
+  const read = readSource({ file: label, bytes: bytes.value }, { usedProperties: [] });
+  if (!read.ok) return fail(read.errors);
+
+  const result = inspectSource(read.value, draft === undefined ? label : relativeText(dirname(draft), source));
+  if (draft !== undefined) {
+    const temp = draft + '.tmp';
+    try {
+      deps.fs.mkdir(dirname(draft));
+      deps.fs.writeFile(temp, result.draft);
+      deps.fs.rename(temp, draft);
+    } catch {
+      try {
+        deps.fs.unlink(temp);
+      } catch {
+        // no temporary file to remove
+      }
+      deps.stderr(JSON.stringify({ kind: 'invalid-input', reason: `${basename(draft)} cannot be written` }) + '\n');
+      return 1;
+    }
+  }
+  deps.stdout(result.summary);
+  return 0;
+}
+
 /** The part of a mode that runs it; later tasks register extract, inspect and import here. */
 export type ModeHandler = (args: string[], deps: ImportDeps) => number | Promise<number>;
-export const MODE_HANDLERS: Partial<Record<ImportMode, ModeHandler>> = { extract: runExtractMode };
+export const MODE_HANDLERS: Partial<Record<ImportMode, ModeHandler>> = { extract: runExtractMode, inspect: runInspectMode };
 
 /** FR-586: the mode word is the first argument, exactly one of the three (case-sensitive); the rest is the mode's own. */
 export function parseMode(args: string[]): { mode: ImportMode; rest: string[] } | string {
