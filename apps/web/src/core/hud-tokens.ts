@@ -3,20 +3,24 @@
 // test can check the contrast rule (NFR-65). Faction colours are data and live elsewhere (`colors.ts`).
 
 export const TOKENS = {
-  umber: '#17110d',
-  wood: '#241b14',
-  wood2: '#31261b',
+  umber: '#120e0b',
+  wood: '#1c1611',
+  wood2: '#2a2119',
   dock: '#14100c',
-  gilt: '#c0994f',
-  giltDim: '#8a6f3b',
+  gilt: '#d4ae5e',
+  giltDim: '#91743e',
   vellum: '#eadfc3',
   ink: '#2a2118',
   inkMuted: '#5f5238',
-  onGilt: '#1d1508',
-  verdigris: '#6aa88a',
-  text: '#efe6d0',
-  muted: '#a99d84',
-  ember: '#f0a089',
+  onGilt: '#171108',
+  verdigris: '#6ec49a',
+  text: '#f4ebd6',
+  muted: '#b8aa8f',
+  ember: '#f09a84',
+  pillBg: '#231614',
+  pillEdge: '#b85a52',
+  allyBg: '#162219',
+  allyEdge: '#5fa87c',
 } as const;
 
 export type TokenName = keyof typeof TOKENS;
@@ -43,6 +47,11 @@ export const PAIRS: readonly TokenPair[] = [
   { name: 'vellum muted text', fg: 'inkMuted', bg: 'vellum' },
   { name: 'timer warning', fg: 'ember', bg: 'umber', large: true },
   { name: 'frame outline', fg: 'giltDim', bg: 'wood', outline: true },
+  { name: 'victim pill text', fg: 'text', bg: 'pillBg' },
+  { name: 'victim pill accent', fg: 'ember', bg: 'pillBg' },
+  { name: 'victim pill outline', fg: 'pillEdge', bg: 'pillBg', outline: true },
+  { name: 'absorber badge text', fg: 'text', bg: 'allyBg' },
+  { name: 'absorber badge outline', fg: 'allyEdge', bg: 'allyBg', outline: true },
 ];
 
 const channel = (hex: string, from: number): number => {

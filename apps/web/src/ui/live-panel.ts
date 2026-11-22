@@ -10,7 +10,7 @@ import { dockHandle, dockPress, dockStart, dockStep, dockTabs, type DockState } 
 import { DOCK_TABS, dockHeight, dockPaneHeight, layoutFor, type DockTab, type Layout } from '../core/hud-layout';
 import { cssVariables } from '../core/hud-tokens';
 import type { HudState, StateCard, TopBar } from '../core/live-hud';
-import { searchRows, sortRows, visibleRows, type ChronicleEntry, type FactionRow, type SortKey } from '../core/live-stats';
+import { searchRows, sortRows, territoryShare, totalTerritories, visibleRows, type ChronicleEntry, type FactionRow, type SortKey } from '../core/live-stats';
 import { stripScroll, trackTarget, type ReplayBand, type RoundTrack } from '../core/live-track';
 import { liveTitle, skipLabel } from '../core/live-text';
 import type { LivePanelView } from '../core/live-view';
@@ -19,6 +19,7 @@ import type { NavAction } from '../core/navigation';
 import type { PlayHud, PredictView, WinnersLine } from '../core/play-view';
 import type { ResultView } from '../core/results-model';
 import type { BoardView } from '../core/board-model';
+import type { ScreenRect } from '../core/reveal-camera';
 import { createBoardPanel, type BoardPanel } from './board-panel';
 import { STRINGS, fillTemplate } from '../core/strings';
 import type { BannerView } from '../core/round-banner';
@@ -82,6 +83,8 @@ export interface HudView {
   readonly chronicleLoading?: boolean;
   /** FR-408: the round banner on screen, or none. */
   readonly banner?: BannerView;
+  /** Spec 031: swatch colour of the announced round target (only when publicly revealed, never during a tour). */
+  readonly targetColor?: Rgb;
   /** FR-409: "PREDICCIONES FINALIZADAS" or "REVELANDO...", or none. */
   readonly overlay?: string;
   /** What the player sees besides the spectator screen (spec 013); absent without a player session. */
@@ -103,6 +106,10 @@ export interface LivePanel {
   showMessages(messages: readonly string[]): void;
   /** FR-359: the picture (when it changed) and the rectangle of the current view. */
   setMinimap(picture: MinimapPicture | undefined, rect: UnitRect): void;
+  /** Spec 031: screen rectangle of the visible reveal duel callout (relative to the viewport), or undefined when hidden. */
+  calloutRect(): ScreenRect | undefined;
+  /** Spec 031: unobstructed map area inside the HUD chrome (relative to the viewport). */
+  mapAreaRect(): ScreenRect;
 }
 
 function el(tag: string, className = '', parent?: HTMLElement): HTMLElement {
@@ -171,8 +178,10 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   };
   sizeDock();
 
-  // Top bar.
+  // Top bar (spec 031: slim 52 px refined cartographic brass bar on desktop).
   const top = zone('top-bar', 'hud-top hud-frame', root);
+  const brand = el('span', 'hud-brand', top);
+  brand.textContent = STRINGS.hudBrand;
   const round = el('span', 'hud-round hud-num', top);
   const phase = el('span', 'hud-phase', top);
   const liveMark = el('span', 'hud-livemark', top);
@@ -188,6 +197,12 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   chipButton.hidden = true;
   const chipName = el('span', 'hud-chip-name', chipButton);
   const chipStats = el('span', 'hud-chip-stats', chipButton);
+
+  // Spec 031: floating pill at upper-centre on desktop for the announced round target (anti-spoiler: reuses `victim` element).
+  const pillBox = zone('target-pill', 'hud-pill hud-frame', root);
+  pillBox.hidden = true;
+  const pillSwatch = el('span', 'hud-swatch hud-pill-swatch', pillBox);
+  pillSwatch.hidden = true;
 
   // The band of a replay, under the top bar.
   const bandBox = zone('replay-band', 'hud-band hud-frame', root);
@@ -249,10 +264,9 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   let personalFilled = false;
   let hasBoard = false;
 
-  // Minimap: a thumbnail of the map in the colours of the owners, and the rectangle of the current view.
+  // Minimap: compact headerless thumbnail docked in the bottom-right corner (spec 031: "Carta general" header removed).
   const minimap = zone('minimap', 'hud-mini hud-frame', root);
   minimap.hidden = true;
-  el('div', 'hud-title', minimap).textContent = STRINGS.hudMinimap;
   const miniBox = el('div', 'hud-minibox', minimap);
   const miniCanvas = el('canvas', 'hud-minicanvas', miniBox) as HTMLCanvasElement;
   miniCanvas.setAttribute('aria-label', STRINGS.hudMinimapHint);
@@ -343,12 +357,24 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const cardChampion = el('p', 'hud-champion', card);
   card.hidden = true;
 
-  // FR-408: the round banner over a dimmed map; a button, so a tap, Enter or Space dismisses it.
+  // FR-408 + spec 031: the reveal duel callout (victim -> absorber); a real button so tap, Enter or Space dismisses it.
   const bannerBox = zone('round-banner', 'hud-banner', root);
   bannerBox.hidden = true;
-  const bannerButton = button(bannerBox, '', handlers.onBannerDismiss, 'hud-banner-card hud-frame');
+  const bannerButton = button(bannerBox, '', handlers.onBannerDismiss, 'hud-banner-card hud-duel hud-frame');
   bannerButton.setAttribute('aria-label', STRINGS.bannerClose);
-  const bannerTitle = el('span', 'hud-title', bannerButton);
+  const duelBar = el('span', 'hud-duel-bar', bannerButton);
+  const duelBarLeft = el('span', 'hud-duel-bar-v', duelBar);
+  const duelBarRight = el('span', 'hud-duel-bar-a', duelBar);
+  const bannerTitle = el('span', 'hud-title hud-duel-eyebrow', bannerButton);
+  const duelSides = el('span', 'hud-duel-sides', bannerButton);
+  const duelLeft = el('span', 'hud-duel-side hud-duel-fallen', duelSides);
+  const duelLeftSwatch = el('span', 'hud-swatch', duelLeft);
+  const duelLeftName = el('span', 'hud-duel-name', duelLeft);
+  const duelArrow = el('span', 'hud-duel-arrow', duelSides);
+  duelArrow.textContent = STRINGS.bannerDuelArrow;
+  const duelRight = el('span', 'hud-duel-side hud-duel-taker', duelSides);
+  const duelRightSwatch = el('span', 'hud-swatch', duelRight);
+  const duelRightName = el('span', 'hud-duel-name', duelRight);
   const bannerLine = el('span', 'hud-banner-line', bannerButton);
   // FR-409: the overlay between the close of the predictions and the reveal.
   const overlayBox = zone('round-overlay', 'hud-overlay hud-frame', root);
@@ -398,12 +424,16 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const place = (): void => {
     if (layout === 'phone') {
       (panes.get('order') ?? panes.get('chronicle'))?.append(command);
+      command.insertBefore(victim, winner);
+      pillBox.hidden = true;
       strip.append(controls);
       panes.get('chronicle')?.append(chronSection);
       panes.get('factions')?.append(factionsSection);
       panes.get('ranking')?.append(rightColumn);
     } else {
       left.append(chronSection, factionsSection);
+      pillBox.append(victim);
+      pillBox.hidden = victim.hidden || last?.hud.band !== undefined || last?.hud.card !== undefined;
       command.append(controls);
       root.append(left, command, rightColumn);
     }
@@ -474,11 +504,18 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     for (const [key, chip] of sortButtons) chip.setAttribute('aria-pressed', String(key === sortKey));
     const matched = sortRows(searchRows(rows, query), sortKey);
     const { shown, hidden } = visibleRows(matched, LIST_LIMIT, showAll);
+    const totalOwned = totalTerritories(rows);
     legend.replaceChildren(
       ...shown.map((row) => {
         const item = el('li', row.alive ? 'hud-row' : 'hud-row out');
-        const swatch = el('span', 'hud-swatch', item);
         const rgb = colors.get(row.id);
+        const share = row.alive ? territoryShare(row.territories, totalOwned) : 0;
+        if (share > 0 && rgb !== undefined) {
+          const bar = el('span', 'hud-row-bar', item);
+          bar.style.width = `${(share * 100).toFixed(1)}%`;
+          bar.style.background = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+        }
+        const swatch = el('span', 'hud-swatch', item);
         if (rgb !== undefined) swatch.style.background = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
         const name = el('span', 'hud-name', item);
         el('span', 'hud-n', name).textContent = row.name;
@@ -623,6 +660,10 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       write(count, hud.bar.countdown);
       write(stage, view.stage);
       write(victim, view.victim);
+      pillBox.hidden = layout !== 'desk' || victim.hidden || hud.band !== undefined || hud.card !== undefined;
+      const pillRgb = hud.targetColor;
+      pillSwatch.hidden = pillRgb === undefined;
+      if (pillRgb !== undefined) pillSwatch.style.background = `rgb(${pillRgb[0]},${pillRgb[1]},${pillRgb[2]})`;
       write(winner, view.winner);
       write(halt, view.halt);
       write(mismatch, view.mismatch);
@@ -644,8 +685,23 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       lastButton.disabled = controls === undefined || controls.lastDisabled;
       bannerBox.hidden = hud.banner === undefined;
       bannerBox.dataset.fade = hud.banner?.fade === true ? 'on' : 'off';
-      bannerTitle.textContent = hud.banner?.title ?? '';
-      bannerLine.textContent = hud.banner?.line ?? '';
+      const duel = hud.banner?.duel;
+      bannerTitle.textContent = duel?.eyebrow ?? hud.banner?.title ?? '';
+      duelLeftName.textContent = duel?.victimName ?? '';
+      duelRightName.textContent = duel?.absorberName ?? '';
+      const vRgb = duel === undefined ? undefined : colors.get(duel.victimId);
+      const aRgb = duel === undefined ? undefined : colors.get(duel.absorberId);
+      if (vRgb !== undefined) {
+        const cssRgb = `rgb(${vRgb[0]},${vRgb[1]},${vRgb[2]})`;
+        duelLeftSwatch.style.background = cssRgb;
+        duelBarLeft.style.background = cssRgb;
+      }
+      if (aRgb !== undefined) {
+        const cssRgb = `rgb(${aRgb[0]},${aRgb[1]},${aRgb[2]})`;
+        duelRightSwatch.style.background = cssRgb;
+        duelBarRight.style.background = cssRgb;
+      }
+      bannerLine.textContent = duel?.detail ?? hud.banner?.line ?? '';
       overlayBox.hidden = hud.overlay === undefined;
       overlayBox.textContent = hud.overlay ?? '';
       renderChronicle(hud.chronicle, hud.play?.winners, hud.chronicleLoading === true);
@@ -687,6 +743,37 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       miniRect.style.top = `${rect.y * 100}%`;
       miniRect.style.width = `${rect.w * 100}%`;
       miniRect.style.height = `${rect.h * 100}%`;
+    },
+    calloutRect(): ScreenRect | undefined {
+      if (bannerBox.hidden) return undefined;
+      const box = bannerButton.getBoundingClientRect();
+      return box.width > 0 && box.height > 0 ? { x: box.left, y: box.top, w: box.width, h: box.height } : undefined;
+    },
+    mapAreaRect(): ScreenRect {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const topBottom = top.getBoundingClientRect().bottom || (layout === 'desk' ? 52 : 50);
+      if (layout === 'phone') {
+        const dockTop = dock.getBoundingClientRect().top || vh;
+        return { x: 0, y: topBottom, w: vw, h: Math.max(1, dockTop - topBottom) };
+      }
+      const leftRight = left.hidden ? 0 : left.getBoundingClientRect().right;
+      const rightEdgeCandidates: number[] = [vw];
+      if (!rightColumn.hidden) {
+        const rr = rightColumn.getBoundingClientRect();
+        if (rr.width > 0) rightEdgeCandidates.push(rr.left);
+      }
+      if (!minimap.hidden) {
+        const mr = minimap.getBoundingClientRect();
+        if (mr.width > 0) rightEdgeCandidates.push(mr.left);
+      }
+      const rightLeft = Math.min(...rightEdgeCandidates);
+      const cmdTop = command.hidden ? vh : (command.getBoundingClientRect().top || vh);
+      const x0 = Math.max(0, leftRight);
+      const x1 = Math.max(x0 + 1, rightLeft);
+      const y0 = Math.max(0, topBottom);
+      const y1 = Math.max(y0 + 1, cmdTop);
+      return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
     },
   };
 }

@@ -302,8 +302,8 @@ describe('second screenshot pass: desk panel, outline, scrollbars and the round 
     expect(css).toContain('.hud * { scrollbar-width: thin; scrollbar-color: var(--hud-gilt-dim) var(--hud-umber); }');
   });
 
-  it('on the desk the round banner rides high, away from the command panel', () => {
-    expect(css).toContain('.hud[data-layout="desk"] .hud-banner { align-items: flex-start; padding-top: max(150px, 22vh);');
+  it('on the desk the reveal duel callout floats at upper-left away from the bottom hub (spec 031 Direction 3)', () => {
+    expect(css).toContain('.hud[data-layout="desk"] .hud-banner { align-items: flex-start; justify-content: flex-start; padding: 66px 16px 16px 312px;');
   });
 });
 
