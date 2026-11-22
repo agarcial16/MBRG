@@ -313,7 +313,7 @@ export const STRINGS = {
   overlayFinalised: 'PREDICCIONES FINALIZADAS',
   overlayRevealing: 'REVELANDO…',
   // Viewer visual refresh (spec 031): brand wordmark and reveal duel callout.
-  hudBrand: 'MBRG',
+  hudBrand: 'FactionFall',
   bannerDuelEyebrow: 'Ronda {round} · Eliminación y absorción',
   bannerDuelArrow: '→',
   bannerDuelDetail: '{absorber} absorbe +{count} territorios · controla el {value}% del mapa',
