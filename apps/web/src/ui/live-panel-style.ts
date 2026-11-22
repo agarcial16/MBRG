@@ -25,49 +25,57 @@ export const PANEL_CSS = `${pageCss()}
 .hud-muted { color: var(--hud-muted); font-style: italic; font-size: 12px; }
 .hud-num { font-variant-numeric: lining-nums tabular-nums; }
 
-/* top bar */
-.hud-top { position: absolute; left: 0; right: 0; top: 0; height: 58px; display: flex; align-items: center; box-sizing: border-box; gap: 24px; padding: 0 20px; }
-.hud-top .hud-round { font: 600 26px var(--hud-display, 'Cormorant SC', Georgia, serif); }
-.hud-top .hud-count { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 600 34px/1 var(--hud-display, 'Cormorant SC', Georgia, serif); }
+/* top bar (spec 031: slim 52 px refined cartographic brass bar) */
+.hud-top { position: absolute; left: 0; right: 0; top: 0; height: 52px; display: flex; align-items: center; box-sizing: border-box; gap: 16px; padding: 0 18px; }
+.hud-brand { display: inline-flex; align-items: center; padding-right: 14px; border-right: 1px solid var(--hud-gilt-dim); font: 700 17px/1 var(--hud-display, 'Cormorant SC', Georgia, serif); letter-spacing: 0.14em; color: var(--hud-gilt); flex: none; }
+.hud-top .hud-round { font: 600 22px var(--hud-display, 'Cormorant SC', Georgia, serif); }
+.hud-top .hud-phase { padding: 2px 10px; border-radius: 3px; background: var(--hud-umber); box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); color: var(--hud-gilt); font-size: 12px; letter-spacing: 0.02em; white-space: nowrap; }
+.hud-top .hud-count { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 600 30px/1 var(--hud-display, 'Cormorant SC', Georgia, serif); }
 .hud-top .hud-count { margin: 0; }
 .hud-top .hud-count:empty { display: none; }
 
-/* live mark and replay band */
-.hud-livemark { color: var(--hud-verdigris); font-style: italic; font-size: 13px; }
-.hud-band { position: absolute; left: 50%; top: 66px; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; padding: 8px 14px; max-width: calc(100vw - 24px); }
+/* live mark, floating target pill (spec 031) and replay band */
+.hud-livemark { display: inline-flex; align-items: center; gap: 6px; color: var(--hud-verdigris); font-style: italic; font-size: 12.5px; white-space: nowrap; }
+.hud-livemark::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--hud-verdigris); flex: none; }
+.hud-pill { position: absolute; left: 50%; top: 62px; transform: translateX(-50%); z-index: 3; display: inline-flex; align-items: center; gap: 9px; padding: 6px 16px; border-radius: 4px; max-width: min(560px, calc(100vw - 560px)); box-shadow: inset 0 0 0 1px var(--hud-pill-edge), 0 8px 22px rgba(0, 0, 0, 0.5); outline: 1px solid var(--hud-pill-edge); outline-offset: -4px; }
+.hud[data-layout="desk"] .hud-pill { background: var(--hud-pill-bg); }
+.hud-pill .hud-victim { font-size: 13px; font-weight: 500; color: var(--hud-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud-band { position: absolute; left: 50%; top: 60px; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; padding: 7px 14px; max-width: calc(100vw - 24px); border-radius: 4px; }
 .hud-band .hud-btn { min-height: 30px; }
 
-/* left column: factions */
-.hud-left { position: absolute; left: 12px; top: 70px; width: 280px; box-sizing: border-box; max-height: calc(100vh - 82px); overflow: auto; padding: 14px 16px; }
+/* left column: chronicle and factions */
+.hud-left { position: absolute; left: 12px; top: 64px; width: 280px; box-sizing: border-box; max-height: calc(100vh - 76px); overflow: auto; padding: 12px 14px; border-radius: 4px; }
 
-.hud-chron { list-style: none; margin: 8px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 30vh; overflow: auto; }
-.hud-chron li { display: grid; grid-template-columns: 26px 1fr; gap: 8px; font-size: 13px; line-height: 1.3; }
-.hud-chron b { font: 700 15px var(--hud-display, 'Cormorant SC', Georgia, serif); color: var(--hud-gilt); }
-.hud-chron li.pending { color: var(--hud-gilt); }
+.hud-chron { list-style: none; margin: 8px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 30vh; overflow: auto; }
+.hud-chron li { display: grid; grid-template-columns: 24px 1fr; gap: 8px; padding: 7px 9px; border-radius: 3px; background: var(--hud-umber); box-shadow: inset 0 0 0 1px var(--hud-wood2); font-size: 12.5px; line-height: 1.35; }
+.hud-chron b { font: 700 14px var(--hud-display, 'Cormorant SC', Georgia, serif); color: var(--hud-gilt); }
+.hud-chron li.pending { color: var(--hud-gilt); box-shadow: inset 2px 0 0 var(--hud-gilt), inset 0 0 0 1px var(--hud-gilt-dim); }
 .hud-factions-title { margin-top: 4px; border-top: 1px solid var(--hud-gilt-dim); padding-top: 10px; font-size: 15px; }
 .hud-sort { display: flex; gap: 6px; margin: 8px 0 4px; flex-wrap: wrap; }
 .hud-chip { min-height: 28px; padding: 0 8px; border: 0; background: none; color: var(--hud-muted); font: 500 12px var(--hud-body, Spectral, Georgia, serif); cursor: pointer; border-bottom: 1px solid transparent; }
 .hud-chip[aria-pressed="true"] { color: var(--hud-gilt); border-bottom-color: var(--hud-gilt); }
 .hud-search { width: 100%; min-height: 30px; margin: 4px 0; padding: 0 9px; background: var(--hud-umber); color: var(--hud-text); border: 0; box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); font: italic 12px var(--hud-body, Spectral, Georgia, serif); }
-.hud-row { display: grid; grid-template-columns: 12px 1fr 34px 34px 34px; align-items: center; gap: 7px; min-height: 27px; font-size: 13px; }
-.hud-headrow { min-height: 18px; font-size: 10.5px; font-style: italic; color: var(--hud-muted); border-bottom: 1px solid var(--hud-gilt-dim); }
+.hud-row { position: relative; display: grid; grid-template-columns: 12px 1fr 34px 34px 34px; align-items: center; gap: 7px; min-height: 28px; padding: 0 5px; font-size: 13px; border-radius: 3px; overflow: hidden; }
+.hud-row > :not(.hud-row-bar) { position: relative; z-index: 1; }
+.hud-row-bar { position: absolute; left: 0; top: 2px; bottom: 2px; z-index: 0; opacity: 0.26; border-radius: 2px; pointer-events: none; }
+.hud-headrow { min-height: 18px; font-size: 10.5px; font-style: italic; color: var(--hud-muted); border-bottom: 1px solid var(--hud-gilt-dim); border-radius: 0; }
 .hud-headrow span { text-align: right; }
 .hud-name { min-width: 0; }
 .hud-name small { display: block; font-size: 11px; color: var(--hud-muted); font-style: italic; line-height: 1.1; margin-bottom: 2px; }
 .hud-row.out .hud-name, .hud-row.out .hud-fig { color: var(--hud-muted); }
 .hud-row.out .hud-n { text-decoration: line-through; }
 .hud-fig { text-align: right; color: var(--hud-muted); }
-.hud-legend { list-style: none; margin: 4px 0 0; padding: 0; }
-.hud-legend li { min-height: 27px; }
+.hud-legend { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.hud-legend li { min-height: 28px; }
 .hud-swatch { width: 12px; height: 12px; border-radius: 2px; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4); }
 
-/* command panel */
-.hud-command { position: absolute; left: 304px; right: 262px; bottom: 12px; min-height: 120px; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+/* command panel / bottom hub (spec 031: Direction 2 centred broadcast scrubber hub) */
+.hud-command { position: absolute; left: 304px; right: 228px; bottom: 14px; box-sizing: border-box; max-width: 680px; margin: 0 auto; min-height: 0; padding: 12px 16px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-shadow: inset 0 0 0 1px var(--hud-gilt-dim), 0 10px 28px rgba(0, 0, 0, 0.5); }
 .hud-line { font-size: 14px; }
 .hud-line:empty { display: none; }
 .hud-alert { color: var(--hud-ember); }
 .hud-nav { display: flex; gap: 8px; flex-wrap: wrap; }
-.hud-btn { min-height: 36px; min-width: 36px; padding: 0 14px; border: 0; cursor: pointer; background: var(--hud-wood2); color: var(--hud-text); font: 500 13px var(--hud-body, Spectral, Georgia, serif); box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); }
+.hud-btn { min-height: 36px; min-width: 36px; padding: 0 14px; border: 0; border-radius: 3px; cursor: pointer; background: var(--hud-wood2); color: var(--hud-text); font: 500 13px var(--hud-body, Spectral, Georgia, serif); box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); }
 .hud-btn:disabled { opacity: 0.45; cursor: default; }
 .hud-btn.primary { background: var(--hud-gilt); color: var(--hud-on-gilt); box-shadow: none; font-weight: 600; }
 .hud :focus-visible { outline: 2px solid var(--hud-gilt); outline-offset: 2px; }
@@ -79,24 +87,24 @@ export const PANEL_CSS = `${pageCss()}
 .hud-tools a { display: inline-flex; align-items: center; min-height: 32px; color: var(--hud-muted); }
 .hud[data-layout="phone"] .hud-tools a { min-height: 44px; min-width: 44px; }
 
-/* minimap */
-.hud-mini { position: absolute; right: 12px; bottom: 12px; width: 238px; box-sizing: border-box; padding: 8px 12px 12px; }
-.hud-mini .hud-title { font-size: 14px; margin-bottom: 4px; }
-.hud-minibox { position: relative; overflow: hidden; touch-action: none; cursor: crosshair; line-height: 0; }
+/* minimap (spec 031: Direction 2 headerless bottom-corner dock; Carta general panel removed) */
+.hud-mini { position: absolute; right: 12px; bottom: 12px; width: 204px; box-sizing: border-box; padding: 6px; border-radius: 6px; }
+.hud-minibox { position: relative; overflow: hidden; touch-action: none; cursor: crosshair; line-height: 0; border-radius: 3px; }
 .hud-minicanvas { width: 100%; height: auto; display: block; box-shadow: 0 0 0 1px var(--hud-gilt-dim); }
 .hud-minirect { position: absolute; border: 1.5px solid var(--hud-text); box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.28); pointer-events: none; }
 
-/* track of rounds */
+/* track of rounds (spec 031: Direction 2 connected horizontal scrubber rail) */
 .hud-roundsel { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .hud-track-label:empty { display: none; }
-.hud-track-label { flex: none; color: var(--hud-gilt); font: 600 14px var(--hud-display, 'Cormorant SC', Georgia, serif); white-space: nowrap; }
+.hud-track-label { flex: none; color: var(--hud-gilt); font: 600 13px var(--hud-display, 'Cormorant SC', Georgia, serif); white-space: nowrap; }
 /* FR-442: ONE row that scrolls sideways, however many rounds there are; the shell keeps the current round in view */
-.hud-track { position: relative; display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
-.hud-dot { flex: none; min-width: 28px; min-height: 28px; border-radius: 50%; border: 0; background: var(--hud-umber); color: var(--hud-muted); font: 600 12px var(--hud-display, 'Cormorant SC', Georgia, serif); cursor: pointer; box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); }
-.hud-dot.current { background: var(--hud-gilt); color: var(--hud-on-gilt); box-shadow: none; }
+.hud-track { position: relative; display: flex; align-items: center; gap: 10px; flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding: 3px 2px; }
+.hud-track::before { content: ''; position: absolute; left: 14px; right: 14px; top: 50%; height: 2px; margin-top: -1px; background: var(--hud-gilt-dim); opacity: 0.45; pointer-events: none; z-index: 0; }
+.hud-dot { position: relative; z-index: 1; flex: none; min-width: 28px; min-height: 28px; border-radius: 50%; border: 0; background: var(--hud-umber); color: var(--hud-muted); font: 600 12px var(--hud-display, 'Cormorant SC', Georgia, serif); cursor: pointer; box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); }
+.hud-dot.current { background: var(--hud-gilt); color: var(--hud-on-gilt); box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.45); }
 .hud-dot.live:not(.current) { box-shadow: inset 0 0 0 2px var(--hud-verdigris); color: var(--hud-verdigris); }
 .hud-dot:disabled { opacity: 0.45; cursor: default; }
-.hud-dot.future { opacity: 1; background: none; color: var(--hud-gilt); box-shadow: inset 0 0 0 1px var(--hud-gilt); }
+.hud-dot.future { opacity: 1; background: var(--hud-wood); color: var(--hud-gilt); box-shadow: inset 0 0 0 1px var(--hud-gilt); }
 .hud-slider { width: 100%; accent-color: var(--hud-gilt); }
 
 /* state card */
@@ -128,16 +136,17 @@ export const PANEL_CSS = `${pageCss()}
 .hud[data-layout="phone"] .hud-top,
 .hud[data-layout="phone"] .hud-mini { background: var(--hud-dock); backdrop-filter: none; }
 .hud[data-layout="phone"] .hud-top { height: 50px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-areas: "round count chip" "phase count chip"; align-items: center; column-gap: 10px; row-gap: 0; padding: 0 10px; }
+.hud[data-layout="phone"] .hud-brand,
+.hud[data-layout="phone"] .hud-pill { display: none; }
 .hud[data-layout="phone"] .hud-top .hud-count { position: static; transform: none; grid-area: count; font-size: 26px; white-space: nowrap; justify-self: center; align-self: center; }
 .hud[data-layout="phone"] .hud-top .hud-round { grid-area: round; font-size: 20px; line-height: 1.1; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; align-self: end; }
-.hud[data-layout="phone"] .hud-top .hud-phase { grid-area: phase; font-size: 11px; line-height: 1.1; font-style: italic; color: var(--hud-muted); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; align-self: start; }
+.hud[data-layout="phone"] .hud-top .hud-phase { grid-area: phase; font-size: 11px; line-height: 1.1; font-style: italic; color: var(--hud-muted); background: none; box-shadow: none; padding: 0; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; align-self: start; }
 .hud[data-layout="phone"] .hud-top .hud-playerchip { grid-area: chip; justify-self: end; align-self: center; min-width: 0; max-width: 100%; font-size: 12px; }
 .hud[data-layout="phone"] .hud-btn { min-height: 44px; min-width: 44px; }
 .hud[data-layout="phone"] .hud-chip,
 .hud[data-layout="phone"] .hud-dot,
 .hud[data-layout="phone"] .hud-search { min-height: 44px; min-width: 44px; }
 .hud[data-layout="phone"] .hud-mini { top: 58px; right: 8px; bottom: auto; width: 104px; padding: 4px 6px 6px; }
-.hud[data-layout="phone"] .hud-mini .hud-title { display: none; }
 /* a tall map never makes the minimap taller than the room the cards below it were placed for */
 .hud[data-layout="phone"] .hud-minicanvas { width: auto; height: auto; max-width: 100%; max-height: 92px; margin: 0 auto; }
 .hud[data-layout="phone"] .hud-band { top: 58px; }
@@ -248,9 +257,9 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="desk"] .hud-command .hud-dot { min-width: 26px; min-height: 26px; }
 .hud[data-layout="desk"] .hud-command:has(.hud-predict:not([hidden])) > .hud-stage { display: none; }
 .hud-seal[data-empty="true"] { visibility: hidden; }
-.hud-right { position: absolute; right: 12px; top: 70px; width: 238px; box-sizing: border-box; max-height: calc(100vh - 340px); overflow: auto; padding: 12px 14px; }
+.hud-right { position: absolute; right: 12px; top: 64px; width: 238px; box-sizing: border-box; max-height: calc(100vh - 290px); overflow: auto; padding: 12px 14px; border-radius: 4px; }
 /* the board (spec 019): a column with a fixed height, the list scrolls inside it and is drawn by window (rows are placed by transform) */
-.hud-right:has(.hud-boardscroll) { display: flex; flex-direction: column; height: calc(100vh - 340px); max-height: 640px; min-height: 280px; overflow: hidden; }
+.hud-right:has(.hud-boardscroll) { display: flex; flex-direction: column; height: calc(100vh - 290px); max-height: 640px; min-height: 260px; overflow: hidden; }
 .hud-boardtools { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
 .hud-boardtools .hud-boardsearch { flex: 1 1 auto; min-width: 0; margin: 0; }
 .hud-boardmine { flex: none; padding: 0 6px; min-height: 36px; font-size: 12px; }
@@ -319,17 +328,26 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-messages { color: var(--hud-ember); font-size: 13px; }
 .hud-messages:empty { display: none; }
 
-/* round banner (FR-408) and the overlay between close and reveal (FR-409) */
-.hud-banner { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.45); }
+/* round banner (FR-408) and the overlay between close and reveal (FR-409); duel callout (spec 031) */
+.hud-banner { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .hud-banner[hidden] { display: none; }
-/* desk: the card rides high so it never sits over the command panel, whose title and timer stay readable */
-.hud[data-layout="desk"] .hud-banner { align-items: flex-start; padding-top: max(150px, 22vh); box-sizing: border-box; }
+/* desk: floats at upper-left of the map canvas so the annexation front stays bright and visible beside/below it */
+.hud[data-layout="desk"] .hud-banner { align-items: flex-start; justify-content: flex-start; padding: 66px 16px 16px 312px; box-sizing: border-box; }
 /* phone: the banner centres in the map area, above the dock, so a short screen never hides it behind the dock */
 .hud[data-layout="phone"] .hud-banner { box-sizing: border-box; padding-bottom: calc(var(--hud-dock-h) + 8px); }
 .hud-banner[data-fade="on"] { animation: hud-fade-in 0.3s ease-out; }
-.hud-banner-card { display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; min-width: 0; max-width: min(520px, calc(100vw - 24px)); padding: 18px 26px; min-height: 44px; font: inherit; color: var(--hud-text); cursor: pointer; }
-.hud-banner-card .hud-title { font-size: 26px; }
-.hud-banner-line { font-size: 17px; }
+.hud-banner-card { pointer-events: auto; position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 10px; align-items: center; text-align: center; min-width: 0; width: min(440px, calc(100vw - 24px)); max-width: min(460px, calc(100vw - 24px)); padding: 16px 22px 14px; min-height: 44px; border-radius: 6px; font: inherit; color: var(--hud-text); cursor: pointer; box-shadow: inset 0 0 0 1px var(--hud-gilt-dim), 0 14px 36px rgba(0, 0, 0, 0.62); }
+.hud-duel-bar { position: absolute; left: 0; right: 0; top: 0; height: 3px; display: flex; }
+.hud-duel-bar-v, .hud-duel-bar-a { flex: 1 1 50%; display: block; }
+.hud-duel-eyebrow { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--hud-gilt); }
+.hud-duel-sides { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; flex-wrap: nowrap; }
+.hud-duel-side { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 3px; min-width: 0; font: 600 17px/1.15 var(--hud-display, 'Cormorant SC', Georgia, serif); letter-spacing: 0.04em; }
+.hud-duel-fallen { background: var(--hud-pill-bg); box-shadow: inset 0 0 0 1px var(--hud-pill-edge); color: var(--hud-ember); }
+.hud-duel-fallen .hud-duel-name { text-decoration: line-through; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hud-duel-taker { background: var(--hud-ally-bg); box-shadow: inset 0 0 0 1px var(--hud-ally-edge); color: var(--hud-text); }
+.hud-duel-taker .hud-duel-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hud-duel-arrow { color: var(--hud-gilt); font-size: 18px; flex: none; }
+.hud-banner-line { font-size: 13.5px; color: var(--hud-muted); }
 .hud-overlay { position: absolute; left: 50%; top: 110px; transform: translateX(-50%); z-index: 4; padding: 10px 22px; font: 600 20px var(--hud-display, 'Cormorant SC', Georgia, serif); letter-spacing: 0.08em; color: var(--hud-gilt); pointer-events: none; text-align: center; }
 .hud-overlay[hidden] { display: none; }
 .hud[data-layout="phone"] .hud-overlay { top: 100px; left: 8px; transform: none; box-sizing: border-box; max-width: calc(100vw - 130px); font-size: 16px; }

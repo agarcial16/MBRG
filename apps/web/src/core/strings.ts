@@ -164,7 +164,6 @@ export const STRINGS = {
   hudTrackInPlay: 'Ronda {round} en juego',
   hudTrackStart: 'Inicio',
   hudDockHandle: 'Plegar o desplegar el panel',
-  hudMinimap: 'Carta general',
   hudMinimapHint: 'Mapa en miniatura: toca o arrastra para mover la vista',
   hudChronicleEmpty: 'Aún no ha caído ninguna facción.',
   hudChronicleLoading: 'Cargando la crónica…',
@@ -310,6 +309,11 @@ export const STRINGS = {
   bannerClose: 'Cerrar aviso de la ronda',
   overlayFinalised: 'PREDICCIONES FINALIZADAS',
   overlayRevealing: 'REVELANDO…',
+  // Viewer visual refresh (spec 031): brand wordmark and reveal duel callout.
+  hudBrand: 'MBRG',
+  bannerDuelEyebrow: 'Ronda {round} · Eliminación y absorción',
+  bannerDuelArrow: '→',
+  bannerDuelDetail: '{absorber} absorbe +{count} territorios · controla el {value}% del mapa',
 } as const;
 
 /** Fills {name} placeholders; a placeholder without a value is left as written. */

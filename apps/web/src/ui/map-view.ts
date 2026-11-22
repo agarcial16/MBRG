@@ -29,8 +29,9 @@ import { buildPieceIndex } from '../core/regions';
 import type { StepData } from '../core/step';
 import { SHAPE_PARAMS } from '../core/shape-params';
 import { THEME, toMapTheme } from '../core/theme';
-import { framingBoxOf } from '../core/tour-camera';
+import { ease, framingBoxOf } from '../core/tour-camera';
 import type { Box } from '../core/tour-camera';
+import { frontBoxOf, REVEAL_EASE_MS } from '../core/reveal-camera';
 import { tourLabelDraws } from '../core/tour-frame';
 import type { TourFrame } from '../core/tour-frame';
 import {
@@ -146,6 +147,10 @@ export interface MapView {
   completeTour(nowMs: number): void;
   /** The user's camera (pan, zoom, reset): changes the camera and takes it from a running tour (FR-333). */
   userCamera(next: Camera): void;
+  /** Spec 031: bounding box of the current or most recent forward annexation front in map units, or undefined. */
+  frontBox(): Box | undefined;
+  /** Spec 031: smoothly eases the camera to the composed reveal target (instant under reduced motion; cancelled by userCamera). */
+  revealCamera(target: Camera, durationMs?: number): void;
   /** Outlines the faction with this view index in gilt, or none (spec 013): the player's choice. */
   setPick(faction: number | undefined): void;
   /** The tour frame of the last drawing, or undefined when it was not a tour frame (the debug panel shows its digest). */
@@ -243,6 +248,9 @@ export function createMapView(input: MapViewInput): MapView {
   // FR-443: the margins now drawn, and a glide to new ones (`startedMs` is the reading of the first frame of the glide).
   let inset: Inset = { top: viewport.top ?? 0, bottom: viewport.bottom ?? 0 };
   let glide: { from: Inset; to: Inset; follow: boolean; startedMs: number | undefined } | undefined;
+  // Spec 031: reveal camera composition glide and the most recent forward step's front bounds.
+  let revealGlide: { from: Camera; to: Camera; durationMs: number; startedMs: number | undefined } | undefined;
+  let lastFront: Box | undefined = stepView === undefined ? undefined : frontBoxOf(stepView.field);
   const dpr = (): number => window.devicePixelRatio || 1;
 
   // One drawing at clock reading `nowMs`: the playback says whole round or step at forward progress f.
@@ -359,15 +367,35 @@ export function createMapView(input: MapViewInput): MapView {
     return playback.running !== undefined;
   };
 
+  /** One step of the reveal camera glide at `nowMs`; true while still easing. */
+  const stepReveal = (nowMs: number): boolean => {
+    if (revealGlide === undefined) return false;
+    if (motion.reduced() || revealGlide.durationMs <= 0) {
+      camera = revealGlide.to;
+      revealGlide = undefined;
+      return false;
+    }
+    revealGlide.startedMs ??= nowMs;
+    const elapsed = nowMs - revealGlide.startedMs;
+    camera = ease(revealGlide.from, revealGlide.to, revealGlide.durationMs, elapsed);
+    if (elapsed >= revealGlide.durationMs) {
+      revealGlide = undefined;
+      return false;
+    }
+    return true;
+  };
+
   // Frames from the loop: camera changes and the frames of a running step.
   const loop = createFrameLoop((t) => {
     const gliding = stepInset(t);
+    const revealingCam = stepReveal(t);
     const more = paint(t);
     input.onFrame?.(t);
-    return more || gliding;
+    return more || gliding || revealingCam;
   });
 
   window.addEventListener('resize', () => {
+    revealGlide = undefined;
     viewport = withInset({ width: canvas.clientWidth, height: canvas.clientHeight }, inset);
     camera = resizeCamera(camera, image, viewport);
     input.onResize?.();
@@ -407,6 +435,8 @@ export function createMapView(input: MapViewInput): MapView {
       playback = outcome.state;
       current = prepared.round;
       stepView = prepared.step;
+      lastFront = prepared.step === undefined ? undefined : frontBoxOf(prepared.step.field);
+      if (prepared.step === undefined) revealGlide = undefined;
       // A round change leaves a frozen tour (A6); a running one was completed by the caller.
       if (session !== undefined && session.run === undefined) {
         session = undefined;
@@ -463,8 +493,19 @@ export function createMapView(input: MapViewInput): MapView {
       loop.request();
     },
     userCamera: (next) => {
+      revealGlide = undefined;
       session = takeCamera(session);
       camera = next;
+      loop.request();
+    },
+    frontBox: () => (stepView !== undefined ? frontBoxOf(stepView.field) : lastFront),
+    revealCamera: (target, durationMs = REVEAL_EASE_MS) => {
+      if (motion.reduced() || durationMs <= 0) {
+        revealGlide = undefined;
+        camera = target;
+      } else {
+        revealGlide = { from: camera, to: target, durationMs, startedMs: undefined };
+      }
       loop.request();
     },
   };

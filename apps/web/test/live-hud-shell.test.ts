@@ -194,8 +194,20 @@ describe('FR-359 to FR-364 the shell of the left column, the band, the track and
     for (const fn of ['minimapPixels', 'cameraAtPoint', 'viewRect', 'minimapSize']) expect(main, fn).toContain(`${fn}(`);
     expect(main).toMatch(/drawMinimap\(/);
     expect(main.match(/drawMinimap\(/g)!.length).toBeGreaterThanOrEqual(4);
-    expect(shell).toContain('STRINGS.hudMinimap');
+    // Spec 031: the "Carta general" overview header is dropped; the bottom-corner minimap keeps its accessible hint.
+    expect(shell).not.toContain('STRINGS.hudMinimap)');
     expect(shell).toContain('STRINGS.hudMinimapHint');
+  });
+
+  it('spec 031 viewer refresh: slim 52 px top bar, territory-share bars, floating pill, scrubber rail, and no Carta general header', () => {
+    expect(rules('.hud-top').join(';')).toMatch(/height:\s*52px/);
+    expect(shell).toContain('territoryShare(');
+    expect(shell).toContain('hud-row-bar');
+    expect(shell).toContain('hud-pill');
+    expect(css).toContain('.hud-pill');
+    expect(css).toContain('.hud-track::before');
+    expect(css).toContain('.hud-duel');
+    expect(css).not.toContain('.hud-mini .hud-title');
   });
 });
 

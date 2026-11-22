@@ -3,7 +3,7 @@
 // values are computed here independently from the scripted match, never from the module under test.
 import { describe, expect, it } from 'vitest';
 import type { LiveModel } from '../src/core/live-model';
-import { chronicle, chronicleNeedsArchive, factionRows, missingRecords, searchRows, sortRows, visibleRows, type FactionRow } from '../src/core/live-stats';
+import { chronicle, chronicleNeedsArchive, factionRows, missingRecords, searchRows, sortRows, territoryShare, totalTerritories, visibleRows, type FactionRow } from '../src/core/live-stats';
 import { DEV_PRESENTATION } from './helpers/dev-map';
 import liveMainSource from '../src/ui/live-main.ts?raw';
 import { Driver, eventsOfRound, scripted, type Scripted } from './helpers/scripted-match';
@@ -227,5 +227,23 @@ describe('FR-360 the shell reads the archive for a chronicle that lacks records'
   it('FR-360 the live scene asks for the archive when the chronicle needs it and tells the panel while the records load', () => {
     expect(liveMainSource).toMatch(/if \(chronicleNeedsArchive\(model, upTo\)\) after\(0, \(\) => runner\?\.requestArchive\(\)\);/);
     expect(liveMainSource).toMatch(/chronicleLoading: missingRecords\(model, upTo\)\.length > 0/);
+  });
+});
+
+describe('spec 031 territory share bars', () => {
+  it('computes total territories across living factions and clamped 0..1 share per row', () => {
+    const sample: FactionRow[] = [
+      { id: 1, name: 'Francia', territories: 38, alive: true, bajas: 1, conq: 20, fell: undefined },
+      { id: 2, name: 'Espana', territories: 35, alive: true, bajas: 1, conq: 18, fell: undefined },
+      { id: 3, name: 'Alemania', territories: 16, alive: true, bajas: 0, conq: 0, fell: undefined },
+      { id: 4, name: 'Italia', territories: 0, alive: false, bajas: 0, conq: 0, fell: 2 },
+    ];
+    expect(totalTerritories(sample)).toBe(89);
+    expect(totalTerritories([])).toBe(0);
+    expect(territoryShare(38, 89)).toBeCloseTo(38 / 89, 10);
+    expect(territoryShare(0, 89)).toBe(0);
+    expect(territoryShare(10, 0)).toBe(0);
+    expect(territoryShare(-3, 89)).toBe(0);
+    expect(territoryShare(120, 89)).toBe(1);
   });
 });

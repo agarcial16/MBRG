@@ -101,6 +101,19 @@ export function visibleRows(rows: readonly FactionRow[], limit: number, all: boo
   return { shown: rows.slice(0, limit), hidden: rows.length - limit };
 }
 
+/** Total territories held across living factions (0 when none). */
+export function totalTerritories(rows: readonly FactionRow[]): number {
+  let sum = 0;
+  for (const row of rows) if (row.alive && row.territories > 0) sum += row.territories;
+  return sum;
+}
+
+/** Clamped [0, 1] share of total map territories held by one faction row (0 when total is 0 or row holds none). */
+export function territoryShare(territories: number, total: number): number {
+  if (territories <= 0 || total <= 0) return 0;
+  return Math.min(1, territories / total);
+}
+
 export type ChronicleEntry =
   | { readonly status: 'applied'; readonly round: number; readonly victim: string; readonly absorber: string; readonly taken: number }
   /** The victim of a round that has no absorber yet; `victim` is undefined while its reveal tour has not stopped on it. */
