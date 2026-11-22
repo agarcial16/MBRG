@@ -145,6 +145,36 @@ describe('FR-593 the units of the primary source', () => {
     expect(units([feature({ ...base, free: 1 }, 0), feature({ ...base, free: 2 }, 1)], c).length).toBe(1);
   });
 
+  it('FR-593 checks a filter or rule property that doubles as a masked name column: an earlier name column never hides its conflict', () => {
+    // `from` is the second name column and a filter's property; both features are named "Country" by the first
+    // column, so the name comparison never reads `from`: the filter still checks its values (the date-range rule)
+    const c = curation((x) => {
+      x.columns = { key: 'code', name: ['label', 'from'] };
+      x.select = [{ property: 'from', gte: '1915-01-01' }];
+    });
+    expect(errors([feature({ code: 'A', label: 'Country', from: '1910-01-01' }, 0), feature({ code: 'A', label: 'Country', from: '1920-01-01' }, 1)], c)).toStrictEqual([
+      { kind: 'conflicting-unit-property', unit: 'A', property: 'from' },
+    ]);
+    // the first name column differs too: both conflicts are named, once each
+    expect(errors([feature({ code: 'B', label: 'One', from: '1910-01-01' }, 2), feature({ code: 'B', label: 'Two', from: '1920-01-01' }, 3)], c)).toStrictEqual([
+      { kind: 'conflicting-unit-property', unit: 'B', property: 'label' },
+      { kind: 'conflicting-unit-property', unit: 'B', property: 'from' },
+    ]);
+    // a property that is the first name column AND a filter's property conflicts once, not twice
+    const twice = curation((x) => {
+      x.columns = { key: 'code', name: ['from'] };
+      x.select = [{ property: 'from', lte: '1915-01-01' }];
+    });
+    expect(errors([feature({ code: 'C', from: '1910-01-01' }, 4), feature({ code: 'C', from: '1920-01-01' }, 5)], twice)).toStrictEqual([
+      { kind: 'conflicting-unit-property', unit: 'C', property: 'from' },
+    ]);
+    // a name column that no filter or rule uses is still compared by name only: differing fallbacks are no error
+    const free = curation((x) => {
+      x.columns = { key: 'code', name: ['label', 'from'] };
+    });
+    expect(units([feature({ code: 'A', label: 'Country', from: '1910' }, 0), feature({ code: 'A', label: 'Country', from: '1920' }, 1)], free).length).toBe(1);
+  });
+
   it('FR-593 keeps every conflict of a unit, each on its own property, and a conflict of each unit', () => {
     const c = curation((x) => (x.select = [{ property: 'a', eq: 'x' }, { property: 'b', eq: 'x' }]));
     const found = errors(

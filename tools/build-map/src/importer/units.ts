@@ -1,7 +1,7 @@
 import type { Result } from '@mbrg/shared';
 import { own, presentText } from '../core/errors';
 import type { SourcePolygon } from '../core/types';
-import { usedProperties, type Curation, type Usable, type UnitEntry } from './curation';
+import { type Curation, type Usable, type UnitEntry } from './curation';
 import type { ImportFeature } from './types';
 
 /** FR-593: one place of the primary source: all the features that share a key. */
@@ -103,9 +103,28 @@ export function formUnits(features: readonly ImportFeature[], curation: Curation
   }
 
   // A feature's name is its first present name column (FR-593); features are compared by that name, not column by
-  // column. Every other property a filter or a rule uses is compared as a usable value.
+  // column. Every property a filter or a rule uses is compared as a usable value, taken straight from the filters and
+  // rules: a name column that doubles as one is compared here too, since the name comparison reads only the first
+  // present name column and an earlier name column would mask a conflicting filter or rule property.
   const names = curation.columns.name;
-  const others = usedProperties(curation).filter((p) => p !== key && !names.includes(p));
+  const ruleProperties: string[] = [];
+  for (const filter of [...curation.select, ...curation.insets.flatMap((inset) => inset.select)]) {
+    if ('property' in filter) ruleProperties.push(filter.property);
+  }
+  for (const rule of [curation.territoryBy, curation.factionBy]) {
+    if (rule === undefined) continue;
+    ruleProperties.push(rule.property);
+    if (rule.nameProperty !== undefined) ruleProperties.push(rule.nameProperty);
+  }
+  const others = [...new Set(ruleProperties)].filter((p) => p !== key);
+  // a property can conflict as the name column of one feature and as a filter or rule property at once: one error
+  const conflicts = new Set<string>();
+  const conflict = (unit: string, property: string): void => {
+    const once = JSON.stringify([unit, property]);
+    if (conflicts.has(once)) return;
+    conflicts.add(once);
+    errors.push({ kind: 'conflicting-unit-property', unit, property });
+  };
   for (const unit of byKey.values()) {
     let firstName: string | undefined;
     for (const feature of unit.features) {
@@ -115,7 +134,7 @@ export function formUnits(features: readonly ImportFeature[], curation: Curation
       if (firstName === undefined) firstName = value;
       else if (firstName !== value) {
         // The conflict is named after the column that gave the differing name.
-        errors.push({ kind: 'conflicting-unit-property', unit: unit.key, property: column });
+        conflict(unit.key, column);
         break;
       }
     }
@@ -126,7 +145,7 @@ export function formUnits(features: readonly ImportFeature[], curation: Curation
         if (value === undefined) continue;
         if (first === undefined) first = value;
         else if (identity(first) !== identity(value)) {
-          errors.push({ kind: 'conflicting-unit-property', unit: unit.key, property });
+          conflict(unit.key, property);
           break;
         }
       }
