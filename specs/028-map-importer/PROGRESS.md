@@ -26,3 +26,9 @@ What changed (docs only; the review's seven objections):
 Tests: none run (docs-only revision; no file under `packages/`, `apps/` or `tools/` was touched, per the brief).
 
 Next step: the Neon re-review of `docs/028-spec-draft`, then the user's approval; implementation starts from `tasks.md` on `feat/028-map-importer` only after both.
+
+## 2026-11-22 — T1.1 Ledger, command surface (implementation starts)
+Branch: `feat/028-map-importer` (created from the draft branch tip 5dfb3cc; the old `docs/028-spec-draft` was checked out in another worktree, so the new branch was cut from `origin/docs/028-spec-draft` and the old remote branch deleted). First commit f2371d5 flipped the plan and tasks Status to approved (2026-11-22) and dropped the stale `packages/shared` mention of tasks.md L15.
+Changed: `packages/sim/test/traceability.test.ts` (ranges FR-586..614 and NFR-132..138, `PENDING_028` with the 36 ids, `DONE_028` empty, size pins 608/606, 024/025/027 exclusion assertions drop FR-586/NFR-132, three id-free 028 tests incl. a synthetic pending-id check); `tools/build-map/package.json` (script `import-map`); `src/cli/import.ts` (mode parser + `MODE_HANDLERS` registry; a known mode without a handler exits 1 with a text line until T1.4/T1.6/M2 register it); `test/import-cli.test.ts`.
+Tests: traceability 73/73, import-cli 6/6, typecheck of build-map and root tests green. Untested: nothing else (no logic yet).
+Next: T1.2 (GeoJSON reader) on the same branch.

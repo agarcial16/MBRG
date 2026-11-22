@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build-map": "tsx src/cli/build.ts",
-    "extract": "tsx src/cli/extract.ts"
+    "extract": "tsx src/cli/extract.ts",
+    "import-map": "tsx src/cli/import.ts"
   },
   "dependencies": {
     "@mbrg/shared": "*",
