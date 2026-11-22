@@ -1,6 +1,7 @@
 // Tests for spec 030 (start menu landing): pasted match & spectator link routing, deterministic
 // static atlas rotation (single-map and multi-map interleaving, storage fallback), Logo 1 SVG
 // geometry, landing strings, and stylesheet/shell invariants.
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ATLAS_PLATES, VISIT_STORAGE_KEY, atlasCaption, hashVisitKey, interleaveByMap, nextVisitIndex, selectAtlasPlate, type AtlasPlate } from '../src/core/landing-atlas';
 import { LOGO_CROWN, LOGO_REGIONS, LOGO_VIEWBOX } from '../src/core/brand-logo';
@@ -66,6 +67,11 @@ describe('FR-614 FR-615 deterministic static atlas catalog and per-visit rotatio
       expect(plate.mapLabel).toBe(STRINGS.landingMapDev);
       expect(atlasCaption(plate)).toContain(STRINGS.landingMapDev);
       expect(atlasCaption(plate)).toContain(String(plate.round));
+      const bytes = readFileSync(new URL(`../public${plate.assetUrl}`, import.meta.url));
+      expect(bytes.length, plate.assetUrl).toBeGreaterThan(5_000);
+      expect(bytes.length, plate.assetUrl).toBeLessThanOrEqual(200_000);
+      expect(bytes.subarray(0, 4).toString('latin1'), plate.assetUrl).toBe('RIFF');
+      expect(bytes.subarray(8, 12).toString('latin1'), plate.assetUrl).toBe('WEBP');
     }
   });
 

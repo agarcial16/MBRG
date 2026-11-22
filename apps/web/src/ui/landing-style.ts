@@ -22,7 +22,7 @@ export const LANDING_CSS = `
   pointer-events: none;
   background-repeat: no-repeat;
   background-size: cover;
-  background-position: 62% 48%;
+  background-position: 54% 48%;
   z-index: 0;
 }
 .landing-veil {
@@ -39,6 +39,8 @@ export const LANDING_CSS = `
 .landing-shell {
   position: relative;
   z-index: 2;
+  width: 100%;
+  max-width: 100%;
   min-height: 100%;
   display: flex;
   flex-direction: column;
@@ -50,7 +52,8 @@ export const LANDING_CSS = `
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font: 600 11px/1.2 var(--hud-display, 'Cormorant SC', Georgia, serif);
+  max-width: 100%;
+  font: 600 11px/1.3 var(--hud-display, 'Cormorant SC', Georgia, serif);
   letter-spacing: 0.2em;
   color: var(--hud-muted);
 }
@@ -65,7 +68,7 @@ export const LANDING_CSS = `
 
 .landing-console {
   width: 100%;
-  max-width: 560px;
+  max-width: 590px;
   margin: auto 0;
   padding: 24px 0;
   display: flex;
@@ -108,9 +111,8 @@ export const LANDING_CSS = `
 
 .landing-pitch {
   margin: 0;
-  font: 400 18px/1.45 var(--hud-body, Spectral, Georgia, serif);
+  font: 400 17px/1.45 var(--hud-body, Spectral, Georgia, serif);
   color: var(--hud-text);
-  max-width: 520px;
 }
 
 /* Primary entry box: match link, spectator link or 16-char code. */
@@ -287,10 +289,15 @@ export const LANDING_CSS = `
 .hud[data-layout="phone"] .landing-entry .hud-form {
   flex-direction: column;
 }
+.hud[data-layout="phone"] .landing-kicker {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
 .hud[data-layout="phone"] .landing-entry .hud-input,
 .hud[data-layout="phone"] .landing-entry .hud-btn.primary,
 .hud[data-layout="phone"] .landing-toggle {
   width: 100%;
+  min-width: 0;
   min-height: 44px;
 }
 .hud[data-layout="phone"] .landing-footer {

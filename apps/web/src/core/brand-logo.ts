@@ -35,5 +35,5 @@ export const LOGO_REGIONS: readonly LogoRegion[] = [
   { id: 'sw', points: '9,49 22,52 26,64 17,67 7,58', fill: '#8265a8' },
   { id: 'ce', points: '25,51 33,46 45,52 54,53 51,64 35,66 29,63', fill: '#5b9651' },
   { id: 'so', points: '20,68 28,65 38,67 42,71 27,71', fill: '#489389' },
-  { id: 'island', points: '56,57 60,56 61,61 57,63', fill: '#c48653' },
+  { id: 'island', points: '54,56 60,55 61,62 55,64', fill: '#c48653' },
 ];

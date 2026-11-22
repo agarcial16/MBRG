@@ -1,5 +1,5 @@
 # Spec 030 — Start menu landing
-Status: approved (direction C + Logo 1 + static rotating atlas simplification picked by the user on 2026-11-21). Tier: Light SDD (UI, visual design). Ids outside the traceability ledger: FR-610..FR-616, NFR-140..NFR-142.
+Status: implemented (direction C + Logo 1 + static rotating atlas simplification picked by the user on 2026-11-21). Tier: Light SDD (UI, visual design). Ids outside the traceability ledger: FR-610..FR-616, NFR-140..NFR-142.
 
 ## Context and goal
 Today the viewer's root route (`/`) opens the debug scene in development builds and a bare centred card over an empty dark gradient in production builds. Replace the root route with a proper game landing screen ("direction C"): an anchored left console carrying the MBRG identity, pitch and match/spectator entry input, set against a full-bleed static mid-round atlas on the right that rotates deterministically per visit. Every existing match, lobby, prediction and spectator route stays unchanged.

@@ -71,11 +71,19 @@ function buildBrandLogo(): SVGSVGElement {
       points: region.points,
       fill: region.fill,
       stroke: 'var(--hud-umber)',
-      'stroke-width': '1.6',
+      'stroke-width': '1.4',
       'stroke-linejoin': 'round',
     }, svg);
   }
   return svg;
+}
+
+function safeLocalStorage(): Storage | undefined {
+  try {
+    return window.localStorage;
+  } catch {
+    return undefined;
+  }
 }
 
 export function showStart(): void {
@@ -89,7 +97,8 @@ export function showStart(): void {
   installLandingStyles();
   document.title = STRINGS.landingBrand;
 
-  const visit = nextVisitIndex(window.localStorage);
+  const storage = safeLocalStorage();
+  const visit = nextVisitIndex(storage);
   const plate = selectAtlasPlate(visit);
 
   panel.replaceChildren();
