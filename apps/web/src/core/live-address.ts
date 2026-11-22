@@ -34,8 +34,8 @@ export function chooseScene(search: string, dev: boolean): SceneChoice {
     return spectate.length === 1 && spectate[0] === '1' ? { kind: 'live', matchId: id, spectate: true } : { kind: 'live', matchId: id };
   }
   if (params.has('start') && !params.has('seed')) return { kind: 'start' };
-  if (dev) return { kind: 'debug' };
-  return params.has('seed') ? { kind: 'message', error: 'need-match' } : { kind: 'start' };
+  if (params.has('seed')) return dev ? { kind: 'debug' } : { kind: 'message', error: 'need-match' };
+  return { kind: 'start' };
 }
 
 export type LiveParam = 'round' | 'x' | 'y' | 'zoom';
