@@ -31,4 +31,12 @@
   - Visual polish pass after inspecting initial after captures: constrained `.hud-track` (`flex: 0 1 auto`) so the horizontal scrubber rail terminates cleanly at the last round dot instead of trailing across empty space, and added `box-sizing: border-box; max-width: 680px` on `.hud-command` so the bottom hub floats symmetrically centred between the left panel and bottom-right minimap.
   - Built and previewed inline draggable before/after slider widget (`before-after.html`, 0 console errors).
 - Tests run: all 12 targeted web suites green (212/212 tests); `npm run typecheck` green; full `npm test` running.
-- State: branch `feat/031-viewer-refresh`; next step: finish full `npm test`, verify protected paths, commit, push, open PR into `main`, render before/after widget and post final report.
+
+## Step 4 — Final verification, captures & PR
+- Verified `npm run typecheck` green (0 errors) and full `npm test` green: 421/427 active files passed on the initial parallel run (6,198 passed), and all 6 untouched files that hit parallel CPU timeouts (`label-centred-place`, `scene`, `tour-camera`, `tour-shade`, `http-history`, `service-restart`) passed 6/6 (114/114 tests) when rerun with `--maxWorkers=2`.
+- Verified protected paths (`packages/*`, `apps/server/*`, `apps/bot/*`, `maps/dev/*`, spec 009 tour goldens) and root route / start menu (spec 030) are byte-identical vs `main`.
+- Captured deterministic before (`main`) and after (`feat/031-viewer-refresh`) screenshots at seed 7, Round 3 under `.claude/review/031-viewer-refresh/` (gitignored): desktop 1280×800 mid-match (Phase 2), desktop 1280×800 reveal (duel callout + `composeRevealCamera` framing), and mobile 390×844 mid-match; rendered interactive before/after draggable slider widget (desktop + mobile, 0 console errors).
+- Handover:
+  - Branch: `feat/031-viewer-refresh`
+  - State: implemented, verified, and PR opened into `main`.
+  - Next step: Light-SDD review and squash merge into `main`.
