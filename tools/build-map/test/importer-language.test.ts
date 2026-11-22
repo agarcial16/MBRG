@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readBounded, runImport, type ImportFs } from '../src/cli/import';
 import { CURATION_KIND_ORDER } from '../src/importer/errors';
 import { extractGeo } from '../src/importer/extract-geo';
-import { groupTerritories } from '../src/importer/grouping';
+import { groupFactions, groupTerritories } from '../src/importer/grouping';
 import { parseCuration } from '../src/importer/curation';
 import { inspectSource, VALUE_TYPES } from '../src/importer/inspect';
 import { readSource, readSources } from '../src/importer/read-source';
@@ -23,8 +23,9 @@ const CURATION_KINDS = ['invalid-curation'];
 const UNIT_KINDS = ['missing-unit-key', 'invalid-unit-key', 'conflicting-unit-property', 'sea-with-faction'];
 const SELECT_KINDS = ['unknown-unit', 'empty-selection'];
 const GROUP_KINDS = ['invalid-key', 'missing-group-value', 'mixed-territory-kind', 'conflicting-group-name', 'missing-territory-name'];
+const FACTION_KINDS = ['invalid-name', 'invalid-color', 'duplicate-faction-key', 'missing-faction', 'split-territory-faction', 'missing-faction-name', 'faction-without-territory', 'too-many-factions'];
 const COMMAND_KINDS = ['usage-error'];
-const IMPORTER_KINDS = [...SOURCE_KINDS, ...EXTRACT_KINDS, ...CURATION_KINDS, ...UNIT_KINDS, ...SELECT_KINDS, ...GROUP_KINDS, ...COMMAND_KINDS];
+const IMPORTER_KINDS = [...SOURCE_KINDS, ...EXTRACT_KINDS, ...CURATION_KINDS, ...UNIT_KINDS, ...SELECT_KINDS, ...GROUP_KINDS, ...FACTION_KINDS, ...COMMAND_KINDS];
 /** Data fields of the importer errors (the kind is always present). */
 const DATA_FIELDS = [
   'file',
@@ -43,6 +44,9 @@ const DATA_FIELDS = [
   'unit',
   'draft',
   'territory',
+  'faction',
+  'factions',
+  'count',
 ];
 const ALLOWED_KEYS = ['kind', ...DATA_FIELDS];
 const INVALID_SOURCE_REASONS = ['not-utf8', 'not-json', 'not-feature-collection', 'bad-feature', 'bad-geometry', 'unreadable'];
@@ -157,6 +161,50 @@ function unitErrors(): Err[] {
   return [...errs(units), ...errs(selectUnits(ok.value, c.value)), ...errs(empty)];
 }
 
+function factionErrors(): Err[] {
+  const c = parseCuration(
+    curationText((x) => {
+      x.factionBy = { property: 'c', nameProperty: 'cn' };
+      x.factions = [
+        { key: 'a', name: '', color: '#ABCDEF' },
+        { key: 'a', name: 'Again' },
+        { key: 'idle', name: 'Idle' },
+        { key: 'f'.repeat(300), name: 'Long' },
+      ];
+      x.units = { M: { faction: 'a' } };
+    }),
+    'c.json',
+  );
+  if (!c.ok) throw new Error('the curation should parse');
+  const units = buildUnits(
+    [
+      feature(0, { code: 'A', name: 'a', c: 'p', cn: 'One' }),
+      feature(1, { code: 'B', name: 'b', c: 'p', cn: 'Two' }),
+      feature(2, { code: 'C', name: 'c', c: 'q' }),
+      feature(3, { code: 'D', name: 'd' }),
+      feature(4, { code: 'M', name: 'm' }),
+      feature(5, { code: 'N', name: 'n' }),
+    ],
+    c.value,
+  );
+  if (!units.ok) throw new Error('the units should form');
+  const territories = groupTerritories(units.value, c.value);
+  if (!territories.ok) throw new Error('the territories should form');
+  const split = parseCuration(curationText((x) => ((x.territoryBy = { property: 'g' }), (x.territoryNames = { t: 'T' }), (x.factionBy = { property: 'c', nameProperty: 'c' }))), 'c.json');
+  if (!split.ok) throw new Error('the curation should parse');
+  const joined = buildUnits([feature(0, { code: 'A', name: 'a', g: 't', c: 'p' }), feature(1, { code: 'B', name: 'b', g: 't', c: 'q' })], split.value);
+  if (!joined.ok) throw new Error('the units should form');
+  const together = groupTerritories(joined.value, split.value);
+  if (!together.ok) throw new Error('the territories should form');
+  const many = parseCuration(curationText((x) => (x.factionBy = { property: 'f', nameProperty: 'f' })), 'c.json');
+  if (!many.ok) throw new Error('the curation should parse');
+  const crowd = buildUnits(Array.from({ length: 10000 }, (_, i) => feature(i, { code: 'u' + i, name: 'u' + i, f: 'f' + i })), many.value);
+  if (!crowd.ok) throw new Error('the units should form');
+  const crowded = groupTerritories(crowd.value, many.value);
+  if (!crowded.ok) throw new Error('the territories should form');
+  return [...errs(groupFactions(territories.value, c.value)), ...errs(groupFactions(together.value, split.value)), ...errs(groupFactions(crowded.value, many.value))];
+}
+
 function groupErrors(): Err[] {
   const c = parseCuration(
     curationText((x) => {
@@ -205,7 +253,7 @@ async function commandErrors(): Promise<Err[]> {
 }
 
 async function allErrors(): Promise<Err[]> {
-  return [...sourceErrors(), ...extractErrors(), ...curationErrors(), ...unitErrors(), ...groupErrors(), ...(await commandErrors())];
+  return [...sourceErrors(), ...extractErrors(), ...curationErrors(), ...unitErrors(), ...groupErrors(), ...factionErrors(), ...(await commandErrors())];
 }
 
 const sources = import.meta.glob('../src/importer/**/*.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;

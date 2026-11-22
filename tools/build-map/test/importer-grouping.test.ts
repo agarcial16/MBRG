@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseCuration, type Curation } from '../src/importer/curation';
-import { groupTerritories, type Territory } from '../src/importer/grouping';
+import { groupFactions, groupTerritories, type FactionPlan, type Territory } from '../src/importer/grouping';
 import { buildUnits, type Unit } from '../src/importer/units';
 import type { ImportFeature } from '../src/importer/types';
 import { ring, textBytes } from './helpers/geo-fixture';
@@ -234,5 +234,207 @@ describe('FR-596 the territories of the selected units', () => {
     const b = groupTerritories(list, c);
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
     expect(JSON.stringify(list)).toBe(before);
+  });
+});
+
+/** The territories of the features and then their factions. */
+function plan(features: ImportFeature[], c: Curation): FactionPlan {
+  const territories = groups(features, c);
+  const r = groupFactions(territories, c);
+  if (!r.ok) throw new Error(`expected factions, got ${JSON.stringify(r.errors)}`);
+  return r.value;
+}
+function factionFailures(features: ImportFeature[], c: Curation): unknown[] {
+  const r = groupFactions(groups(features, c), c);
+  if (r.ok) throw new Error('expected errors');
+  return r.errors;
+}
+const ofTerritory = (p: FactionPlan) => [...p.factionOf];
+
+describe('FR-597 the factions of the land territories', () => {
+  it('FR-597 gives a territory the faction of its units: the units entry first, else the factionBy value', () => {
+    const c = curation((x) => {
+      x.factionBy = { property: 'country', nameProperty: 'country_name' };
+      x.units = { B: { faction: 'XX' }, XB: { faction: 'XX' } };
+      x.factions = [{ key: 'XX', name: 'Hand made' }];
+    });
+    const p = plan(
+      [
+        feature({ code: 'A', name: 'a', country: 'ES', country_name: 'Espana' }),
+        feature({ code: 'B', name: 'b', country: 'ES', country_name: 'Espana' }),
+        feature({ code: 'XB', name: 'xb', country: 'FR' }),
+      ],
+      c,
+    );
+    expect(ofTerritory(p)).toStrictEqual([['A', 'ES'], ['B', 'XX'], ['XB', 'XX']]);
+    expect(p.factions.map((f) => f.key)).toStrictEqual(['XX', 'ES']);
+  });
+
+  it('FR-597 gives a territory of several units one faction, and fails split-territory-faction when its units disagree', () => {
+    const c = curation((x) => {
+      x.territoryBy = { property: 'g' };
+      x.territoryNames = { one: 'One', two: 'Two' };
+      x.factionBy = { property: 'country', nameProperty: 'cname' };
+    });
+    const ok = plan(
+      [feature({ code: 'A', name: 'a', g: 'one', country: 'ES', cname: 'Espana' }), feature({ code: 'B', name: 'b', g: 'one', country: 'ES', cname: 'Espana' })],
+      c,
+    );
+    expect(ofTerritory(ok)).toStrictEqual([['one', 'ES']]);
+    expect(
+      factionFailures(
+        [
+          feature({ code: 'A', name: 'a', g: 'one', country: 'PT', cname: 'p' }),
+          feature({ code: 'B', name: 'b', g: 'one', country: 'ES', cname: 'e' }),
+          feature({ code: 'C', name: 'c', g: 'one', country: 'PT', cname: 'p' }),
+          feature({ code: 'D', name: 'd', g: 'two', country: 'ES', cname: 'e' }),
+        ],
+        c,
+      ),
+    ).toStrictEqual([{ kind: 'split-territory-faction', territory: 'one', factions: ['ES', 'PT'] }]);
+  });
+
+  it('FR-597 fails with missing-faction for each land unit with no faction, and asks no faction of a sea territory', () => {
+    const c = curation((x) => {
+      x.factionBy = { property: 'country', nameProperty: 'cname' };
+      x.units = { S: { kind: 'sea' }, E: { faction: 'hand' } };
+      x.factions = [{ key: 'hand', name: 'Hand' }];
+    });
+    expect(
+      factionFailures([feature({ code: 'A', name: 'a' }), feature({ code: 'S', name: 's' }), feature({ code: 'B', name: 'b', country: 7.5 }), feature({ code: 'E', name: 'e' })], c),
+    ).toStrictEqual([
+      { kind: 'missing-faction', unit: 'A' },
+      { kind: 'missing-faction', unit: 'B' },
+    ]);
+    const sea = curation((x) => {
+      x.units = { S: { kind: 'sea' }, E: { faction: 'e' } };
+      x.factions = [{ key: 'e', name: 'E' }];
+    });
+    const ok = plan([feature({ code: 'S', name: 's' }), feature({ code: 'E', name: 'e' })], sea);
+    expect(ofTerritory(ok)).toStrictEqual([['E', 'e']]);
+  });
+
+  it('FR-597 lists the factions of the curation first, in its order, then every other used faction in code-unit order', () => {
+    const c = curation((x) => {
+      x.factionBy = { property: 'c', nameProperty: 'cn' };
+      x.factions = [
+        { key: 'Z', name: 'Zeta', color: '#112233' },
+        { key: 'm', name: 'Mu' },
+      ];
+    });
+    const p = plan(
+      [
+        feature({ code: 'A', name: 'a', c: 'b', cn: 'Beta' }),
+        feature({ code: 'B', name: 'b', c: 'Z' }),
+        feature({ code: 'C', name: 'c', c: 'a', cn: 'Alfa' }),
+        feature({ code: 'D', name: 'd', c: 'm' }),
+        feature({ code: 'E', name: 'e', c: 'B', cn: 'Capital' }),
+      ],
+      c,
+    );
+    expect(p.factions).toStrictEqual([
+      { key: 'Z', name: 'Zeta', color: '#112233' },
+      { key: 'm', name: 'Mu' },
+      { key: 'B', name: 'Capital' },
+      { key: 'a', name: 'Alfa' },
+      { key: 'b', name: 'Beta' },
+    ]);
+  });
+
+  it('FR-597 validates the name and the color of a listed faction and fails duplicate-faction-key for a repeated key', () => {
+    const c = curation((x) => {
+      x.factions = [
+        { key: 'a', name: '' },
+        { key: 'b', name: 'Bee', color: '#ABCDEF' },
+        { key: 'c', name: 'Cee', color: '#abcdeg' },
+        { key: 'd', name: ' padded' },
+        { key: 'a', name: 'Again' },
+        { key: 'e', name: 'e'.repeat(81) },
+        { key: 'f', name: 'Fine', color: '#00ff00' },
+      ];
+      x.units = { A: { faction: 'a' }, B: { faction: 'b' }, C: { faction: 'c' }, D: { faction: 'd' }, E: { faction: 'e' }, F: { faction: 'f' } };
+    });
+    expect(factionFailures(['A', 'B', 'C', 'D', 'E', 'F'].map((code) => feature({ code, name: code })), c)).toStrictEqual([
+      { kind: 'invalid-name', path: 'factions[0].name' },
+      { kind: 'invalid-name', path: 'factions[3].name' },
+      { kind: 'invalid-name', path: 'factions[5].name' },
+      { kind: 'invalid-color', path: 'factions[1].color' },
+      { kind: 'invalid-color', path: 'factions[2].color' },
+      { kind: 'duplicate-faction-key', faction: 'a' },
+    ]);
+  });
+
+  it('FR-597 names an unlisted faction by the nameProperty its units share, else fails conflicting-group-name or missing-faction-name', () => {
+    const c = curation((x) => (x.factionBy = { property: 'c', nameProperty: 'cn' }));
+    expect(
+      factionFailures(
+        [
+          feature({ code: 'A', name: 'a', c: 'p', cn: 'One' }),
+          feature({ code: 'B', name: 'b', c: 'p', cn: 'Two' }),
+          feature({ code: 'C', name: 'c', c: 'q' }),
+          feature({ code: 'D', name: 'd', c: 'r', cn: 'conflict' }),
+          feature({ code: 'E', name: 'e', c: 'r', cn: 'conflict' }),
+        ],
+        c,
+      ),
+    ).toStrictEqual([
+      { kind: 'conflicting-group-name', faction: 'p' },
+      { kind: 'missing-faction-name', faction: 'q' },
+    ]);
+    // a name that happens to be the word "conflict" is a name
+    expect(plan([feature({ code: 'D', name: 'd', c: 'r', cn: 'conflict' })], c).factions).toStrictEqual([{ key: 'r', name: 'conflict' }]);
+    // no nameProperty at all: every unlisted faction fails missing-faction-name
+    const none = curation((x) => (x.units = { A: { faction: 'u1' }, B: { faction: 'u2' } }));
+    expect(factionFailures([feature({ code: 'A', name: 'a' }), feature({ code: 'B', name: 'b' })], none)).toStrictEqual([
+      { kind: 'missing-faction-name', faction: 'u1' },
+      { kind: 'missing-faction-name', faction: 'u2' },
+    ]);
+  });
+
+  it('FR-597 fails with faction-without-territory for a listed faction that no land territory uses', () => {
+    const c = curation((x) => {
+      x.units = { A: { faction: 'used' }, S: { kind: 'sea' } };
+      x.factions = [{ key: 'used', name: 'Used' }, { key: 'idle', name: 'Idle' }, { key: 'asleep', name: 'Asleep' }];
+    });
+    expect(factionFailures([feature({ code: 'A', name: 'a' }), feature({ code: 'S', name: 's' })], c)).toStrictEqual([
+      { kind: 'faction-without-territory', faction: 'asleep' },
+      { kind: 'faction-without-territory', faction: 'idle' },
+    ]);
+  });
+
+  it('every faction key outside 1 to 256 code units fails invalid-key, curated or generated, and is never invalid-curation', () => {
+    const long = 'f'.repeat(257);
+    const edge = 'f'.repeat(256);
+    const c = curation((x) => {
+      x.factionBy = { property: 'c', nameProperty: 'cn' };
+      x.factions = [{ key: long, name: 'Long' }, { key: '', name: 'Empty' }, { key: edge, name: 'Edge' }];
+      x.units = { A: { faction: long }, GONE: { faction: 'g'.repeat(300) } };
+    });
+    expect(
+      factionFailures([feature({ code: 'A', name: 'a' }), feature({ code: 'B', name: 'b', c: 'x'.repeat(260), cn: 'X' }), feature({ code: 'C', name: 'c', c: edge })], c),
+    ).toStrictEqual([
+      { kind: 'invalid-key', faction: '' },
+      { kind: 'invalid-key', faction: long },
+      { kind: 'invalid-key', faction: 'g'.repeat(300) },
+      { kind: 'invalid-key', faction: 'x'.repeat(260) },
+      { kind: 'faction-without-territory', faction: '' },
+    ]);
+  });
+
+  it('a count of land factions above 9,999 fails too-many-factions with the cap and the count, and 9,999 is fine', () => {
+    const c = curation((x) => (x.factionBy = { property: 'f', nameProperty: 'f' }));
+    const many = (n: number) => Array.from({ length: n }, (_, i) => feature({ code: `u${i}`, name: `u${i}`, f: `f${i}` }));
+    expect(plan(many(9999), c).factions.length).toBe(9999);
+    expect(factionFailures(many(10000), c)).toStrictEqual([{ kind: 'too-many-factions', cap: 9999, count: 10000 }]);
+  });
+
+  it('FR-597 gives the same factions for the same territories and never touches what it reads', () => {
+    const c = curation((x) => (x.factionBy = { property: 'c', nameProperty: 'cn' }));
+    const territories = groups([feature({ code: 'A', name: 'a', c: 'k', cn: 'K' }), feature({ code: 'B', name: 'b', c: 'j', cn: 'J' })], c);
+    const before = JSON.stringify(territories);
+    const a = groupFactions(territories, c);
+    const b = groupFactions(territories, c);
+    expect(a.ok && b.ok && JSON.stringify([...a.value.factionOf, a.value.factions])).toBe(a.ok && b.ok && JSON.stringify([...b.value.factionOf, b.value.factions]));
+    expect(JSON.stringify(territories)).toBe(before);
   });
 });

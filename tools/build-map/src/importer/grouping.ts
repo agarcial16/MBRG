@@ -1,4 +1,5 @@
-import type { Result } from '@mbrg/shared';
+import { isValidColor, isValidName, type Result } from '@mbrg/shared';
+import { compareCodeUnits } from '../core/errors';
 import type { Curation, Usable } from './curation';
 import { ErrorCollector } from './errors';
 import { unitValue, type Unit } from './units';
@@ -93,23 +94,135 @@ export function groupTerritories(selected: readonly Unit[], curation: Curation):
   return errors.size > 0 ? { ok: false, errors: errors.list() } : { ok: true, value: territories };
 }
 
+/**
+ * The text every one of `units` has as its value of `property` (an empty text counts as absent): `value` is undefined
+ * when none has one, and `conflict` is true when they do not all share it (a unit without it against one with it is a
+ * conflict).
+ */
+function sharedValue(units: readonly Unit[], property: string): { conflict: boolean; value: string | undefined } {
+  const values = units.map((unit) => {
+    const value = unitValue(unit, property);
+    return value === undefined || value === '' ? undefined : usableText(value);
+  });
+  return { conflict: values.some((v) => v !== values[0]), value: values[0] };
+}
+
 /** FR-596: the name of one territory, or undefined after recording why it has none. */
 function nameOf(group: { key: string; units: Unit[]; byRule: Unit[] }, curation: Curation, errors: ErrorCollector<TerritoryError>): string | undefined {
   const named = curation.territoryNames.get(group.key);
   if (named !== undefined) return named;
   const property = curation.territoryBy?.nameProperty;
   if (property !== undefined && group.byRule.length > 0) {
-    const values = group.byRule.map((unit) => {
-      const value = unitValue(unit, property);
-      return value === undefined || value === '' ? undefined : usableText(value);
-    });
-    if (values.some((v) => v !== values[0])) {
+    const shared = sharedValue(group.byRule, property);
+    if (shared.conflict) {
       errors.add({ kind: 'conflicting-group-name', territory: group.key });
       return undefined;
     }
-    if (values[0] !== undefined) return values[0];
+    if (shared.value !== undefined) return shared.value;
   }
   if (group.units.length === 1 && group.units[0]!.name !== undefined) return group.units[0]!.name;
   errors.add({ kind: 'missing-territory-name', territory: group.key });
   return undefined;
+}
+
+/** FR-597: the cap on the factions of land territories (FR-607). */
+export const MAX_FACTIONS = 9999;
+
+/** FR-597: one faction of the map, in faction order; `color` is present only when the curation gave one. */
+export interface Faction {
+  key: string;
+  name: string;
+  color?: string;
+}
+
+/** FR-597: the factions in faction order and the faction key of every land territory (by territory key). */
+export interface FactionPlan {
+  factions: Faction[];
+  factionOf: Map<string, string>;
+}
+
+/** FR-597, FR-599: the errors of the faction layer. */
+export type FactionError =
+  | { kind: 'invalid-name'; path: string }
+  | { kind: 'invalid-color'; path: string }
+  | { kind: 'invalid-key'; faction: string }
+  | { kind: 'duplicate-faction-key'; faction: string }
+  | { kind: 'missing-faction'; unit: string }
+  | { kind: 'split-territory-faction'; territory: string; factions: string[] }
+  | { kind: 'conflicting-group-name'; faction: string }
+  | { kind: 'missing-faction-name'; faction: string }
+  | { kind: 'faction-without-territory'; faction: string }
+  | { kind: 'too-many-factions'; cap: number; count: number };
+
+/**
+ * FR-597: gives every land territory exactly one faction: that of its land units, each taken from its `units` entry
+ * when it has one, else from the `factionBy` property (`missing-faction` for a land unit with none;
+ * `split-territory-faction` when the units of one territory disagree). The factions are the curation's `factions` list
+ * (its names checked as `invalid-name`, its colors as `invalid-color`, a repeated key `duplicate-faction-key`) followed
+ * by every other used key in code-unit order, named by the `nameProperty` of the units that got the key from the rule
+ * (`conflicting-group-name` when they differ, `missing-faction-name` when nothing names it). A listed faction no land
+ * territory uses is `faction-without-territory`; more than 9,999 factions is `too-many-factions`; every faction key the
+ * curation names or the rule generates outside 1 to 256 code units is `invalid-key`. Errors come back collected, once
+ * per distinct data, in the FR-599 order. Pure.
+ */
+export function groupFactions(territories: readonly Territory[], curation: Curation): Result<FactionPlan, FactionError> {
+  const errors = new ErrorCollector<FactionError>();
+  const checkKey = (key: string): void => {
+    if (!isKeyLength(key)) errors.add({ kind: 'invalid-key', faction: key });
+  };
+  const listed = new Map<string, Faction>();
+  curation.factions.forEach((entry, i) => {
+    checkKey(entry.key);
+    if (!isValidName(entry.name)) errors.add({ kind: 'invalid-name', path: `factions[${i}].name` });
+    if (entry.color !== undefined && !isValidColor(entry.color)) errors.add({ kind: 'invalid-color', path: `factions[${i}].color` });
+    if (listed.has(entry.key)) errors.add({ kind: 'duplicate-faction-key', faction: entry.key });
+    else listed.set(entry.key, entry.color === undefined ? { key: entry.key, name: entry.name } : { key: entry.key, name: entry.name, color: entry.color });
+  });
+  for (const entry of curation.units.values()) if (entry.faction !== undefined) checkKey(entry.faction);
+
+  const rule = curation.factionBy;
+  const factionOf = new Map<string, string>();
+  const used = new Set<string>();
+  /** The units that got each faction key from the rule. */
+  const byRule = new Map<string, Unit[]>();
+  for (const territory of territories) {
+    if (territory.kind !== 'land') continue;
+    const keys = new Set<string>();
+    for (const unit of territory.units) {
+      let key: string | undefined;
+      if (unit.faction !== undefined) key = unit.faction;
+      else if (rule !== undefined) {
+        const value = unitValue(unit, rule.property);
+        if (value !== undefined) {
+          key = usableText(value);
+          checkKey(key);
+          const group = byRule.get(key);
+          if (group === undefined) byRule.set(key, [unit]);
+          else group.push(unit);
+        }
+      }
+      if (key === undefined) errors.add({ kind: 'missing-faction', unit: unit.key });
+      else keys.add(key);
+    }
+    if (keys.size > 1) errors.add({ kind: 'split-territory-faction', territory: territory.key, factions: [...keys].sort(compareCodeUnits) });
+    else if (keys.size === 1) {
+      const key = [...keys][0]!;
+      factionOf.set(territory.key, key);
+      used.add(key);
+    }
+  }
+
+  for (const key of listed.keys()) if (!used.has(key)) errors.add({ kind: 'faction-without-territory', faction: key });
+
+  const factions: Faction[] = [...listed.values()];
+  for (const key of [...used].filter((k) => !listed.has(k)).sort(compareCodeUnits)) {
+    const property = rule?.nameProperty;
+    const units = byRule.get(key) ?? [];
+    const shared = property !== undefined && units.length > 0 ? sharedValue(units, property) : { conflict: false, value: undefined };
+    if (shared.conflict) errors.add({ kind: 'conflicting-group-name', faction: key });
+    else if (shared.value === undefined) errors.add({ kind: 'missing-faction-name', faction: key });
+    else factions.push({ key, name: shared.value });
+  }
+  if (factions.length > MAX_FACTIONS) errors.add({ kind: 'too-many-factions', cap: MAX_FACTIONS, count: factions.length });
+  return errors.size > 0 ? { ok: false, errors: errors.list() } : { ok: true, value: { factions, factionOf } };
 }
