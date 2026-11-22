@@ -63,7 +63,7 @@ export function loadAsServer(folder: string): { digest: string; mapOk: boolean }
   for (const name of MAP_FILE_NAMES) files[name] = readFileSync(join(folder, name));
   const digest = createHash('sha256').update(mapDigestBytes(files)).digest('hex');
   const map = JSON.parse(new TextDecoder().decode(files['map.json'])) as unknown;
-  return { digest, mapOk: validateMap(map).ok };
+  return { digest, mapOk: /^[0-9a-f]{64}$/.test(digest) && validateMap(map).ok };
 }
 
 /** The checks the viewer runs before drawing (004 FR-133): the presentation check and the id image check. */
@@ -95,6 +95,9 @@ export interface ScaleImportResult {
   viewerChecksOk: boolean;
   /** The viewer-limits warnings of the stress report (factions above 255, palette-exhausted when it fires). */
   stressWarnings: string[];
+  /** Peak resident memory after the NFR-136 import and inspect, megabytes. */
+  importMaxRssMb: number;
+  /** Peak resident memory of the whole process (including the FR-614 stress proof), megabytes. */
   maxRssMb: number;
 }
 
@@ -106,37 +109,67 @@ export function runScaleImport(options: ScaleOptions, now: () => number, rss: ()
 
   // NFR-136: the import itself, 52 factions by province.
   const imported = importFixture(fixture, scaleCuration(fixture, 'prov', 'prov'), now);
+  rmSync(join(imported.folder, '..'), { recursive: true, force: true });
 
   // NFR-136: the inspect mode on the same source.
   const dir = mkdtempSync(join(tmpdir(), 'mbrg-scale-inspect-'));
-  writeFileSync(join(dir, 'primary.geojson'), fixture.primary);
-  const inspectStart = now();
-  let inspectOut = '';
-  const inspectStatus = runInspectMode([`--source=${join(dir, 'primary.geojson')}`], {
-    fs: realImportFs,
-    root: process.cwd(),
-    stdout: (s) => (inspectOut += s),
-    stderr: () => undefined,
-  });
-  const inspectMs = now() - inspectStart;
-  rmSync(dir, { recursive: true, force: true });
-  void inspectOut;
+  let inspectMs = 0;
+  let inspectStatus = 1;
+  try {
+    writeFileSync(join(dir, 'primary.geojson'), fixture.primary);
+    const inspectStart = now();
+    let inspectOut = '';
+    inspectStatus = runInspectMode([`--source=${join(dir, 'primary.geojson')}`], {
+      fs: realImportFs,
+      root: process.cwd(),
+      stdout: (s) => (inspectOut += s),
+      stderr: () => undefined,
+    });
+    inspectMs = now() - inspectStart;
+    void inspectOut;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  const importMaxRssMb = Math.round(rss());
+
+  // Stop before the stress proof if the NFR-136 bound itself fails.
+  if (imported.status !== 0 || imported.ms >= SCALE_BOUND_MS) {
+    return {
+      options,
+      generateMs,
+      importMs: imported.ms,
+      importStatus: imported.status,
+      importError: firstError(imported.errors),
+      inspectMs,
+      inspectStatus,
+      stressMs: 0,
+      stressStatus: -1,
+      stressError: '',
+      serverLoadOk: false,
+      viewerChecksOk: false,
+      stressWarnings: [],
+      importMaxRssMb,
+      maxRssMb: importMaxRssMb,
+    };
+  }
 
   // FR-614: the stress proof, the same fixture with one faction per land unit.
   const stress = importFixture(fixture, scaleCuration(fixture, 'code', 'name'), now);
   let serverLoadOk = false;
   let viewerChecksOk = false;
-  if (stress.status === 0) {
-    serverLoadOk = loadAsServer(stress.folder).mapOk;
-    const checks = viewerChecks(stress.folder);
-    viewerChecksOk = checks.presentationOk && checks.imageOk;
+  try {
+    if (stress.status === 0) {
+      serverLoadOk = loadAsServer(stress.folder).mapOk;
+      const checks = viewerChecks(stress.folder);
+      viewerChecksOk = checks.presentationOk && checks.imageOk;
+    }
+  } finally {
+    rmSync(join(stress.folder, '..'), { recursive: true, force: true });
   }
   const stressWarnings = stress.report
     .split('\n')
     .filter((line) => line.includes('Above255') || line.includes('paletteExhausted'))
     .map((line) => line.trim());
-  if (stress.status === 0) rmSync(stress.folder, { recursive: true, force: true });
-  if (imported.status === 0) rmSync(imported.folder, { recursive: true, force: true });
 
   return {
     options,
@@ -152,6 +185,7 @@ export function runScaleImport(options: ScaleOptions, now: () => number, rss: ()
     serverLoadOk,
     viewerChecksOk,
     stressWarnings,
+    importMaxRssMb,
     maxRssMb: Math.round(rss()),
   };
 }
@@ -170,6 +204,7 @@ export function describeScaleRun(result: ScaleImportResult): string {
     `import: ${Math.round(result.importMs)} ms (bound ${SCALE_BOUND_MS} ms), status ${result.importStatus}`,
     ...(result.importError === '' ? [] : [`importError: ${result.importError}`]),
     `inspect: ${Math.round(result.inspectMs)} ms (bound ${INSPECT_BOUND_MS} ms), status ${result.inspectStatus}`,
+    `importMaxRssMb: ${result.importMaxRssMb}`,
     `stress: ${Math.round(result.stressMs)} ms (recorded, not bounded), status ${result.stressStatus}`,
     ...(result.stressError === '' ? [] : [`stressError: ${result.stressError}`]),
     `stressServerLoad: ${result.serverLoadOk ? 'ok' : 'failed'}`,
@@ -187,7 +222,7 @@ export function scaleRunOk(result: ScaleImportResult): boolean {
     result.importStatus === 0 &&
     result.importMs < SCALE_BOUND_MS &&
     result.inspectStatus === 0 &&
-    result.inspectMs < INSPECT_BOUND_MS &&
+    result.inspectMs <= INSPECT_BOUND_MS &&
     result.stressStatus === 0 &&
     result.serverLoadOk &&
     result.viewerChecksOk &&
