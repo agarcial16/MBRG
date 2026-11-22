@@ -220,3 +220,100 @@ Mirrors the hand-run checks of 2026-11-19/20 (with throwaway credentials):
 6. Stop the server (`systemctl stop mbrg-server`) and open the same viewer
    link: the page shows its own failure notice — no crash, no leaked detail.
    Start it again and the viewer recovers.
+
+## Adding a map
+
+Map packages (`map.json`, `presentation.json`, `ids.png`) are built offline on
+local files with the `import-map` command in `@mbrg/build-map`. It opens no
+network connection, and neither the server nor the viewer runs it or accepts
+uploads. Exit status is `0` on success, `1` on failure (one JSON error per line
+on stderr, nothing written in the output folder), and `2` on usage error.
+
+### Before you start: CRS, geometry and licences
+
+- **Reprojection and simplification**: the importer accepts only GeoJSON
+  `FeatureCollection` files of `Polygon` / `MultiPolygon` geometries in degrees
+  (`CRS84`, `EPSG:4326` or `EPSG:4258`) and never reprojects, simplifies or
+  repairs geometry (`projected-crs` at extraction, `coordinates-not-degrees` at
+  import). If a source is in a projected coordinate system (for example UTM
+  metres) or too dense for the 256 MiB / 20,000,000-position caps, reproject or
+  simplify it first with outside tools (such as `ogr2ogr -t_srs EPSG:4326` or
+  `mapshaper`) before importing.
+- **Licences**: a source dataset's licence travels with every map package built
+  from it. Keep any required attribution or share-alike terms with your
+  deployment, and do not commit licensed sources or large generated maps to the
+  repository.
+
+### Operator steps
+
+1. **Extract (only when the source is a shapefile)**: convert a `.shp` (with
+   its `.dbf` beside it, plus optional `.cpg` and `.prj`) into a GeoJSON source.
+   If neither `.cpg` nor `--encoding` names an encoding (`utf-8`,
+   `windows-1252` or `iso-8859-1`), extraction fails with
+   `unknown-dbf-encoding`.
+
+   ```sh
+   npm run import-map -w @mbrg/build-map -- extract --shp=<file.shp> --out=<file.geojson> [--keep=<name,...>] [--encoding=<utf-8|windows-1252|iso-8859-1>] [--round=<6..15>]
+   ```
+
+2. **Inspect the source and generate a draft curation**: print feature counts,
+   skipped null geometries, coordinate bounds, property types, uniqueness (key
+   candidates) and sample values. Pass `--draft` to write a starter curation
+   file (it refuses an existing file or a package folder holding `map.json`; an
+   unedited draft always fails import with `invalid-curation`).
+
+   ```sh
+   npm run import-map -w @mbrg/build-map -- inspect --source=<file.geojson> [--draft=<file.json>]
+   ```
+
+3. **Write the curation file**: edit the draft JSON to set `columns.key`,
+   `columns.name`, optional `context` sources (other land drawn as background),
+   `select` / `exclude`, `params` (`side`, `margin`, `minPieceSize`,
+   `projection`: `laea` or `equal-earth`, optional `gapFill`), per-unit
+   overrides (`units`), grouping (`territoryBy`, `territoryNames`, `factions`,
+   `factionBy`), `seas` seeds, and optional `insets`.
+
+   > **Date-ranged / multi-period sources**: units are formed by `columns.key`
+   > **before** `select` filters run. In a multi-period collection (one feature
+   > per entity and period), key by a **per-period** unique property (such as a
+   > feature id), not a country code shared across periods — otherwise features
+   > from different periods merge into one unit with differing date values and
+   > fail with `conflicting-unit-property` regardless of the `select` date
+   > filter.
+
+4. **Import with a preview**: build the package into a new or empty output
+   folder (`--out` fails with `output-not-empty` if it holds anything, so a
+   listed package is never overwritten while running matches depend on it; to
+   re-import a corrected map, use a new folder). `--preview` writes a PNG
+   outside the output folder (default `tools/build-map/out/import-preview.png`;
+   a path inside `--out` is a usage error). Even if an import fails at or after
+   the pixel steps, the last computed assignment is still written to the
+   preview image.
+
+   ```sh
+   npm run import-map -w @mbrg/build-map -- import --curation=<file.json> --out=<folder> [--preview[=<file>]]
+   ```
+
+5. **Review the report and preview**: check the preview PNG (borders, insets,
+   sea zones, narrow straits) and the report printed to stdout, especially the
+   `viewerLimits` section:
+   - `requiredTextureSize` (`max(W, H, entries + 1)`): a value above **2,048**
+     (`textureAbove2048`) exceeds the WebGL 2 guaranteed minimum and leaves out
+     devices with a smaller texture limit (those devices show the viewer's
+     capability message).
+   - `factionsAbove255` (more than **255** factions) or `entriesAbove65535`
+     (more than **65,535** entries): a package exceeding either limit is **not
+     drawable by today's viewer** — it stops with an **internal error, not a
+     message**, until follow-up **V1** ships — so do not list it on the server
+     until follow-ups **V1** and **V2** ship.
+   - `paletteExhaustedFaction`: the first faction for which the viewer's
+     12-colour assignment fails; supply explicit `color` values in `factions`
+     (or wait for **V2**) before listing.
+
+6. **List the package on the server**: copy the output folder (`map.json`,
+   `presentation.json`, `ids.png`) onto the VPS, add its map id and **absolute**
+   path to `MBRG_MAPS` (for example
+   `{"dev":"/opt/mbrg/maps/dev","spain":"/opt/mbrg/maps/spain"}`), and
+   optionally add the id to `MBRG_PUBLIC_MAPS` so Discord `/mbrg create` offers
+   it. Restart the server (`systemctl restart mbrg-server`) and check
+   `GET /config` if the map is public.

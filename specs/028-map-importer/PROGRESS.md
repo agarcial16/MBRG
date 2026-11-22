@@ -246,3 +246,10 @@ Measured alone (`npm run scale:import -w @mbrg/build-map`, default Node 24 heap,
 Tests: `importer-scale` (5/5), `libraries` (14/14, unedited), `importer-libraries` (6/6), `importer-purity` (8/8), `importer-language` (9/9), `traceability` (73/73), root `npm run typecheck` green. Mutation proofs on `scale-import.ts` (8/8 caught, original file restored byte-identically): `validateMap`, `checkPresentation`, PNG decode guard, `importMs < SCALE_BOUND_MS`, `inspectMs <= INSPECT_BOUND_MS`, early stop on bound breach, `factionsAbove255` warning check, `nameProperty` in `scaleCuration`.
 Untested: running at the 16,384 pixel guard (accepted, untimed per NFR-136).
 Next: T3.6 (deployment guide "Adding a map" section, docs-only commit).
+
+## 2026-11-22 — T3.6 Deployment guide: Adding a map (closes FR-613)
+Branch: `feat/028-map-importer`. State: operator steps for importing and listing a map documented in `docs/deployment.md`; no source code changed.
+Changed: `docs/deployment.md` (appended `## Adding a map` with existing lines 1-222 unchanged: outside reprojection/simplification note, licence reminder, exact `extract` / `inspect` / `import` CLI commands mirroring `src/cli/import.ts`, date-range per-period key note per T1.8/PROGRESS.md L83, `--out` non-overwrite and `--preview` outside output folder, `viewerLimits` reading guide covering 2,048 texture / 255 factions / 65,535 entries internal-error caveat until V1 & V2 / `paletteExhaustedFaction`, and listing via absolute path in `MBRG_MAPS` + optional `MBRG_PUBLIC_MAPS`), `tools/build-map/test/importer-docs.test.ts` (FR-613 doc contract test, red before edit, green after), `packages/sim/test/traceability.test.ts` (FR-613 moved to `DONE_028`; 2 pending: NFR-134, NFR-137), `specs/028-map-importer/tasks-M3.md` (T3.6 ticked).
+Tests: `importer-docs` (1/1), `traceability` (73/73), root `npm run typecheck` green.
+Untested: nothing of this task.
+Next: T3.7 (closing: final purity/language/libraries/ledger, full test + typecheck + CI, docs/board.md, docs/lessons/map.md, MEMORY.md, preview PNGs, final handover).
