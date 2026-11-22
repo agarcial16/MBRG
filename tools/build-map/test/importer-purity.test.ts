@@ -30,6 +30,7 @@ describe('the source scan of the importer core', () => {
       '../src/importer/extract-geo.ts',
       '../src/importer/grouping.ts',
       '../src/importer/inspect.ts',
+      '../src/importer/pixels.ts',
       '../src/importer/read-dbf.ts',
       '../src/importer/read-source.ts',
       '../src/importer/scale-fixture.ts',
