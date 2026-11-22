@@ -1,5 +1,5 @@
 # Plan 028 — Map importer (vector route)
-Spec: `spec.md` (approved 2026-11-21; PD6 and the out-of-scope line amended). Status: **draft**. New modes of `tools/build-map`; the 003b core reused in place; only `core/sea.ts` is replaced (own pass, section 4).
+Spec: `spec.md` (approved 2026-11-21; PD6 and the out-of-scope line amended). Status: **approved** (2026-11-22, by the user, after the two-round strong-tier review). New modes of `tools/build-map`; the 003b core reused in place; only `core/sea.ts` is replaced (own pass, section 4).
 
 ## 1. Files
 `src/importer/**` is a scanned pure core (NFR-134: codec injected, only `node:zlib`). Command `import-map -- extract|inspect|import` (flags in the tasks); exit 0/1/2, JSON stderr, no network; FR-608 stages, first failure stops, no file touched, 003b temp+rename write. Core (FRs per task): types, read-source, curation, units, select, grouping, errors/check-curation, equal-earth, views, pixels, sea-sources (section 4), gap-fill, min-size, numbering, sha256, report, import, inspect, read-dbf + extract-geo, scale-fixture (T1.10). Outside the scan: `extract/read-shapefile.ts` (+`openShpGeometry`, `readShapefile` unchanged), `cli/import.ts`, `cli/scale-import.ts`, `data/importer/`, `docs/deployment.md`.
