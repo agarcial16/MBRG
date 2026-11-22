@@ -395,9 +395,9 @@ export function createMapView(input: MapViewInput): MapView {
   });
 
   window.addEventListener('resize', () => {
-    revealGlide = undefined;
     viewport = withInset({ width: canvas.clientWidth, height: canvas.clientHeight }, inset);
     camera = resizeCamera(camera, image, viewport);
+    revealGlide = undefined;
     input.onResize?.();
     loop.request();
   });
@@ -422,6 +422,7 @@ export function createMapView(input: MapViewInput): MapView {
       loop.request();
     },
     setCamera: (next) => {
+      revealGlide = undefined;
       camera = next;
       loop.request();
     },
@@ -450,6 +451,7 @@ export function createMapView(input: MapViewInput): MapView {
     beginTour: (requests, handlingMs, then) => {
       const plan = planTours(requests, motion.reduced(), boxesOf);
       if (plan.tours.length === 0) return false;
+      revealGlide = undefined;
       // A running tour completes first, then a running round step (FR-339, FR-340); both end before the first tour frame.
       const prior = completeSession(session, handlingMs, sessionView());
       if (prior !== undefined) applyTour(prior);
@@ -472,6 +474,7 @@ export function createMapView(input: MapViewInput): MapView {
     freezeTour: (request, t, taken) => {
       const plan = planTours([request], false, boxesOf);
       if (plan.tours.length === 0) return false;
+      revealGlide = undefined;
       held = undefined;
       heldViews = undefined;
       reported = undefined;

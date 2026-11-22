@@ -105,6 +105,7 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials, spec
   let bannerTimer = '';
   let composedBanner = '';
   let bannerActive = false;
+  let roundUserMoved = false;
   let pickedNow: number | undefined;
   const motion = watchMotion(() => undefined);
   /** A camera the user asked for (drag, wheel, pinch, minimap): it is theirs until the round ends (FR-410). */
@@ -120,6 +121,7 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials, spec
     if (view === undefined || built === undefined) return;
     // Spec 031: while the reveal duel callout holds the composed camera, defer returning until the callout ends or is dismissed.
     if (bannerActive) return;
+    roundUserMoved = watch.moved;
     const back = cameraReturn(watch, { w: built.pkg.width, h: built.pkg.height }, view.viewport());
     watch = roundBegan(watch);
     if (back === undefined) return;
@@ -129,7 +131,7 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials, spec
   };
   /** Spec 031: compose the reveal camera around the live duel callout so the annexation front stays visible. */
   const composeForCallout = (): void => {
-    if (view === undefined || built === undefined || watch.moved) return;
+    if (view === undefined || built === undefined || watch.moved || roundUserMoved) return;
     const front = view.frontBox();
     const occlusion = built.panel.calloutRect();
     if (front === undefined || occlusion === undefined) return;
@@ -390,7 +392,10 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials, spec
         composedBanner = timerKey;
         composeForCallout();
       } else if (!bannerActive && wasActive) {
-        settleCamera();
+        if (!roundUserMoved) settleCamera();
+        roundUserMoved = false;
+      } else if (!bannerActive) {
+        roundUserMoved = false;
       }
       drawMinimap(model.held.get(upTo));
     },

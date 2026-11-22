@@ -433,7 +433,7 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     } else {
       left.append(chronSection, factionsSection);
       pillBox.append(victim);
-      pillBox.hidden = victim.hidden;
+      pillBox.hidden = victim.hidden || last?.hud.band !== undefined || last?.hud.card !== undefined;
       command.append(controls);
       root.append(left, command, rightColumn);
     }
@@ -660,7 +660,7 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       write(count, hud.bar.countdown);
       write(stage, view.stage);
       write(victim, view.victim);
-      pillBox.hidden = layout !== 'desk' || victim.hidden;
+      pillBox.hidden = layout !== 'desk' || victim.hidden || hud.band !== undefined || hud.card !== undefined;
       const pillRgb = hud.targetColor;
       pillSwatch.hidden = pillRgb === undefined;
       if (pillRgb !== undefined) pillSwatch.style.background = `rgb(${pillRgb[0]},${pillRgb[1]},${pillRgb[2]})`;
