@@ -10,6 +10,11 @@ export const ACCEPTED_CRS = ['urn:ogc:def:crs:OGC:1.3:CRS84', 'EPSG:4326', 'EPSG
 export interface SourceInput {
   file: string;
   bytes: Uint8Array;
+  /**
+   * The property names whose values this source is capped on; when absent the read's `usedProperties` apply. A context
+   * source (FR-589) uses no property of the curation, so the caller passes an empty list for it.
+   */
+  usedProperties?: readonly string[];
 }
 
 /** FR-588: the resource guards of a read; each is a count over all sources together except the per-feature ones. */
@@ -197,7 +202,7 @@ function readOne(input: SourceInput, options: ReadOptions, caps: SourceCaps, tot
         state.errors.push({ kind: 'invalid-source', file, reason: 'bad-feature', feature: index });
         continue;
       }
-      if (properties !== null) checkProperties(properties, options.usedProperties, caps, file, index);
+      if (properties !== null) checkProperties(properties, input.usedProperties ?? options.usedProperties, caps, file, index);
       const geometry = own(item, 'geometry');
       if (geometry === null) {
         skippedNull++;

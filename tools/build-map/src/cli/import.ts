@@ -106,16 +106,18 @@ const arrayBufferOf = (bytes: Uint8Array): ArrayBuffer =>
 
 const invalidInput = (reason: string): ExtractGeoError => ({ kind: 'invalid-input', reason });
 
-/** The bytes of the first of `paths` that can be read, or undefined. */
-function firstReadable(fs: ImportFs, paths: readonly string[]): Uint8Array | undefined {
+/**
+ * The bytes of the first of `paths` that exists and can be read, or undefined when none can (an optional file that is
+ * absent). Each file gets the size check before it is read (PD10): an oversized one is an error, never read.
+ */
+function firstReadable(fs: ImportFs, paths: readonly string[], cap: number): Result<Uint8Array | undefined, SourceError> {
   for (const path of paths) {
-    try {
-      return fs.readFile(path);
-    } catch {
-      // try the next spelling
-    }
+    const read = readBounded(fs, path, basename(path), cap);
+    if (read.ok) return read;
+    if (read.errors.some((e) => e.kind === 'source-too-large')) return read;
+    // absent or unreadable: try the next spelling
   }
-  return undefined;
+  return { ok: true, value: undefined };
 }
 
 /**
@@ -142,12 +144,17 @@ export async function runExtractMode(args: string[], deps: ImportDeps): Promise<
   if (!shp.ok) return fail(shp.errors);
   const dbf = readRequired(stem + '.dbf');
   if (!dbf.ok) return fail(dbf.errors);
-  const optionalText = (...extensions: string[]): string | undefined => {
-    const bytes = firstReadable(deps.fs, extensions.map((x) => stem + x));
-    return bytes === undefined ? undefined : new TextDecoder().decode(bytes);
+  const optionalText = (...extensions: string[]): Result<string | undefined, SourceError> => {
+    const read = firstReadable(deps.fs, extensions.map((x) => stem + x), SOURCE_CAPS.bytes);
+    if (!read.ok) return read;
+    return { ok: true, value: read.value === undefined ? undefined : new TextDecoder().decode(read.value) };
   };
-  const cpg = optionalText('.cpg', '.CPG');
-  const prj = optionalText('.prj', '.PRJ');
+  const cpgRead = optionalText('.cpg', '.CPG');
+  if (!cpgRead.ok) return fail(cpgRead.errors);
+  const prjRead = optionalText('.prj', '.PRJ');
+  if (!prjRead.ok) return fail(prjRead.errors);
+  const cpg = cpgRead.value;
+  const prj = prjRead.value;
 
   let geometries;
   try {
@@ -234,6 +241,12 @@ export function runInspectMode(args: string[], deps: ImportDeps): number {
   const draft = draftArg === undefined ? undefined : resolve(deps.root, draftArg);
   if (draft !== undefined && exists(deps.fs, join(dirname(draft), 'map.json'))) {
     deps.stderr(JSON.stringify({ kind: 'usage-error', reason: 'draft-inside-package', draft }) + '\n');
+    deps.stderr(`${INSPECT_USAGE}\n`);
+    return 2;
+  }
+  // An existing file is never replaced: an edited curation, or the source itself, would be lost.
+  if (draft !== undefined && exists(deps.fs, draft)) {
+    deps.stderr(JSON.stringify({ kind: 'usage-error', reason: 'draft-exists', draft }) + '\n');
     deps.stderr(`${INSPECT_USAGE}\n`);
     return 2;
   }

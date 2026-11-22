@@ -195,8 +195,10 @@ function readGroupBy(value: unknown, path: string, problems: Problems): GroupBy 
   }
   noUnknown(value, ['property', 'nameProperty'], path, problems);
   const property = text(value, 'property', path, problems);
+  // An empty property names no column: refuse it here, so a draft filled in on its columns only fails cleanly.
+  if (property === '') problems.add(at(path, 'property'));
   const nameProperty = optionalText(value, 'nameProperty', path, problems);
-  if (property === undefined || (Object.hasOwn(value, 'nameProperty') && nameProperty === undefined)) return undefined;
+  if (property === undefined || property === '' || (Object.hasOwn(value, 'nameProperty') && nameProperty === undefined)) return undefined;
   return nameProperty === undefined ? { property } : { property, nameProperty };
 }
 

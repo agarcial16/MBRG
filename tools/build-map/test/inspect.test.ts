@@ -152,11 +152,13 @@ describe('FR-591 the draft curation', () => {
     expect(text.endsWith('}\n')).toBe(true);
   });
 
-  it('FR-591 passes the schema except for the empty key and the empty name list, so an unedited draft always fails the import', () => {
+  it('FR-591 passes the schema except for the empty key, the empty name list and the empty rule properties, so an unedited draft always fails the import', () => {
     const r = parseCuration(draftOf(), 'c.json');
     expect(r.ok ? [] : r.errors).toStrictEqual([
       { kind: 'invalid-curation', path: 'columns.key' },
       { kind: 'invalid-curation', path: 'columns.name' },
+      { kind: 'invalid-curation', path: 'territoryBy.property' },
+      { kind: 'invalid-curation', path: 'factionBy.property' },
     ]);
   });
 });
@@ -228,6 +230,28 @@ describe('FR-591 the inspect mode of the import command', () => {
     expect(JSON.parse(lines[0]!)).toStrictEqual({ kind: 'usage-error', reason: 'draft-inside-package', draft });
     expect(lines[1]).toContain('usage: import-map inspect');
     expect(existsSync(draft)).toBe(false);
+  });
+
+  it('FR-591 refuses a draft path that already exists (an edited curation, the source itself): exit 2, usage-error draft-exists, the file untouched', async () => {
+    good();
+    const edited = join(dir, 'edited.json');
+    put(edited, '{"edited":true}\n');
+    const r = await cmd([`--source=${source()}`, `--draft=${edited}`]);
+    expect(r.status).toBe(2);
+    expect(r.stdout).toBe('');
+    const lines = r.stderr.trim().split('\n');
+    expect(JSON.parse(lines[0]!)).toStrictEqual({ kind: 'usage-error', reason: 'draft-exists', draft: edited });
+    expect(lines[1]).toContain('usage: import-map inspect');
+    expect(readFileSync(edited, 'utf8')).toBe('{"edited":true}\n');
+    // the source itself is never overwritten
+    const before = readFileSync(source());
+    const self = await cmd([`--source=${source()}`, `--draft=${source()}`]);
+    expect(self.status).toBe(2);
+    expect(readFileSync(source()).equals(before)).toBe(true);
+    // a second run on a draft written by the first is refused too, and a fresh path still works
+    const fresh = join(dir, 'fresh.json');
+    expect((await cmd([`--source=${source()}`, `--draft=${fresh}`])).status).toBe(0);
+    expect((await cmd([`--source=${source()}`, `--draft=${fresh}`])).status).toBe(2);
   });
 
   it('FR-591 refuses a source that fails the reader or the caps with exit 1 and prints no summary and no draft', async () => {

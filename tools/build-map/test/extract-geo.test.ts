@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { realImportFs, runImport } from '../src/cli/import';
+import { realImportFs, runImport, type ImportFs } from '../src/cli/import';
 import { readShapefile, openShpGeometry } from '../src/extract/read-shapefile';
 import { extractGeo, type ExtractGeoInput } from '../src/importer/extract-geo';
 import { normalizeEncoding } from '../src/importer/read-dbf';
@@ -402,6 +402,27 @@ describe('FR-590 the extract mode of the import command', () => {
       { kind: 'unknown-field', field: 'NOPE' },
     ]);
     expect(existsSync(join(dir, 'out'))).toBe(false);
+  });
+
+  it('FR-590 the cpg and prj files get the size check before they are read: an oversized one fails source-too-large and is never read', async () => {
+    const shp = shapefile({ cpg: 'utf-8', prj: 'GEOGCS["GCS_WGS_1984"]' });
+    for (const extension of ['.cpg', '.prj']) {
+      const reads: string[] = [];
+      const fake: ImportFs = {
+        ...realImportFs,
+        size: (path) => (path.endsWith(extension) ? 300 * 1024 * 1024 : realImportFs.size(path)),
+        readFile: (path) => {
+          reads.push(path);
+          return realImportFs.readFile(path);
+        },
+      };
+      let stderr = '';
+      const status = await runImport(['extract', `--shp=${shp}`, `--out=${out()}`], { fs: fake, root: dir, stdout: () => undefined, stderr: (s) => (stderr += s) });
+      expect(status, extension).toBe(1);
+      expect(JSON.parse(stderr.trim()), extension).toMatchObject({ kind: 'source-too-large', file: `sample${extension}`, what: 'bytes', cap: 256 * 1024 * 1024 });
+      expect(reads.filter((p) => p.endsWith(extension)), extension).toStrictEqual([]);
+      expect(existsSync(out())).toBe(false);
+    }
   });
 
   it('FR-590 an unreadable or broken input exits 1 with an invalid-input line', async () => {

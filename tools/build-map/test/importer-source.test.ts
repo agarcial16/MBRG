@@ -243,7 +243,7 @@ const MIB = 1024 * 1024;
 const NULL_FEATURE = '{"type":"Feature","properties":null,"geometry":null}';
 const nullFeatures = (n: number): Uint8Array =>
   textBytes(`{"type":"FeatureCollection","features":[${Array.from({ length: n }, () => NULL_FEATURE).join(',')}]}`);
-const readAll = (inputs: { file: string; bytes: Uint8Array }[], usedProperties: string[] = [], caps = {}) =>
+const readAll = (inputs: { file: string; bytes: Uint8Array; usedProperties?: string[] }[], usedProperties: string[] = [], caps = {}) =>
   readSources(inputs, { usedProperties, caps });
 const capErrors = (r: ReturnType<typeof readAll>): Record<string, unknown>[] =>
   r.ok ? [] : (r.errors as unknown as Record<string, unknown>[]);
@@ -399,6 +399,21 @@ describe('FR-588 the source caps', () => {
     // the cap counts code units, not characters: 512 surrogate pairs are 1,024, 513 are 1,026
     expect(at('\u{1F600}'.repeat(512), ['name']).ok).toBe(true);
     expect(capErrors(at('\u{1F600}'.repeat(513), ['name']))[0]).toMatchObject({ what: 'value', found: 1026 });
+  });
+
+  it('FR-588 a source may name its own used properties: a context source passes an empty list and its values are never capped', () => {
+    const big = (name: string) => bytesOf(collection([feat({ name, other: 'o'.repeat(5000) }, polygon(0, 0))]));
+    const long = 'x'.repeat(2000);
+    // the options name `name` for the primary source; the context source says it uses nothing
+    const both = readAll([{ file: 'primary', bytes: big('ok') }, { file: 'context', bytes: big(long), usedProperties: [] }], ['name']);
+    expect(both.ok).toBe(true);
+    // the same value in the primary source still fails, and a source without its own list takes the options
+    expect(capErrors(readAll([{ file: 'primary', bytes: big(long) }, { file: 'context', bytes: big(long), usedProperties: [] }], ['name']))).toStrictEqual([
+      { kind: 'source-too-large', file: 'primary', what: 'value', cap: 1024, found: 2000, feature: 0, property: 'name' },
+    ]);
+    expect(capErrors(readAll([{ file: 'c', bytes: big(long), usedProperties: ['name'] }], []))).toStrictEqual([
+      { kind: 'source-too-large', file: 'c', what: 'value', cap: 1024, found: 2000, feature: 0, property: 'name' },
+    ]);
   });
 
   it('FR-588 the read stops at the offending record: errors before it are kept, later ones are never looked for', () => {

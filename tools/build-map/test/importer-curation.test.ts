@@ -182,6 +182,15 @@ describe('FR-592 the curation file schema: what it refuses, each with its member
     expect(paths(changed((c) => delete c.seas[0].name))).toStrictEqual(['seas[0].name']);
   });
 
+  it('FR-592 refuses an empty territoryBy or factionBy property as invalid-curation naming the member', () => {
+    expect(paths(changed((c) => (c.territoryBy.property = '')))).toStrictEqual(['territoryBy.property']);
+    expect(paths(changed((c) => (c.factionBy.property = '')))).toStrictEqual(['factionBy.property']);
+    expect(paths(changed((c) => { c.territoryBy.property = ''; c.factionBy.property = ''; }))).toStrictEqual(['territoryBy.property', 'factionBy.property']);
+    // a filled rule and an absent rule are fine
+    expect(parsed(changed((c) => delete c.territoryBy)).territoryBy).toBeUndefined();
+    expect(parsed(changed((c) => (c.factionBy = { property: 'x' }))).factionBy).toStrictEqual({ property: 'x' });
+  });
+
   it('FR-592 refuses an empty columns.key and a name list outside 1 to 3', () => {
     expect(paths(changed((c) => (c.columns.key = ''), minimal))).toStrictEqual(['columns.key']);
     expect(paths(changed((c) => (c.columns.name = []), minimal))).toStrictEqual(['columns.name']);

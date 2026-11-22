@@ -90,7 +90,7 @@ describe('FR-593 the units of the primary source', () => {
   });
 
   it('FR-593 takes the name of the first feature only: a later feature without a name does not change it', () => {
-    const list = units([feature({ code: 'A', name: 'First' }, 0), feature({ code: 'A', name: 'First', name_es: 'Primero' }, 1)]);
+    const list = units([feature({ code: 'A', name: 'First' }, 0), feature({ code: 'A', name: 'First', name_es: '' }, 1)]);
     expect(list[0]!.sourceName).toBe('First');
     const none = units([feature({ code: 'A' }, 0), feature({ code: 'A', name: 'Late' }, 1)]);
     expect(none[0]!.sourceName).toBeUndefined();
@@ -102,6 +102,28 @@ describe('FR-593 the units of the primary source', () => {
     ]);
     // a name column that only some features have is never a conflict
     expect(units([feature({ code: 'A', name: 'One' }, 0), feature({ code: 'A' }, 1)]).length).toBe(1);
+  });
+
+  it('FR-593 compares the first-present name of each feature, not each name column on its own: no false positive', () => {
+    // both features are named "X" by the first column; their second column differs but is never their name
+    const list = units([feature({ code: 'A', name_es: 'X', name: 'P' }, 0), feature({ code: 'A', name_es: 'X', name: 'Q' }, 1)]);
+    expect(list.length).toBe(1);
+    expect(list[0]!.sourceName).toBe('X');
+    // the name comes from the second column on one feature and from the first on the other, and agrees
+    expect(units([feature({ code: 'A', name: 'X' }, 0), feature({ code: 'A', name_es: 'X', name: 'Z' }, 1)]).length).toBe(1);
+  });
+
+  it('FR-593 compares the first-present name of each feature: no false negative', () => {
+    // the second feature is named by the other column: "X" against "Y", though each column has one value only
+    expect(errors([feature({ code: 'A', name_es: 'X' }, 0), feature({ code: 'A', name: 'Y' }, 1)])).toStrictEqual([
+      { kind: 'conflicting-unit-property', unit: 'A', property: 'name' },
+    ]);
+    // the first column names the first feature, the second column names both: "X" against "Y"
+    expect(errors([feature({ code: 'B', name_es: 'X', name: 'Y' }, 2), feature({ code: 'B', name: 'Y' }, 3)])).toStrictEqual([
+      { kind: 'conflicting-unit-property', unit: 'B', property: 'name' },
+    ]);
+    // a feature with no present name at all is not compared
+    expect(units([feature({ code: 'C', name_es: 'X' }, 4), feature({ code: 'C', name_es: '', name: null }, 5)]).length).toBe(1);
   });
 
   it('FR-593 fails with conflicting-unit-property for different usable values of a property a filter or a rule uses', () => {

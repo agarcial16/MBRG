@@ -96,18 +96,27 @@ export function buildUnits(features: readonly ImportFeature[], curation: Curatio
     unit.polygons.push(...feature.polygons);
   }
 
-  // Name columns are compared as present texts; every other property a filter or a rule uses, as usable values.
+  // A feature's name is its first present name column (FR-593); features are compared by that name, not column by
+  // column. Every other property a filter or a rule uses is compared as a usable value.
   const names = curation.columns.name;
   const others = usedProperties(curation).filter((p) => p !== key && !names.includes(p));
   for (const unit of byKey.values()) {
-    const compare: [string, (value: unknown) => Usable | undefined][] = [
-      ...names.map((p): [string, (value: unknown) => Usable | undefined] => [p, (v) => (typeof v === 'string' && v !== '' ? v : undefined)]),
-      ...others.map((p): [string, (value: unknown) => Usable | undefined] => [p, usableOf]),
-    ];
-    for (const [property, read] of compare) {
+    let firstName: string | undefined;
+    for (const feature of unit.features) {
+      const column = names.find((p) => presentText(feature.props, p) !== undefined);
+      if (column === undefined) continue;
+      const value = presentText(feature.props, column)!;
+      if (firstName === undefined) firstName = value;
+      else if (firstName !== value) {
+        // The conflict is named after the column that gave the differing name.
+        errors.push({ kind: 'conflicting-unit-property', unit: unit.key, property: column });
+        break;
+      }
+    }
+    for (const property of others) {
       let first: Usable | undefined;
       for (const feature of unit.features) {
-        const value = read(own(feature.props, property));
+        const value = usableOf(own(feature.props, property));
         if (value === undefined) continue;
         if (first === undefined) first = value;
         else if (identity(first) !== identity(value)) {
