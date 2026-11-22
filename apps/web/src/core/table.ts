@@ -17,8 +17,8 @@ export const TABLE = {
   fade: { depth: 48, stops: 10 },
   /** A fade is never deeper than this share of the shorter side of the viewport (spec 015 FR-423, amended 2026-11-11): on a phone it must not darken the map the player looks at. */
   fadeShare: 0.05,
-  /** The desk panels: the wood tone at this opacity over the map, with a blur of the map behind. */
-  panel: { rgb: '18,14,10', alpha: 0.86, blur: 6 },
+  /** The desk panels: refined cartographic obsidian-wood at high opacity over the map, with a soft blur behind. */
+  panel: { rgb: '15,12,9', alpha: 0.90, blur: 8 },
 } as const;
 
 /** The fade depth in screen pixels for this viewport: 5 % of its shorter side, 48 px at most. */

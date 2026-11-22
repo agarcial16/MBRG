@@ -29,9 +29,9 @@ describe('FR-306 the page address chooses the scene', () => {
     expect(chooseScene('?seed=42&round=1', false)).toStrictEqual({ kind: 'message', error: 'need-match' });
   });
 
-  it('FR-306 (d) FR-366 neither is the debug scene in development and the start screen in production', () => {
+  it('FR-306 (d) FR-366 FR-610 neither match nor seed opens the start menu landing in both development and production', () => {
     for (const search of ['', '?', '?round=2', '?x=1&y=2&zoom=3']) {
-      expect(chooseScene(search, true), search).toStrictEqual({ kind: 'debug' });
+      expect(chooseScene(search, true), search).toStrictEqual({ kind: 'start' });
       expect(chooseScene(search, false), search).toStrictEqual({ kind: 'start' });
     }
   });

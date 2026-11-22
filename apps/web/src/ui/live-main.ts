@@ -20,6 +20,7 @@ import { liveMark, replayBand, roundTrack } from '../core/live-track';
 import { cameraAtPoint, cameraZoomed, minimapPixels, minimapSize, viewRect } from '../core/minimap';
 import { cameraReturn, movedByUser, roundBegan, watchStart } from '../core/camera-return';
 import type { CameraWatch } from '../core/camera-return';
+import { composeRevealCamera } from '../core/reveal-camera';
 import { pickedOf } from '../core/pick-outline';
 import { pinchCamera } from '../core/pinch';
 import { bannerDismiss, bannerExpiresIn, bannerNext, bannerStart, bannerView } from '../core/round-banner';
@@ -102,6 +103,9 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials, spec
   let watch: CameraWatch = watchStart;
   let banner: BannerState = bannerStart;
   let bannerTimer = '';
+  let composedBanner = '';
+  let bannerActive = false;
+  let roundUserMoved = false;
   let pickedNow: number | undefined;
   const motion = watchMotion(() => undefined);
   /** A camera the user asked for (drag, wheel, pinch, minimap): it is theirs until the round ends (FR-410). */
@@ -115,11 +119,32 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials, spec
   /** FR-410: a round ended; back to the default view unless the user moved the camera, and the next round starts unmoved. */
   const settleCamera = (): void => {
     if (view === undefined || built === undefined) return;
+    // Spec 031: while the reveal duel callout holds the composed camera, defer returning until the callout ends or is dismissed.
+    if (bannerActive) return;
+    roundUserMoved = watch.moved;
     const back = cameraReturn(watch, { w: built.pkg.width, h: built.pkg.height }, view.viewport());
     watch = roundBegan(watch);
     if (back === undefined) return;
     view.userCamera(back);
     syncAddress(lastRound, back);
+    drawMinimap();
+  };
+  /** Spec 031: compose the reveal camera around the live duel callout so the annexation front stays visible. */
+  const composeForCallout = (): void => {
+    if (view === undefined || built === undefined || watch.moved || roundUserMoved) return;
+    const front = view.frontBox();
+    const occlusion = built.panel.calloutRect();
+    if (front === undefined || occlusion === undefined) return;
+    const box = canvas.getBoundingClientRect();
+    const toCanvas = (r: { x: number; y: number; w: number; h: number }) => ({ x: r.x - box.left, y: r.y - box.top, w: r.w, h: r.h });
+    const composed = composeRevealCamera({
+      front,
+      occlusion: toCanvas(occlusion),
+      available: toCanvas(built.panel.mapAreaRect()),
+      viewport: view.viewport(),
+      image: { w: built.pkg.width, h: built.pkg.height },
+    });
+    view.revealCamera(composed.camera);
     drawMinimap();
   };
   /** FR-359: the picture of the minimap (when `owners` is given) and the rectangle of the current view. */
@@ -232,7 +257,10 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials, spec
           colors,
           viewport: canvasViewport(),
           start: { round, owners, ...(address.camera === undefined ? {} : { camera: address.camera }) },
-          onFrame: () => terra?.place(created.camera(), created.viewport()),
+          onFrame: () => {
+            terra?.place(created.camera(), created.viewport());
+            drawMinimap();
+          },
           onResize: () => {
             created.setInset(insetNow());
             syncAddress(lastRound, created.camera());
@@ -343,6 +371,10 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials, spec
         view.setPick(picked === undefined ? undefined : view.owners.get(picked));
       }
       const overlay = overlayOf(model, shown.revealing);
+      const showTargetColor = !shown.revealing && model.victim !== undefined && (model.stage === 'phase-2' || model.stage === 'locked' || model.stage === 'halted');
+      const targetColor = showTargetColor ? built.colors.get(model.victim!.victim) : undefined;
+      const wasActive = bannerActive;
+      bannerActive = bannerNow !== undefined;
       built.panel.update(panelData, {
         bar: topBar(model, panelData, at),
         state,
@@ -355,9 +387,19 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials, spec
         chronicle: chronicle(model, built.factions, upTo, { revealing: shown.revealing, absorbing: shown.absorbing }),
         chronicleLoading: missingRecords(model, upTo).length > 0,
         ...(bannerNow === undefined ? {} : { banner: bannerNow }),
+        ...(targetColor === undefined ? {} : { targetColor }),
         ...(overlay === undefined ? {} : { overlay }),
         ...(play === undefined ? {} : { play }),
       });
+      if (bannerNow !== undefined && composedBanner !== timerKey) {
+        composedBanner = timerKey;
+        composeForCallout();
+      } else if (!bannerActive && wasActive) {
+        if (!roundUserMoved) settleCamera();
+        roundUserMoved = false;
+      } else if (!bannerActive) {
+        roundUserMoved = false;
+      }
       drawMinimap(model.held.get(upTo));
     },
 

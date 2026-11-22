@@ -40,11 +40,25 @@ export function bannerNext(state: BannerState, input: BannerInput, at: number): 
 /** A tap or a key: the banner goes and does not come back for the same round. */
 export const bannerDismiss = (state: BannerState): BannerState => ({ ...state, dismissed: true });
 
+export interface BannerDuel {
+  readonly eyebrow: string;
+  readonly victimId: number;
+  readonly victimName: string;
+  readonly absorberId: number;
+  readonly absorberName: string;
+  readonly taken: number;
+  /** Whole percentage of map territories controlled by the absorber after this round, when held. */
+  readonly controlPct: number | undefined;
+  readonly detail: string;
+}
+
 export interface BannerView {
   readonly title: string;
   readonly line: string;
   /** False with reduced motion: shown without fade. */
   readonly fade: boolean;
+  /** Spec 031: structured duel callout (victim -> absorber and map-control share). */
+  readonly duel: BannerDuel;
 }
 
 /** The banner on screen at `at`, or none (expired, dismissed, another round on display, no record). */
@@ -54,10 +68,32 @@ export function bannerView(state: BannerState, model: LiveModel, factions: reado
   const record = model.records.get(state.round);
   if (record === undefined) return undefined;
   const nameOf = (id: number): string => factions.find((f) => f.id === id)?.name ?? String(id);
+  const victimName = nameOf(record.eliminated);
+  const absorberName = nameOf(record.absorber);
+  const taken = record.transferred.length;
+  const line = fillTemplate(STRINGS.hudChronicleApplied, { victim: victimName, absorber: absorberName, count: taken });
+  const owners = model.held?.get(state.round);
+  let controlPct: number | undefined;
+  if (owners !== undefined && owners.size > 0) {
+    let owned = 0;
+    for (const owner of owners.values()) if (owner === record.absorber) owned++;
+    controlPct = Math.round((owned / owners.size) * 100);
+  }
+  const detail = controlPct === undefined ? line : fillTemplate(STRINGS.bannerDuelDetail, { absorber: absorberName, count: taken, value: controlPct });
   return {
     title: fillTemplate(STRINGS.bannerRound, { round: state.round }),
-    line: fillTemplate(STRINGS.hudChronicleApplied, { victim: nameOf(record.eliminated), absorber: nameOf(record.absorber), count: record.transferred.length }),
+    line,
     fade: !reduced,
+    duel: {
+      eyebrow: fillTemplate(STRINGS.bannerDuelEyebrow, { round: state.round }),
+      victimId: record.eliminated,
+      victimName,
+      absorberId: record.absorber,
+      absorberName,
+      taken,
+      controlPct,
+      detail,
+    },
   };
 }
 
