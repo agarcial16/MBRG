@@ -310,6 +310,18 @@ export const STRINGS = {
   bannerClose: 'Cerrar aviso de la ronda',
   overlayFinalised: 'PREDICCIONES FINALIZADAS',
   overlayRevealing: 'REVELANDO…',
+  // Start menu landing (spec 030).
+  landingKicker: 'MODO CLÁSICO · ESPECTADOR Y PREDICCIONES',
+  landingBrand: 'MBRG',
+  landingSubtitle: 'MAP BATTLE ROYALE GAME',
+  landingPitch: 'Una eliminación por ronda: predice quién cae y quién absorbe el mapa.',
+  landingInputPlaceholder: 'Pega tu enlace de partida o espectador…',
+  landingInputHint: 'Enlace de partida, espectador o código',
+  landingCreateToggle: 'Crear nueva partida',
+  landingCreateClose: 'Ocultar creación',
+  landingAtlasTag: 'ATLAS · VISTA ESTÁTICA',
+  landingAtlasCaption: '{name} · Ronda {round}',
+  landingMapDev: 'Europa Occidental',
 } as const;
 
 /** Fills {name} placeholders; a placeholder without a value is left as written. */
