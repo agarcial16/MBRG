@@ -6,7 +6,7 @@ import type { MapData, PresentationData, Rgb } from '@mbrg/shared';
 import { initialCamera, screenToMap, withInset } from '../core/camera';
 import type { Camera, Viewport } from '../core/camera';
 import { mapInset } from '../core/hud-layout';
-import { capabilityMessage, checkCapabilities } from '../core/capabilities';
+import { capabilityMessage, checkCapabilities, checkCounts } from '../core/capabilities';
 import { assignFactionColors, paletteMessage } from '../core/colors';
 import { liveProblemMessage, readLiveAddress } from '../core/live-address';
 import type { LiveAddress } from '../core/live-address';
@@ -152,6 +152,9 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials, spec
       if (errors.length > 0) return { ok: false, message: packageErrorMessage(errors) };
       const map = pkg.map as MapData;
       const presentation = pkg.presentation as PresentationData;
+      // The viewer's own tables refuse the counts first (spec 029), before any browser check.
+      const refusals = checkCounts(map);
+      if (refusals.length > 0) return { ok: false, message: capabilityMessage(refusals[0]!) };
       const problems = checkCapabilities(probeCapabilities(), pkg.width, pkg.height, map.territories.length + 1);
       if (problems.length > 0) return { ok: false, message: capabilityMessage(problems[0]!) };
       await font;

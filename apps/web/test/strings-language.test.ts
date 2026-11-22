@@ -5,8 +5,8 @@ import indexHtml from '../index.html?raw';
 import { codeOnly, htmlText, htmlTextAttributes, languageViolations, stripComments } from './helpers/scan';
 
 // NFR-28 (language). Literal lists copied from the plan (section 10), not imported from src.
-/** English identifiers shown inside Spanish messages as data (as in 001-003b). */
-const INTERNAL_KINDS = ['palette-exhausted', 'no-webgl2', 'texture-too-small', 'invalid-png', 'invalid-json', 'read-failed'];
+/** English identifiers shown inside Spanish messages as data (as in 001-003b; spec 029 adds the count refusals). */
+const INTERNAL_KINDS = ['palette-exhausted', 'no-webgl2', 'texture-too-small', 'too-many-territories', 'too-many-factions', 'invalid-png', 'invalid-json', 'read-failed'];
 /** Live viewer scene kinds and error kinds (spec 008 M5, D30): English identifiers, never shown as such outside a Spanish template. */
 const LIVE_KINDS = ['debug', 'live', 'start', 'message', 'unknown-match', 'digest-mismatch', 'insecure-origin', 'both', 'need-match', 'bad-match', 'failure'];
 const ADDRESS_REASONS = ['invalid', 'out-of-range', 'repeated'];
@@ -33,7 +33,7 @@ describe('NFR-28 UI strings module', () => {
       expect(typeof text, key).toBe('string');
       expect(text.trim().length, key).toBeGreaterThan(0);
       for (const m of text.matchAll(/\{(\w+)\}/g)) {
-        expect(['param', 'text', 'total', 'count', 'kind', 'size', 'required', 'faction', 'seed', 'round', 'living', 'id', 'name', 'state', 'eliminated', 'absorber', 'x', 'y', 'value', 'fill', 'owner', 'ms', 'median', 'p95', 'time', 'live', 'victim', 'alive', 'names', 'rank', 'page'], `${key} placeholder ${m[1]}`).toContain(m[1]);
+        expect(['param', 'text', 'total', 'count', 'kind', 'size', 'required', 'limit', 'faction', 'seed', 'round', 'living', 'id', 'name', 'state', 'eliminated', 'absorber', 'x', 'y', 'value', 'fill', 'owner', 'ms', 'median', 'p95', 'time', 'live', 'victim', 'alive', 'names', 'rank', 'page'], `${key} placeholder ${m[1]}`).toContain(m[1]);
       }
     }
   });
