@@ -25,6 +25,11 @@ export type TerritoryError =
   | { kind: 'conflicting-group-name'; territory: string }
   | { kind: 'missing-territory-name'; territory: string };
 
+/** Where a producer puts its errors: the collector of one layer or of the whole curation stage. */
+export interface ErrorSink<E> {
+  add(error: E): void;
+}
+
 /** True for a key of 1 to 256 code units. */
 export const isKeyLength = (key: string): boolean => key.length >= KEY_MIN && key.length <= KEY_MAX;
 
@@ -44,6 +49,12 @@ export const usableText = (value: Usable): string => String(value);
  */
 export function groupTerritories(selected: readonly Unit[], curation: Curation): Result<Territory[], TerritoryError> {
   const errors = new ErrorCollector<TerritoryError>();
+  const territories = formTerritories(selected, curation, errors);
+  return errors.size > 0 ? { ok: false, errors: errors.list() } : { ok: true, value: territories };
+}
+
+/** FR-596: the territories of `groupTerritories`, whatever the errors (the curation stage goes on to the factions with them). */
+export function formTerritories(selected: readonly Unit[], curation: Curation, errors: ErrorSink<TerritoryError>): Territory[] {
   const checkKey = (key: string): void => {
     if (!isKeyLength(key)) errors.add({ kind: 'invalid-key', territory: key });
   };
@@ -91,7 +102,7 @@ export function groupTerritories(selected: readonly Unit[], curation: Curation):
     if (kinds.size > 1) errors.add({ kind: 'mixed-territory-kind', territory: group.key });
     territories.push({ key: group.key, kind: kinds.has('sea') && kinds.size === 1 ? 'sea' : 'land', name: nameOf(group, curation, errors), units: group.units });
   }
-  return errors.size > 0 ? { ok: false, errors: errors.list() } : { ok: true, value: territories };
+  return territories;
 }
 
 /**
@@ -108,7 +119,7 @@ function sharedValue(units: readonly Unit[], property: string): { conflict: bool
 }
 
 /** FR-596: the name of one territory, or undefined after recording why it has none. */
-function nameOf(group: { key: string; units: Unit[]; byRule: Unit[] }, curation: Curation, errors: ErrorCollector<TerritoryError>): string | undefined {
+function nameOf(group: { key: string; units: Unit[]; byRule: Unit[] }, curation: Curation, errors: ErrorSink<TerritoryError>): string | undefined {
   const named = curation.territoryNames.get(group.key);
   if (named !== undefined) return named;
   const property = curation.territoryBy?.nameProperty;
@@ -167,6 +178,12 @@ export type FactionError =
  */
 export function groupFactions(territories: readonly Territory[], curation: Curation): Result<FactionPlan, FactionError> {
   const errors = new ErrorCollector<FactionError>();
+  const plan = formFactions(territories, curation, errors);
+  return errors.size > 0 ? { ok: false, errors: errors.list() } : { ok: true, value: plan };
+}
+
+/** FR-597: the plan of `groupFactions`, whatever the errors. */
+export function formFactions(territories: readonly Territory[], curation: Curation, errors: ErrorSink<FactionError>): FactionPlan {
   const checkKey = (key: string): void => {
     if (!isKeyLength(key)) errors.add({ kind: 'invalid-key', faction: key });
   };
@@ -189,6 +206,8 @@ export function groupFactions(territories: readonly Territory[], curation: Curat
     if (territory.kind !== 'land') continue;
     const keys = new Set<string>();
     for (const unit of territory.units) {
+      // a sea unit of a mixed territory is asked for nothing: the territory fails mixed-territory-kind already
+      if (unit.kind === 'sea') continue;
       let key: string | undefined;
       if (unit.faction !== undefined) key = unit.faction;
       else if (rule !== undefined) {
@@ -224,5 +243,5 @@ export function groupFactions(territories: readonly Territory[], curation: Curat
     else factions.push({ key, name: shared.value });
   }
   if (factions.length > MAX_FACTIONS) errors.add({ kind: 'too-many-factions', cap: MAX_FACTIONS, count: factions.length });
-  return errors.size > 0 ? { ok: false, errors: errors.list() } : { ok: true, value: { factions, factionOf } };
+  return { factions, factionOf };
 }

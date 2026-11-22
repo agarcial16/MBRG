@@ -60,6 +60,12 @@ const identity = (value: Usable): string => `${typeof value}:${String(value)}`;
  * The per-unit layer is applied by key as text; a `sea` unit may not name a faction. Pure.
  */
 export function buildUnits(features: readonly ImportFeature[], curation: Curation): Result<Unit[], UnitError> {
+  const formed = formUnits(features, curation);
+  return formed.errors.length > 0 ? { ok: false, errors: formed.errors } : { ok: true, value: formed.units };
+}
+
+/** FR-593, FR-595: the units of `buildUnits` and its errors together (the curation stage goes on with the units it could form). */
+export function formUnits(features: readonly ImportFeature[], curation: Curation): { units: Unit[]; errors: UnitError[] } {
   const errors: UnitError[] = [];
   const byKey = new Map<string, Unit>();
   const key = curation.columns.key;
@@ -127,5 +133,5 @@ export function buildUnits(features: readonly ImportFeature[], curation: Curatio
     }
     if (unit.kind === 'sea' && unit.faction !== undefined) errors.push({ kind: 'sea-with-faction', unit: unit.key });
   }
-  return errors.length > 0 ? { ok: false, errors } : { ok: true, value: [...byKey.values()] };
+  return { units: [...byKey.values()], errors };
 }

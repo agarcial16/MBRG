@@ -69,6 +69,12 @@ export function matchesFilter(unit: Unit, filter: Filter): boolean {
  * nothing selected is `empty-selection`. Pure.
  */
 export function selectUnits(units: readonly Unit[], curation: Curation): Result<Selection, SelectError> {
+  const parted = partitionUnits(units, curation);
+  return parted.errors.length > 0 ? { ok: false, errors: parted.errors } : { ok: true, value: parted.selection };
+}
+
+/** FR-594: the selection of `selectUnits` and its errors together (the curation stage goes on with the units it has). */
+export function partitionUnits(units: readonly Unit[], curation: Curation): { selection: Selection; errors: SelectError[] } {
   const known = new Set(units.map((u) => u.key));
   const errors: SelectError[] = [];
   const unknown = new Set<string>();
@@ -86,5 +92,5 @@ export function selectUnits(units: readonly Unit[], curation: Curation): Result<
     (keep ? selected : other).push(unit);
   }
   if (selected.length === 0) errors.push({ kind: 'empty-selection' });
-  return errors.length > 0 ? { ok: false, errors } : { ok: true, value: { selected, other } };
+  return { selection: { selected, other }, errors };
 }

@@ -23,6 +23,7 @@ describe('the source scan of the importer core', () => {
   it('the scan covers every importer source written so far and none of the adapters', () => {
     const files = Object.keys(importerSources).sort();
     expect(files).toStrictEqual([
+      '../src/importer/check-curation.ts',
       '../src/importer/curation.ts',
       '../src/importer/errors.ts',
       '../src/importer/extract-geo.ts',
