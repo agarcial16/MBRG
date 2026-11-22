@@ -3,6 +3,7 @@ import { readBounded, runImport, type ImportFs } from '../src/cli/import';
 import { CURATION_KIND_ORDER } from '../src/importer/errors';
 import { extractGeo } from '../src/importer/extract-geo';
 import { groupFactions, groupTerritories } from '../src/importer/grouping';
+import { buildMainView } from '../src/importer/views';
 import { parseCuration } from '../src/importer/curation';
 import { inspectSource, VALUE_TYPES } from '../src/importer/inspect';
 import { readSource, readSources } from '../src/importer/read-source';
@@ -24,8 +25,9 @@ const UNIT_KINDS = ['missing-unit-key', 'invalid-unit-key', 'conflicting-unit-pr
 const SELECT_KINDS = ['unknown-unit', 'empty-selection'];
 const GROUP_KINDS = ['invalid-key', 'missing-group-value', 'mixed-territory-kind', 'conflicting-group-name', 'missing-territory-name'];
 const FACTION_KINDS = ['invalid-name', 'invalid-color', 'duplicate-faction-key', 'missing-faction', 'split-territory-faction', 'missing-faction-name', 'faction-without-territory', 'too-many-factions'];
+const VIEW_KINDS = ['selection-too-wide', 'antimeridian-edge'];
 const COMMAND_KINDS = ['usage-error'];
-const IMPORTER_KINDS = [...SOURCE_KINDS, ...EXTRACT_KINDS, ...CURATION_KINDS, ...UNIT_KINDS, ...SELECT_KINDS, ...GROUP_KINDS, ...FACTION_KINDS, ...COMMAND_KINDS];
+const IMPORTER_KINDS = [...SOURCE_KINDS, ...EXTRACT_KINDS, ...CURATION_KINDS, ...UNIT_KINDS, ...SELECT_KINDS, ...GROUP_KINDS, ...FACTION_KINDS, ...VIEW_KINDS, ...COMMAND_KINDS];
 /** Data fields of the importer errors (the kind is always present). */
 const DATA_FIELDS = [
   'file',
@@ -205,6 +207,29 @@ function factionErrors(): Err[] {
   return [...errs(groupFactions(territories.value, c.value)), ...errs(groupFactions(together.value, split.value)), ...errs(groupFactions(crowded.value, many.value))];
 }
 
+function viewErrors(): Err[] {
+  const square = (key: string, west: number, east: number) => ({
+    key,
+    features: [],
+    firstFeature: 0,
+    polygons: [{ outer: { coords: [[west, 0], [east, 0], [east, 1], [west, 1], [west, 0]] as [number, number][] }, holes: [] }],
+    sourceName: key,
+    name: key,
+    kind: 'land' as const,
+    territory: undefined,
+    faction: undefined,
+    layer: undefined,
+  });
+  const params = { side: 128, margin: 0.1, minPieceSize: 2, projection: 'laea' as const };
+  const wide = buildMainView({ units: [square('W', -100, -99), square('E', 99, 100)], params });
+  const fiji = buildMainView({
+    units: [square('FJ', 178, -178)],
+    others: [{ origin: { file: 'ctx.geojson', feature: 3 }, polygons: square('X', 178, -178).polygons }],
+    params: { ...params, projection: 'equal-earth' as const },
+  });
+  return [...errs(wide), ...errs(fiji)];
+}
+
 function groupErrors(): Err[] {
   const c = parseCuration(
     curationText((x) => {
@@ -253,7 +278,7 @@ async function commandErrors(): Promise<Err[]> {
 }
 
 async function allErrors(): Promise<Err[]> {
-  return [...sourceErrors(), ...extractErrors(), ...curationErrors(), ...unitErrors(), ...groupErrors(), ...factionErrors(), ...(await commandErrors())];
+  return [...sourceErrors(), ...extractErrors(), ...curationErrors(), ...unitErrors(), ...groupErrors(), ...factionErrors(), ...viewErrors(), ...(await commandErrors())];
 }
 
 const sources = import.meta.glob('../src/importer/**/*.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;

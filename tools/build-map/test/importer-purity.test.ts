@@ -25,6 +25,7 @@ describe('the source scan of the importer core', () => {
     expect(files).toStrictEqual([
       '../src/importer/check-curation.ts',
       '../src/importer/curation.ts',
+      '../src/importer/equal-earth.ts',
       '../src/importer/errors.ts',
       '../src/importer/extract-geo.ts',
       '../src/importer/grouping.ts',
@@ -35,6 +36,7 @@ describe('the source scan of the importer core', () => {
       '../src/importer/select.ts',
       '../src/importer/types.ts',
       '../src/importer/units.ts',
+      '../src/importer/views.ts',
     ]);
     expect(files.some((f) => f.includes('/cli/') || f.includes('/io/') || f.includes('/extract/'))).toBe(false);
   });
