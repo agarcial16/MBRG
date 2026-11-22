@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { WATER } from '../src/core/rasterize';
 import { assignSeaZonesDetailed } from '../src/core/sea';
+import { makeGapFill } from '../src/importer/gap-fill';
 import { assignSea, assignWater, isolateEnclosed, locateSeeds, type SeaZone, type WaterSet } from '../src/importer/sea-sources';
 import type { InsetView, View, ViewSet } from '../src/importer/views';
 
@@ -179,6 +180,31 @@ describe('FR-598 the water pass', () => {
   it('FR-598 turns the water into background when every zone is empty, and leaves the empty zones to the minimum-piece check', () => {
     const r = run(['WW1W', 'WWWW', 'WWWW', 'WWWW'], [unitZone(100)]);
     expect(r.rows).toStrictEqual(['..1.', '....', '....', '....']);
+  });
+
+  it('FR-598 stays fast when every zone is empty at scale: no per-pixel ring search with no source to find (the M2 review probe)', () => {
+    // the empty-zone case at W = 4 above hides the cost: with no source pixel, the ring search of the enclosed-set
+    // join scans the whole raster per pixel with no nearest zone to stop it. Measured on this machine before the
+    // short-circuit: 16 to 68 s at W = 256 (5.3 to 22.3 s at W = 192, run alone and inside the suite); after it:
+    // about a millisecond. The bound keeps a wide margin on both sides.
+    const width = 256;
+    const pixels = new Uint32Array(width * width).fill(WATER);
+    const zones: SeaZone[] = [unitZone(100), unitZone(101)];
+    const t0 = performance.now();
+    const r = assignWater(width, pixels, zones);
+    const elapsed = performance.now() - t0;
+    expect(r.pixels.filter((v) => v !== 0).length).toBe(0);
+    expect(r.enclosed).toStrictEqual([]);
+    expect(elapsed, `${elapsed.toFixed(1)} ms`).toBeLessThan(5000);
+  }, 90000);
+
+  it('FR-598 runs the gap fill before the water of a zoneless map becomes background', () => {
+    // a one-pixel pond inside land, open water around it, and no zone at all: the pond is gap-filled, the rest is
+    // background. The short-circuit must not skip the `between` hook that does the filling.
+    const gap = makeGapFill(5, 5, (value) => value === 1);
+    const r = run(['W111W', 'W1W1W', 'W111W', 'WWWWW', 'WWWWW'], [], gap.between);
+    expect(r.rows).toStrictEqual(['.111.', '.111.', '.111.', '.....', '.....']);
+    expect(gap.filled).toStrictEqual([{ pixels: 1, territory: 1 }]);
   });
 
   it('FR-598 never overwrites land, other land or the pixels of an earlier zone', () => {

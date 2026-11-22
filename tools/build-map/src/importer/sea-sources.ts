@@ -189,7 +189,11 @@ export function assignWater(width: number, pixels: Uint32Array, zones: readonly 
   let sets = isolateEnclosed(width, pixels, sources.pixel);
   if (between !== undefined) sets = between(sets, pixels);
   const total = width * width;
-  if (zones.length === 0) {
+  // zero zones, or zones with no source pixel at all (a sea territory that rasterized to nothing and no seed
+  // claimed a pixel): no zone can ever claim water, so the rest is background and the empty zones fail later
+  // (the minimum-piece check or the self-check). Without this the enclosed-set join below would ring-search the
+  // whole raster per water pixel with no nearest zone to stop it, at a cost that grows past hours at scale.
+  if (zones.length === 0 || sources.pixel.length === 0) {
     for (let i = 0; i < total; i++) if (pixels[i] === WATER) pixels[i] = 0;
     return { pixels, enclosed: [] };
   }
