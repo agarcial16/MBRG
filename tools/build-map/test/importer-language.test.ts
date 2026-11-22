@@ -3,6 +3,7 @@ import { readBounded, runImport, type ImportFs } from '../src/cli/import';
 import { CURATION_KIND_ORDER } from '../src/importer/errors';
 import { extractGeo } from '../src/importer/extract-geo';
 import { groupFactions, groupTerritories } from '../src/importer/grouping';
+import { belowMinSize } from '../src/importer/min-size';
 import { assignSea } from '../src/importer/sea-sources';
 import { buildViews, insetHidesLand } from '../src/importer/views';
 import { parseCuration } from '../src/importer/curation';
@@ -28,8 +29,9 @@ const GROUP_KINDS = ['invalid-key', 'missing-group-value', 'mixed-territory-kind
 const FACTION_KINDS = ['invalid-name', 'invalid-color', 'duplicate-faction-key', 'missing-faction', 'split-territory-faction', 'missing-faction-name', 'faction-without-territory', 'too-many-factions'];
 const VIEW_KINDS = ['selection-too-wide', 'antimeridian-edge', 'unit-in-two-insets', 'empty-inset', 'inset-outside-image', 'insets-overlap', 'inset-hides-land'];
 const SEA_KINDS = ['seed-outside-frame', 'seed-not-water', 'duplicate-seed-pixel'];
+const CLEANUP_KINDS = ['territory-below-min-size'];
 const COMMAND_KINDS = ['usage-error'];
-const IMPORTER_KINDS = [...SOURCE_KINDS, ...EXTRACT_KINDS, ...CURATION_KINDS, ...UNIT_KINDS, ...SELECT_KINDS, ...GROUP_KINDS, ...FACTION_KINDS, ...VIEW_KINDS, ...SEA_KINDS, ...COMMAND_KINDS];
+const IMPORTER_KINDS = [...SOURCE_KINDS, ...EXTRACT_KINDS, ...CURATION_KINDS, ...UNIT_KINDS, ...SELECT_KINDS, ...GROUP_KINDS, ...FACTION_KINDS, ...VIEW_KINDS, ...SEA_KINDS, ...CLEANUP_KINDS, ...COMMAND_KINDS];
 /** Data fields of the importer errors (the kind is always present). */
 const DATA_FIELDS = [
   'file',
@@ -58,6 +60,8 @@ const DATA_FIELDS = [
   'name',
   'x',
   'y',
+  'pixels',
+  'largest',
 ];
 const ALLOWED_KEYS = ['kind', ...DATA_FIELDS];
 const INVALID_SOURCE_REASONS = ['not-utf8', 'not-json', 'not-feature-collection', 'bad-feature', 'bad-geometry', 'unreadable'];
@@ -266,6 +270,12 @@ function seaErrors(): Err[] {
   return errs(r);
 }
 
+function cleanupErrors(): Err[] {
+  const pixels = new Uint32Array(16);
+  pixels[0] = 1;
+  return belowMinSize(4, pixels, [{ id: 1, key: 'A', name: 'Alfa' }, { id: 2, key: 'B', name: 'Beta' }], 2) as unknown as Err[];
+}
+
 function groupErrors(): Err[] {
   const c = parseCuration(
     curationText((x) => {
@@ -314,7 +324,7 @@ async function commandErrors(): Promise<Err[]> {
 }
 
 async function allErrors(): Promise<Err[]> {
-  return [...sourceErrors(), ...extractErrors(), ...curationErrors(), ...unitErrors(), ...groupErrors(), ...factionErrors(), ...viewErrors(), ...seaErrors(), ...(await commandErrors())];
+  return [...sourceErrors(), ...extractErrors(), ...curationErrors(), ...unitErrors(), ...groupErrors(), ...factionErrors(), ...viewErrors(), ...seaErrors(), ...cleanupErrors(), ...(await commandErrors())];
 }
 
 const sources = import.meta.glob('../src/importer/**/*.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
