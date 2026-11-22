@@ -109,11 +109,11 @@ describe('FR-555 who may press, and what a press does', () => {
   });
 
   it('FR-555 another member changes nothing and gets a private sentence', () => {
-    expect(decide(press('mbrg:hs:n:2', '77', walk()), true)).toEqual({ do: 'say', text: 'Solo quien pidió el historial puede cambiar de página. Usa /mbrg history para ver el tuyo.' });
+    expect(decide(press('mbrg:hs:n:2', '77', walk()), true)).toEqual({ do: 'say', text: 'Solo quien pidió el historial puede cambiar de página. Usa /ff history para ver el tuyo.' });
   });
 
   it('FR-555 after the 5 minutes, or for a message the bot does not know (restart), a private sentence says it expired', () => {
-    const expired = { do: 'say', text: 'Este historial caducó. Usa /mbrg history para verlo de nuevo.' };
+    const expired = { do: 'say', text: 'Este historial caducó. Usa /ff history para verlo de nuevo.' };
     expect(HISTORY_TTL_MS).toBe(300_000);
     expect(decide(press('mbrg:hs:n:2', ASKER, walk(), 5000), true)).toEqual(expired);
     expect(decide(press('mbrg:hs:n:2', ASKER, walk(), 9000), true)).toEqual(expired);

@@ -13,7 +13,7 @@ const COLOR = 0x9b59b6;
 
 /**
  * The three leaderboard messages:
- * - asker: the public reply of `/mbrg board`; only the member who ran it pages it, in place.
+ * - asker: the public reply of `/ff board`; only the member who ran it pages it, in place.
  * - final: the public post at the end of a match; no asker, each presser gets a private page.
  * - private: such a private page; it carries its match in its button ids and shows the presser's own line.
  */

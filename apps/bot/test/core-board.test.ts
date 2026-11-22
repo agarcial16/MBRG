@@ -136,7 +136,7 @@ describe('FR-480 and FR-481 who may press', () => {
   });
 
   it('FR-480 another member changes nothing and gets a private sentence', () => {
-    expect(decide(press(boardId('n', 2), '77', live), true)).toEqual({ do: 'say', text: 'Solo quien pidió la clasificación puede cambiar de página. Usa /mbrg board para ver la tuya.' });
+    expect(decide(press(boardId('n', 2), '77', live), true)).toEqual({ do: 'say', text: 'Solo quien pidió la clasificación puede cambiar de página. Usa /ff board para ver la tuya.' });
   });
 
   it('FR-480 on the final post (no asker) every member gets their own private page', () => {
@@ -148,7 +148,7 @@ describe('FR-480 and FR-481 who may press', () => {
   });
 
   it('FR-481 after the 5 minutes, or for an unknown message (restart), a private sentence says it expired', () => {
-    const expired = { do: 'say', text: 'Esta clasificación caducó. Usa /mbrg board para verla de nuevo.' };
+    const expired = { do: 'say', text: 'Esta clasificación caducó. Usa /ff board para verla de nuevo.' };
     expect(BOARD_TTL_MS).toBe(300_000);
     expect(decide(press(boardId('n', 2), '42', live, 5000), true)).toEqual(expired);
     expect(decide(press(boardId('n', 2), '42', live, 9000), true)).toEqual(expired);

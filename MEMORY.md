@@ -9,6 +9,7 @@ Predefined maps: `maps/spain-provinces` (52 provinces) and `maps/world-countries
 Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random alive faction dies; a random neighbor takes all its territories; repeat until one remains. Players predict; they never control.
 
 ## Decisions (why)
+- Brand: FactionFall ("Map Battle Royale"), Discord slash `/ff`; internal code, packages (`@mbrg/*`), env vars (`MBRG_*`), and custom-ids (`mbrg:*`) keep the MBRG codename.
 - TypeScript everywhere: one deterministic engine for browser, server, bot and tests. Tag `legacy-v0.1` keeps the old code.
 - Three.js/WebGL, EU4 technique (id texture + owner palette + shader borders): 3D later = camera/material change.
 - Map package = `map.json` + `ids.png` + `presentation.json`, built offline by `tools/build-map`; adjacency = 4-connected pixel contact, no hand-written links; importers only convert to it.
