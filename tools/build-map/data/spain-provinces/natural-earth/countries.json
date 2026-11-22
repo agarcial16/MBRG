@@ -1,0 +1,262 @@
+[
+  {
+    "adm0_a3": "ESP-5801",
+    "name": "Álava",
+    "name_es": "Álava"
+  },
+  {
+    "adm0_a3": "ESP-5802",
+    "name": "Albacete",
+    "name_es": "Albacete"
+  },
+  {
+    "adm0_a3": "ESP-5803",
+    "name": "Alicante",
+    "name_es": "Alicante"
+  },
+  {
+    "adm0_a3": "ESP-5804",
+    "name": "Almería",
+    "name_es": "Almería"
+  },
+  {
+    "adm0_a3": "ESP-5805",
+    "name": "Asturias",
+    "name_es": "Asturias"
+  },
+  {
+    "adm0_a3": "ESP-5806",
+    "name": "Ávila",
+    "name_es": "Ávila"
+  },
+  {
+    "adm0_a3": "ESP-5807",
+    "name": "Badajoz",
+    "name_es": "Badajoz"
+  },
+  {
+    "adm0_a3": "ESP-5808",
+    "name": "Islas Baleares",
+    "name_es": "Islas Baleares"
+  },
+  {
+    "adm0_a3": "ESP-5809",
+    "name": "Barcelona",
+    "name_es": "Barcelona"
+  },
+  {
+    "adm0_a3": "ESP-5810",
+    "name": "Burgos",
+    "name_es": "Burgos"
+  },
+  {
+    "adm0_a3": "ESP-5811",
+    "name": "Cáceres",
+    "name_es": "Cáceres"
+  },
+  {
+    "adm0_a3": "ESP-5812",
+    "name": "Cádiz",
+    "name_es": "Cádiz"
+  },
+  {
+    "adm0_a3": "ESP-5813",
+    "name": "Cantabria",
+    "name_es": "Cantabria"
+  },
+  {
+    "adm0_a3": "ESP-5814",
+    "name": "Castellón",
+    "name_es": "Castellón"
+  },
+  {
+    "adm0_a3": "ESP-5815",
+    "name": "Ceuta",
+    "name_es": "Ceuta"
+  },
+  {
+    "adm0_a3": "ESP-5816",
+    "name": "Ciudad Real",
+    "name_es": "Ciudad Real"
+  },
+  {
+    "adm0_a3": "ESP-5817",
+    "name": "Córdoba",
+    "name_es": "Córdoba"
+  },
+  {
+    "adm0_a3": "ESP-5818",
+    "name": "Cuenca",
+    "name_es": "Cuenca"
+  },
+  {
+    "adm0_a3": "ESP-5820",
+    "name": "Girona",
+    "name_es": "Girona"
+  },
+  {
+    "adm0_a3": "ESP-5821",
+    "name": "Granada",
+    "name_es": "Granada"
+  },
+  {
+    "adm0_a3": "ESP-5822",
+    "name": "Guadalajara",
+    "name_es": "Guadalajara"
+  },
+  {
+    "adm0_a3": "ESP-5823",
+    "name": "Guipúzcoa",
+    "name_es": "Guipúzcoa"
+  },
+  {
+    "adm0_a3": "ESP-5824",
+    "name": "Huelva",
+    "name_es": "Huelva"
+  },
+  {
+    "adm0_a3": "ESP-5825",
+    "name": "Huesca",
+    "name_es": "Huesca"
+  },
+  {
+    "adm0_a3": "ESP-5826",
+    "name": "Jaén",
+    "name_es": "Jaén"
+  },
+  {
+    "adm0_a3": "ESP-5827",
+    "name": "A Coruña",
+    "name_es": "A Coruña"
+  },
+  {
+    "adm0_a3": "ESP-5828",
+    "name": "La Rioja",
+    "name_es": "La Rioja"
+  },
+  {
+    "adm0_a3": "ESP-5829",
+    "name": "Las Palmas",
+    "name_es": "Las Palmas"
+  },
+  {
+    "adm0_a3": "ESP-5830",
+    "name": "León",
+    "name_es": "León"
+  },
+  {
+    "adm0_a3": "ESP-5831",
+    "name": "Lleida",
+    "name_es": "Lleida"
+  },
+  {
+    "adm0_a3": "ESP-5832",
+    "name": "Lugo",
+    "name_es": "Lugo"
+  },
+  {
+    "adm0_a3": "ESP-5833",
+    "name": "Madrid",
+    "name_es": "Madrid"
+  },
+  {
+    "adm0_a3": "ESP-5834",
+    "name": "Málaga",
+    "name_es": "Málaga"
+  },
+  {
+    "adm0_a3": "ESP-5835",
+    "name": "Melilla",
+    "name_es": "Melilla"
+  },
+  {
+    "adm0_a3": "ESP-5836",
+    "name": "Murcia",
+    "name_es": "Murcia"
+  },
+  {
+    "adm0_a3": "ESP-5837",
+    "name": "Navarra",
+    "name_es": "Navarra"
+  },
+  {
+    "adm0_a3": "ESP-5838",
+    "name": "Ourense",
+    "name_es": "Ourense"
+  },
+  {
+    "adm0_a3": "ESP-5839",
+    "name": "Palencia",
+    "name_es": "Palencia"
+  },
+  {
+    "adm0_a3": "ESP-5840",
+    "name": "Pontevedra",
+    "name_es": "Pontevedra"
+  },
+  {
+    "adm0_a3": "ESP-5841",
+    "name": "Salamanca",
+    "name_es": "Salamanca"
+  },
+  {
+    "adm0_a3": "ESP-5842",
+    "name": "Santa Cruz de Tenerife",
+    "name_es": "Santa Cruz de Tenerife"
+  },
+  {
+    "adm0_a3": "ESP-5843",
+    "name": "Segovia",
+    "name_es": "Segovia"
+  },
+  {
+    "adm0_a3": "ESP-5844",
+    "name": "Sevilla",
+    "name_es": "Sevilla"
+  },
+  {
+    "adm0_a3": "ESP-5845",
+    "name": "Soria",
+    "name_es": "Soria"
+  },
+  {
+    "adm0_a3": "ESP-5846",
+    "name": "Tarragona",
+    "name_es": "Tarragona"
+  },
+  {
+    "adm0_a3": "ESP-5847",
+    "name": "Teruel",
+    "name_es": "Teruel"
+  },
+  {
+    "adm0_a3": "ESP-5848",
+    "name": "Toledo",
+    "name_es": "Toledo"
+  },
+  {
+    "adm0_a3": "ESP-5849",
+    "name": "Valencia",
+    "name_es": "Valencia"
+  },
+  {
+    "adm0_a3": "ESP-5850",
+    "name": "Valladolid",
+    "name_es": "Valladolid"
+  },
+  {
+    "adm0_a3": "ESP-5851",
+    "name": "Vizcaya",
+    "name_es": "Vizcaya"
+  },
+  {
+    "adm0_a3": "ESP-5852",
+    "name": "Zamora",
+    "name_es": "Zamora"
+  },
+  {
+    "adm0_a3": "ESP-5853",
+    "name": "Zaragoza",
+    "name_es": "Zaragoza"
+  }
+]
