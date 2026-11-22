@@ -16,7 +16,7 @@ export interface Followed {
   readonly creatorId?: string;
 }
 
-/** A match the channel no longer follows (finished, halted or stopped): only what `/mbrg board` needs; no host token (FR-466). */
+/** A match the channel no longer follows (finished, halted or stopped): only what `/ff board` needs; no host token (FR-466). */
 export interface LastMatch {
   readonly matchId: string;
   readonly mapId: string;

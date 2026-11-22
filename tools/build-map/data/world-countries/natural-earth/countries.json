@@ -1,0 +1,967 @@
+[
+  {
+    "adm0_a3": "AFG",
+    "name": "Afghanistan",
+    "name_es": "Afganistán"
+  },
+  {
+    "adm0_a3": "AGO",
+    "name": "Angola",
+    "name_es": "Angola"
+  },
+  {
+    "adm0_a3": "ALB",
+    "name": "Albania",
+    "name_es": "Albania"
+  },
+  {
+    "adm0_a3": "AND",
+    "name": "Andorra",
+    "name_es": "Andorra"
+  },
+  {
+    "adm0_a3": "ARE",
+    "name": "United Arab Emirates",
+    "name_es": "Emiratos Árabes Unidos"
+  },
+  {
+    "adm0_a3": "ARG",
+    "name": "Argentina",
+    "name_es": "Argentina"
+  },
+  {
+    "adm0_a3": "ARM",
+    "name": "Armenia",
+    "name_es": "Armenia"
+  },
+  {
+    "adm0_a3": "ATG",
+    "name": "Antigua and Barb.",
+    "name_es": "Antigua y Barbuda"
+  },
+  {
+    "adm0_a3": "AUS",
+    "name": "Australia",
+    "name_es": "Australia"
+  },
+  {
+    "adm0_a3": "AUT",
+    "name": "Austria",
+    "name_es": "Austria"
+  },
+  {
+    "adm0_a3": "AZE",
+    "name": "Azerbaijan",
+    "name_es": "Azerbaiyán"
+  },
+  {
+    "adm0_a3": "BDI",
+    "name": "Burundi",
+    "name_es": "Burundi"
+  },
+  {
+    "adm0_a3": "BEL",
+    "name": "Belgium",
+    "name_es": "Bélgica"
+  },
+  {
+    "adm0_a3": "BEN",
+    "name": "Benin",
+    "name_es": "Benín"
+  },
+  {
+    "adm0_a3": "BFA",
+    "name": "Burkina Faso",
+    "name_es": "Burkina Faso"
+  },
+  {
+    "adm0_a3": "BGD",
+    "name": "Bangladesh",
+    "name_es": "Bangladés"
+  },
+  {
+    "adm0_a3": "BGR",
+    "name": "Bulgaria",
+    "name_es": "Bulgaria"
+  },
+  {
+    "adm0_a3": "BHR",
+    "name": "Bahrain",
+    "name_es": "Baréin"
+  },
+  {
+    "adm0_a3": "BHS",
+    "name": "Bahamas",
+    "name_es": "Bahamas"
+  },
+  {
+    "adm0_a3": "BIH",
+    "name": "Bosnia and Herz.",
+    "name_es": "Bosnia y Herzegovina"
+  },
+  {
+    "adm0_a3": "BLR",
+    "name": "Belarus",
+    "name_es": "Bielorrusia"
+  },
+  {
+    "adm0_a3": "BLZ",
+    "name": "Belize",
+    "name_es": "Belice"
+  },
+  {
+    "adm0_a3": "BOL",
+    "name": "Bolivia",
+    "name_es": "Bolivia"
+  },
+  {
+    "adm0_a3": "BRA",
+    "name": "Brazil",
+    "name_es": "Brasil"
+  },
+  {
+    "adm0_a3": "BRB",
+    "name": "Barbados",
+    "name_es": "Barbados"
+  },
+  {
+    "adm0_a3": "BRN",
+    "name": "Brunei",
+    "name_es": "Brunéi"
+  },
+  {
+    "adm0_a3": "BTN",
+    "name": "Bhutan",
+    "name_es": "Bután"
+  },
+  {
+    "adm0_a3": "BWA",
+    "name": "Botswana",
+    "name_es": "Botsuana"
+  },
+  {
+    "adm0_a3": "CAF",
+    "name": "Central African Rep.",
+    "name_es": "República Centroafricana"
+  },
+  {
+    "adm0_a3": "CAN",
+    "name": "Canada",
+    "name_es": "Canadá"
+  },
+  {
+    "adm0_a3": "CHE",
+    "name": "Switzerland",
+    "name_es": "Suiza"
+  },
+  {
+    "adm0_a3": "CHL",
+    "name": "Chile",
+    "name_es": "Chile"
+  },
+  {
+    "adm0_a3": "CHN",
+    "name": "China",
+    "name_es": "China"
+  },
+  {
+    "adm0_a3": "CIV",
+    "name": "Côte d'Ivoire",
+    "name_es": "Costa de Marfil"
+  },
+  {
+    "adm0_a3": "CMR",
+    "name": "Cameroon",
+    "name_es": "Camerún"
+  },
+  {
+    "adm0_a3": "COD",
+    "name": "Dem. Rep. Congo",
+    "name_es": "República Democrática del Congo"
+  },
+  {
+    "adm0_a3": "COG",
+    "name": "Congo",
+    "name_es": "República del Congo"
+  },
+  {
+    "adm0_a3": "COL",
+    "name": "Colombia",
+    "name_es": "Colombia"
+  },
+  {
+    "adm0_a3": "COM",
+    "name": "Comoros",
+    "name_es": "Comoras"
+  },
+  {
+    "adm0_a3": "CPV",
+    "name": "Cabo Verde",
+    "name_es": "Cabo Verde"
+  },
+  {
+    "adm0_a3": "CRI",
+    "name": "Costa Rica",
+    "name_es": "Costa Rica"
+  },
+  {
+    "adm0_a3": "CUB",
+    "name": "Cuba",
+    "name_es": "Cuba"
+  },
+  {
+    "adm0_a3": "CYP",
+    "name": "Cyprus",
+    "name_es": "Chipre"
+  },
+  {
+    "adm0_a3": "CZE",
+    "name": "Czechia",
+    "name_es": "República Checa"
+  },
+  {
+    "adm0_a3": "DEU",
+    "name": "Germany",
+    "name_es": "Alemania"
+  },
+  {
+    "adm0_a3": "DJI",
+    "name": "Djibouti",
+    "name_es": "Yibuti"
+  },
+  {
+    "adm0_a3": "DMA",
+    "name": "Dominica",
+    "name_es": "Dominica"
+  },
+  {
+    "adm0_a3": "DNK",
+    "name": "Denmark",
+    "name_es": "Dinamarca"
+  },
+  {
+    "adm0_a3": "DOM",
+    "name": "Dominican Rep.",
+    "name_es": "República Dominicana"
+  },
+  {
+    "adm0_a3": "DZA",
+    "name": "Algeria",
+    "name_es": "Argelia"
+  },
+  {
+    "adm0_a3": "ECU",
+    "name": "Ecuador",
+    "name_es": "Ecuador"
+  },
+  {
+    "adm0_a3": "EGY",
+    "name": "Egypt",
+    "name_es": "Egipto"
+  },
+  {
+    "adm0_a3": "ERI",
+    "name": "Eritrea",
+    "name_es": "Eritrea"
+  },
+  {
+    "adm0_a3": "ESP",
+    "name": "Spain",
+    "name_es": "España"
+  },
+  {
+    "adm0_a3": "EST",
+    "name": "Estonia",
+    "name_es": "Estonia"
+  },
+  {
+    "adm0_a3": "ETH",
+    "name": "Ethiopia",
+    "name_es": "Etiopía"
+  },
+  {
+    "adm0_a3": "FIN",
+    "name": "Finland",
+    "name_es": "Finlandia"
+  },
+  {
+    "adm0_a3": "FJI",
+    "name": "Fiji",
+    "name_es": "Fiyi"
+  },
+  {
+    "adm0_a3": "FRA",
+    "name": "France",
+    "name_es": "Francia"
+  },
+  {
+    "adm0_a3": "FSM",
+    "name": "Micronesia",
+    "name_es": "Estados Federados de Micronesia"
+  },
+  {
+    "adm0_a3": "GAB",
+    "name": "Gabon",
+    "name_es": "Gabón"
+  },
+  {
+    "adm0_a3": "GBR",
+    "name": "United Kingdom",
+    "name_es": "Reino Unido"
+  },
+  {
+    "adm0_a3": "GEO",
+    "name": "Georgia",
+    "name_es": "Georgia"
+  },
+  {
+    "adm0_a3": "GHA",
+    "name": "Ghana",
+    "name_es": "Ghana"
+  },
+  {
+    "adm0_a3": "GIN",
+    "name": "Guinea",
+    "name_es": "Guinea"
+  },
+  {
+    "adm0_a3": "GMB",
+    "name": "Gambia",
+    "name_es": "Gambia"
+  },
+  {
+    "adm0_a3": "GNB",
+    "name": "Guinea-Bissau",
+    "name_es": "Guinea-Bisáu"
+  },
+  {
+    "adm0_a3": "GNQ",
+    "name": "Eq. Guinea",
+    "name_es": "Guinea Ecuatorial"
+  },
+  {
+    "adm0_a3": "GRC",
+    "name": "Greece",
+    "name_es": "Grecia"
+  },
+  {
+    "adm0_a3": "GRD",
+    "name": "Grenada",
+    "name_es": "Granada"
+  },
+  {
+    "adm0_a3": "GTM",
+    "name": "Guatemala",
+    "name_es": "Guatemala"
+  },
+  {
+    "adm0_a3": "GUY",
+    "name": "Guyana",
+    "name_es": "Guyana"
+  },
+  {
+    "adm0_a3": "HND",
+    "name": "Honduras",
+    "name_es": "Honduras"
+  },
+  {
+    "adm0_a3": "HRV",
+    "name": "Croatia",
+    "name_es": "Croacia"
+  },
+  {
+    "adm0_a3": "HTI",
+    "name": "Haiti",
+    "name_es": "Haití"
+  },
+  {
+    "adm0_a3": "HUN",
+    "name": "Hungary",
+    "name_es": "Hungría"
+  },
+  {
+    "adm0_a3": "IDN",
+    "name": "Indonesia",
+    "name_es": "Indonesia"
+  },
+  {
+    "adm0_a3": "IND",
+    "name": "India",
+    "name_es": "India"
+  },
+  {
+    "adm0_a3": "IRL",
+    "name": "Ireland",
+    "name_es": "Irlanda"
+  },
+  {
+    "adm0_a3": "IRN",
+    "name": "Iran",
+    "name_es": "Irán"
+  },
+  {
+    "adm0_a3": "IRQ",
+    "name": "Iraq",
+    "name_es": "Irak"
+  },
+  {
+    "adm0_a3": "ISL",
+    "name": "Iceland",
+    "name_es": "Islandia"
+  },
+  {
+    "adm0_a3": "ISR",
+    "name": "Israel",
+    "name_es": "Israel"
+  },
+  {
+    "adm0_a3": "ITA",
+    "name": "Italy",
+    "name_es": "Italia"
+  },
+  {
+    "adm0_a3": "JAM",
+    "name": "Jamaica",
+    "name_es": "Jamaica"
+  },
+  {
+    "adm0_a3": "JOR",
+    "name": "Jordan",
+    "name_es": "Jordania"
+  },
+  {
+    "adm0_a3": "JPN",
+    "name": "Japan",
+    "name_es": "Japón"
+  },
+  {
+    "adm0_a3": "KAZ",
+    "name": "Kazakhstan",
+    "name_es": "Kazajistán"
+  },
+  {
+    "adm0_a3": "KEN",
+    "name": "Kenya",
+    "name_es": "Kenia"
+  },
+  {
+    "adm0_a3": "KGZ",
+    "name": "Kyrgyzstan",
+    "name_es": "Kirguistán"
+  },
+  {
+    "adm0_a3": "KHM",
+    "name": "Cambodia",
+    "name_es": "Camboya"
+  },
+  {
+    "adm0_a3": "KIR",
+    "name": "Kiribati",
+    "name_es": "Kiribati"
+  },
+  {
+    "adm0_a3": "KNA",
+    "name": "St. Kitts and Nevis",
+    "name_es": "San Cristóbal y Nieves"
+  },
+  {
+    "adm0_a3": "KOR",
+    "name": "South Korea",
+    "name_es": "Corea del Sur"
+  },
+  {
+    "adm0_a3": "KOS",
+    "name": "Kosovo",
+    "name_es": "Kosovo"
+  },
+  {
+    "adm0_a3": "KWT",
+    "name": "Kuwait",
+    "name_es": "Kuwait"
+  },
+  {
+    "adm0_a3": "LAO",
+    "name": "Laos",
+    "name_es": "Laos"
+  },
+  {
+    "adm0_a3": "LBN",
+    "name": "Lebanon",
+    "name_es": "Líbano"
+  },
+  {
+    "adm0_a3": "LBR",
+    "name": "Liberia",
+    "name_es": "Liberia"
+  },
+  {
+    "adm0_a3": "LBY",
+    "name": "Libya",
+    "name_es": "Libia"
+  },
+  {
+    "adm0_a3": "LCA",
+    "name": "Saint Lucia",
+    "name_es": "Santa Lucía"
+  },
+  {
+    "adm0_a3": "LIE",
+    "name": "Liechtenstein",
+    "name_es": "Liechtenstein"
+  },
+  {
+    "adm0_a3": "LKA",
+    "name": "Sri Lanka",
+    "name_es": "Sri Lanka"
+  },
+  {
+    "adm0_a3": "LSO",
+    "name": "Lesotho",
+    "name_es": "Lesoto"
+  },
+  {
+    "adm0_a3": "LTU",
+    "name": "Lithuania",
+    "name_es": "Lituania"
+  },
+  {
+    "adm0_a3": "LUX",
+    "name": "Luxembourg",
+    "name_es": "Luxemburgo"
+  },
+  {
+    "adm0_a3": "LVA",
+    "name": "Latvia",
+    "name_es": "Letonia"
+  },
+  {
+    "adm0_a3": "MAR",
+    "name": "Morocco",
+    "name_es": "Marruecos"
+  },
+  {
+    "adm0_a3": "MDA",
+    "name": "Moldova",
+    "name_es": "Moldavia"
+  },
+  {
+    "adm0_a3": "MDG",
+    "name": "Madagascar",
+    "name_es": "Madagascar"
+  },
+  {
+    "adm0_a3": "MDV",
+    "name": "Maldives",
+    "name_es": "Maldivas"
+  },
+  {
+    "adm0_a3": "MEX",
+    "name": "Mexico",
+    "name_es": "México"
+  },
+  {
+    "adm0_a3": "MHL",
+    "name": "Marshall Is.",
+    "name_es": "Islas Marshall"
+  },
+  {
+    "adm0_a3": "MKD",
+    "name": "North Macedonia",
+    "name_es": "Macedonia del Norte"
+  },
+  {
+    "adm0_a3": "MLI",
+    "name": "Mali",
+    "name_es": "Malí"
+  },
+  {
+    "adm0_a3": "MLT",
+    "name": "Malta",
+    "name_es": "Malta"
+  },
+  {
+    "adm0_a3": "MMR",
+    "name": "Myanmar",
+    "name_es": "Birmania"
+  },
+  {
+    "adm0_a3": "MNE",
+    "name": "Montenegro",
+    "name_es": "Montenegro"
+  },
+  {
+    "adm0_a3": "MNG",
+    "name": "Mongolia",
+    "name_es": "Mongolia"
+  },
+  {
+    "adm0_a3": "MOZ",
+    "name": "Mozambique",
+    "name_es": "Mozambique"
+  },
+  {
+    "adm0_a3": "MRT",
+    "name": "Mauritania",
+    "name_es": "Mauritania"
+  },
+  {
+    "adm0_a3": "MUS",
+    "name": "Mauritius",
+    "name_es": "Mauricio"
+  },
+  {
+    "adm0_a3": "MWI",
+    "name": "Malawi",
+    "name_es": "Malaui"
+  },
+  {
+    "adm0_a3": "MYS",
+    "name": "Malaysia",
+    "name_es": "Malasia"
+  },
+  {
+    "adm0_a3": "NAM",
+    "name": "Namibia",
+    "name_es": "Namibia"
+  },
+  {
+    "adm0_a3": "NER",
+    "name": "Niger",
+    "name_es": "Níger"
+  },
+  {
+    "adm0_a3": "NGA",
+    "name": "Nigeria",
+    "name_es": "Nigeria"
+  },
+  {
+    "adm0_a3": "NIC",
+    "name": "Nicaragua",
+    "name_es": "Nicaragua"
+  },
+  {
+    "adm0_a3": "NLD",
+    "name": "Netherlands",
+    "name_es": "Países Bajos"
+  },
+  {
+    "adm0_a3": "NOR",
+    "name": "Norway",
+    "name_es": "Noruega"
+  },
+  {
+    "adm0_a3": "NPL",
+    "name": "Nepal",
+    "name_es": "Nepal"
+  },
+  {
+    "adm0_a3": "NZL",
+    "name": "New Zealand",
+    "name_es": "Nueva Zelanda"
+  },
+  {
+    "adm0_a3": "OMN",
+    "name": "Oman",
+    "name_es": "Omán"
+  },
+  {
+    "adm0_a3": "PAK",
+    "name": "Pakistan",
+    "name_es": "Pakistán"
+  },
+  {
+    "adm0_a3": "PAN",
+    "name": "Panama",
+    "name_es": "Panamá"
+  },
+  {
+    "adm0_a3": "PER",
+    "name": "Peru",
+    "name_es": "Perú"
+  },
+  {
+    "adm0_a3": "PHL",
+    "name": "Philippines",
+    "name_es": "Filipinas"
+  },
+  {
+    "adm0_a3": "PLW",
+    "name": "Palau",
+    "name_es": "Palaos"
+  },
+  {
+    "adm0_a3": "PNG",
+    "name": "Papua New Guinea",
+    "name_es": "Papúa Nueva Guinea"
+  },
+  {
+    "adm0_a3": "POL",
+    "name": "Poland",
+    "name_es": "Polonia"
+  },
+  {
+    "adm0_a3": "PRK",
+    "name": "North Korea",
+    "name_es": "Corea del Norte"
+  },
+  {
+    "adm0_a3": "PRT",
+    "name": "Portugal",
+    "name_es": "Portugal"
+  },
+  {
+    "adm0_a3": "PRY",
+    "name": "Paraguay",
+    "name_es": "Paraguay"
+  },
+  {
+    "adm0_a3": "PSX",
+    "name": "Palestine",
+    "name_es": "Palestina"
+  },
+  {
+    "adm0_a3": "QAT",
+    "name": "Qatar",
+    "name_es": "Catar"
+  },
+  {
+    "adm0_a3": "ROU",
+    "name": "Romania",
+    "name_es": "Rumania"
+  },
+  {
+    "adm0_a3": "RUS",
+    "name": "Russia",
+    "name_es": "Rusia"
+  },
+  {
+    "adm0_a3": "RWA",
+    "name": "Rwanda",
+    "name_es": "Ruanda"
+  },
+  {
+    "adm0_a3": "SAU",
+    "name": "Saudi Arabia",
+    "name_es": "Arabia Saudita"
+  },
+  {
+    "adm0_a3": "SDN",
+    "name": "Sudan",
+    "name_es": "Sudán"
+  },
+  {
+    "adm0_a3": "SDS",
+    "name": "S. Sudan",
+    "name_es": "Sudán del Sur"
+  },
+  {
+    "adm0_a3": "SEN",
+    "name": "Senegal",
+    "name_es": "Senegal"
+  },
+  {
+    "adm0_a3": "SGP",
+    "name": "Singapore",
+    "name_es": "Singapur"
+  },
+  {
+    "adm0_a3": "SLB",
+    "name": "Solomon Is.",
+    "name_es": "Islas Salomón"
+  },
+  {
+    "adm0_a3": "SLE",
+    "name": "Sierra Leone",
+    "name_es": "Sierra Leona"
+  },
+  {
+    "adm0_a3": "SLV",
+    "name": "El Salvador",
+    "name_es": "El Salvador"
+  },
+  {
+    "adm0_a3": "SMR",
+    "name": "San Marino",
+    "name_es": "San Marino"
+  },
+  {
+    "adm0_a3": "SOM",
+    "name": "Somalia",
+    "name_es": "Somalia"
+  },
+  {
+    "adm0_a3": "SRB",
+    "name": "Serbia",
+    "name_es": "Serbia"
+  },
+  {
+    "adm0_a3": "STP",
+    "name": "São Tomé and Principe",
+    "name_es": "Santo Tomé y Príncipe"
+  },
+  {
+    "adm0_a3": "SUR",
+    "name": "Suriname",
+    "name_es": "Surinam"
+  },
+  {
+    "adm0_a3": "SVK",
+    "name": "Slovakia",
+    "name_es": "Eslovaquia"
+  },
+  {
+    "adm0_a3": "SVN",
+    "name": "Slovenia",
+    "name_es": "Eslovenia"
+  },
+  {
+    "adm0_a3": "SWE",
+    "name": "Sweden",
+    "name_es": "Suecia"
+  },
+  {
+    "adm0_a3": "SWZ",
+    "name": "eSwatini",
+    "name_es": "Suazilandia"
+  },
+  {
+    "adm0_a3": "SYC",
+    "name": "Seychelles",
+    "name_es": "Seychelles"
+  },
+  {
+    "adm0_a3": "SYR",
+    "name": "Syria",
+    "name_es": "Siria"
+  },
+  {
+    "adm0_a3": "TCD",
+    "name": "Chad",
+    "name_es": "Chad"
+  },
+  {
+    "adm0_a3": "TGO",
+    "name": "Togo",
+    "name_es": "Togo"
+  },
+  {
+    "adm0_a3": "THA",
+    "name": "Thailand",
+    "name_es": "Tailandia"
+  },
+  {
+    "adm0_a3": "TJK",
+    "name": "Tajikistan",
+    "name_es": "Tayikistán"
+  },
+  {
+    "adm0_a3": "TKM",
+    "name": "Turkmenistan",
+    "name_es": "Turkmenistán"
+  },
+  {
+    "adm0_a3": "TLS",
+    "name": "Timor-Leste",
+    "name_es": "Timor Oriental"
+  },
+  {
+    "adm0_a3": "TON",
+    "name": "Tonga",
+    "name_es": "Tonga"
+  },
+  {
+    "adm0_a3": "TTO",
+    "name": "Trinidad and Tobago",
+    "name_es": "Trinidad y Tobago"
+  },
+  {
+    "adm0_a3": "TUN",
+    "name": "Tunisia",
+    "name_es": "Túnez"
+  },
+  {
+    "adm0_a3": "TUR",
+    "name": "Turkey",
+    "name_es": "Turquía"
+  },
+  {
+    "adm0_a3": "TWN",
+    "name": "Taiwan",
+    "name_es": "República de China"
+  },
+  {
+    "adm0_a3": "TZA",
+    "name": "Tanzania",
+    "name_es": "Tanzania"
+  },
+  {
+    "adm0_a3": "UGA",
+    "name": "Uganda",
+    "name_es": "Uganda"
+  },
+  {
+    "adm0_a3": "UKR",
+    "name": "Ukraine",
+    "name_es": "Ucrania"
+  },
+  {
+    "adm0_a3": "URY",
+    "name": "Uruguay",
+    "name_es": "Uruguay"
+  },
+  {
+    "adm0_a3": "USA",
+    "name": "United States of America",
+    "name_es": "Estados Unidos"
+  },
+  {
+    "adm0_a3": "UZB",
+    "name": "Uzbekistan",
+    "name_es": "Uzbekistán"
+  },
+  {
+    "adm0_a3": "VCT",
+    "name": "St. Vin. and Gren.",
+    "name_es": "San Vicente y las Granadinas"
+  },
+  {
+    "adm0_a3": "VEN",
+    "name": "Venezuela",
+    "name_es": "Venezuela"
+  },
+  {
+    "adm0_a3": "VNM",
+    "name": "Vietnam",
+    "name_es": "Vietnam"
+  },
+  {
+    "adm0_a3": "VUT",
+    "name": "Vanuatu",
+    "name_es": "Vanuatu"
+  },
+  {
+    "adm0_a3": "WSM",
+    "name": "Samoa",
+    "name_es": "Samoa"
+  },
+  {
+    "adm0_a3": "YEM",
+    "name": "Yemen",
+    "name_es": "Yemen"
+  },
+  {
+    "adm0_a3": "ZAF",
+    "name": "South Africa",
+    "name_es": "Sudáfrica"
+  },
+  {
+    "adm0_a3": "ZMB",
+    "name": "Zambia",
+    "name_es": "Zambia"
+  },
+  {
+    "adm0_a3": "ZWE",
+    "name": "Zimbabwe",
+    "name_es": "Zimbabue"
+  }
+]

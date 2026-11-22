@@ -17,12 +17,20 @@ describe('FR-408 FR-409 the banner and the overlay in the panel', () => {
     expect(panelCode).toMatch(/STRINGS\.bannerClose/);
   });
 
-  it('FR-408 the banner is one real button (tap, Enter and Space dismiss it) over a dimmed map; the fade follows the view', () => {
+  it('FR-408 the banner is one real button (tap, Enter and Space dismiss it) positioned as a duel callout; the fade follows the view', () => {
     expect(panelCode).toMatch(/button\(bannerBox, '', handlers\.onBannerDismiss/);
     expect(panelCode).toMatch(/bannerBox\.dataset\.fade/);
-    expect(css).toMatch(/\.hud-banner \{[^}]*rgba\(0, 0, 0, 0\.45\)/);
     expect(css).toMatch(/\.hud-banner\[data-fade="on"\] \{ animation:/);
     expect(css).not.toMatch(/\.hud-banner \{[^}]*animation/);
+    expect(css).toContain('.hud-duel-sides');
+  });
+
+  it('spec 031 the live reveal flow wires composeRevealCamera and frontBox into mapView', () => {
+    expect(main).toContain('composeRevealCamera(');
+    expect(main).toContain('frontBox()');
+    expect(main).toContain('revealCamera(');
+    expect(code(mapView)).toContain('frontBox:');
+    expect(code(mapView)).toContain('revealCamera:');
   });
 
   it('FR-409 the overlay is a status line that takes no pointer events', () => {

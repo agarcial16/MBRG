@@ -22,12 +22,33 @@ describe('FR-408 the round banner', () => {
       title: fillTemplate(STRINGS.bannerRound, { round: 3 }),
       line: fillTemplate(STRINGS.hudChronicleApplied, { victim: 'Norte', absorber: 'Sur', count: 3 }),
       fade: true,
+      duel: {
+        eyebrow: fillTemplate(STRINGS.bannerDuelEyebrow, { round: 3 }),
+        victimId: 4,
+        victimName: 'Norte',
+        absorberId: 9,
+        absorberName: 'Sur',
+        taken: 3,
+        controlPct: undefined,
+        detail: fillTemplate(STRINGS.hudChronicleApplied, { victim: 'Norte', absorber: 'Sur', count: 3 }),
+      },
     });
     expect(BANNER_MS).toBe(3000);
     expect(bannerView(state, model(), NAMES, 5000 + 2999, false)).toBeDefined();
     expect(bannerView(state, model(), NAMES, 5000 + 3000, false)).toBeUndefined();
     expect(bannerExpiresIn(state, 6000)).toBe(2000);
     expect(bannerExpiresIn(state, 9000)).toBeUndefined();
+  });
+
+  it('spec 031 when the round owners are held, the duel callout includes the absorber map-control percentage', () => {
+    const held = new Map<number, ReadonlyMap<number, number>>([
+      [3, new Map([[1, 9], [2, 9], [3, 9], [4, 9], [5, 9], [6, 7], [7, 7], [8, 7]])], // 5 of 8 = 63%
+    ]);
+    let state = bannerNext(bannerStart, input(2, 2), 0);
+    state = bannerNext(state, input(3, 3), 5000);
+    const view = bannerView(state, model({ held }), NAMES, 5000, false);
+    expect(view?.duel.controlPct).toBe(63);
+    expect(view?.duel.detail).toBe(fillTemplate(STRINGS.bannerDuelDetail, { absorber: 'Sur', count: 3, value: 63 }));
   });
 
   it('FR-408 with reduced motion it shows without fade', () => {

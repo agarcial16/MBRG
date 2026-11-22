@@ -113,11 +113,11 @@ describe('FR-569 who may press, and what a press does', () => {
   });
 
   it('FR-569 another member changes nothing and gets a private sentence', () => {
-    expect(decide(press('mbrg:rk:n:2', '77', walk()), true)).toEqual({ do: 'say', text: 'Solo quien pidió el ranking puede cambiar de página. Usa /mbrg ranking para ver el tuyo.' });
+    expect(decide(press('mbrg:rk:n:2', '77', walk()), true)).toEqual({ do: 'say', text: 'Solo quien pidió el ranking puede cambiar de página. Usa /ff ranking para ver el tuyo.' });
   });
 
   it('FR-569 after the 5 minutes, or for a message the bot does not know (restart), a private sentence says it expired, whoever presses', () => {
-    const expired = { do: 'say', text: 'Este ranking caducó. Usa /mbrg ranking para verlo de nuevo.' };
+    const expired = { do: 'say', text: 'Este ranking caducó. Usa /ff ranking para verlo de nuevo.' };
     expect(RANKING_TTL_MS).toBe(300_000);
     expect(decide(press('mbrg:rk:n:2', ASKER, walk(), 5000), true)).toEqual(expired);
     expect(decide(press('mbrg:rk:n:2', ASKER, walk(), 9000), true)).toEqual(expired);

@@ -17,6 +17,9 @@ export const STRINGS = {
   noWebgl2: 'Este navegador no ofrece WebGL 2, que hace falta para dibujar el mapa.',
   textureTooSmall:
     'El tamaño máximo de textura del navegador ({size}) es menor que el necesario ({required}) para dibujar el mapa.',
+  // Viewer count refusal (spec 029): the map itself is beyond what the viewer can draw.
+  tooManyTerritories: 'El mapa tiene {count} territorios y el visor puede dibujar como máximo {limit}.',
+  tooManyFactions: 'El mapa tiene {count} facciones y el visor puede dibujar como máximo {limit}.',
   paletteExhausted:
     'No hay colores suficientes para distinguir a la facción «{faction}» de sus vecinas: {kind}.',
   simError: 'No se puede obtener el estado de la partida: {kind}.',
@@ -164,7 +167,6 @@ export const STRINGS = {
   hudTrackInPlay: 'Ronda {round} en juego',
   hudTrackStart: 'Inicio',
   hudDockHandle: 'Plegar o desplegar el panel',
-  hudMinimap: 'Carta general',
   hudMinimapHint: 'Mapa en miniatura: toca o arrastra para mover la vista',
   hudChronicleEmpty: 'Aún no ha caído ninguna facción.',
   hudChronicleLoading: 'Cargando la crónica…',
@@ -310,6 +312,23 @@ export const STRINGS = {
   bannerClose: 'Cerrar aviso de la ronda',
   overlayFinalised: 'PREDICCIONES FINALIZADAS',
   overlayRevealing: 'REVELANDO…',
+  // Viewer visual refresh (spec 031): brand wordmark and reveal duel callout.
+  hudBrand: 'FactionFall',
+  bannerDuelEyebrow: 'Ronda {round} · Eliminación y absorción',
+  bannerDuelArrow: '→',
+  bannerDuelDetail: '{absorber} absorbe +{count} territorios · controla el {value}% del mapa',
+  // Start menu landing (spec 030).
+  landingKicker: 'MODO CLÁSICO · ESPECTADOR Y PREDICCIONES',
+  landingBrand: 'FactionFall',
+  landingSubtitle: 'MAP BATTLE ROYALE',
+  landingPitch: 'Una eliminación por ronda: predice quién cae y quién absorbe el mapa.',
+  landingInputPlaceholder: 'Pega tu enlace de partida o espectador…',
+  landingInputHint: 'Enlace de partida, espectador o código',
+  landingCreateToggle: 'Crear nueva partida',
+  landingCreateClose: 'Ocultar creación',
+  landingAtlasTag: 'ATLAS · VISTA ESTÁTICA',
+  landingAtlasCaption: '{name} · Ronda {round}',
+  landingMapDev: 'Europa Occidental',
 } as const;
 
 /** Fills {name} placeholders; a placeholder without a value is left as written. */

@@ -44,7 +44,7 @@ describe('FR-306 (entry) the page entry chooses the scene of each address', () =
     expect(dev.calls).toStrictEqual(['debug']);
     const none = actions(true);
     await enter('', true, none);
-    expect(none.calls).toStrictEqual(['debug']);
+    expect(none.calls).toStrictEqual(['start']);
     const seedOnly = actions(false);
     await enter('?seed=7', false, seedOnly);
     expect(seedOnly.calls).toStrictEqual([`message:${errorText('need-match')}`]);

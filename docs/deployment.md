@@ -1,4 +1,4 @@
-# Deploying MBRG
+# Deploying FactionFall
 
 How to run the real stack — game server, Discord bot and viewer web app — on a
 small Linux VPS. It mirrors the code exactly: every variable named here is read
@@ -50,12 +50,12 @@ Two variables are required; the rest have defaults:
 | Variable | Meaning | Default |
 |---|---|---|
 | `MBRG_OPERATOR_CREDENTIAL` | operator credential; the only one that may create running matches directly | **required** |
-| `MBRG_MAPS` | JSON object of map id -> package folder (holds `map.json`, `ids.png`, `presentation.json`), e.g. `{"dev":"/opt/mbrg/maps/dev"}`. Ids: `[a-z0-9-]{1,64}`. Use **absolute** paths: a relative path resolves from `apps/server`, the npm workspace cwd, and a wrong one fails map validation. | **required** |
+| `MBRG_MAPS` | JSON object of map id -> package folder (holds `map.json`, `ids.png`, `presentation.json`), e.g. `{"dev":"/opt/mbrg/maps/dev","spain-provinces":"/opt/mbrg/maps/spain-provinces","world-countries":"/opt/mbrg/maps/world-countries"}`. Predefined packages are committed under `maps/` (`dev`, `spain-provinces`, `world-countries`). Ids: `[a-z0-9-]{1,64}`. Use **absolute** paths: a relative path resolves from `apps/server`, the npm workspace cwd, and a wrong one fails map validation. | **required** |
 | `MBRG_CLIENTS` | JSON array of `{"namespace":"...","credential":"..."}`. Namespace `[a-z0-9]{1,16}`, `player` is reserved; duplicate namespaces/credentials, or a client credential equal to the operator's, are refused at start. | none |
 | `MBRG_DATABASE` | SQLite file path (or `:memory:`). Put it somewhere backed up. | `mbrg.sqlite` (cwd) |
 | `MBRG_HOST` / `MBRG_PORT` | listener bind. Keep `127.0.0.1` and put the reverse proxy in front. | `127.0.0.1` / `8787` |
 | `MBRG_ALLOWED_ORIGINS` | comma-separated origins allowed to send credentialed (Bearer) cross-origin requests, matched exactly, e.g. `https://mbrg.example.com`. Credential-free reads are open to any origin (see Viewer). | none |
-| `MBRG_PUBLIC_MAPS` | map ids (each in `MBRG_MAPS`) that may be used for public creation — the bot's `/mbrg create`. Empty or absent: public creation is **off**. | none |
+| `MBRG_PUBLIC_MAPS` | map ids (each in `MBRG_MAPS`) that may be used for public creation — the bot's `/ff create`. Empty or absent: public creation is **off**. | none |
 | `MBRG_FORCED_PHASE_SECONDS` | forced-absorber phase span, 1–3600. The hand run used 10. | 5 |
 | `MBRG_MAX_RUNNING_MATCHES` | cap of running matches. | 20 |
 | `MBRG_MAX_PLAYERS` | most players one match holds, 1–10000. | 200 |
@@ -67,7 +67,7 @@ Invalid settings: the server prints `invalid settings: <names>` and exits 1.
 Logs are JSON lines with closed events only (`{"event":"listening","port":8787}`);
 SIGINT/SIGTERM flush and stop it within 5 s.
 
-**Creating matches is the bot's job**: `/mbrg create` in Discord, which needs
+**Creating matches is the bot's job**: `/ff create` in Discord, which needs
 `MBRG_PUBLIC_MAPS` set. The operator credential can also create a running match
 directly (`POST /matches`), but a normal deployment never does.
 
@@ -215,7 +215,7 @@ Mirrors the hand-run checks of 2026-11-19/20 (with throwaway credentials):
    config: `{"maps":["dev"],...,"enabled":true}`.
 4. The bot log shows `Bot listo.`; stopping it with a missing variable instead
    prints only that variable's name.
-5. `/mbrg create` in a Discord channel announces a lobby, and its viewer link
+5. `/ff create` in a Discord channel announces a lobby, and its viewer link
    opens the waiting map.
 6. Stop the server (`systemctl stop mbrg-server`) and open the same viewer
    link: the page shows its own failure notice — no crash, no leaked detail.
