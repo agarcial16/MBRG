@@ -1,5 +1,5 @@
 # Spec 031 — Viewer visual refresh & reveal camera composition
-Status: approved (user's approved recipe of 2026-11-21).
+Status: implemented
 Tier: Light SDD (presentation and reveal camera composition in `apps/web`). Outside the traceability ledger (like specs 012/013/026): no ledger FR/NFR ids are added and `packages/sim/test/traceability.test.ts` is untouched.
 
 ## Context and goal
