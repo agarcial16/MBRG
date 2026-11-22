@@ -175,14 +175,14 @@ const DONE_027: readonly string[] = ['FR-575', 'FR-576', 'FR-577', 'FR-578', 'FR
  * its own commit; a test title carries an id literal only in that commit; the last task of M3 leaves PENDING_028 empty.
  */
 const PENDING_028: readonly string[] = [
-  'FR-586', 'FR-589', 'FR-598', 'FR-601', 'FR-602', 'FR-603', 'FR-604', 'FR-605',
+  'FR-586', 'FR-589', 'FR-598', 'FR-602', 'FR-603', 'FR-604', 'FR-605',
   'FR-606', 'FR-607', 'FR-608', 'FR-609', 'FR-610', 'FR-611',
   'FR-612', 'FR-613', 'FR-614', 'NFR-132', 'NFR-134',
   'NFR-135', 'NFR-136', 'NFR-137', 'NFR-138',
 ];
 
-/** Ids of spec 028 closed so far (T1.2: FR-587; T1.3: FR-588; T1.4: FR-590; T1.5: FR-592; T1.6: FR-591; T1.7: FR-593, FR-595; T1.8: FR-594; T2.1: FR-596; T2.2: FR-597; T2.3: FR-599; T2.4: FR-600, NFR-133). */
-const DONE_028: readonly string[] = ['FR-587', 'FR-588', 'FR-590', 'FR-592', 'FR-591', 'FR-593', 'FR-595', 'FR-594', 'FR-596', 'FR-597', 'FR-599', 'FR-600', 'NFR-133'];
+/** Ids of spec 028 closed so far (T1.2: FR-587; T1.3: FR-588; T1.4: FR-590; T1.5: FR-592; T1.6: FR-591; T1.7: FR-593, FR-595; T1.8: FR-594; T2.1: FR-596; T2.2: FR-597; T2.3: FR-599; T2.4: FR-600, NFR-133; T2.5: FR-601). */
+const DONE_028: readonly string[] = ['FR-587', 'FR-588', 'FR-590', 'FR-592', 'FR-591', 'FR-593', 'FR-595', 'FR-594', 'FR-596', 'FR-597', 'FR-599', 'FR-600', 'NFR-133', 'FR-601'];
 
 const DONE_014: readonly string[] = ['FR-416', 'FR-414', 'FR-413', 'FR-418', 'FR-419', 'FR-415', 'FR-417', 'NFR-81', 'NFR-83', 'FR-421', 'FR-420', 'NFR-82'];
 
@@ -1143,7 +1143,7 @@ describe('traceability', () => {
     for (const id of literal) expect(expected, id).toContain(id);
     // The ids next to the ranges stay outside the ledger.
     for (const id of ['FR-574', 'FR-615', 'NFR-139']) expect(expected, id).not.toContain(id);
-    expect(DONE_028).toStrictEqual(['FR-587', 'FR-588', 'FR-590', 'FR-592', 'FR-591', 'FR-593', 'FR-595', 'FR-594', 'FR-596', 'FR-597', 'FR-599', 'FR-600', 'NFR-133']);
+    expect(DONE_028).toStrictEqual(['FR-587', 'FR-588', 'FR-590', 'FR-592', 'FR-591', 'FR-593', 'FR-595', 'FR-594', 'FR-596', 'FR-597', 'FR-599', 'FR-600', 'NFR-133', 'FR-601']);
     expect(PENDING_028).toHaveLength(36 - DONE_028.length);
   });
 

@@ -3,7 +3,7 @@ import { readBounded, runImport, type ImportFs } from '../src/cli/import';
 import { CURATION_KIND_ORDER } from '../src/importer/errors';
 import { extractGeo } from '../src/importer/extract-geo';
 import { groupFactions, groupTerritories } from '../src/importer/grouping';
-import { buildMainView } from '../src/importer/views';
+import { buildViews, insetHidesLand } from '../src/importer/views';
 import { parseCuration } from '../src/importer/curation';
 import { inspectSource, VALUE_TYPES } from '../src/importer/inspect';
 import { readSource, readSources } from '../src/importer/read-source';
@@ -25,7 +25,7 @@ const UNIT_KINDS = ['missing-unit-key', 'invalid-unit-key', 'conflicting-unit-pr
 const SELECT_KINDS = ['unknown-unit', 'empty-selection'];
 const GROUP_KINDS = ['invalid-key', 'missing-group-value', 'mixed-territory-kind', 'conflicting-group-name', 'missing-territory-name'];
 const FACTION_KINDS = ['invalid-name', 'invalid-color', 'duplicate-faction-key', 'missing-faction', 'split-territory-faction', 'missing-faction-name', 'faction-without-territory', 'too-many-factions'];
-const VIEW_KINDS = ['selection-too-wide', 'antimeridian-edge'];
+const VIEW_KINDS = ['selection-too-wide', 'antimeridian-edge', 'unit-in-two-insets', 'empty-inset', 'inset-outside-image', 'insets-overlap', 'inset-hides-land'];
 const COMMAND_KINDS = ['usage-error'];
 const IMPORTER_KINDS = [...SOURCE_KINDS, ...EXTRACT_KINDS, ...CURATION_KINDS, ...UNIT_KINDS, ...SELECT_KINDS, ...GROUP_KINDS, ...FACTION_KINDS, ...VIEW_KINDS, ...COMMAND_KINDS];
 /** Data fields of the importer errors (the kind is always present). */
@@ -49,6 +49,8 @@ const DATA_FIELDS = [
   'faction',
   'factions',
   'count',
+  'inset',
+  'insets',
 ];
 const ALLOWED_KEYS = ['kind', ...DATA_FIELDS];
 const INVALID_SOURCE_REASONS = ['not-utf8', 'not-json', 'not-feature-collection', 'bad-feature', 'bad-geometry', 'unreadable'];
@@ -221,13 +223,30 @@ function viewErrors(): Err[] {
     layer: undefined,
   });
   const params = { side: 128, margin: 0.1, minPieceSize: 2, projection: 'laea' as const };
-  const wide = buildMainView({ units: [square('W', -100, -99), square('E', 99, 100)], params });
-  const fiji = buildMainView({
-    units: [square('FJ', 178, -178)],
+  const wide = buildViews({ selected: [square('W', -100, -99), square('E', 99, 100)], params, insets: [] });
+  const fiji = buildViews({
+    selected: [square('FJ', 178, -178)],
+    insets: [],
     others: [{ origin: { file: 'ctx.geojson', feature: 3 }, polygons: square('X', 178, -178).polygons }],
     params: { ...params, projection: 'equal-earth' as const },
   });
-  return [...errs(wide), ...errs(fiji)];
+  const withProps = (key: string, region: string, west: number, east: number) => {
+    const u = square(key, west, east);
+    return { ...u, features: [{ index: 0, props: { region }, polygons: u.polygons }] };
+  };
+  const a = withProps('A', 'x', 0, 4);
+  const b = withProps('B', 'y', 5, 9);
+  const pick = (region: string, at: [number, number]) => ({ select: [{ property: 'region', eq: region }], at });
+  const wrong = buildViews({
+    selected: [a, b, withProps('M', 'm', 20, 30)],
+    params: { ...params, side: 64 },
+    insets: [pick('x', [0, 0]), pick('x', [1, 1]), pick('none', [0, 0]), pick('y', [60, 60])],
+  });
+  const overlapping = buildViews({ selected: [a, b, withProps('M', 'm', 20, 30)], params: { ...params, side: 256 }, insets: [pick('x', [0, 0]), pick('y', [1, 1])] });
+  const fine = buildViews({ selected: [a, withProps('M', 'm', 20, 30)], params: { ...params, side: 256 }, insets: [pick('x', [0, 0])] });
+  if (!fine.ok) throw new Error('the views should build');
+  const hidden = insetHidesLand(fine.value, new Uint32Array(256 * 256).fill(1), () => true);
+  return [...errs(wide), ...errs(fiji), ...errs(wrong), ...errs(overlapping), ...hidden];
 }
 
 function groupErrors(): Err[] {

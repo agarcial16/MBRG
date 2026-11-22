@@ -1,9 +1,10 @@
 import type { Result } from '@mbrg/shared';
 import { frameFor, project, projectionCenter, toPixel, type Frame, type ProjectionCenter } from '../core/projection';
 import type { SourcePolygon } from '../core/types';
-import type { Params } from './curation';
+import type { Filter, Params } from './curation';
 import { equalEarth } from './equal-earth';
 import { ErrorCollector } from './errors';
+import { matchesFilter } from './select';
 import type { Unit } from './units';
 
 const RAD = Math.PI / 180;
@@ -248,4 +249,243 @@ export function buildMainView(input: MainViewInput): Result<View, ViewError> {
   const items: ViewItem[] = [...input.units.map((u): ViewItem => ({ origin: { unit: u.key }, polygons: u.polygons })), ...(input.others ?? [])];
   errors.addAll(antimeridianErrors(view, items));
   return errors.size > 0 ? { ok: false, errors: errors.list() } : { ok: true, value: view };
+}
+
+/** FR-601: an inset's rectangle in the composed image, top-left at (x, y). */
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** FR-601: an inset view: its own centre, frame and square raster of side max(w, h), blitted to `rect`. */
+export interface InsetView extends View {
+  kind: 'inset';
+  /** Position of the inset in the curation's `insets` list. */
+  index: number;
+  rect: Rect;
+  /** The selected units drawn in it. */
+  units: Unit[];
+}
+
+/** FR-600, FR-601: the main view and the insets of one import. */
+export interface ViewSet {
+  /** The image side W. */
+  width: number;
+  main: View;
+  /** The selected units drawn by the main view: those in no inset. */
+  mainUnits: Unit[];
+  insets: InsetView[];
+}
+
+/** FR-601: the errors of the insets. */
+export type InsetError =
+  | { kind: 'unit-in-two-insets'; unit: string }
+  | { kind: 'empty-inset'; inset: number }
+  | { kind: 'inset-outside-image'; inset: number }
+  | { kind: 'insets-overlap'; insets: [number, number] }
+  | { kind: 'inset-hides-land'; inset: number };
+
+/**
+ * FR-601: the centre longitude of a set of longitudes (degrees, each in -180 to 180): the midpoint of their range, but
+ * on the other side of the globe when the set straddles the antimeridian and the range taken that way is the narrower
+ * one (a ring with vertices at 178 and -178 is centred on 180, not on 0). For every set that does not straddle it this
+ * is the plain midpoint of the range. The result is wrapped into (-180, 180].
+ */
+export function centerLongitude(west: number, east: number, shiftedWest: number, shiftedEast: number): number {
+  const raw = east - west;
+  const shifted = shiftedEast - shiftedWest;
+  const mid = shifted < raw ? (shiftedWest + shiftedEast) / 2 : (west + east) / 2;
+  return wrapLon(mid, 0);
+}
+
+/** The longitude range of the units' vertices as they are and with the negative ones moved east by 360, and the latitude range. */
+function ranges(units: readonly Unit[]): { west: number; east: number; shiftedWest: number; shiftedEast: number; south: number; north: number } | null {
+  let west = Infinity;
+  let east = -Infinity;
+  let shiftedWest = Infinity;
+  let shiftedEast = -Infinity;
+  let south = Infinity;
+  let north = -Infinity;
+  for (const unit of units) {
+    eachVertex(unit.polygons, (lon, lat) => {
+      if (lon < west) west = lon;
+      if (lon > east) east = lon;
+      const s = lon < 0 ? lon + 360 : lon;
+      if (s < shiftedWest) shiftedWest = s;
+      if (s > shiftedEast) shiftedEast = s;
+      if (lat < south) south = lat;
+      if (lat > north) north = lat;
+    });
+  }
+  return west > east ? null : { west, east, shiftedWest, shiftedEast, south, north };
+}
+
+/** The inset's own projection, frame and rectangle, or null when its units have no vertex. */
+function insetView(index: number, units: Unit[], at: readonly [number, number], params: Params, mainFrame: Frame): InsetView | null {
+  const r = ranges(units);
+  if (r === null) return null;
+  const lon0 = centerLongitude(r.west, r.east, r.shiftedWest, r.shiftedEast);
+  const lat0 = (r.south + r.north) / 2;
+  const plane = planeOf(params.projection, lon0, lat0);
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const unit of units) {
+    eachVertex(unit.polygons, (lon, lat) => {
+      const [x, y] = plane(lon, lat);
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    });
+  }
+  // the main scale: one pixel is mainFrame.side / W plane units; the margin is a share of the main frame side
+  const pixel = mainFrame.side / params.side;
+  const margin = params.margin * mainFrame.side;
+  const west = minX - margin;
+  const north = maxY + margin;
+  const w = Math.max(1, Math.ceil((maxX + margin - west) / pixel));
+  const h = Math.max(1, Math.ceil((north - (minY - margin)) / pixel));
+  return {
+    kind: 'inset',
+    index,
+    projection: params.projection,
+    lon0,
+    lat0,
+    frame: { west, north, side: pixel * params.side },
+    side: Math.max(w, h),
+    plane,
+    toUV: (lon, lat) => {
+      const [px, py] = plane(lon, lat);
+      return [(px - west) / pixel, (north - py) / pixel];
+    },
+    rect: { x: at[0], y: at[1], w, h },
+    units,
+  };
+}
+
+/** Whether two rectangles share a pixel. */
+const overlap = (a: Rect, b: Rect): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+/** What the views take. */
+export interface ViewsInput {
+  /** Every selected unit, land and sea, in unit order. */
+  selected: readonly Unit[];
+  /** Other land and context items: drawn in every view, checked for the antimeridian (an inset only on the rows it covers). */
+  others?: readonly ViewItem[];
+  params: Params;
+  insets: readonly { select: readonly Filter[]; at: readonly [number, number] }[];
+}
+
+/**
+ * FR-601: the main view and the insets. Each inset takes the selected units matching its filters (`unit-in-two-insets`
+ * for a unit two insets take, `empty-inset` for an inset with none), centred on the midpoint of their own longitude and
+ * latitude ranges (`centerLongitude`; with `equal-earth` that longitude is its own central meridian), at the main
+ * frame's pixel scale, in the rectangle of their projected bounding box expanded by margin x main frame side on each
+ * side, rounded outward to whole pixels, with its top-left at `at`. The raster of an inset is its own square of side
+ * max(w, h), never a second W x W image. A rectangle that leaves the image is `inset-outside-image`, two that share a
+ * pixel are `insets-overlap`. The units no inset takes go to the main view, which is built as T2.4 says. Every
+ * longitude of a view wraps as `lon - lon0` into (-180, 180]; `antimeridian-edge` is judged against the view's own
+ * meridian (an inset: for its units, and for the context and other-land items on the rows of its raster, which is what
+ * could be drawn in it). Errors are collected once per distinct data. Pure.
+ */
+export function buildViews(input: ViewsInput): Result<ViewSet, ViewError | InsetError> {
+  const errors = new ErrorCollector<ViewError | InsetError>();
+  const { params } = input;
+  const assigned = new Map<string, number>();
+  const taken: Unit[][] = input.insets.map((inset, i) => {
+    const units = input.selected.filter((unit) => inset.select.every((filter) => matchesFilter(unit, filter)));
+    if (units.length === 0) errors.add({ kind: 'empty-inset', inset: i });
+    for (const unit of units) {
+      if (assigned.has(unit.key)) errors.add({ kind: 'unit-in-two-insets', unit: unit.key });
+      else assigned.set(unit.key, i);
+    }
+    return units;
+  });
+  const mainUnits = input.selected.filter((unit) => !assigned.has(unit.key));
+  const others = input.others ?? [];
+  const main = buildMainView({ units: mainUnits, others, params });
+  if (!main.ok) errors.addAll(main.errors);
+
+  const insets: InsetView[] = [];
+  if (main.ok) {
+    input.insets.forEach((inset, i) => {
+      const view = insetView(i, taken[i]!, inset.at, params, main.value.frame);
+      if (view === null) return;
+      insets.push(view);
+      const { rect } = view;
+      if (rect.x < 0 || rect.y < 0 || rect.x + rect.w > params.side || rect.y + rect.h > params.side) errors.add({ kind: 'inset-outside-image', inset: i });
+      errors.addAll(tooWideErrors(view, view.units));
+      const items: ViewItem[] = view.units.map((u): ViewItem => ({ origin: { unit: u.key }, polygons: u.polygons }));
+      errors.addAll(antimeridianErrors(view, [...items, ...others.filter((item) => touchesRows(view, item))]));
+    });
+    for (let a = 0; a < insets.length; a++) {
+      for (let b = a + 1; b < insets.length; b++) {
+        if (overlap(insets[a]!.rect, insets[b]!.rect)) errors.add({ kind: 'insets-overlap', insets: [insets[a]!.index, insets[b]!.index] });
+      }
+    }
+  }
+  if (errors.size > 0 || !main.ok) return { ok: false, errors: errors.list() };
+  return { ok: true, value: { width: params.side, main: main.value, mainUnits, insets } };
+}
+
+/** True when an item projects, in this view, onto rows of the view's raster: what could be drawn in it. */
+function touchesRows(view: InsetView, item: ViewItem): boolean {
+  let low = Infinity;
+  let high = -Infinity;
+  eachVertex(item.polygons, (lon, lat) => {
+    const v = view.toUV(lon, lat)[1];
+    if (v < low) low = v;
+    if (v > high) high = v;
+  });
+  return !(low > view.rect.h || high < 0);
+}
+
+/**
+ * FR-601: `inset-hides-land` for every inset whose rectangle covers a pixel the main projection gives to a selected land
+ * unit: `mainPixels` is the W x W raster of the main view, `isLand` tells the value of a land territory from the rest.
+ */
+export function insetHidesLand(set: ViewSet, mainPixels: Uint32Array, isLand: (value: number) => boolean): InsetError[] {
+  const errors: InsetError[] = [];
+  for (const inset of set.insets) {
+    const { x, y, w, h } = inset.rect;
+    let hidden = false;
+    for (let row = Math.max(0, y); row < Math.min(set.width, y + h) && !hidden; row++) {
+      for (let col = Math.max(0, x); col < Math.min(set.width, x + w); col++) {
+        if (isLand(mainPixels[row * set.width + col]!)) {
+          hidden = true;
+          break;
+        }
+      }
+    }
+    if (hidden) errors.push({ kind: 'inset-hides-land', inset: inset.index });
+  }
+  return errors;
+}
+
+/** Where a seed lies: the view that owns it and its pixel in the composed image. */
+export interface SeedLocation {
+  view: View;
+  x: number;
+  y: number;
+}
+
+/**
+ * FR-601: a seed lies in the first inset whose projection puts it inside that inset's rectangle, else in the main
+ * projection; null when the main projection puts it outside the frame (`seed-outside-frame`). The pixel of an edge point
+ * is the one to the east or south (003b FR-114).
+ */
+export function locateSeed(set: ViewSet, lon: number, lat: number): SeedLocation | null {
+  for (const inset of set.insets) {
+    const [u, v] = inset.toUV(lon, lat);
+    if (u >= 0 && u < inset.rect.w && v >= 0 && v < inset.rect.h) {
+      return { view: inset, x: inset.rect.x + Math.floor(u), y: inset.rect.y + Math.floor(v) };
+    }
+  }
+  const [u, v] = set.main.toUV(lon, lat);
+  if (u >= 0 && u < set.width && v >= 0 && v < set.width) return { view: set.main, x: Math.floor(u), y: Math.floor(v) };
+  return null;
 }
