@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Mar Cantábrico",
+    "lon": -2.5,
+    "lat": 44
+  },
+  {
+    "name": "Océano Atlántico",
+    "lon": -11.5,
+    "lat": 43.5
+  },
+  {
+    "name": "Mar de Canarias",
+    "lon": -16,
+    "lat": 28.5
+  },
+  {
+    "name": "Golfo de Cádiz",
+    "lon": -7,
+    "lat": 36.3
+  },
+  {
+    "name": "Mar de Alborán",
+    "lon": -2.5,
+    "lat": 35.9
+  },
+  {
+    "name": "Mar Balear",
+    "lon": 3,
+    "lat": 40.5
+  },
+  {
+    "name": "Mar Mediterráneo",
+    "lon": 4.2,
+    "lat": 38
+  }
+]

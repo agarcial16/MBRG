@@ -3,7 +3,7 @@ Durable decisions, limits and lessons; no per-task diary (that is `specs/<id>/PR
 
 ## State
 Specs 001-027 and 029 implemented (028, the map importer, queued). Branch from `main`, PR into `main`.
-Next big feature: the map importer (image in, playable map out). Next candidate behind it: viewer replay of finished matches. Deployment guide done (#84).
+First predefined map committed: `maps/spain-provinces` (52 provinces = 52 factions, 7 sea zones; data in `tools/build-map/data/spain-provinces/`, provenance in its README). Next big feature: the map importer (image in, playable map out). Next candidate behind it: viewer replay of finished matches. Deployment guide done (#84).
 
 ## Game
 Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random alive faction dies; a random neighbor takes all its territories; repeat until one remains. Players predict; they never control.
@@ -12,6 +12,7 @@ Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random
 - TypeScript everywhere: one deterministic engine for browser, server, bot and tests. Tag `legacy-v0.1` keeps the old code.
 - Three.js/WebGL, EU4 technique (id texture + owner palette + shader borders): 3D later = camera/material change.
 - Map package = `map.json` + `ids.png` + `presentation.json`, built offline by `tools/build-map`; adjacency = 4-connected pixel contact, no hand-written links; importers only convert to it.
+- Predefined per-region maps (Spain first): one faction per admin-1 unit via a data-only `adm0_a3 := adm1_code` rewrite in the committed subset (builder unchanged); each map has its own data dir under `tools/build-map/data/<map>/` (inner `natural-earth/` + `dev-map/` names are fixed by the CLI).
 - State stores owner per territory, so modes are rule changes, not model changes. Ids 1..16,777,215 (24-bit texture). Round k uses `roundRng(seed, k)`: any round is computable alone.
 - Per-server history (024): the bot sends only a SHA-256 community key (never the guild id), in request bodies; a finished match is listed once settled (> `TOLERANCE_MS` after its finish) so a paging walk keeps one snapshot.
 - Ranking windows (027): rolling 7/30 days; the server fixes the floor at the first page and the cursor carries it; wire member `period` (absent = all time).
@@ -31,7 +32,7 @@ Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random
 - Node timings are noisy: run perf tests alone; under CPU load tests near 5 s need explicit timeouts. Untracked `.vitest/` is harmless, never commit it.
 - Approvals typed in the orchestrator chat are not accepted by child threads: type them in the child or quote them in the brief.
 - Never junction/symlink `node_modules` or workspace folders into a worktree (a forced remove followed the links and deleted real files).
-- E2E screenshots without a desktop browser: headless Chrome `--screenshot --window-size=W,H` (a file:// URL is fine), but measure the page first (`--dump-dom` + a title-writing probe script) — window height is a guess otherwise.
+- E2E screenshots without a desktop browser: headless Chrome `--screenshot --window-size=W,H` (a file:// URL is fine), but measure the page first — window height is a guess otherwise.
 - Worktrees: `npm install` creates junctions in `node_modules/@mbrg` (workspaces). Before deleting a worktree, delete those junctions first (link only), then the folder; never `git worktree remove --force` and never `gh pr merge --delete-branch` while the branch's worktree exists (gh removes it and follows the links).
 
 ## Glossary
