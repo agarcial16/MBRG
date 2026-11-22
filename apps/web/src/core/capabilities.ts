@@ -1,4 +1,8 @@
-// Graphics capability check (FR-135). Pure: the browser facts come in as plain numbers.
+// Graphics capability check (FR-135) and viewer count refusal (spec 029, FR-586 to FR-589). Pure:
+// the browser facts come in as plain numbers and the counts are read from the package.
+import { factionOrder } from '@mbrg/shared';
+import type { MapData } from '@mbrg/shared';
+import { MAX_ENTRIES, MAX_FACTIONS } from './entries';
 import { fillTemplate, STRINGS } from './strings';
 
 export interface Capabilities {
@@ -9,7 +13,9 @@ export interface Capabilities {
 /** Viewer-internal error kinds (English identifiers, listed in the language test). */
 export type CapabilityError =
   | { kind: 'no-webgl2' }
-  | { kind: 'texture-too-small'; maxTextureSize: number; required: number };
+  | { kind: 'texture-too-small'; maxTextureSize: number; required: number }
+  | { kind: 'too-many-territories'; count: number; limit: number }
+  | { kind: 'too-many-factions'; count: number; limit: number };
 
 /**
  * No WebGL 2 context, or a maximum texture size below the id image width or height or below the
@@ -27,8 +33,28 @@ export function checkCapabilities(
   return [];
 }
 
-/** The Spanish message of FR-135, naming the missing capability. */
+/**
+ * Refuses a package whose counts pass the map format but exceed the viewer's own tables (FR-586 to
+ * FR-589): the entry index holds one entry index in two bytes per pixel, the owner table one faction
+ * index in a byte, so more entries than `MAX_ENTRIES` or more factions than `MAX_FACTIONS` cannot be
+ * drawn and used to crash the load with an internal error. The limits are read from the table sizes
+ * themselves (FR-589), never written inline, so widening the tables widens the refusal with them.
+ * Territories are named before factions (FR-588). Pure.
+ */
+export function checkCounts(map: MapData): CapabilityError[] {
+  const errors: CapabilityError[] = [];
+  if (map.territories.length > MAX_ENTRIES) {
+    errors.push({ kind: 'too-many-territories', count: map.territories.length, limit: MAX_ENTRIES });
+  }
+  const factions = factionOrder(map).length;
+  if (factions > MAX_FACTIONS) errors.push({ kind: 'too-many-factions', count: factions, limit: MAX_FACTIONS });
+  return errors;
+}
+
+/** The Spanish message of FR-135 and of the count refusal (spec 029), naming the limit that was passed. */
 export function capabilityMessage(error: CapabilityError): string {
   if (error.kind === 'no-webgl2') return STRINGS.noWebgl2;
+  if (error.kind === 'too-many-territories') return fillTemplate(STRINGS.tooManyTerritories, { count: error.count, limit: error.limit });
+  if (error.kind === 'too-many-factions') return fillTemplate(STRINGS.tooManyFactions, { count: error.count, limit: error.limit });
   return fillTemplate(STRINGS.textureTooSmall, { size: error.maxTextureSize, required: error.required });
 }
