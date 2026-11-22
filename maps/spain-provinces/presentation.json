@@ -1,0 +1,450 @@
+{
+  "factions": [
+    {
+      "id": 1,
+      "name": "Álava"
+    },
+    {
+      "id": 2,
+      "name": "Albacete"
+    },
+    {
+      "id": 3,
+      "name": "Alicante"
+    },
+    {
+      "id": 4,
+      "name": "Almería"
+    },
+    {
+      "id": 5,
+      "name": "Asturias"
+    },
+    {
+      "id": 6,
+      "name": "Ávila"
+    },
+    {
+      "id": 7,
+      "name": "Badajoz"
+    },
+    {
+      "id": 8,
+      "name": "Islas Baleares"
+    },
+    {
+      "id": 9,
+      "name": "Barcelona"
+    },
+    {
+      "id": 10,
+      "name": "Burgos"
+    },
+    {
+      "id": 11,
+      "name": "Cáceres"
+    },
+    {
+      "id": 12,
+      "name": "Cádiz"
+    },
+    {
+      "id": 13,
+      "name": "Cantabria"
+    },
+    {
+      "id": 14,
+      "name": "Castellón"
+    },
+    {
+      "id": 15,
+      "name": "Ceuta"
+    },
+    {
+      "id": 16,
+      "name": "Ciudad Real"
+    },
+    {
+      "id": 17,
+      "name": "Córdoba"
+    },
+    {
+      "id": 18,
+      "name": "Cuenca"
+    },
+    {
+      "id": 19,
+      "name": "Girona"
+    },
+    {
+      "id": 20,
+      "name": "Granada"
+    },
+    {
+      "id": 21,
+      "name": "Guadalajara"
+    },
+    {
+      "id": 22,
+      "name": "Guipúzcoa"
+    },
+    {
+      "id": 23,
+      "name": "Huelva"
+    },
+    {
+      "id": 24,
+      "name": "Huesca"
+    },
+    {
+      "id": 25,
+      "name": "Jaén"
+    },
+    {
+      "id": 26,
+      "name": "A Coruña"
+    },
+    {
+      "id": 27,
+      "name": "La Rioja"
+    },
+    {
+      "id": 28,
+      "name": "Las Palmas"
+    },
+    {
+      "id": 29,
+      "name": "León"
+    },
+    {
+      "id": 30,
+      "name": "Lleida"
+    },
+    {
+      "id": 31,
+      "name": "Lugo"
+    },
+    {
+      "id": 32,
+      "name": "Madrid"
+    },
+    {
+      "id": 33,
+      "name": "Málaga"
+    },
+    {
+      "id": 34,
+      "name": "Melilla"
+    },
+    {
+      "id": 35,
+      "name": "Murcia"
+    },
+    {
+      "id": 36,
+      "name": "Navarra"
+    },
+    {
+      "id": 37,
+      "name": "Ourense"
+    },
+    {
+      "id": 38,
+      "name": "Palencia"
+    },
+    {
+      "id": 39,
+      "name": "Pontevedra"
+    },
+    {
+      "id": 40,
+      "name": "Salamanca"
+    },
+    {
+      "id": 41,
+      "name": "Santa Cruz de Tenerife"
+    },
+    {
+      "id": 42,
+      "name": "Segovia"
+    },
+    {
+      "id": 43,
+      "name": "Sevilla"
+    },
+    {
+      "id": 44,
+      "name": "Soria"
+    },
+    {
+      "id": 45,
+      "name": "Tarragona"
+    },
+    {
+      "id": 46,
+      "name": "Teruel"
+    },
+    {
+      "id": 47,
+      "name": "Toledo"
+    },
+    {
+      "id": 48,
+      "name": "Valencia"
+    },
+    {
+      "id": 49,
+      "name": "Valladolid"
+    },
+    {
+      "id": 50,
+      "name": "Vizcaya"
+    },
+    {
+      "id": 51,
+      "name": "Zamora"
+    },
+    {
+      "id": 52,
+      "name": "Zaragoza"
+    }
+  ],
+  "territories": [
+    {
+      "id": 1,
+      "name": "Álava"
+    },
+    {
+      "id": 2,
+      "name": "Albacete"
+    },
+    {
+      "id": 3,
+      "name": "Alicante"
+    },
+    {
+      "id": 4,
+      "name": "Almería"
+    },
+    {
+      "id": 5,
+      "name": "Asturias"
+    },
+    {
+      "id": 6,
+      "name": "Ávila"
+    },
+    {
+      "id": 7,
+      "name": "Badajoz"
+    },
+    {
+      "id": 8,
+      "name": "Islas Baleares"
+    },
+    {
+      "id": 9,
+      "name": "Barcelona"
+    },
+    {
+      "id": 10,
+      "name": "Burgos"
+    },
+    {
+      "id": 11,
+      "name": "Cáceres"
+    },
+    {
+      "id": 12,
+      "name": "Cádiz"
+    },
+    {
+      "id": 13,
+      "name": "Cantabria"
+    },
+    {
+      "id": 14,
+      "name": "Castellón"
+    },
+    {
+      "id": 15,
+      "name": "Ceuta"
+    },
+    {
+      "id": 16,
+      "name": "Ciudad Real"
+    },
+    {
+      "id": 17,
+      "name": "Córdoba"
+    },
+    {
+      "id": 18,
+      "name": "Cuenca"
+    },
+    {
+      "id": 19,
+      "name": "Girona"
+    },
+    {
+      "id": 20,
+      "name": "Granada"
+    },
+    {
+      "id": 21,
+      "name": "Guadalajara"
+    },
+    {
+      "id": 22,
+      "name": "Guipúzcoa"
+    },
+    {
+      "id": 23,
+      "name": "Huelva"
+    },
+    {
+      "id": 24,
+      "name": "Huesca"
+    },
+    {
+      "id": 25,
+      "name": "Jaén"
+    },
+    {
+      "id": 26,
+      "name": "A Coruña"
+    },
+    {
+      "id": 27,
+      "name": "La Rioja"
+    },
+    {
+      "id": 28,
+      "name": "Las Palmas"
+    },
+    {
+      "id": 29,
+      "name": "León"
+    },
+    {
+      "id": 30,
+      "name": "Lleida"
+    },
+    {
+      "id": 31,
+      "name": "Lugo"
+    },
+    {
+      "id": 32,
+      "name": "Madrid"
+    },
+    {
+      "id": 33,
+      "name": "Málaga"
+    },
+    {
+      "id": 34,
+      "name": "Melilla"
+    },
+    {
+      "id": 35,
+      "name": "Murcia"
+    },
+    {
+      "id": 36,
+      "name": "Navarra"
+    },
+    {
+      "id": 37,
+      "name": "Ourense"
+    },
+    {
+      "id": 38,
+      "name": "Palencia"
+    },
+    {
+      "id": 39,
+      "name": "Pontevedra"
+    },
+    {
+      "id": 40,
+      "name": "Salamanca"
+    },
+    {
+      "id": 41,
+      "name": "Santa Cruz de Tenerife"
+    },
+    {
+      "id": 42,
+      "name": "Segovia"
+    },
+    {
+      "id": 43,
+      "name": "Sevilla"
+    },
+    {
+      "id": 44,
+      "name": "Soria"
+    },
+    {
+      "id": 45,
+      "name": "Tarragona"
+    },
+    {
+      "id": 46,
+      "name": "Teruel"
+    },
+    {
+      "id": 47,
+      "name": "Toledo"
+    },
+    {
+      "id": 48,
+      "name": "Valencia"
+    },
+    {
+      "id": 49,
+      "name": "Valladolid"
+    },
+    {
+      "id": 50,
+      "name": "Vizcaya"
+    },
+    {
+      "id": 51,
+      "name": "Zamora"
+    },
+    {
+      "id": 52,
+      "name": "Zaragoza"
+    },
+    {
+      "id": 53,
+      "name": "Mar Cantábrico"
+    },
+    {
+      "id": 54,
+      "name": "Océano Atlántico"
+    },
+    {
+      "id": 55,
+      "name": "Mar de Canarias"
+    },
+    {
+      "id": 56,
+      "name": "Golfo de Cádiz"
+    },
+    {
+      "id": 57,
+      "name": "Mar de Alborán"
+    },
+    {
+      "id": 58,
+      "name": "Mar Balear"
+    },
+    {
+      "id": 59,
+      "name": "Mar Mediterráneo"
+    }
+  ]
+}

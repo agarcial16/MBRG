@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Océano Pacífico",
+    "lon": -135,
+    "lat": -25
+  },
+  {
+    "name": "Océano Atlántico Norte",
+    "lon": -25,
+    "lat": 45
+  },
+  {
+    "name": "Océano Atlántico Sur",
+    "lon": -20,
+    "lat": -25
+  },
+  {
+    "name": "Océano Índico",
+    "lon": 75,
+    "lat": -25
+  },
+  {
+    "name": "Océano Ártico",
+    "lon": 155,
+    "lat": 78
+  },
+  {
+    "name": "Océano Antártico",
+    "lon": -60,
+    "lat": -58
+  },
+  {
+    "name": "Mar Mediterráneo",
+    "lon": 16,
+    "lat": 34
+  }
+]

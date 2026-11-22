@@ -28,13 +28,20 @@ Flow, templates, plan/tasks rules: `.claude/skills/sdd/SKILL.md`.
 
 ## Models (tiers)
 Rules name a tier, never a model. One table maps tiers to models.
-| Tier | Use | Claude | Fallback when Claude is at its limit |
+| Tier | Use | Primary | Fallbacks in order |
 |---|---|---|---|
-| strong | Full-SDD coordination; planner/reviewer touching secrecy, determinism, persistence | claude-opus-5-5 | opencode-go/glm-5.3, and an Opus review before merge |
-| medium | implementer; Light-SDD planner/reviewer; small Full-SDD milestones | claude-sonnet-5-5 | opencode-go/glm-5.3 |
-| mechanical | status marks, renames, copy, file moves, run tests and summarize, code search | claude-haiku-5-5 | opencode-go/deepseek-v4.1-flash |
-- Optional cross-family second reviewer (e.g. GLM reviewing Sonnet work).
-- DeepSeek never reviews and never touches `sim`, `shared` or `protocol`.
+| `strong` | Full-SDD coordination; planner/reviewer touching secrecy, determinism, persistence, milestone sign-off | `claude-opus-5-5` | `antigravity/gemini-4-neon` (thought `medium`; `high` only for high-risk plans/reviews) → `opencode-go/glm-5.3` (orchestrate & review only, never implement; Opus/Neon review before merge) |
+| `medium-core` | Implementer on core/protected paths (`packages/sim`, `shared`, `protocol`, secrecy in `apps/server`) | `claude-sonnet-5-5` | `antigravity/gemini-4-neon` (`medium`); DeepSeek barred here, GLM emergency only |
+| `medium-general` | Implementer outside core (`tools/`, `apps/bot`, non-secret `apps/server`, Light SDD, docs/tests) | `claude-sonnet-5-5` | `opencode-go/deepseek-v4.1-flash` (reviewed by `strong`) → `antigravity/gemini-4-argon` (`medium`) |
+| `medium-ui` | UI, visual design, CSS/WebGL (`apps/web`) | `antigravity/gemini-4-neon` (`medium`; `gemini-4-argon` for scoped tweaks) | `claude-sonnet-5-5` → `opencode-go/deepseek-v4.1-flash` (scoped tweaks) |
+| `mechanical` | status marks, renames, copy, file moves, run tests and summarize, code search; Small changes (single-file fixes, docs, config) | `antigravity/gemini-4-hydrogen` (`low`; `medium` for Small changes) | `opencode-go/deepseek-v4.1-flash` → `claude-haiku-5-5` |
+| `image` | Visual exploration and art mockups | `antigravity` (Gemini image generation) | HTML + headless Chrome, for pixel-faithful Discord mocks |
+- Default Antigravity `thought_level` is `medium` (`low` for `mechanical`; reserve `high` for high-risk `strong` plans/reviews). Prefer Gemini models on Antigravity (its Claude models drain quota quickly); its quota is separate from Claude and OpenCode.
+- Claude quota discipline: preserve Claude's weekly and 5-hour quota for Opus (`strong`) and Sonnet (`medium-core` / larger milestones); route `mechanical`, Small changes (`gemini-4-hydrogen`), and `medium-ui` (`gemini-4-neon` / `argon`) to Antigravity Gemini first.
+- GLM-5.3 is reserved for orchestration and reviews — never long implementation milestones (it burns OpenCode Go weekly quota too fast).
+- DeepSeek V4.1 Flash is the default OpenCode Go implementer outside core paths (always reviewed by `strong`); it never reviews and never touches `sim`, `shared`, `protocol` or secrecy paths.
+- Antigravity delegate harness rule: never end a turn while a background shell command is running (ending the turn ends the delegated run); use `WaitMsBeforeAsync: 10000`, keep the turn alive via `manage_task` until done, and commit+push each finished chunk.
+- Optional cross-family second reviewer (e.g. GLM or Gemini 4 Neon reviewing Sonnet work).
 - OpenCode agents for the fallback: `.opencode/agents/`.
 
 ## Orchestration
