@@ -2,7 +2,7 @@
 Status: implemented (direction C + Logo 1 + static rotating atlas simplification picked by the user on 2026-11-21). Tier: Light SDD (UI, visual design). Ids outside the traceability ledger: FR-610..FR-616, NFR-140..NFR-142.
 
 ## Context and goal
-Today the viewer's root route (`/`) opens the debug scene in development builds and a bare centred card over an empty dark gradient in production builds. Replace the root route with a proper game landing screen ("direction C"): an anchored left console carrying the MBRG identity, pitch and match/spectator entry input, set against a full-bleed static mid-round atlas on the right that rotates deterministically per visit. Every existing match, lobby, prediction and spectator route stays unchanged.
+Today the viewer's root route (`/`) opens the debug scene in development builds and a bare centred card over an empty dark gradient in production builds. Replace the root route with a proper game landing screen ("direction C"): an anchored left console carrying the FactionFall identity, pitch and match/spectator entry input, set against a full-bleed static mid-round atlas on the right that rotates deterministically per visit. Every existing match, lobby, prediction and spectator route stays unchanged.
 
 ## Users
 - Visitors opening the viewer root URL with a match link, spectator link or match code.
@@ -11,7 +11,7 @@ Today the viewer's root route (`/`) opens the debug scene in development builds 
 
 ## User stories
 - US-1. As a visitor, I want to paste a match link, match code or spectator link on the landing page so that I enter the exact viewer flow without extra steps.
-- US-2. As a first-time visitor, I want to immediately see MBRG's brand identity, one-line Spanish pitch and an atmospheric map visual so that I understand what the game is.
+- US-2. As a first-time visitor, I want to immediately see FactionFall's brand identity, one-line Spanish pitch and an atmospheric map visual so that I understand what the game is.
 - US-3. As a returning visitor, I want the background atlas to rotate deterministically across mid-round map plates on each visit so that the landing feels varied while staying static and spoiler-free.
 
 ## Definitions
@@ -20,7 +20,7 @@ Today the viewer's root route (`/`) opens the debug scene in development builds 
 
 ## Functional requirements
 - FR-610: WHEN a visitor opens the root address (`/` with no `match` and no `seed` parameter), THE SYSTEM SHALL show the start menu landing in both development and production builds; `?seed=...` SHALL keep opening the debug scene in development builds (and the need-match message in production), and `?match=...` (with or without `&spectate=1`) SHALL keep routing identically to the existing viewer flows.
-- FR-611: THE SYSTEM SHALL render an anchored left console with: (a) Logo 1 (a flat polygonal map divided into muted regions topped by a golden crown) as a crisp, scalable inline SVG; (b) the `MBRG` title and subtitle; (c) a one-line Spanish pitch; and (d) Spanish-only copy with no unimplemented language switcher.
+- FR-611: THE SYSTEM SHALL render an anchored left console with: (a) Logo 1 (a flat polygonal map divided into muted regions topped by a golden crown) as a crisp, scalable inline SVG; (b) the `FactionFall` title and `MAP BATTLE ROYALE` subtitle; (c) a one-line Spanish pitch; and (d) Spanish-only copy with no unimplemented language switcher.
 - FR-612: WHEN a visitor enters a 16-character match code, a match URL or a spectator URL (`spectate=1`) in the landing input ("Pega tu enlace de partida o espectador…") and submits, THE SYSTEM SHALL route to the existing match or spectator flow (preserving `spectate=1` and dropping unrelated query parameters); IF the text is empty or invalid, THEN THE SYSTEM SHALL stop submission before any network request and show a Spanish error message.
 - FR-613: THE SYSTEM SHALL keep match creation ("Crear nueva partida", backed by the existing public config form) reachable from the landing console, and in development builds only SHALL keep links to the debug scene (`?seed=1`) and the web test client (`/client.html`).
 - FR-614: THE SYSTEM SHALL display a full-bleed static mid-round atlas render on the right side (blending into the dark backdrop behind the left console) together with a subtle caption naming the map and round shown; plates are keyed by `mapId` (using the `dev` map today so Spain and World maps plug into the catalog when they merge) and never connect to a live match.

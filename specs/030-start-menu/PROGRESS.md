@@ -27,3 +27,11 @@
 - Untested: real physical phone touch feel and live server match-creation roundtrip from the drawer.
 - State: PR opened into `main`; awaiting reviewer pass and CI.
 - Next step: reviewer inspects PR and visual before/after captures, then squash-merge into `main`.
+
+## Step 4 — Brand update to FactionFall
+- Branch: `feat/030-start-menu`.
+- Updated the landing brand strings (`landingBrand: 'FactionFall'`, `landingSubtitle: 'MAP BATTLE ROYALE'`), refined `.landing-title` tracking (`0.085em` desktop, `clamp(24px, 7.6vw, 34px)` + `0.06em` on phone) so the 11-character wordmark fits cleanly without overflow, and synced `apps/web/test/landing.test.ts` and `specs/030-start-menu/spec.md`.
+- Verification: `npm run typecheck` and `npm test` run and green.
+- Untested: real physical phone touch feel.
+- State: pushed to PR #92 (`feat/030-start-menu`); ready for review and merge into `main`.
+- Next step: review and squash-merge PR #92 into `main`.

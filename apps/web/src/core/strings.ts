@@ -312,8 +312,8 @@ export const STRINGS = {
   overlayRevealing: 'REVELANDO…',
   // Start menu landing (spec 030).
   landingKicker: 'MODO CLÁSICO · ESPECTADOR Y PREDICCIONES',
-  landingBrand: 'MBRG',
-  landingSubtitle: 'MAP BATTLE ROYALE GAME',
+  landingBrand: 'FactionFall',
+  landingSubtitle: 'MAP BATTLE ROYALE',
   landingPitch: 'Una eliminación por ronda: predice quién cae y quién absorbe el mapa.',
   landingInputPlaceholder: 'Pega tu enlace de partida o espectador…',
   landingInputHint: 'Enlace de partida, espectador o código',

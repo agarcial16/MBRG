@@ -166,7 +166,8 @@ describe('FR-611 FR-613 FR-616 NFR-140 NFR-141 landing strings, stylesheet and s
     for (const key of keys) {
       expect(STRINGS[key].trim().length, key).toBeGreaterThan(0);
     }
-    expect(STRINGS.landingBrand).toBe('MBRG');
+    expect(STRINGS.landingBrand).toBe('FactionFall');
+    expect(STRINGS.landingSubtitle).toBe('MAP BATTLE ROYALE');
     expect(STRINGS.landingInputPlaceholder.toLowerCase()).toContain('espectador');
   });
 

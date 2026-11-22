@@ -1,5 +1,5 @@
 // The start menu landing of the single entry page (spec 010 FR-366, spec 030 FR-610..FR-616):
-// anchored left console (Logo 1 SVG, MBRG brand, pitch, match/spectator link input, match creation)
+// anchored left console (Logo 1 SVG, FactionFall brand, pitch, match/spectator link input, match creation)
 // over a deterministic rotating static mid-round atlas on the right. Debug tools exist in dev only.
 import { LOGO_CROWN, LOGO_REGIONS, LOGO_VIEWBOX } from '../core/brand-logo';
 import { layoutFor } from '../core/hud-layout';

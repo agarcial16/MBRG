@@ -91,11 +91,12 @@ export const LANDING_CSS = `
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 .landing-title {
   margin: 0;
   font: 700 54px/0.96 var(--hud-display, 'Cormorant SC', Georgia, serif);
-  letter-spacing: 0.16em;
+  letter-spacing: 0.085em;
   color: var(--hud-text);
 }
 .landing-subtitle {
@@ -273,8 +274,8 @@ export const LANDING_CSS = `
   height: 56px;
 }
 .hud[data-layout="phone"] .landing-title {
-  font-size: 40px;
-  letter-spacing: 0.14em;
+  font-size: clamp(24px, 7.6vw, 34px);
+  letter-spacing: 0.06em;
 }
 .hud[data-layout="phone"] .landing-subtitle {
   font-size: 10px;
