@@ -65,3 +65,6 @@ export type ExtractGeoError =
   | { kind: 'invalid-dbf-text'; field: string; record: number }
   | { kind: 'projected-crs' }
   | { kind: 'invalid-input'; reason: string };
+
+/** FR-592: a problem of the curation file; `path` is the member path ("" for the file as a whole). */
+export type CurationError = { kind: 'invalid-curation'; path: string };
