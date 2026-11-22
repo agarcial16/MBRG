@@ -3,6 +3,7 @@ import { readBounded, runImport, type ImportFs } from '../src/cli/import';
 import { CURATION_KIND_ORDER } from '../src/importer/errors';
 import { extractGeo } from '../src/importer/extract-geo';
 import { groupFactions, groupTerritories } from '../src/importer/grouping';
+import { assignSea } from '../src/importer/sea-sources';
 import { buildViews, insetHidesLand } from '../src/importer/views';
 import { parseCuration } from '../src/importer/curation';
 import { inspectSource, VALUE_TYPES } from '../src/importer/inspect';
@@ -26,8 +27,9 @@ const SELECT_KINDS = ['unknown-unit', 'empty-selection'];
 const GROUP_KINDS = ['invalid-key', 'missing-group-value', 'mixed-territory-kind', 'conflicting-group-name', 'missing-territory-name'];
 const FACTION_KINDS = ['invalid-name', 'invalid-color', 'duplicate-faction-key', 'missing-faction', 'split-territory-faction', 'missing-faction-name', 'faction-without-territory', 'too-many-factions'];
 const VIEW_KINDS = ['selection-too-wide', 'antimeridian-edge', 'unit-in-two-insets', 'empty-inset', 'inset-outside-image', 'insets-overlap', 'inset-hides-land'];
+const SEA_KINDS = ['seed-outside-frame', 'seed-not-water', 'duplicate-seed-pixel'];
 const COMMAND_KINDS = ['usage-error'];
-const IMPORTER_KINDS = [...SOURCE_KINDS, ...EXTRACT_KINDS, ...CURATION_KINDS, ...UNIT_KINDS, ...SELECT_KINDS, ...GROUP_KINDS, ...FACTION_KINDS, ...VIEW_KINDS, ...COMMAND_KINDS];
+const IMPORTER_KINDS = [...SOURCE_KINDS, ...EXTRACT_KINDS, ...CURATION_KINDS, ...UNIT_KINDS, ...SELECT_KINDS, ...GROUP_KINDS, ...FACTION_KINDS, ...VIEW_KINDS, ...SEA_KINDS, ...COMMAND_KINDS];
 /** Data fields of the importer errors (the kind is always present). */
 const DATA_FIELDS = [
   'file',
@@ -51,6 +53,11 @@ const DATA_FIELDS = [
   'count',
   'inset',
   'insets',
+  'seed',
+  'seeds',
+  'name',
+  'x',
+  'y',
 ];
 const ALLOWED_KEYS = ['kind', ...DATA_FIELDS];
 const INVALID_SOURCE_REASONS = ['not-utf8', 'not-json', 'not-feature-collection', 'bad-feature', 'bad-geometry', 'unreadable'];
@@ -249,6 +256,16 @@ function viewErrors(): Err[] {
   return [...errs(wide), ...errs(fiji), ...errs(wrong), ...errs(overlapping), ...hidden];
 }
 
+function seaErrors(): Err[] {
+  const set = buildViews({ selected: [], params: { side: 4, margin: 0.1, minPieceSize: 2, projection: 'equal-earth' }, insets: [] });
+  if (!set.ok) throw new Error('the views should build');
+  const pixels = new Uint32Array(16).fill(0xffffffff);
+  pixels[5] = 3;
+  const seed = (name: string, lon: number, lat: number) => ({ id: 9, seed: { name, lon, lat } });
+  const r = assignSea({ views: { ...set.value, main: { ...set.value.main, toUV: (lon: number, lat: number) => [lon, lat] as [number, number] } }, pixels, zones: [seed('Outside', 40, 40), seed('Land', 1.5, 1.5), seed('Here', 0.5, 0.5), seed('Again', 0.5, 0.5)] });
+  return errs(r);
+}
+
 function groupErrors(): Err[] {
   const c = parseCuration(
     curationText((x) => {
@@ -297,7 +314,7 @@ async function commandErrors(): Promise<Err[]> {
 }
 
 async function allErrors(): Promise<Err[]> {
-  return [...sourceErrors(), ...extractErrors(), ...curationErrors(), ...unitErrors(), ...groupErrors(), ...factionErrors(), ...viewErrors(), ...(await commandErrors())];
+  return [...sourceErrors(), ...extractErrors(), ...curationErrors(), ...unitErrors(), ...groupErrors(), ...factionErrors(), ...viewErrors(), ...seaErrors(), ...(await commandErrors())];
 }
 
 const sources = import.meta.glob('../src/importer/**/*.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
