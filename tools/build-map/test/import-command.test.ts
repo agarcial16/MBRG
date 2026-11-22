@@ -106,7 +106,10 @@ describe('FR-608 the stages of an import', () => {
     const r = run([`--curation=${curation}`, `--out=${out()}`]);
     expect(r.stderr).toBe('');
     expect(r.status).toBe(0);
-    expect(r.stdout).toContain('3 land territories, 2 factions and 2 sea zones');
+    // the report (FR-609) replaced the one-line summary of T2.10
+    expect(r.stdout).toContain('landTerritories: 3');
+    expect(r.stdout).toContain('factions: 2');
+    expect(r.stdout).toContain('seaZones: 2');
     expect(readdirSync(out()).sort()).toStrictEqual(ARTIFACTS);
   });
 

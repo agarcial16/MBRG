@@ -31,7 +31,7 @@ const FACTION_KINDS = ['invalid-name', 'invalid-color', 'duplicate-faction-key',
 const VIEW_KINDS = ['selection-too-wide', 'antimeridian-edge', 'unit-in-two-insets', 'empty-inset', 'inset-outside-image', 'insets-overlap', 'inset-hides-land'];
 const SEA_KINDS = ['seed-outside-frame', 'seed-not-water', 'duplicate-seed-pixel'];
 const CLEANUP_KINDS = ['territory-below-min-size'];
-const COMMAND_KINDS = ['usage-error', 'output-not-empty', 'write-failed', 'partial-write'];
+const COMMAND_KINDS = ['usage-error', 'output-not-empty', 'write-failed', 'partial-write', 'preview-write-failed'];
 const IMPORTER_KINDS = [...SOURCE_KINDS, ...EXTRACT_KINDS, ...CURATION_KINDS, ...UNIT_KINDS, ...SELECT_KINDS, ...GROUP_KINDS, ...FACTION_KINDS, ...VIEW_KINDS, ...SEA_KINDS, ...CLEANUP_KINDS, ...COMMAND_KINDS];
 /** Data fields of the importer errors (the kind is always present). */
 const DATA_FIELDS = [
@@ -67,6 +67,7 @@ const DATA_FIELDS = [
   'artifact',
   'replaced',
   'notReplaced',
+  'preview',
 ];
 const ALLOWED_KEYS = ['kind', ...DATA_FIELDS];
 const INVALID_SOURCE_REASONS = ['not-utf8', 'not-json', 'not-feature-collection', 'bad-feature', 'bad-geometry', 'unreadable'];
@@ -75,6 +76,41 @@ const CAP_NAMES = ['bytes', 'features', 'positions', 'properties', 'value'];
 const SUMMARY_LABELS = ['features', 'skippedNullGeometries', 'positions', 'longitude', 'latitude', 'properties'];
 const PROPERTY_LABELS = ['property', 'features', 'types', 'distinctValues', 'unique', 'firstValues'];
 const VALUE_TYPE_NAMES = ['string', 'integer', 'number', 'boolean', 'null', 'object', 'array'];
+/** The labels of the import report (FR-609), in order, and the words of its item lines. */
+const REPORT_LABELS = [
+  'curation',
+  'curationSha256',
+  'sources',
+  'featuresRead',
+  'skippedNullGeometries',
+  'units',
+  'selectedUnits',
+  'multiFeatureUnits',
+  'projection',
+  'projectionCenter',
+  'frame',
+  'pixelSideKm',
+  'insets',
+  'factions',
+  'landTerritories',
+  'multiUnitTerritories',
+  'seaZones',
+  'viewerLimits',
+  'smallestPiece',
+  'reassignedPieces',
+  'gapFilledSets',
+  'enclosedWaterSets',
+  'enclosedWaterPixels',
+  'enclosedWaterZones',
+  'multiPieceEntries',
+  'splitFactions',
+];
+const REPORT_SECTION_LABELS = ['requiredTextureSize', 'warnings'];
+const REPORT_WARNING_LABELS = ['textureAbove2048', 'entriesAbove65535', 'factionsAbove255', 'paletteExhaustedFaction'];
+const REPORT_ITEM_WORDS = [
+  'file', 'sha256', 'features', 'skippedNullGeometries', 'inset', 'x', 'y', 'w', 'h',
+  'entry', 'pixels', 'to', 'territory', 'zone', 'sets', 'pieces', 'faction', 'groups',
+];
 
 type Err = Record<string, unknown>;
 const errs = (r: { ok: boolean; errors?: unknown[] }): Err[] => (r.ok ? [] : (r.errors as Err[]));
@@ -342,8 +378,65 @@ async function commandErrors(): Promise<Err[]> {
   }
 }
 
+/** A small sound import in its own folder: the files it needs and where they are. */
+function smallImportFiles(root: string): string {
+  mkdirSync(join(root, 'in'), { recursive: true });
+  writeFileSync(
+    join(root, 'in', 'primary.geojson'),
+    bytesOf(
+      collection([
+        feat({ code: 'A', name: 'Alfa', adm: 'X' }, polygon(0, 0)),
+        feat({ code: 'B', name: 'Beta', adm: 'X' }, polygon(1, 0)),
+        feat({ code: 'C', name: 'Gamma', adm: 'Y' }, polygon(2, 0)),
+      ]),
+    ),
+  );
+  writeFileSync(
+    join(root, 'in', 'curation.json'),
+    textBytes(
+      JSON.stringify({
+        primary: 'primary.geojson',
+        columns: { key: 'code', name: ['name'] },
+        params: { side: 64, margin: 0.02, minPieceSize: 1, projection: 'laea' },
+        factionBy: { property: 'adm' },
+        factions: [{ key: 'X', name: 'Xland' }, { key: 'Y', name: 'Yland' }],
+      }),
+    ),
+  );
+  return join(root, 'in', 'curation.json');
+}
+
+/** The preview errors of the import mode: a preview path inside the output folder, and one that cannot be written. */
+async function previewErrors(): Promise<Err[]> {
+  const dir = mkdtempSync(join(tmpdir(), 'mbrg-preview-'));
+  try {
+    const curation = smallImportFiles(dir);
+    let stderr = '';
+    const speak = { fs: realImportFs, root: dir, stdout: () => undefined, stderr: (s: string) => (stderr += s) };
+    // a preview path inside the output folder is a usage error before anything is read
+    await runImport(['import', `--curation=${curation}`, `--out=${join(dir, 'pkg')}`, `--preview=${join(dir, 'pkg', 'p.png')}`], speak);
+    // a preview that cannot be written stops the import before the package changes
+    const broken = {
+      ...realImportFs,
+      writeFile: (p: string, bytes: Uint8Array) => {
+        if (p.endsWith('no.png')) throw new Error('no');
+        return realImportFs.writeFile(p, bytes);
+      },
+    };
+    await runImport(['import', `--curation=${curation}`, `--out=${join(dir, 'pkg2')}`, `--preview=${join(dir, 'no.png')}`], {
+      fs: broken,
+      root: dir,
+      stdout: () => undefined,
+      stderr: (s) => (stderr += s),
+    });
+    return stderr.split('\n').filter((l) => l.startsWith('{')).map((l) => JSON.parse(l) as Err);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 async function allErrors(): Promise<Err[]> {
-  return [...sourceErrors(), ...extractErrors(), ...curationErrors(), ...unitErrors(), ...groupErrors(), ...factionErrors(), ...viewErrors(), ...seaErrors(), ...cleanupErrors(), ...(await commandErrors())];
+  return [...sourceErrors(), ...extractErrors(), ...curationErrors(), ...unitErrors(), ...groupErrors(), ...factionErrors(), ...viewErrors(), ...seaErrors(), ...cleanupErrors(), ...(await commandErrors()), ...(await previewErrors())];
 }
 
 const sources = import.meta.glob('../src/importer/**/*.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
@@ -409,6 +502,34 @@ describe('the language of the importer', () => {
     expect(files.length).toBeGreaterThanOrEqual(9);
     const offenders = files.filter((f) => /[^\x00-\x7f]/.test(sources[f]!));
     expect(offenders).toStrictEqual([]);
+  });
+
+  it('the import report uses the listed English labels, section labels, warnings and item words', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mbrg-report-language-'));
+    try {
+      const curation = smallImportFiles(dir);
+      let stdout = '';
+      const status = await runImport(['import', `--curation=${curation}`, `--out=${join(dir, 'pkg')}`], {
+        fs: realImportFs,
+        root: dir,
+        stdout: (s) => (stdout += s),
+        stderr: (s) => { throw new Error(s); },
+      });
+      expect(status).toBe(0);
+      const lines = stdout.split('\n');
+      expect(lines.filter((l) => l !== '' && !l.startsWith(' ')).map((l) => l.slice(0, l.indexOf(':')))).toStrictEqual(REPORT_LABELS);
+      // the viewer-limits section carries its own labels; the fixture map is within every other viewer limit
+      const section = lines.filter((l) => l.startsWith('  ') && !l.startsWith('    ') && l.includes(': ')).map((l) => l.trim().slice(0, l.trim().indexOf(':')));
+      expect(section).toStrictEqual(REPORT_SECTION_LABELS);
+      const words = lines
+        .filter((l) => l.includes('  - '))
+        .flatMap((l) => l.trim().replace(/^- /, '').split(' ').map((part) => part.split('=')[0]!));
+      expect(words.every((word) => REPORT_ITEM_WORDS.includes(word) || REPORT_WARNING_LABELS.includes(word))).toBe(true);
+      // the labels the fixture does not reach (its warnings are empty) are pinned by the report tests
+      expect(REPORT_WARNING_LABELS.length).toBe(4);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('the fake file system type used by the tests is the command one', () => {

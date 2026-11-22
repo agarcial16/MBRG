@@ -1,6 +1,6 @@
 import type { Result } from '@mbrg/shared';
 import { readdirSync, statSync } from 'node:fs';
-import { basename, dirname, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openShpGeometry } from '../extract/read-shapefile';
 import { extractGeo, MAX_ROUND, MIN_ROUND } from '../importer/extract-geo';
@@ -8,8 +8,11 @@ import { inspectSource } from '../importer/inspect';
 import { readSource, SOURCE_CAPS } from '../importer/read-source';
 import type { ExtractGeoError, SourceError } from '../importer/types';
 import { buildPackage } from '../importer/import';
+import { formatImportReport } from '../importer/report';
+import { sha256Hex } from '../importer/sha256';
 import { CURATION_MAX_BYTES, parseCuration } from '../importer/curation';
-import type { PngCodec } from '../core/types';
+import type { PngCodec, PreviewSource } from '../core/types';
+import { previewRgb } from '../core/preview';
 import { realFs, type FsOps } from '../io/fs-ops';
 import { pngCodec } from '../io/png-codec';
 import { writePackage } from '../io/write-package';
@@ -302,33 +305,71 @@ export function runInspectMode(args: string[], deps: ImportDeps): number {
   return 0;
 }
 
-const IMPORT_MODE_USAGE = 'usage: import-map import --curation=<file.json> --out=<folder>';
+const IMPORT_MODE_USAGE = 'usage: import-map import --curation=<file.json> --out=<folder> [--preview[=<file>]]';
+
+/** FR-610, FR-126: the default preview file under the root (its own name: the builder's preview stays the build's). */
+const DEFAULT_PREVIEW = join('tools', 'build-map', 'out', 'import-preview.png');
+
+/** True when `file` is the output folder or lies inside it, after normalisation (case-blind on Windows). */
+function insideOutput(file: string, outDir: string): boolean {
+  const rel = relative(outDir, file);
+  return rel === '' || (rel !== '..' && !rel.startsWith('..' + sep) && !isAbsolute(rel));
+}
+
+/** FR-610: writes the preview image (outside the output folder); false (after a `preview-write-failed` JSON line) when it could not be written. */
+function writePreview(file: string, source: PreviewSource, deps: ImportDeps): boolean {
+  try {
+    const png = (deps.codec ?? pngCodec).encode(source.width, source.width, previewRgb(source));
+    deps.fs.mkdir(dirname(file));
+    deps.fs.writeFile(file, png);
+    return true;
+  } catch {
+    try {
+      deps.fs.unlink(file);
+    } catch {
+      // nothing half written to remove
+    }
+    deps.stderr(JSON.stringify({ kind: 'preview-write-failed', preview: file }) + '\n');
+    return false;
+  }
+}
 
 /**
- * FR-586, FR-608: the import mode. The stages run in this order and the first one with errors stops the run, every
- * error of that stage printed as one JSON object per line on stderr: usage (exit 2); the output folder (`output-not-empty`
- * for a folder that exists and holds anything, before any input is read); the curation file (size cap first, then the
- * schema); the sources (size cap first, then the reader); then the pure core (curation stage, projection and insets,
- * pixel steps, self-check). A failed import creates, modifies and deletes no file: the three artifacts are written only
- * after every check, with the temporary-file and rename rules of 003b (`write-failed`, `partial-write`). No network.
+ * FR-586, FR-608, FR-609, FR-610: the import mode. The stages run in this order and the first one with errors stops
+ * the run, every error of that stage printed as one JSON object per line on stderr: usage (exit 2, including a
+ * `--preview` path inside the output folder); the output folder (`output-not-empty` for a folder that exists and
+ * holds anything, before any input is read); the curation file (size cap first, then the schema); the sources (size
+ * cap first, then the reader); then the pure core (curation stage, projection and insets, pixel steps, self-check).
+ * A failed import creates, modifies and deletes no file in the output folder, and a failure at or after the pixel
+ * steps still writes the preview of the last assignment it computed (`--preview`). On success the deterministic
+ * report (FR-609) goes to stdout, and a preview failure stops the import before the package changes. No network.
  * Exit status: 0 success, 1 failure, 2 usage error.
  */
 export function runImportMode(args: string[], deps: ImportDeps): number {
   const seen = new Map<string, string>();
+  let preview: string | undefined;
   for (const arg of args) {
     const at = arg.indexOf('=');
     const flag = at < 0 ? arg : arg.slice(0, at);
     const value = at < 0 ? '' : arg.slice(at + 1);
-    const problem = !['--curation', '--out'].includes(flag)
+    const problem = !['--curation', '--out', '--preview'].includes(flag)
       ? `unknown option: ${arg}`
-      : value === ''
+      : flag === '--preview' && at >= 0 && value === ''
         ? `missing value for ${flag}`
-        : seen.has(flag)
-          ? `duplicate option: ${flag}`
-          : undefined;
+        : flag !== '--preview' && value === ''
+          ? `missing value for ${flag}`
+          : flag !== '--preview' && seen.has(flag)
+            ? `duplicate option: ${flag}`
+            : flag === '--preview' && preview !== undefined
+              ? `duplicate option: ${flag}`
+              : undefined;
     if (problem !== undefined) {
       deps.stderr(`${problem}\n${IMPORT_MODE_USAGE}\n`);
       return 2;
+    }
+    if (flag === '--preview') {
+      preview = resolve(deps.root, at < 0 ? DEFAULT_PREVIEW : value);
+      continue;
     }
     seen.set(flag, value);
   }
@@ -344,6 +385,13 @@ export function runImportMode(args: string[], deps: ImportDeps): number {
     for (const error of errors) deps.stderr(JSON.stringify(error) + '\n');
     return 1;
   };
+
+  // FR-610: the preview lives outside the output folder; a path inside it is a usage error, before any read or write.
+  if (preview !== undefined && insideOutput(preview, out)) {
+    deps.stderr(JSON.stringify({ kind: 'usage-error', reason: 'preview-inside-package', preview }) + '\n');
+    deps.stderr(`${IMPORT_MODE_USAGE}\n`);
+    return 2;
+  }
 
   // The output folder is judged before any input is read: a listed package is never replaced.
   try {
@@ -368,12 +416,37 @@ export function runImportMode(args: string[], deps: ImportDeps): number {
   const inputs = reads.map((r, i) => ({ file: labels[i]!, bytes: (r as { ok: true; value: Uint8Array }).value }));
 
   const outcome = buildPackage({ curation: curation.value, primary: inputs[0]!, context: inputs.slice(1), codec: deps.codec ?? pngCodec });
-  if (!outcome.ok) return printErrors(outcome.errors);
+  if (!outcome.ok) {
+    printErrors(outcome.errors);
+    // FR-610: a failure at or after the pixel steps still previews the last assignment it computed
+    if (preview !== undefined && outcome.preview !== undefined) writePreview(preview, outcome.preview, deps);
+    return 1;
+  }
 
+  // The preview is outside the output folder; a requested preview that fails stops the import before the package changes.
+  if (preview !== undefined && !writePreview(preview, outcome.preview, deps)) {
+    return 1;
+  }
   const written = writePackage(out, outcome.files, deps.fs);
   if (!written.ok) return printErrors(written.errors);
-  const { numbering } = outcome.details;
-  deps.stdout(`imported ${numbering.land.length} land territories, ${numbering.factions.length} factions and ${numbering.sea.length} sea zones into ${basename(out)}\n`);
+
+  // FR-609: the deterministic report of the successful import.
+  deps.stdout(
+    formatImportReport({
+      curation: { file: curationLabel, sha256: sha256Hex(curationBytes.value) },
+      sources: outcome.details.sources.map((source, i) => ({
+        file: source.file,
+        sha256: sha256Hex(inputs[i]!.bytes),
+        features: source.features.length,
+        skippedNull: source.skippedNull,
+      })),
+      details: outcome.details,
+      map: outcome.map,
+      presentation: outcome.presentation,
+      width: outcome.width,
+      pixels: outcome.pixels,
+    }),
+  );
   return 0;
 }
 

@@ -16,6 +16,7 @@ import { readSources, type SourceInput } from './read-source';
 import { assignSea, type SeaSeedError, type SeaZone } from './sea-sources';
 import type { ReadSource, SourceError } from './types';
 import { buildViews, type InsetError, type ViewError, type ViewItem, type ViewSet } from './views';
+import type { PreviewEntry, PreviewSource } from '../core/types';
 
 /** FR-608: the stages of an import after the files are read, in the order they are checked. */
 export type ImportStage = 'sources' | 'curation' | 'projection' | 'pixels' | 'self-check';
@@ -53,8 +54,14 @@ export type ImportOutcome =
       width: number;
       files: Record<Artifact, Uint8Array>;
       details: ImportDetails;
+      /** FR-610: the preview of the final assignment. */
+      preview: PreviewSource;
     }
-  | { ok: false; stage: ImportStage; errors: ImportError[] };
+  /**
+   * FR-610: a failure at or after the pixel steps carries the preview of the last assignment it computed
+   * (the water sentinel may still be in it); an earlier failure carries none.
+   */
+  | { ok: false; stage: ImportStage; errors: ImportError[]; preview?: PreviewSource };
 
 const fail = (stage: ImportStage, errors: readonly ImportError[]): ImportOutcome => ({ ok: false, stage, errors: [...errors] });
 
@@ -91,6 +98,13 @@ export function buildPackage(input: ImportInput): ImportOutcome {
   if (!views.ok) return fail('projection', views.errors);
 
   const numbering = numberMap({ territories: plan.territories, factions: plan.factions, factionOf: plan.factionOf, seas: curation.seas });
+  /** FR-610: the preview of the last assignment computed; the piece entries are in map order. */
+  const previewOf = (pixels: Uint32Array): PreviewSource => ({
+    width: params.side,
+    pixels,
+    factions: numbering.factions.map((f) => (f.color === undefined ? { id: f.id } : { id: f.id, color: f.color })),
+    entries: numbering.pieceEntries.map((e): PreviewEntry => (e.kind === 'land' ? { id: e.id, kind: 'land', owner: e.owner } : { id: e.id, kind: 'sea' })),
+  });
   const raster = composePixels({
     views: views.value,
     land: numbering.land.map((l) => ({ value: l.id, units: l.territory.units })),
@@ -105,21 +119,21 @@ export function buildPackage(input: ImportInput): ImportOutcome {
   const zones: SeaZone[] = numbering.sea.map((s) => (s.seed === undefined ? { id: s.id } : { id: s.id, seed: curation.seas[s.seed]! }));
   const fill = params.gapFill === undefined ? undefined : makeGapFill(params.side, params.gapFill, (value) => value >= 1 && value <= landCount);
   const water = assignSea({ views: views.value, pixels: raster.value, zones, ...(fill === undefined ? {} : { between: fill.between }) });
-  if (!water.ok) return fail('pixels', water.errors);
+  if (!water.ok) return { ok: false, stage: 'pixels', errors: water.errors, preview: previewOf(raster.value) };
 
   const territories: TerritoryInfo[] = [
     ...numbering.land.map((l) => ({ id: l.id, key: l.territory.key, name: l.territory.name ?? '' })),
     ...numbering.sea.flatMap((s) => (s.territory === undefined ? [] : [{ id: s.id, key: s.territory.key, name: s.territory.name ?? '' }])),
   ];
   const cleaned = cleanPieces(params.side, water.value.pixels, numbering.pieceEntries, territories, params.minPieceSize);
-  if (!cleaned.ok) return fail('pixels', cleaned.errors);
+  if (!cleaned.ok) return { ok: false, stage: 'pixels', errors: cleaned.errors, preview: previewOf(water.value.pixels) };
   const pixels = cleaned.value.pixels;
 
   // FR-606: the package gate of 003b on the final map.
   const map = buildMapData(params.side, pixels, numbering.plan);
   const png = codec.encode(params.side, params.side, toRgb(pixels));
   const errors = selfCheck(map, numbering.presentation, params.side, pixels, png, codec);
-  if (errors.length > 0) return fail('self-check', errors);
+  if (errors.length > 0) return { ok: false, stage: 'self-check', errors, preview: previewOf(pixels) };
 
   return {
     ok: true,
@@ -137,5 +151,6 @@ export function buildPackage(input: ImportInput): ImportOutcome {
       enclosed: water.value.enclosed,
       reassigned: cleaned.value.reassigned,
     },
+    preview: previewOf(pixels),
   };
 }

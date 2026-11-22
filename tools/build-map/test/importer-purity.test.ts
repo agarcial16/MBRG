@@ -37,6 +37,7 @@ describe('the source scan of the importer core', () => {
       '../src/importer/pixels.ts',
       '../src/importer/read-dbf.ts',
       '../src/importer/read-source.ts',
+      '../src/importer/report.ts',
       '../src/importer/scale-fixture.ts',
       '../src/importer/sea-sources.ts',
       '../src/importer/select.ts',
