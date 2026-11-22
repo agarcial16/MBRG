@@ -40,6 +40,7 @@ describe('the source scan of the importer core', () => {
       '../src/importer/scale-fixture.ts',
       '../src/importer/sea-sources.ts',
       '../src/importer/select.ts',
+      '../src/importer/sha256.ts',
       '../src/importer/types.ts',
       '../src/importer/units.ts',
       '../src/importer/views.ts',

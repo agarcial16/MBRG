@@ -203,4 +203,12 @@ Tests: units 25/25, curation-stage, language green; whole `tools/build-map` 830 
 Untested: nothing new.
 Next: T3.1 (SHA-256, own code).
 
+## 2026-11-22 — T3.1 SHA-256: own code (closes none)
+Branch: `feat/028-map-importer`. State: M3 under way after the three M2 review fixes.
+Changed: `src/importer/sha256.ts` (`sha256Hex(bytes)`: the specification's 64 round constants and 8 initial values as literals, own padding, word schedule and compression, all additions unsigned, the digest as 64 lowercase hex characters; no import at all, NFR-133 and NFR-134), `test/sha256.test.ts` (3 tests, titles id-free: the NIST vectors (empty, `abc`, the two-block message, the one-million-a long form under an explicit 30 s timeout) and two runs identical over the padding boundaries 0..128), `test/importer-purity.test.ts` (the file list gains `sha256.ts`; the scan covers it with the rest of the core).
+Tests: sha256 3/3, purity, language green. Mutation proofs (all caught by the vector tests, restored): a round constant off by one, an initial value off by one, the 0x80 padding byte zeroed.
+Untested: the high word of the 64-bit length (needs a message over 512 MiB; the arithmetic is the same as the tested low word).
+Next: T3.2 (the report, the viewer limits and the preview).
+
+
 Next step: M3 (`tasks-M3.md`): T3.1 SHA-256 (own code), T3.2 report, viewer limits and preview (`--preview`; `buildPackage` already returns `details` for the report and the failure `stage`; a failure at or after the pixel steps needs the last raster for the preview), T3.3 the dev-map equivalence (the byte-identity chain: raw outer+hole vertices for the centre and frame, other land = `otherLand` features then the excluded provinces, sea seeds in order, factions listed in `adm0_a3` order), T3.4 the sample, T3.5 scale and stress, T3.6 deployment guide, T3.7 closing. Open points for M3: the importer's default of one summary stdout line is to be replaced by the report; `buildPackage` allocates the main raster before the `inset-hides-land` check (documented in T2.10).

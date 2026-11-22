@@ -1,7 +1,7 @@
 ### M3 — Proofs, report and closing (7 / 7)
 Plan sections 1, 5, 6. Closes FR-607, FR-609, FR-610, FR-611, FR-612, FR-614, FR-613, NFR-132, NFR-134, NFR-136, NFR-137, NFR-138; T3.1 closes none.
 
-- [ ] **T3.1. SHA-256: own code.** (closes none; FR-609's digests land with the report, T3.2)
+- [x] **T3.1. SHA-256: own code.** (closes none; FR-609's digests land with the report, T3.2)
   - Files: `src/importer/sha256.ts`, `test/sha256.test.ts`.
   - Done when (red first): own SHA-256 passes the NIST vectors (empty input, `abc`, the long-message form) and two runs on the same bytes give identical digests; the module is scanned pure core (no file, clock, randomness, network); test titles stay id-free until T3.2 renames what FR-609 needs.
 - [ ] **T3.2. Report, viewer limits, preview.** FR-607, FR-609, FR-610
