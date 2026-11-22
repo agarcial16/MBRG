@@ -40,6 +40,12 @@ export interface View {
   plane(lon: number, lat: number): [number, number];
   /** Continuous pixel coordinates (u, v) of a point: the projected point mapped through the frame (003b FR-114). */
   toUV(lon: number, lat: number): [number, number];
+  /**
+   * FR-600 (the antimeridian fix): one ring's vertices in continuous pixel coordinates, the ring-aware form of
+   * `toUV`: an exactly-antimeridian vertex lies on its ring's own side. Every view the importer builds has it; a
+   * hand-made view may leave it out, and the pixel step then falls back to `toUV` point by point.
+   */
+  ringToUV?: (coords: readonly (readonly [number, number])[]) => [number, number][];
 }
 
 /** `lon - lon0` wrapped into (-180, 180]. */
@@ -49,6 +55,30 @@ export function wrapLon(lon: number, lon0: number): number {
   return r;
 }
 
+/**
+ * FR-600 (the antimeridian fix): the wrapped longitudes of one ring, with every vertex exactly on the antimeridian
+ * (wrapped value 180) placed on the ring's own side, the side of its other vertices, the same side
+ * `crossesAntimeridian` puts such a vertex on when it judges an edge. A ring whose other vertices lie on both sides
+ * of the antimeridian, or have none, keeps the plain wrapped value: a point alone has no side, and seeds and single
+ * vertices keep wrapping as points (`wrapLon` places the antimeridian itself east).
+ */
+export function ringWrappedLons(coords: readonly (readonly [number, number])[], lon0: number): number[] {
+  const wrapped = coords.map(([lon]) => wrapLon(lon, lon0));
+  let west = false;
+  let east = false;
+  for (const w of wrapped) {
+    if (w === 180) continue;
+    if (w < 0) west = true;
+    else east = true;
+  }
+  if (west && !east) {
+    for (let i = 0; i < wrapped.length; i++) {
+      if (wrapped[i] === 180) wrapped[i] = -180;
+    }
+  }
+  return wrapped;
+}
+
 /** The projection of a view on the unit sphere: Lambert as 003b builds it, or Equal Earth on the wrapped longitude. */
 export function planeOf(projection: Params['projection'], lon0: number, lat0: number): (lon: number, lat: number) => [number, number] {
   if (projection === 'laea') {
@@ -56,6 +86,24 @@ export function planeOf(projection: Params['projection'], lon0: number, lat0: nu
     return (lon, lat) => project(center, lon, lat);
   }
   return (lon, lat) => equalEarth(wrapLon(lon, lon0) * RAD, lat * RAD);
+}
+
+/**
+ * FR-600 (the antimeridian fix): the projection of a view applied to whole rings: one ring's vertices in plane
+ * coordinates, every exactly-antimeridian vertex on its ring's own side. With `laea` a ring projects point by point
+ * (the projection is periodic in longitude: -180 and +180 are one point); with `equal-earth` the side-placed wrapped
+ * longitudes of the ring go straight to the projection, never wrapped a second time.
+ */
+export function ringProjector(projection: Params['projection'], lon0: number, lat0: number): (coords: readonly (readonly [number, number])[]) => [number, number][] {
+  if (projection !== 'equal-earth') {
+    const plane = planeOf(projection, lon0, lat0);
+    return (coords) => coords.map(([lon, lat]) => plane(lon, lat));
+  }
+  return (coords) => {
+    const wrapped = ringWrappedLons(coords, lon0);
+    // the wrapped value of a non-adjusted vertex is what `plane` computes; -180 is the ring's own side
+    return coords.map(([, lat], i) => equalEarth(wrapped[i]! * RAD, lat * RAD));
+  };
 }
 
 /** Slack for the exactly-90-degrees horizon test: a point on the horizon is not beyond it (float noise of cos 90). */
@@ -97,20 +145,27 @@ export function vertexBox(units: readonly Unit[]): { west: number; south: number
   return west > east ? null : { west, south, east, north };
 }
 
-/** The frame of the units' raw vertices as seen through `plane`: the bounding box of the projected points, FR-114. */
-export function frameOfUnits(units: readonly Unit[], plane: View['plane'], margin: number): Frame | null {
+/**
+ * FR-600: the frame of the units' raw vertices as the view's ring projection sees them: the bounding box of the
+ * projected vertices, FR-114. `projectRing` comes from `ringProjector` of the same view (the antimeridian fix: the
+ * frame of a ring split at the antimeridian is the band the ring covers, never a stripe around the whole globe).
+ */
+export function frameOfUnits(units: readonly Unit[], projectRing: (coords: readonly (readonly [number, number])[]) => [number, number][], margin: number): Frame | null {
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
   let maxY = -Infinity;
   for (const unit of units) {
-    eachVertex(unit.polygons, (lon, lat) => {
-      const [x, y] = plane(lon, lat);
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-    });
+    for (const polygon of unit.polygons) {
+      for (const ring of [polygon.outer, ...polygon.holes]) {
+        for (const [x, y] of projectRing(ring.coords)) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
   }
   // frameFor only reads the bounding box of its points
   return minX > maxX ? null : frameFor([[minX, minY], [maxX, maxY]], margin);
@@ -130,6 +185,11 @@ export function makeView(
   width: number,
 ): View {
   const plane = planeOf(projection, lon0, lat0);
+  const projectRing = ringProjector(projection, lon0, lat0);
+  const at = (px: number, py: number): [number, number] => {
+    const pixel = toPixel(frame, width, px, py);
+    return [pixel.u, pixel.v];
+  };
   return {
     kind,
     projection,
@@ -140,9 +200,10 @@ export function makeView(
     plane,
     toUV: (lon, lat) => {
       const [px, py] = plane(lon, lat);
-      const at = toPixel(frame, width, px, py);
-      return [at.u, at.v];
+      return at(px, py);
     },
+    // FR-600 (the antimeridian fix): the ring form of toUV
+    ringToUV: (coords) => projectRing(coords).map(([px, py]) => at(px, py)),
   };
 }
 
@@ -240,8 +301,8 @@ export function buildMainView(input: MainViewInput): Result<View, ViewError> {
     lon0 = center.lon0;
     lat0 = center.lat0;
   }
-  const plane = planeOf(params.projection, lon0, lat0);
-  const frame = frameOfUnits(basis, plane, params.margin) ?? EMPTY_FRAME;
+  const projectRing = ringProjector(params.projection, lon0, lat0);
+  const frame = frameOfUnits(basis, projectRing, params.margin) ?? EMPTY_FRAME;
   const view = makeView('main', params.projection, lon0, lat0, frame, params.side, params.side);
 
   const errors = new ErrorCollector<ViewError>();
@@ -329,18 +390,22 @@ function insetView(index: number, units: Unit[], at: readonly [number, number], 
   const lon0 = centerLongitude(r.west, r.east, r.shiftedWest, r.shiftedEast);
   const lat0 = (r.south + r.north) / 2;
   const plane = planeOf(params.projection, lon0, lat0);
+  const projectRing = ringProjector(params.projection, lon0, lat0);
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
   let maxY = -Infinity;
   for (const unit of units) {
-    eachVertex(unit.polygons, (lon, lat) => {
-      const [x, y] = plane(lon, lat);
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-    });
+    for (const polygon of unit.polygons) {
+      for (const ring of [polygon.outer, ...polygon.holes]) {
+        for (const [x, y] of projectRing(ring.coords)) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
   }
   // the main scale: one pixel is mainFrame.side / W plane units; the margin is a share of the main frame side
   const pixel = mainFrame.side / params.side;
@@ -362,6 +427,8 @@ function insetView(index: number, units: Unit[], at: readonly [number, number], 
       const [px, py] = plane(lon, lat);
       return [(px - west) / pixel, (north - py) / pixel];
     },
+    // FR-600 (the antimeridian fix): the ring form of toUV
+    ringToUV: (coords) => projectRing(coords).map(([px, py]) => [(px - west) / pixel, (north - py) / pixel]),
     rect: { x: at[0], y: at[1], w, h },
     units,
   };

@@ -232,3 +232,41 @@ describe('FR-602 the composition is deterministic', () => {
     expect(compose(input)).toStrictEqual(compose(input));
   });
 });
+
+describe('FR-600 a ring split at the antimeridian rasterizes as the band it covers', () => {
+  /** A closed rectangle ring in longitude and latitude degrees. */
+  const lonBox = (west: number, south: number, east: number, north: number): SourcePolygon => ({
+    outer: { coords: [[west, south], [east, south], [east, north], [west, north], [west, south]] },
+    holes: [],
+  });
+
+  it('FR-600 draws the antimeridian vertex of a split ring on its ring\'s side: a narrow western band, never a globe stripe', () => {
+    // the reviewer's probe at W = 128: a western polygon touching the antimeridian (widened so the band holds
+    // whole pixels at this side), a far-east unit holding the frame at world scale
+    const west = unit('W', [lonBox(-180, -17, -170, -15)]);
+    const east = unit('E', [lonBox(20, -10, 30, 0)]);
+    const built = buildViews({ selected: [west, east], params: { side: 128, margin: 0.02, minPieceSize: 1, projection: 'equal-earth' }, insets: [] });
+    if (!built.ok) throw new Error(JSON.stringify(built.errors));
+    const pixels = compose({ views: built.value, land: [{ value: 1, units: [west] }, { value: 2, units: [east] }] });
+    const columnsOf = (value: number): { min: number; max: number; count: number } => {
+      let min = 128;
+      let max = -1;
+      let count = 0;
+      for (let i = 0; i < pixels.length; i++) {
+        if (pixels[i] !== value) continue;
+        count++;
+        const col = i % 128;
+        if (col < min) min = col;
+        if (col > max) max = col;
+      }
+      return { min, max, count };
+    };
+    const band = columnsOf(1);
+    // the band exists and is narrow and western (the broken ring paints ~124 columns, a 358-degree stripe)
+    expect(band.count).toBeGreaterThan(0);
+    expect(band.max - band.min).toBeLessThan(24);
+    expect(band.min).toBeLessThan(32);
+    // the east unit keeps its own ground: the stripe would have swallowed it
+    expect(columnsOf(2).count).toBeGreaterThan(0);
+  });
+});

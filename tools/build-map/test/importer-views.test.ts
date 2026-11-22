@@ -3,7 +3,7 @@ import { frameFor, project, projectionCenter, toPixel } from '../src/core/projec
 import type { SourcePolygon } from '../src/core/types';
 import type { Params } from '../src/importer/curation';
 import { equalEarth } from '../src/importer/equal-earth';
-import { antimeridianErrors, buildMainView, buildViews, centerLongitude, insetHidesLand, locateSeed, visiblePolygons, type ViewItem, type ViewSet, type ViewsInput } from '../src/importer/views';
+import { antimeridianErrors, buildMainView, buildViews, centerLongitude, frameOfUnits, insetHidesLand, locateSeed, ringProjector, ringWrappedLons, visiblePolygons, type ViewItem, type ViewSet, type ViewsInput } from '../src/importer/views';
 import type { Unit } from '../src/importer/units';
 
 const RAD = Math.PI / 180;
@@ -213,6 +213,38 @@ describe('FR-600 the main view with equal-earth', () => {
     expect(antimeridianErrors({ ...view, lon0: 180 }, items)).toStrictEqual([]);
     // the Lambert view has no such rule
     expect(antimeridianErrors({ ...view, projection: 'laea' }, items)).toStrictEqual([]);
+  });
+
+  it('FR-600 wraps the exactly-antimeridian vertices of a ring to the ring\'s own side, the side of its other vertices', () => {
+    // a western split ring: the antimeridian vertex joins its -178 neighbours in the west
+    expect(ringWrappedLons([[-180, 0], [-178, 0], [-178, 1], [-180, 1]], 0)).toStrictEqual([-180, -178, -178, -180]);
+    // an eastern split ring keeps the east placement a point gets
+    expect(ringWrappedLons([[178, 0], [180, 0], [180, 1]], 0)).toStrictEqual([178, 180, 180]);
+    // a ring with vertices on both sides, or with none besides the antimeridian, keeps the plain wrapped value
+    expect(ringWrappedLons([[180, 0], [-10, 0], [10, 0]], 0)).toStrictEqual([180, -10, 10]);
+    expect(ringWrappedLons([[180, 0], [180, 1]], 0)).toStrictEqual([180, 180]);
+    // an inset meridian: the antimeridian of lon0 170 sits at raw -10, and a western ring wraps there too
+    expect(ringWrappedLons([[-10, 0], [-8, 1]], 170)).toStrictEqual([-180, -178]);
+  });
+
+  it('FR-600 frames a ring split at the antimeridian as the band it covers, never as a 358-degree stripe', () => {
+    // the reviewer's probe: a two-degree western polygon whose vertices touch the antimeridian
+    const split = unit('FJ2', [polygon(box(-180, -17, -178, -16))]);
+    const view = main([split], { projection: 'equal-earth' });
+    // the antimeridian vertices sit at -180, next to -178: the frame is the polygon's own extent
+    const expected = vertices([split]).map(([lon, lat]) => equalEarth((lon === -180 ? -180 : lon) * RAD, lat * RAD));
+    expect(view.frame).toStrictEqual(frameFor(expected, 0.02));
+    expect(view.frame.side).toBeLessThan(0.05);
+    // a ring also projects through the seam: its antimeridian vertex lands in the west, next to -178
+    const center: [number, number] = [0, 0];
+    expect(ringProjector('equal-earth', 0, 0)([[-180, -17], [-178, -17]])).toStrictEqual([
+      equalEarth(-180 * RAD, -17 * RAD),
+      equalEarth(-178 * RAD, -17 * RAD),
+    ]);
+    // the framing of a Lambert view is untouched: -180 and +180 are one point there, ring or no ring
+    const laea = ringProjector('laea', center[0], center[1]);
+    const laeaFrame = frameOfUnits([split], laea, 0.02);
+    expect(laeaFrame).toStrictEqual(frameFor(vertices([split]).map(([lon, lat]) => project({ lon0: center[0], lat0: center[1] }, lon, lat)), 0.02));
   });
 });
 

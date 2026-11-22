@@ -1,6 +1,6 @@
 import type { Result } from '@mbrg/shared';
 import { rasterize, type RasterLayer } from '../core/rasterize';
-import { toPixelPolygons } from '../core/rings';
+import { normalizePolygon } from '../core/rings';
 import type { SourcePolygon } from '../core/types';
 import type { Unit } from './units';
 import { insetHidesLand, visiblePolygons, type InsetError, type View, type ViewSet } from './views';
@@ -25,19 +25,39 @@ export interface PixelInput {
   other: readonly Unit[];
 }
 
+/**
+ * One view's polygon conversion: the 003b ring normalisation (FR-115 rules 4 and 5, `normalizePolygon`), then the
+ * view's ring mapping, `ringToUV`, the antimeridian fix (FR-600: an exactly-antimeridian vertex lies on its ring's
+ * own side, so a ring split at the antimeridian rasterizes as the band it covers, never a stripe around the globe).
+ * A hand-made view without the ring seam maps point by point through `toUV`, exactly as `toPixelPolygons` does.
+ */
+function polygonsOf(view: View, polygons: readonly SourcePolygon[]): SourcePolygon[] {
+  const ringUV: (coords: readonly (readonly [number, number])[]) => [number, number][] =
+    view.ringToUV ?? ((coords) => coords.map(([lon, lat]) => view.toUV(lon, lat)));
+  const out: SourcePolygon[] = [];
+  for (const polygon of polygons) {
+    const normalized = normalizePolygon(polygon);
+    if (normalized === null) continue;
+    out.push({
+      outer: { coords: ringUV(normalized.outer.coords) },
+      holes: normalized.holes.map((hole) => ({ coords: ringUV(hole.coords) })),
+    });
+  }
+  return out;
+}
+
 /** The raster layers of one view: land in map order, then ONE value-0 layer of other land, then the sea units. */
 function layersOf(view: View, members: ReadonlySet<Unit>, input: PixelInput): RasterLayer[] {
-  const polygonsOf = (polygons: readonly SourcePolygon[]): SourcePolygon[] => toPixelPolygons([{ props: {}, polygons: [...polygons] }], view.toUV);
   const layer = (entry: PixelLayer): RasterLayer => ({
     value: entry.value,
-    polygons: entry.units.filter((unit) => members.has(unit)).flatMap((unit) => polygonsOf(unit.polygons)),
+    polygons: entry.units.filter((unit) => members.has(unit)).flatMap((unit) => polygonsOf(view, unit.polygons)),
   });
   const layers = input.land.map(layer);
   // other land: context features in list order, then the excluded and unselected units; a Lambert view ignores a
   // polygon with a vertex beyond 90 degrees of arc from its centre (003b is silent: the dev data is far smaller)
   const otherPolygons: SourcePolygon[] = [];
   const add = (polygons: readonly SourcePolygon[]): void => {
-    for (const polygon of polygonsOf(visiblePolygons(view, polygons))) otherPolygons.push(polygon);
+    for (const polygon of polygonsOf(view, visiblePolygons(view, polygons))) otherPolygons.push(polygon);
   };
   for (const polygons of input.context) add(polygons);
   for (const unit of input.other) add(unit.polygons);
