@@ -1,0 +1,1941 @@
+{
+  "countries": [
+    {
+      "country": "AFG"
+    },
+    {
+      "country": "AGO"
+    },
+    {
+      "country": "ALB"
+    },
+    {
+      "country": "AND"
+    },
+    {
+      "country": "ARE"
+    },
+    {
+      "country": "ARG"
+    },
+    {
+      "country": "ARM"
+    },
+    {
+      "country": "ATG"
+    },
+    {
+      "country": "AUS"
+    },
+    {
+      "country": "AUT"
+    },
+    {
+      "country": "AZE"
+    },
+    {
+      "country": "BDI"
+    },
+    {
+      "country": "BEL"
+    },
+    {
+      "country": "BEN"
+    },
+    {
+      "country": "BFA"
+    },
+    {
+      "country": "BGD"
+    },
+    {
+      "country": "BGR"
+    },
+    {
+      "country": "BHR"
+    },
+    {
+      "country": "BHS"
+    },
+    {
+      "country": "BIH"
+    },
+    {
+      "country": "BLR"
+    },
+    {
+      "country": "BLZ"
+    },
+    {
+      "country": "BOL"
+    },
+    {
+      "country": "BRA"
+    },
+    {
+      "country": "BRB"
+    },
+    {
+      "country": "BRN"
+    },
+    {
+      "country": "BTN"
+    },
+    {
+      "country": "BWA"
+    },
+    {
+      "country": "CAF"
+    },
+    {
+      "country": "CAN"
+    },
+    {
+      "country": "CHE"
+    },
+    {
+      "country": "CHL"
+    },
+    {
+      "country": "CHN"
+    },
+    {
+      "country": "CIV"
+    },
+    {
+      "country": "CMR"
+    },
+    {
+      "country": "COD"
+    },
+    {
+      "country": "COG"
+    },
+    {
+      "country": "COL"
+    },
+    {
+      "country": "COM"
+    },
+    {
+      "country": "CPV"
+    },
+    {
+      "country": "CRI"
+    },
+    {
+      "country": "CUB"
+    },
+    {
+      "country": "CYP"
+    },
+    {
+      "country": "CZE"
+    },
+    {
+      "country": "DEU"
+    },
+    {
+      "country": "DJI"
+    },
+    {
+      "country": "DMA"
+    },
+    {
+      "country": "DNK"
+    },
+    {
+      "country": "DOM"
+    },
+    {
+      "country": "DZA"
+    },
+    {
+      "country": "ECU"
+    },
+    {
+      "country": "EGY"
+    },
+    {
+      "country": "ERI"
+    },
+    {
+      "country": "ESP"
+    },
+    {
+      "country": "EST"
+    },
+    {
+      "country": "ETH"
+    },
+    {
+      "country": "FIN"
+    },
+    {
+      "country": "FJI"
+    },
+    {
+      "country": "FRA"
+    },
+    {
+      "country": "FSM"
+    },
+    {
+      "country": "GAB"
+    },
+    {
+      "country": "GBR"
+    },
+    {
+      "country": "GEO"
+    },
+    {
+      "country": "GHA"
+    },
+    {
+      "country": "GIN"
+    },
+    {
+      "country": "GMB"
+    },
+    {
+      "country": "GNB"
+    },
+    {
+      "country": "GNQ"
+    },
+    {
+      "country": "GRC"
+    },
+    {
+      "country": "GRD"
+    },
+    {
+      "country": "GTM"
+    },
+    {
+      "country": "GUY"
+    },
+    {
+      "country": "HND"
+    },
+    {
+      "country": "HRV"
+    },
+    {
+      "country": "HTI"
+    },
+    {
+      "country": "HUN"
+    },
+    {
+      "country": "IDN"
+    },
+    {
+      "country": "IND"
+    },
+    {
+      "country": "IRL"
+    },
+    {
+      "country": "IRN"
+    },
+    {
+      "country": "IRQ"
+    },
+    {
+      "country": "ISL"
+    },
+    {
+      "country": "ISR"
+    },
+    {
+      "country": "ITA"
+    },
+    {
+      "country": "JAM"
+    },
+    {
+      "country": "JOR"
+    },
+    {
+      "country": "JPN"
+    },
+    {
+      "country": "KAZ"
+    },
+    {
+      "country": "KEN"
+    },
+    {
+      "country": "KGZ"
+    },
+    {
+      "country": "KHM"
+    },
+    {
+      "country": "KIR"
+    },
+    {
+      "country": "KNA"
+    },
+    {
+      "country": "KOR"
+    },
+    {
+      "country": "KOS"
+    },
+    {
+      "country": "KWT"
+    },
+    {
+      "country": "LAO"
+    },
+    {
+      "country": "LBN"
+    },
+    {
+      "country": "LBR"
+    },
+    {
+      "country": "LBY"
+    },
+    {
+      "country": "LCA"
+    },
+    {
+      "country": "LIE"
+    },
+    {
+      "country": "LKA"
+    },
+    {
+      "country": "LSO"
+    },
+    {
+      "country": "LTU"
+    },
+    {
+      "country": "LUX"
+    },
+    {
+      "country": "LVA"
+    },
+    {
+      "country": "MAR"
+    },
+    {
+      "country": "MDA"
+    },
+    {
+      "country": "MDG"
+    },
+    {
+      "country": "MDV"
+    },
+    {
+      "country": "MEX"
+    },
+    {
+      "country": "MHL"
+    },
+    {
+      "country": "MKD"
+    },
+    {
+      "country": "MLI"
+    },
+    {
+      "country": "MLT"
+    },
+    {
+      "country": "MMR"
+    },
+    {
+      "country": "MNE"
+    },
+    {
+      "country": "MNG"
+    },
+    {
+      "country": "MOZ"
+    },
+    {
+      "country": "MRT"
+    },
+    {
+      "country": "MUS"
+    },
+    {
+      "country": "MWI"
+    },
+    {
+      "country": "MYS"
+    },
+    {
+      "country": "NAM"
+    },
+    {
+      "country": "NER"
+    },
+    {
+      "country": "NGA"
+    },
+    {
+      "country": "NIC"
+    },
+    {
+      "country": "NLD"
+    },
+    {
+      "country": "NOR"
+    },
+    {
+      "country": "NPL"
+    },
+    {
+      "country": "NZL"
+    },
+    {
+      "country": "OMN"
+    },
+    {
+      "country": "PAK"
+    },
+    {
+      "country": "PAN"
+    },
+    {
+      "country": "PER"
+    },
+    {
+      "country": "PHL"
+    },
+    {
+      "country": "PLW"
+    },
+    {
+      "country": "PNG"
+    },
+    {
+      "country": "POL"
+    },
+    {
+      "country": "PRK"
+    },
+    {
+      "country": "PRT"
+    },
+    {
+      "country": "PRY"
+    },
+    {
+      "country": "PSX"
+    },
+    {
+      "country": "QAT"
+    },
+    {
+      "country": "ROU"
+    },
+    {
+      "country": "RUS"
+    },
+    {
+      "country": "RWA"
+    },
+    {
+      "country": "SAU"
+    },
+    {
+      "country": "SDN"
+    },
+    {
+      "country": "SDS"
+    },
+    {
+      "country": "SEN"
+    },
+    {
+      "country": "SGP"
+    },
+    {
+      "country": "SLB"
+    },
+    {
+      "country": "SLE"
+    },
+    {
+      "country": "SLV"
+    },
+    {
+      "country": "SMR"
+    },
+    {
+      "country": "SOM"
+    },
+    {
+      "country": "SRB"
+    },
+    {
+      "country": "STP"
+    },
+    {
+      "country": "SUR"
+    },
+    {
+      "country": "SVK"
+    },
+    {
+      "country": "SVN"
+    },
+    {
+      "country": "SWE"
+    },
+    {
+      "country": "SWZ"
+    },
+    {
+      "country": "SYC"
+    },
+    {
+      "country": "SYR"
+    },
+    {
+      "country": "TCD"
+    },
+    {
+      "country": "TGO"
+    },
+    {
+      "country": "THA"
+    },
+    {
+      "country": "TJK"
+    },
+    {
+      "country": "TKM"
+    },
+    {
+      "country": "TLS"
+    },
+    {
+      "country": "TON"
+    },
+    {
+      "country": "TTO"
+    },
+    {
+      "country": "TUN"
+    },
+    {
+      "country": "TUR"
+    },
+    {
+      "country": "TWN"
+    },
+    {
+      "country": "TZA"
+    },
+    {
+      "country": "UGA"
+    },
+    {
+      "country": "UKR"
+    },
+    {
+      "country": "URY"
+    },
+    {
+      "country": "USA"
+    },
+    {
+      "country": "UZB"
+    },
+    {
+      "country": "VCT"
+    },
+    {
+      "country": "VEN"
+    },
+    {
+      "country": "VNM"
+    },
+    {
+      "country": "VUT"
+    },
+    {
+      "country": "WSM"
+    },
+    {
+      "country": "YEM"
+    },
+    {
+      "country": "ZAF"
+    },
+    {
+      "country": "ZMB"
+    },
+    {
+      "country": "ZWE"
+    }
+  ],
+  "territories": [
+    {
+      "key": "afg",
+      "country": "AFG",
+      "provinces": [
+        "AFG"
+      ]
+    },
+    {
+      "key": "ago",
+      "country": "AGO",
+      "provinces": [
+        "AGO"
+      ]
+    },
+    {
+      "key": "alb",
+      "country": "ALB",
+      "provinces": [
+        "ALB"
+      ]
+    },
+    {
+      "key": "and",
+      "country": "AND",
+      "provinces": [
+        "AND"
+      ]
+    },
+    {
+      "key": "are",
+      "country": "ARE",
+      "provinces": [
+        "ARE"
+      ]
+    },
+    {
+      "key": "arg",
+      "country": "ARG",
+      "provinces": [
+        "ARG"
+      ]
+    },
+    {
+      "key": "arm",
+      "country": "ARM",
+      "provinces": [
+        "ARM"
+      ]
+    },
+    {
+      "key": "atg",
+      "country": "ATG",
+      "provinces": [
+        "ATG"
+      ]
+    },
+    {
+      "key": "aus",
+      "country": "AUS",
+      "provinces": [
+        "AUS"
+      ]
+    },
+    {
+      "key": "aut",
+      "country": "AUT",
+      "provinces": [
+        "AUT"
+      ]
+    },
+    {
+      "key": "aze",
+      "country": "AZE",
+      "provinces": [
+        "AZE"
+      ]
+    },
+    {
+      "key": "bdi",
+      "country": "BDI",
+      "provinces": [
+        "BDI"
+      ]
+    },
+    {
+      "key": "bel",
+      "country": "BEL",
+      "provinces": [
+        "BEL"
+      ]
+    },
+    {
+      "key": "ben",
+      "country": "BEN",
+      "provinces": [
+        "BEN"
+      ]
+    },
+    {
+      "key": "bfa",
+      "country": "BFA",
+      "provinces": [
+        "BFA"
+      ]
+    },
+    {
+      "key": "bgd",
+      "country": "BGD",
+      "provinces": [
+        "BGD"
+      ]
+    },
+    {
+      "key": "bgr",
+      "country": "BGR",
+      "provinces": [
+        "BGR"
+      ]
+    },
+    {
+      "key": "bhr",
+      "country": "BHR",
+      "provinces": [
+        "BHR"
+      ]
+    },
+    {
+      "key": "bhs",
+      "country": "BHS",
+      "provinces": [
+        "BHS"
+      ]
+    },
+    {
+      "key": "bih",
+      "country": "BIH",
+      "provinces": [
+        "BIH"
+      ]
+    },
+    {
+      "key": "blr",
+      "country": "BLR",
+      "provinces": [
+        "BLR"
+      ]
+    },
+    {
+      "key": "blz",
+      "country": "BLZ",
+      "provinces": [
+        "BLZ"
+      ]
+    },
+    {
+      "key": "bol",
+      "country": "BOL",
+      "provinces": [
+        "BOL"
+      ]
+    },
+    {
+      "key": "bra",
+      "country": "BRA",
+      "provinces": [
+        "BRA"
+      ]
+    },
+    {
+      "key": "brb",
+      "country": "BRB",
+      "provinces": [
+        "BRB"
+      ]
+    },
+    {
+      "key": "brn",
+      "country": "BRN",
+      "provinces": [
+        "BRN"
+      ]
+    },
+    {
+      "key": "btn",
+      "country": "BTN",
+      "provinces": [
+        "BTN"
+      ]
+    },
+    {
+      "key": "bwa",
+      "country": "BWA",
+      "provinces": [
+        "BWA"
+      ]
+    },
+    {
+      "key": "caf",
+      "country": "CAF",
+      "provinces": [
+        "CAF"
+      ]
+    },
+    {
+      "key": "can",
+      "country": "CAN",
+      "provinces": [
+        "CAN"
+      ]
+    },
+    {
+      "key": "che",
+      "country": "CHE",
+      "provinces": [
+        "CHE"
+      ]
+    },
+    {
+      "key": "chl",
+      "country": "CHL",
+      "provinces": [
+        "CHL"
+      ]
+    },
+    {
+      "key": "chn",
+      "country": "CHN",
+      "provinces": [
+        "CHN"
+      ]
+    },
+    {
+      "key": "civ",
+      "country": "CIV",
+      "provinces": [
+        "CIV"
+      ]
+    },
+    {
+      "key": "cmr",
+      "country": "CMR",
+      "provinces": [
+        "CMR"
+      ]
+    },
+    {
+      "key": "cod",
+      "country": "COD",
+      "provinces": [
+        "COD"
+      ]
+    },
+    {
+      "key": "cog",
+      "country": "COG",
+      "provinces": [
+        "COG"
+      ]
+    },
+    {
+      "key": "col",
+      "country": "COL",
+      "provinces": [
+        "COL"
+      ]
+    },
+    {
+      "key": "com",
+      "country": "COM",
+      "provinces": [
+        "COM"
+      ]
+    },
+    {
+      "key": "cpv",
+      "country": "CPV",
+      "provinces": [
+        "CPV"
+      ]
+    },
+    {
+      "key": "cri",
+      "country": "CRI",
+      "provinces": [
+        "CRI"
+      ]
+    },
+    {
+      "key": "cub",
+      "country": "CUB",
+      "provinces": [
+        "CUB"
+      ]
+    },
+    {
+      "key": "cyp",
+      "country": "CYP",
+      "provinces": [
+        "CYP"
+      ]
+    },
+    {
+      "key": "cze",
+      "country": "CZE",
+      "provinces": [
+        "CZE"
+      ]
+    },
+    {
+      "key": "deu",
+      "country": "DEU",
+      "provinces": [
+        "DEU"
+      ]
+    },
+    {
+      "key": "dji",
+      "country": "DJI",
+      "provinces": [
+        "DJI"
+      ]
+    },
+    {
+      "key": "dma",
+      "country": "DMA",
+      "provinces": [
+        "DMA"
+      ]
+    },
+    {
+      "key": "dnk",
+      "country": "DNK",
+      "provinces": [
+        "DNK"
+      ]
+    },
+    {
+      "key": "dom",
+      "country": "DOM",
+      "provinces": [
+        "DOM"
+      ]
+    },
+    {
+      "key": "dza",
+      "country": "DZA",
+      "provinces": [
+        "DZA"
+      ]
+    },
+    {
+      "key": "ecu",
+      "country": "ECU",
+      "provinces": [
+        "ECU"
+      ]
+    },
+    {
+      "key": "egy",
+      "country": "EGY",
+      "provinces": [
+        "EGY"
+      ]
+    },
+    {
+      "key": "eri",
+      "country": "ERI",
+      "provinces": [
+        "ERI"
+      ]
+    },
+    {
+      "key": "esp",
+      "country": "ESP",
+      "provinces": [
+        "ESP"
+      ]
+    },
+    {
+      "key": "est",
+      "country": "EST",
+      "provinces": [
+        "EST"
+      ]
+    },
+    {
+      "key": "eth",
+      "country": "ETH",
+      "provinces": [
+        "ETH"
+      ]
+    },
+    {
+      "key": "fin",
+      "country": "FIN",
+      "provinces": [
+        "FIN"
+      ]
+    },
+    {
+      "key": "fji",
+      "country": "FJI",
+      "provinces": [
+        "FJI"
+      ]
+    },
+    {
+      "key": "fra",
+      "country": "FRA",
+      "provinces": [
+        "FRA",
+        "MCO"
+      ],
+      "name": "Francia"
+    },
+    {
+      "key": "fsm",
+      "country": "FSM",
+      "provinces": [
+        "FSM"
+      ]
+    },
+    {
+      "key": "gab",
+      "country": "GAB",
+      "provinces": [
+        "GAB"
+      ]
+    },
+    {
+      "key": "gbr",
+      "country": "GBR",
+      "provinces": [
+        "GBR"
+      ]
+    },
+    {
+      "key": "geo",
+      "country": "GEO",
+      "provinces": [
+        "GEO"
+      ]
+    },
+    {
+      "key": "gha",
+      "country": "GHA",
+      "provinces": [
+        "GHA"
+      ]
+    },
+    {
+      "key": "gin",
+      "country": "GIN",
+      "provinces": [
+        "GIN"
+      ]
+    },
+    {
+      "key": "gmb",
+      "country": "GMB",
+      "provinces": [
+        "GMB"
+      ]
+    },
+    {
+      "key": "gnb",
+      "country": "GNB",
+      "provinces": [
+        "GNB"
+      ]
+    },
+    {
+      "key": "gnq",
+      "country": "GNQ",
+      "provinces": [
+        "GNQ"
+      ]
+    },
+    {
+      "key": "grc",
+      "country": "GRC",
+      "provinces": [
+        "GRC"
+      ]
+    },
+    {
+      "key": "grd",
+      "country": "GRD",
+      "provinces": [
+        "GRD"
+      ]
+    },
+    {
+      "key": "gtm",
+      "country": "GTM",
+      "provinces": [
+        "GTM"
+      ]
+    },
+    {
+      "key": "guy",
+      "country": "GUY",
+      "provinces": [
+        "GUY"
+      ]
+    },
+    {
+      "key": "hnd",
+      "country": "HND",
+      "provinces": [
+        "HND"
+      ]
+    },
+    {
+      "key": "hrv",
+      "country": "HRV",
+      "provinces": [
+        "HRV"
+      ]
+    },
+    {
+      "key": "hti",
+      "country": "HTI",
+      "provinces": [
+        "HTI"
+      ]
+    },
+    {
+      "key": "hun",
+      "country": "HUN",
+      "provinces": [
+        "HUN"
+      ]
+    },
+    {
+      "key": "idn",
+      "country": "IDN",
+      "provinces": [
+        "IDN"
+      ]
+    },
+    {
+      "key": "ind",
+      "country": "IND",
+      "provinces": [
+        "IND"
+      ]
+    },
+    {
+      "key": "irl",
+      "country": "IRL",
+      "provinces": [
+        "IRL"
+      ]
+    },
+    {
+      "key": "irn",
+      "country": "IRN",
+      "provinces": [
+        "IRN"
+      ]
+    },
+    {
+      "key": "irq",
+      "country": "IRQ",
+      "provinces": [
+        "IRQ"
+      ]
+    },
+    {
+      "key": "isl",
+      "country": "ISL",
+      "provinces": [
+        "ISL"
+      ]
+    },
+    {
+      "key": "isr",
+      "country": "ISR",
+      "provinces": [
+        "ISR"
+      ]
+    },
+    {
+      "key": "ita",
+      "country": "ITA",
+      "provinces": [
+        "ITA",
+        "VAT"
+      ],
+      "name": "Italia"
+    },
+    {
+      "key": "jam",
+      "country": "JAM",
+      "provinces": [
+        "JAM"
+      ]
+    },
+    {
+      "key": "jor",
+      "country": "JOR",
+      "provinces": [
+        "JOR"
+      ]
+    },
+    {
+      "key": "jpn",
+      "country": "JPN",
+      "provinces": [
+        "JPN"
+      ]
+    },
+    {
+      "key": "kaz",
+      "country": "KAZ",
+      "provinces": [
+        "KAZ"
+      ]
+    },
+    {
+      "key": "ken",
+      "country": "KEN",
+      "provinces": [
+        "KEN"
+      ]
+    },
+    {
+      "key": "kgz",
+      "country": "KGZ",
+      "provinces": [
+        "KGZ"
+      ]
+    },
+    {
+      "key": "khm",
+      "country": "KHM",
+      "provinces": [
+        "KHM"
+      ]
+    },
+    {
+      "key": "kir",
+      "country": "KIR",
+      "provinces": [
+        "KIR"
+      ]
+    },
+    {
+      "key": "kna",
+      "country": "KNA",
+      "provinces": [
+        "KNA"
+      ]
+    },
+    {
+      "key": "kor",
+      "country": "KOR",
+      "provinces": [
+        "KOR"
+      ]
+    },
+    {
+      "key": "kos",
+      "country": "KOS",
+      "provinces": [
+        "KOS"
+      ]
+    },
+    {
+      "key": "kwt",
+      "country": "KWT",
+      "provinces": [
+        "KWT"
+      ]
+    },
+    {
+      "key": "lao",
+      "country": "LAO",
+      "provinces": [
+        "LAO"
+      ]
+    },
+    {
+      "key": "lbn",
+      "country": "LBN",
+      "provinces": [
+        "LBN"
+      ]
+    },
+    {
+      "key": "lbr",
+      "country": "LBR",
+      "provinces": [
+        "LBR"
+      ]
+    },
+    {
+      "key": "lby",
+      "country": "LBY",
+      "provinces": [
+        "LBY"
+      ]
+    },
+    {
+      "key": "lca",
+      "country": "LCA",
+      "provinces": [
+        "LCA"
+      ]
+    },
+    {
+      "key": "lie",
+      "country": "LIE",
+      "provinces": [
+        "LIE"
+      ]
+    },
+    {
+      "key": "lka",
+      "country": "LKA",
+      "provinces": [
+        "LKA"
+      ]
+    },
+    {
+      "key": "lso",
+      "country": "LSO",
+      "provinces": [
+        "LSO"
+      ]
+    },
+    {
+      "key": "ltu",
+      "country": "LTU",
+      "provinces": [
+        "LTU"
+      ]
+    },
+    {
+      "key": "lux",
+      "country": "LUX",
+      "provinces": [
+        "LUX"
+      ]
+    },
+    {
+      "key": "lva",
+      "country": "LVA",
+      "provinces": [
+        "LVA"
+      ]
+    },
+    {
+      "key": "mar",
+      "country": "MAR",
+      "provinces": [
+        "MAR"
+      ]
+    },
+    {
+      "key": "mda",
+      "country": "MDA",
+      "provinces": [
+        "MDA"
+      ]
+    },
+    {
+      "key": "mdg",
+      "country": "MDG",
+      "provinces": [
+        "MDG"
+      ]
+    },
+    {
+      "key": "mdv",
+      "country": "MDV",
+      "provinces": [
+        "MDV"
+      ]
+    },
+    {
+      "key": "mex",
+      "country": "MEX",
+      "provinces": [
+        "MEX"
+      ]
+    },
+    {
+      "key": "mhl",
+      "country": "MHL",
+      "provinces": [
+        "MHL"
+      ]
+    },
+    {
+      "key": "mkd",
+      "country": "MKD",
+      "provinces": [
+        "MKD"
+      ]
+    },
+    {
+      "key": "mli",
+      "country": "MLI",
+      "provinces": [
+        "MLI"
+      ]
+    },
+    {
+      "key": "mlt",
+      "country": "MLT",
+      "provinces": [
+        "MLT"
+      ]
+    },
+    {
+      "key": "mmr",
+      "country": "MMR",
+      "provinces": [
+        "MMR"
+      ]
+    },
+    {
+      "key": "mne",
+      "country": "MNE",
+      "provinces": [
+        "MNE"
+      ]
+    },
+    {
+      "key": "mng",
+      "country": "MNG",
+      "provinces": [
+        "MNG"
+      ]
+    },
+    {
+      "key": "moz",
+      "country": "MOZ",
+      "provinces": [
+        "MOZ"
+      ]
+    },
+    {
+      "key": "mrt",
+      "country": "MRT",
+      "provinces": [
+        "MRT"
+      ]
+    },
+    {
+      "key": "mus",
+      "country": "MUS",
+      "provinces": [
+        "MUS"
+      ]
+    },
+    {
+      "key": "mwi",
+      "country": "MWI",
+      "provinces": [
+        "MWI"
+      ]
+    },
+    {
+      "key": "mys",
+      "country": "MYS",
+      "provinces": [
+        "MYS"
+      ]
+    },
+    {
+      "key": "nam",
+      "country": "NAM",
+      "provinces": [
+        "NAM"
+      ]
+    },
+    {
+      "key": "ner",
+      "country": "NER",
+      "provinces": [
+        "NER"
+      ]
+    },
+    {
+      "key": "nga",
+      "country": "NGA",
+      "provinces": [
+        "NGA"
+      ]
+    },
+    {
+      "key": "nic",
+      "country": "NIC",
+      "provinces": [
+        "NIC"
+      ]
+    },
+    {
+      "key": "nld",
+      "country": "NLD",
+      "provinces": [
+        "NLD"
+      ]
+    },
+    {
+      "key": "nor",
+      "country": "NOR",
+      "provinces": [
+        "NOR"
+      ]
+    },
+    {
+      "key": "npl",
+      "country": "NPL",
+      "provinces": [
+        "NPL"
+      ]
+    },
+    {
+      "key": "nzl",
+      "country": "NZL",
+      "provinces": [
+        "NZL"
+      ]
+    },
+    {
+      "key": "omn",
+      "country": "OMN",
+      "provinces": [
+        "OMN"
+      ]
+    },
+    {
+      "key": "pak",
+      "country": "PAK",
+      "provinces": [
+        "PAK"
+      ]
+    },
+    {
+      "key": "pan",
+      "country": "PAN",
+      "provinces": [
+        "PAN"
+      ]
+    },
+    {
+      "key": "per",
+      "country": "PER",
+      "provinces": [
+        "PER"
+      ]
+    },
+    {
+      "key": "phl",
+      "country": "PHL",
+      "provinces": [
+        "PHL"
+      ]
+    },
+    {
+      "key": "plw",
+      "country": "PLW",
+      "provinces": [
+        "PLW"
+      ]
+    },
+    {
+      "key": "png",
+      "country": "PNG",
+      "provinces": [
+        "PNG"
+      ]
+    },
+    {
+      "key": "pol",
+      "country": "POL",
+      "provinces": [
+        "POL"
+      ]
+    },
+    {
+      "key": "prk",
+      "country": "PRK",
+      "provinces": [
+        "PRK"
+      ]
+    },
+    {
+      "key": "prt",
+      "country": "PRT",
+      "provinces": [
+        "PRT"
+      ]
+    },
+    {
+      "key": "pry",
+      "country": "PRY",
+      "provinces": [
+        "PRY"
+      ]
+    },
+    {
+      "key": "psx",
+      "country": "PSX",
+      "provinces": [
+        "PSX"
+      ]
+    },
+    {
+      "key": "qat",
+      "country": "QAT",
+      "provinces": [
+        "QAT"
+      ]
+    },
+    {
+      "key": "rou",
+      "country": "ROU",
+      "provinces": [
+        "ROU"
+      ]
+    },
+    {
+      "key": "rus",
+      "country": "RUS",
+      "provinces": [
+        "RUS"
+      ]
+    },
+    {
+      "key": "rwa",
+      "country": "RWA",
+      "provinces": [
+        "RWA"
+      ]
+    },
+    {
+      "key": "sau",
+      "country": "SAU",
+      "provinces": [
+        "SAU"
+      ]
+    },
+    {
+      "key": "sdn",
+      "country": "SDN",
+      "provinces": [
+        "SDN"
+      ]
+    },
+    {
+      "key": "sds",
+      "country": "SDS",
+      "provinces": [
+        "SDS"
+      ]
+    },
+    {
+      "key": "sen",
+      "country": "SEN",
+      "provinces": [
+        "SEN"
+      ]
+    },
+    {
+      "key": "sgp",
+      "country": "SGP",
+      "provinces": [
+        "SGP"
+      ]
+    },
+    {
+      "key": "slb",
+      "country": "SLB",
+      "provinces": [
+        "SLB"
+      ]
+    },
+    {
+      "key": "sle",
+      "country": "SLE",
+      "provinces": [
+        "SLE"
+      ]
+    },
+    {
+      "key": "slv",
+      "country": "SLV",
+      "provinces": [
+        "SLV"
+      ]
+    },
+    {
+      "key": "smr",
+      "country": "SMR",
+      "provinces": [
+        "SMR"
+      ]
+    },
+    {
+      "key": "som",
+      "country": "SOM",
+      "provinces": [
+        "SOM"
+      ]
+    },
+    {
+      "key": "srb",
+      "country": "SRB",
+      "provinces": [
+        "SRB"
+      ]
+    },
+    {
+      "key": "stp",
+      "country": "STP",
+      "provinces": [
+        "STP"
+      ]
+    },
+    {
+      "key": "sur",
+      "country": "SUR",
+      "provinces": [
+        "SUR"
+      ]
+    },
+    {
+      "key": "svk",
+      "country": "SVK",
+      "provinces": [
+        "SVK"
+      ]
+    },
+    {
+      "key": "svn",
+      "country": "SVN",
+      "provinces": [
+        "SVN"
+      ]
+    },
+    {
+      "key": "swe",
+      "country": "SWE",
+      "provinces": [
+        "SWE"
+      ]
+    },
+    {
+      "key": "swz",
+      "country": "SWZ",
+      "provinces": [
+        "SWZ"
+      ]
+    },
+    {
+      "key": "syc",
+      "country": "SYC",
+      "provinces": [
+        "SYC"
+      ]
+    },
+    {
+      "key": "syr",
+      "country": "SYR",
+      "provinces": [
+        "SYR"
+      ]
+    },
+    {
+      "key": "tcd",
+      "country": "TCD",
+      "provinces": [
+        "TCD"
+      ]
+    },
+    {
+      "key": "tgo",
+      "country": "TGO",
+      "provinces": [
+        "TGO"
+      ]
+    },
+    {
+      "key": "tha",
+      "country": "THA",
+      "provinces": [
+        "THA"
+      ]
+    },
+    {
+      "key": "tjk",
+      "country": "TJK",
+      "provinces": [
+        "TJK"
+      ]
+    },
+    {
+      "key": "tkm",
+      "country": "TKM",
+      "provinces": [
+        "TKM"
+      ]
+    },
+    {
+      "key": "tls",
+      "country": "TLS",
+      "provinces": [
+        "TLS"
+      ]
+    },
+    {
+      "key": "ton",
+      "country": "TON",
+      "provinces": [
+        "TON"
+      ]
+    },
+    {
+      "key": "tto",
+      "country": "TTO",
+      "provinces": [
+        "TTO"
+      ]
+    },
+    {
+      "key": "tun",
+      "country": "TUN",
+      "provinces": [
+        "TUN"
+      ]
+    },
+    {
+      "key": "tur",
+      "country": "TUR",
+      "provinces": [
+        "TUR"
+      ]
+    },
+    {
+      "key": "twn",
+      "country": "TWN",
+      "provinces": [
+        "TWN"
+      ]
+    },
+    {
+      "key": "tza",
+      "country": "TZA",
+      "provinces": [
+        "TZA"
+      ]
+    },
+    {
+      "key": "uga",
+      "country": "UGA",
+      "provinces": [
+        "UGA"
+      ]
+    },
+    {
+      "key": "ukr",
+      "country": "UKR",
+      "provinces": [
+        "UKR"
+      ]
+    },
+    {
+      "key": "ury",
+      "country": "URY",
+      "provinces": [
+        "URY"
+      ]
+    },
+    {
+      "key": "usa",
+      "country": "USA",
+      "provinces": [
+        "USA"
+      ]
+    },
+    {
+      "key": "uzb",
+      "country": "UZB",
+      "provinces": [
+        "UZB"
+      ]
+    },
+    {
+      "key": "vct",
+      "country": "VCT",
+      "provinces": [
+        "VCT"
+      ]
+    },
+    {
+      "key": "ven",
+      "country": "VEN",
+      "provinces": [
+        "VEN"
+      ]
+    },
+    {
+      "key": "vnm",
+      "country": "VNM",
+      "provinces": [
+        "VNM"
+      ]
+    },
+    {
+      "key": "vut",
+      "country": "VUT",
+      "provinces": [
+        "VUT"
+      ]
+    },
+    {
+      "key": "wsm",
+      "country": "WSM",
+      "provinces": [
+        "WSM"
+      ]
+    },
+    {
+      "key": "yem",
+      "country": "YEM",
+      "provinces": [
+        "YEM"
+      ]
+    },
+    {
+      "key": "zaf",
+      "country": "ZAF",
+      "provinces": [
+        "ZAF"
+      ]
+    },
+    {
+      "key": "zmb",
+      "country": "ZMB",
+      "provinces": [
+        "ZMB"
+      ]
+    },
+    {
+      "key": "zwe",
+      "country": "ZWE",
+      "provinces": [
+        "ZWE"
+      ]
+    }
+  ],
+  "excluded": []
+}
