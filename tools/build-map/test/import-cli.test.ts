@@ -2,8 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { IMPORT_MODES, IMPORT_USAGE, parseMode, runImport } from '../src/cli/import';
-import { realFs } from '../src/io/fs-ops';
+import { IMPORT_MODES, IMPORT_USAGE, parseMode, realImportFs, runImport } from '../src/cli/import';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -11,7 +10,7 @@ async function run(args: string[]): Promise<{ status: number; stdout: string; st
   let stdout = '';
   let stderr = '';
   const status = await runImport(args, {
-    fs: realFs,
+    fs: realImportFs,
     root: join(here, '..', '..', '..'),
     stdout: (s) => (stdout += s),
     stderr: (s) => (stderr += s),

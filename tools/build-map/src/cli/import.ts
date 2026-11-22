@@ -1,10 +1,45 @@
+import type { Result } from '@mbrg/shared';
+import { statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import type { SourceError } from '../importer/types';
 import { realFs, type FsOps } from '../io/fs-ops';
+
+/** The file operations of the import command: those of the builder plus the size of a file (`stat`, never a read). */
+export interface ImportFs extends FsOps {
+  size(path: string): number;
+}
+
+export const realImportFs: ImportFs = { ...realFs, size: (path) => statSync(path).size };
+
+/**
+ * FR-588, NFR-135, PD10: the bytes of a file within `cap`. The size comes from `stat` first, so an oversized file is
+ * never read; the bytes are checked again once read (the file may have grown). `label` names the file in errors.
+ */
+export function readBounded(fs: ImportFs, path: string, label: string, cap: number): Result<Uint8Array, SourceError> {
+  const tooLarge = (found: number): Result<Uint8Array, SourceError> => ({
+    ok: false,
+    errors: [{ kind: 'source-too-large', file: label, what: 'bytes', cap, found }],
+  });
+  let size: number;
+  try {
+    size = fs.size(path);
+  } catch {
+    return { ok: false, errors: [{ kind: 'invalid-source', file: label, reason: 'unreadable' }] };
+  }
+  if (size > cap) return tooLarge(size);
+  let bytes: Uint8Array;
+  try {
+    bytes = fs.readFile(path);
+  } catch {
+    return { ok: false, errors: [{ kind: 'invalid-source', file: label, reason: 'unreadable' }] };
+  }
+  return bytes.length > cap ? tooLarge(bytes.length) : { ok: true, value: bytes };
+}
 
 /** What `runImport` needs from its environment; tests pass a temporary root and a faulty file system. */
 export interface ImportDeps {
-  fs: FsOps;
+  fs: ImportFs;
   /** Repository root: relative option paths resolve against it. */
   root: string;
   stdout(text: string): void;
@@ -52,7 +87,7 @@ export async function runImport(args: string[], deps: ImportDeps): Promise<numbe
 async function main(): Promise<number> {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
   return runImport(process.argv.slice(2), {
-    fs: realFs,
+    fs: realImportFs,
     root,
     stdout: (text) => process.stdout.write(text),
     stderr: (text) => process.stderr.write(text),

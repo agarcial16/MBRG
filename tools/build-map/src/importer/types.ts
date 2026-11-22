@@ -37,7 +37,7 @@ export type SourceError =
   | {
       kind: 'invalid-source';
       file: string;
-      reason: 'not-utf8' | 'not-json' | 'not-feature-collection' | 'bad-feature' | 'bad-geometry';
+      reason: 'not-utf8' | 'not-json' | 'not-feature-collection' | 'bad-feature' | 'bad-geometry' | 'unreadable';
       feature?: number;
     }
   | { kind: 'unsupported-geometry'; file: string; feature: number; type: string }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { readSource } from '../src/importer/read-source';
+import { readBounded, type ImportFs } from '../src/cli/import';
+import { SOURCE_CAPS, readSource, readSources } from '../src/importer/read-source';
 import { bytesOf, collection, crsOf, feat, multi, polygon, ring, textBytes } from './helpers/geo-fixture';
 
 const read = (value: unknown) => readSource({ file: 'a.geojson', bytes: bytesOf(value) }, { usedProperties: [] });
@@ -235,5 +236,199 @@ describe('FR-587 the GeoJSON source reader: the own-property rule on untrusted d
     );
     expect(r.ok).toBe(true);
     expect(({} as Record<string, unknown>)['x']).toBeUndefined();
+  });
+});
+
+const MIB = 1024 * 1024;
+const NULL_FEATURE = '{"type":"Feature","properties":null,"geometry":null}';
+const nullFeatures = (n: number): Uint8Array =>
+  textBytes(`{"type":"FeatureCollection","features":[${Array.from({ length: n }, () => NULL_FEATURE).join(',')}]}`);
+const readAll = (inputs: { file: string; bytes: Uint8Array }[], usedProperties: string[] = [], caps = {}) =>
+  readSources(inputs, { usedProperties, caps });
+const capErrors = (r: ReturnType<typeof readAll>): Record<string, unknown>[] =>
+  r.ok ? [] : (r.errors as unknown as Record<string, unknown>[]);
+
+function fakeFs(size: number, bytes: Uint8Array, onRead: () => void = () => undefined): ImportFs {
+  return {
+    readFile: () => {
+      onRead();
+      return bytes;
+    },
+    writeFile: () => undefined,
+    rename: () => undefined,
+    unlink: () => undefined,
+    mkdir: () => undefined,
+    size: () => size,
+  };
+}
+
+describe('FR-588 the source caps', () => {
+  it('FR-588 the caps are 256 MiB, 100,000 features, 20,000,000 positions, 256 properties and 1,024 code units', () => {
+    expect(SOURCE_CAPS).toStrictEqual({ bytes: 256 * MIB, features: 100_000, positions: 20_000_000, properties: 256, value: 1024 });
+  });
+
+  it('FR-588 a source over 256 MiB fails before parsing: no byte of it is read, decoded or parsed', () => {
+    const trap = new Proxy(
+      {},
+      {
+        get(_t, key) {
+          if (key === 'length') return 300 * MIB;
+          throw new Error(`the bytes were touched: ${String(key)}`);
+        },
+      },
+    ) as unknown as Uint8Array;
+    const r = readAll([{ file: 'big.geojson', bytes: trap }]);
+    expect(capErrors(r)).toStrictEqual([
+      { kind: 'source-too-large', file: 'big.geojson', what: 'bytes', cap: 256 * MIB, found: 300 * MIB },
+    ]);
+  });
+
+  it('FR-588 every oversized file is named and none is parsed, a file at the cap passes the size check', () => {
+    const limit = 500;
+    const small = bytesOf(collection([feat({}, polygon(0, 0))]));
+    const r = readAll(
+      [
+        { file: 'a', bytes: new Uint8Array(limit + 1) },
+        { file: 'b', bytes: small },
+        { file: 'c', bytes: new Uint8Array(limit + 5) },
+      ],
+      [],
+      { bytes: limit },
+    );
+    expect(capErrors(r)).toStrictEqual([
+      { kind: 'source-too-large', file: 'a', what: 'bytes', cap: limit, found: limit + 1 },
+      { kind: 'source-too-large', file: 'c', what: 'bytes', cap: limit, found: limit + 5 },
+    ]);
+    expect(readAll([{ file: 'ok', bytes: small }], [], { bytes: small.length }).ok).toBe(true);
+    expect(capErrors(readAll([{ file: 'ok', bytes: small }], [], { bytes: small.length - 1 }))).toHaveLength(1);
+  });
+
+  it('FR-588 the stat of the command refuses a 300 MiB file before any read, over a fake file system', () => {
+    let reads = 0;
+    const r = readBounded(
+      fakeFs(300 * MIB, new Uint8Array(0), () => reads++),
+      '/x/big.geojson',
+      'big.geojson',
+      256 * MIB,
+    );
+    expect(r).toStrictEqual({
+      ok: false,
+      errors: [{ kind: 'source-too-large', file: 'big.geojson', what: 'bytes', cap: 256 * MIB, found: 300 * MIB }],
+    });
+    expect(reads).toBe(0);
+  });
+
+  it('FR-588 the byte length is checked again on the bytes read, and a file within the cap is returned', () => {
+    // the file grew between the stat and the read
+    const grown = readBounded(fakeFs(5, new Uint8Array(50)), 'p', 'a', 10);
+    expect(grown).toStrictEqual({ ok: false, errors: [{ kind: 'source-too-large', file: 'a', what: 'bytes', cap: 10, found: 50 }] });
+    const fine = readBounded(fakeFs(10, new Uint8Array(10)), 'p', 'a', 10);
+    expect(fine.ok && fine.value.length).toBe(10);
+    const broken: ImportFs = {
+      ...fakeFs(1, new Uint8Array(1)),
+      readFile: () => {
+        throw new Error('no');
+      },
+    };
+    expect(readBounded(broken, 'p', 'a', 10)).toStrictEqual({
+      ok: false,
+      errors: [{ kind: 'invalid-source', file: 'a', reason: 'unreadable' }],
+    });
+  });
+
+  it('FR-588 100,000 features pass and 100,001 fail, counting features with a null geometry too', () => {
+    expect(readAll([{ file: 'f', bytes: nullFeatures(100_000) }]).ok).toBe(true);
+    expect(capErrors(readAll([{ file: 'f', bytes: nullFeatures(100_001) }]))).toStrictEqual([
+      { kind: 'source-too-large', file: 'f', what: 'features', cap: 100_000, found: 100_001 },
+    ]);
+  });
+
+  it('FR-588 the feature cap holds over the primary and the context sources together', () => {
+    const r = readAll([
+      { file: 'primary', bytes: nullFeatures(60_000) },
+      { file: 'context', bytes: nullFeatures(40_001) },
+    ]);
+    expect(capErrors(r)).toStrictEqual([
+      { kind: 'source-too-large', file: 'context', what: 'features', cap: 100_000, found: 100_001 },
+    ]);
+    expect(readAll([{ file: 'p', bytes: nullFeatures(60_000) }, { file: 'c', bytes: nullFeatures(40_000) }]).ok).toBe(true);
+  });
+
+  it('FR-588 the position cap counts every position of every feature and of every source, and stops at the offending feature', () => {
+    // five positions a feature (a closed square), a cap of 12: the third feature crosses it
+    const three = bytesOf(
+      collection([
+        feat({}, polygon(0, 0)),
+        feat({}, polygon(2, 0)),
+        feat({}, polygon(4, 0)),
+        feat({}, { type: 'Point', coordinates: [0, 0] }),
+      ]),
+    );
+    const r = readAll([{ file: 'f', bytes: three }], [], { positions: 12 });
+    expect(capErrors(r)).toStrictEqual([{ kind: 'source-too-large', file: 'f', what: 'positions', cap: 12, found: 15, feature: 2 }]);
+    const two = bytesOf(collection([feat({}, polygon(0, 0)), feat({}, polygon(2, 0))]));
+    expect(readAll([{ file: 'f', bytes: two }], [], { positions: 10 }).ok).toBe(true);
+    expect(readAll([{ file: 'f', bytes: two }], [], { positions: 9 }).ok).toBe(false);
+    // jointly: each source alone is within the cap, the two together are not
+    const joint = readAll([{ file: 'p', bytes: two }, { file: 'c', bytes: two }], [], { positions: 15 });
+    expect(capErrors(joint)).toStrictEqual([{ kind: 'source-too-large', file: 'c', what: 'positions', cap: 15, found: 20, feature: 1 }]);
+  });
+
+  it('FR-588 a feature with 256 properties passes and one with 257 fails, naming the feature', () => {
+    const props = (n: number) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`p${i}`, i]));
+    expect(readAll([{ file: 'f', bytes: bytesOf(collection([feat(props(256), polygon(0, 0))])) }]).ok).toBe(true);
+    const r = readAll([{ file: 'f', bytes: bytesOf(collection([feat({}, polygon(0, 0)), feat(props(257), polygon(2, 0))])) }]);
+    expect(capErrors(r)).toStrictEqual([{ kind: 'source-too-large', file: 'f', what: 'properties', cap: 256, found: 257, feature: 1 }]);
+  });
+
+  it('FR-588 a value of a used property over 1,024 code units fails, and a value of an unused property never does', () => {
+    const long = (n: number) => 'x'.repeat(n);
+    const at = (v: unknown, used: string[]) =>
+      readAll(
+        [{ file: 'f', bytes: bytesOf(collection([feat({ a: 'ok' }, polygon(0, 0)), feat({ name: v, other: long(5000) }, polygon(2, 0))])) }],
+        used,
+      );
+    expect(at(long(1024), ['name']).ok).toBe(true);
+    expect(capErrors(at(long(1025), ['name']))).toStrictEqual([
+      { kind: 'source-too-large', file: 'f', what: 'value', cap: 1024, found: 1025, feature: 1, property: 'name' },
+    ]);
+    // the same value is read when no rule names the property, and numbers are never capped
+    expect(at(long(5000), []).ok).toBe(true);
+    expect(at(long(5000), ['other2']).ok).toBe(true);
+    expect(at(123456789012345, ['name']).ok).toBe(true);
+    // the cap counts code units, not characters: 512 surrogate pairs are 1,024, 513 are 1,026
+    expect(at('\u{1F600}'.repeat(512), ['name']).ok).toBe(true);
+    expect(capErrors(at('\u{1F600}'.repeat(513), ['name']))[0]).toMatchObject({ what: 'value', found: 1026 });
+  });
+
+  it('FR-588 the read stops at the offending record: errors before it are kept, later ones are never looked for', () => {
+    const bytes = bytesOf(
+      collection([
+        feat({}, { type: 'Point', coordinates: [0, 0] }),
+        feat({ name: 'y'.repeat(2000) }, polygon(0, 0)),
+        feat({}, { type: 'LineString', coordinates: [] }),
+        feat({}, polygon(500, 500)),
+      ]),
+    );
+    const r = readAll([{ file: 'f', bytes }], ['name']);
+    expect(capErrors(r)).toStrictEqual([
+      { kind: 'unsupported-geometry', file: 'f', feature: 0, type: 'Point' },
+      { kind: 'source-too-large', file: 'f', what: 'value', cap: 1024, found: 2000, feature: 1, property: 'name' },
+    ]);
+  });
+
+  it('FR-588 the single-source reader applies the same caps, and a used name on the prototype is never read', () => {
+    const r = readSource(
+      { file: 'f', bytes: bytesOf(collection([feat({ name: 'z'.repeat(1025) }, polygon(0, 0))])) },
+      { usedProperties: ['name'] },
+    );
+    expect(r.ok).toBe(false);
+    Object.defineProperty(Object.prototype, 'inheritedName', { value: 'q'.repeat(5000), configurable: true, writable: true });
+    try {
+      const ok = readSource({ file: 'f', bytes: bytesOf(collection([feat({}, polygon(0, 0))])) }, { usedProperties: ['inheritedName'] });
+      expect(ok.ok).toBe(true);
+    } finally {
+      delete (Object.prototype as Record<string, unknown>)['inheritedName'];
+    }
   });
 });
