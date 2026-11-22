@@ -206,6 +206,7 @@ export interface ImportReportDetails {
   numbering: ImportNumbering;
   reassigned: readonly Reassignment[];
   filled: readonly FilledSet[];
+  contextGapPixels: number;
   enclosed: readonly EnclosedSet[];
 }
 
@@ -283,6 +284,7 @@ export function formatImportReport(input: ImportReportInput): string {
   lines.push(...details.reassigned.map((r) => `  - entry=${r.entry} pixels=${r.pixels} to=${r.to === 0 ? 'background' : String(r.to)}`));
   lines.push(`gapFilledSets: ${details.filled.length}`);
   lines.push(...details.filled.map((s) => `  - pixels=${s.pixels} territory=${s.territory}`));
+  lines.push(`contextGapPixels: ${details.contextGapPixels}`);
   const enclosed = summariseEnclosed([...details.enclosed]);
   lines.push(`enclosedWaterSets: ${enclosed.sets}`);
   lines.push(`enclosedWaterPixels: ${enclosed.pixels}`);

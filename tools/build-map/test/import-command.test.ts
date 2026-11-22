@@ -464,6 +464,42 @@ describe('FR-608 the pixel steps of an import, end to end', () => {
     expect(count(withFill.pixels, 1) - count(without.pixels, 1)).toBe(withFill.details.filled[0]!.pixels);
   });
 
+  it('FR-602 turns the strip between a unit and a context feature that does not fit it into other land, so no zone touches both', () => {
+    const seaTouchesBoth = (r: ReturnType<typeof core>): number => {
+      if (!r.ok) throw new Error(JSON.stringify(r.errors));
+      const land = new Set(r.map.territories.filter((t) => t.kind !== 'sea').map((t) => t.id));
+      const sea = new Set(r.map.territories.filter((t) => t.kind === 'sea').map((t) => t.id));
+      const w = r.width;
+      let n = 0;
+      for (let y = 2; y < w - 2; y++) {
+        for (let x = 2; x < w - 2; x++) {
+          if (!sea.has(r.pixels[y * w + x]!)) continue;
+          let touchesLand = false;
+          let touchesOther = false;
+          for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+            const v = r.pixels[(y + dy) * w + x + dx]!;
+            if (land.has(v)) touchesLand = true;
+            else if (v === 0) touchesOther = true;
+          }
+          if (touchesLand && touchesOther) n++;
+        }
+      }
+      return n;
+    };
+    const near = world();
+    // a context country whose north edge sits a little south of the three units (0 to 6 degrees east, 0 north): a sliver of water between
+    near.context = collection([feat({ name: 'South' }, rect(-1, -1.5, 7, -0.1))]);
+    near.curation.seas = [];
+    near.curation.params.contextGap = 0;
+    const open = core(near);
+    expect(seaTouchesBoth(open), 'without the rule the sliver is sea').toBeGreaterThan(0);
+    delete near.curation.params.contextGap;
+    const closed = core(near);
+    expect(seaTouchesBoth(closed)).toBe(0);
+    if (!closed.ok) throw new Error('unreachable');
+    expect(closed.details.contextGapPixels).toBeGreaterThan(0);
+  });
+
   it('FR-601 draws a unit of an inset from its own projection at the rectangle, and the rest in the main view', () => {
     const w = world();
     // a small island of country Y far to the north-east: drawn by itself in a rectangle below the land, not at its place

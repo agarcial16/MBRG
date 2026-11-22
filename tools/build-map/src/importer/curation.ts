@@ -30,6 +30,8 @@ export interface Params {
   minPieceSize: number;
   projection: 'laea' | 'equal-earth';
   gapFill?: number;
+  /** FR-602: the widest strip of water between a land territory and other land that becomes other land (0 to 16). */
+  contextGap?: number;
 }
 
 /** FR-595: one entry of the per-unit layer. */
@@ -217,17 +219,26 @@ function readParams(value: unknown, problems: Problems): Params | undefined {
     problems.add('params');
     return undefined;
   }
-  noUnknown(value, ['side', 'margin', 'minPieceSize', 'projection', 'gapFill'], 'params', problems);
+  noUnknown(value, ['side', 'margin', 'minPieceSize', 'projection', 'gapFill', 'contextGap'], 'params', problems);
   const side = readRange(value, 'side', 64, 16384, true, problems);
   const margin = readRange(value, 'margin', 0, 0.5, false, problems);
   const minPieceSize = readRange(value, 'minPieceSize', 1, 10000, true, problems);
   const projection = own(value, 'projection');
   if (projection !== 'laea' && projection !== 'equal-earth') problems.add('params.projection');
   const gapFill = Object.hasOwn(value, 'gapFill') ? readRange(value, 'gapFill', 1, 10000, true, problems) : undefined;
+  const contextGap = Object.hasOwn(value, 'contextGap') ? readRange(value, 'contextGap', 0, 16, true, problems) : undefined;
   if (side === undefined || margin === undefined || minPieceSize === undefined) return undefined;
   if (projection !== 'laea' && projection !== 'equal-earth') return undefined;
   if (Object.hasOwn(value, 'gapFill') && gapFill === undefined) return undefined;
-  return gapFill === undefined ? { side, margin, minPieceSize, projection } : { side, margin, minPieceSize, projection, gapFill };
+  if (Object.hasOwn(value, 'contextGap') && contextGap === undefined) return undefined;
+  return {
+    side,
+    margin,
+    minPieceSize,
+    projection,
+    ...(gapFill === undefined ? {} : { gapFill }),
+    ...(contextGap === undefined ? {} : { contextGap }),
+  };
 }
 
 /**

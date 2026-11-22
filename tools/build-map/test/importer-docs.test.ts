@@ -34,7 +34,7 @@ describe('FR-613 the deployment guide documents adding a map', () => {
     expect(section).toContain('2,048');
     expect(section).toContain('255');
     expect(section).toContain('65,535');
-    expect(section).toMatch(/internal error/i);
+    expect(section).toMatch(/refuses it at load/i);
     expect(section).toContain('V1');
     expect(section).toContain('V2');
 

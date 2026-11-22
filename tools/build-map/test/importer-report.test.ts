@@ -181,6 +181,7 @@ const REPORT_LABELS = [
   'smallestPiece',
   'reassignedPieces',
   'gapFilledSets',
+  'contextGapPixels',
   'enclosedWaterSets',
   'enclosedWaterPixels',
   'enclosedWaterZones',

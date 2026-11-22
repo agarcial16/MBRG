@@ -99,6 +99,7 @@ const REPORT_LABELS = [
   'smallestPiece',
   'reassignedPieces',
   'gapFilledSets',
+  'contextGapPixels',
   'enclosedWaterSets',
   'enclosedWaterPixels',
   'enclosedWaterZones',
@@ -512,7 +513,7 @@ describe('NFR-137 the language of the importer', () => {
 
   it('NFR-137 every importer source and CLI file is ASCII-only', () => {
     const allSources = { ...sources, ...cliSources };
-    expect(Object.keys(sources)).toHaveLength(22);
+    expect(Object.keys(sources)).toHaveLength(24);
     expect(Object.keys(cliSources)).toHaveLength(3);
     const offenders = Object.keys(allSources).filter((f) => /[^\x00-\x7f]/.test(allSources[f]!));
     expect(offenders).toStrictEqual([]);

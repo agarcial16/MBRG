@@ -303,9 +303,21 @@ on stderr, nothing written in the output folder), and `2` on usage error.
      capability message).
    - `factionsAbove255` (more than **255** factions) or `entriesAbove65535`
      (more than **65,535** entries): a package exceeding either limit is **not
-     drawable by today's viewer** — it stops with an **internal error, not a
-     message**, until follow-up **V1** ships — so do not list it on the server
-     until follow-ups **V1** and **V2** ship.
+     drawable by today's viewer**. The viewer **refuses it at load with a
+     Spanish message naming the limit** (spec 029) and draws no map, instead of
+     the internal error of earlier versions; listing it still gives players an
+     unplayable map, so do not list it on the server until follow-up **V2**
+     (many factions) or **V3** (tiling) ships. A texture above the device's
+     maximum and a failed colour assignment also stop with a message (follow-up
+     **V1** is covered by these refusals).
+   - `contextGapPixels`: water between a land territory and other land (a context
+     source or an unselected unit) that is at most `params.contextGap` pixels wide
+     (default 3, 0 turns it off) is turned into other land, because two sources
+     rarely fit along a shared border and the strip would otherwise be a sea
+     zone linking every territory on that border. A territory this leaves with no
+     neighbour (an exclave such as Llívia) fails the import as
+     `disconnected-map`: exclude it in the curation. An inset that holds a sea
+     seed is a sea of its own (no main-map zone flows into it).
    - `paletteExhaustedFaction`: the first faction for which the viewer's
      12-colour assignment fails; supply explicit `color` values in `factions`
      (or wait for **V2**) before listing.

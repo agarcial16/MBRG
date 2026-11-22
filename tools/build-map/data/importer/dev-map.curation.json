@@ -28,6 +28,7 @@
     "side": 2048,
     "margin": 0.02,
     "minPieceSize": 40,
+    "contextGap": 0,
     "projection": "laea"
   },
   "units": {

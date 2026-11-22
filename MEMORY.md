@@ -2,7 +2,7 @@
 Durable decisions, limits and lessons; no per-task diary (that is `specs/<id>/PROGRESS.md`; live work is `docs/board.md`). Area lessons: `docs/lessons/{web,bot,server,map}.md`. Keep <= ~4 KB.
 
 ## State
-Specs 001-027 and 029 implemented. Spec 028 (vector map importer) M1-M3 implemented on `feat/028-map-importer` (PR #94: final review, hand runs 1 & 2 pending). Branch from `main`, PR into `main`.
+Specs 001-027 and 029 implemented. Spec 028 (vector map importer) M1-M3 implemented on `feat/028-map-importer` (PR #94: hand run 1 fixes done: inset sea, context gap, preview colours). Branch from `main`, PR into `main`.
 Predefined maps: `maps/spain-provinces` (52 provinces), `maps/world-countries` (193 countries, 7 sea zones; data in `tools/build-map/data/world-countries/`). Next: viewer follow-ups V1-V3 (`docs/board.md`), painted-image importer (route A), replay of finished matches.
 
 ## Game

@@ -88,6 +88,7 @@ describe('FR-592 the curation file schema: what it accepts', () => {
     for (const margin of [0, 0.5]) expect(parse(changed((c) => (c.params.margin = margin), minimal)).ok, `margin ${margin}`).toBe(true);
     for (const n of [1, 10000]) expect(parse(changed((c) => (c.params.minPieceSize = n), minimal)).ok, `S ${n}`).toBe(true);
     for (const n of [1, 10000]) expect(parse(changed((c) => (c.params.gapFill = n), minimal)).ok, `gap ${n}`).toBe(true);
+    for (const n of [0, 16]) expect(parse(changed((c) => (c.params.contextGap = n), minimal)).ok, `context gap ${n}`).toBe(true);
     for (const projection of ['laea', 'equal-earth']) expect(parse(changed((c) => (c.params.projection = projection), minimal)).ok).toBe(true);
     for (const n of [1, 2, 3]) expect(parse(changed((c) => (c.columns.name = Array.from({ length: n }, (_, i) => `n${i}`)), minimal)).ok, `names ${n}`).toBe(true);
     expect(parse(changed((c) => (c.context = Array.from({ length: 8 }, (_, i) => `c${i}.geojson`)), minimal)).ok).toBe(true);
@@ -246,6 +247,12 @@ describe('FR-592 the curation file schema: what it refuses, each with its member
   it('FR-592 refuses a gap fill outside 1 to 10,000 or not an integer', () => {
     for (const n of [0, 10001, -3, 1.5, '5', null]) {
       expect(paths(changed((c) => (c.params.gapFill = n), minimal)), String(n)).toStrictEqual(['params.gapFill']);
+    }
+  });
+
+  it('FR-592 refuses a context gap outside 0 to 16 or not an integer', () => {
+    for (const n of [-1, 17, 1.5, '3', null]) {
+      expect(paths(changed((c) => (c.params.contextGap = n), minimal)), String(n)).toStrictEqual(['params.contextGap']);
     }
   });
 

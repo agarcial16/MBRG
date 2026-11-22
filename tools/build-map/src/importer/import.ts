@@ -8,8 +8,10 @@ import { selfCheck } from '../core/self-check';
 import type { Artifact, BuildError, BuiltPresentation, PngCodec } from '../core/types';
 import { checkCuration, type CurationPlan, type CurationStageError } from './check-curation';
 import { usedProperties, type Curation } from './curation';
+import { closeContextGaps, DEFAULT_CONTEXT_GAP } from './context-gap';
 import { makeGapFill, type FilledSet } from './gap-fill';
 import { cleanPieces, type BelowMinSize, type TerritoryInfo } from './min-size';
+import { withPreviewColors } from './preview-colors';
 import { numberMap, type ImportNumbering } from './numbering';
 import { composePixels } from './pixels';
 import { readSources, type SourceInput } from './read-source';
@@ -40,6 +42,8 @@ export interface ImportDetails {
   views: ViewSet;
   numbering: ImportNumbering;
   filled: FilledSet[];
+  /** FR-602: the water pixels of strips between a land territory and other land that became other land. */
+  contextGapPixels: number;
   enclosed: EnclosedSet[];
   reassigned: Reassignment[];
 }
@@ -102,7 +106,7 @@ export function buildPackage(input: ImportInput): ImportOutcome {
   const previewOf = (pixels: Uint32Array): PreviewSource => ({
     width: params.side,
     pixels,
-    factions: numbering.factions.map((f) => (f.color === undefined ? { id: f.id } : { id: f.id, color: f.color })),
+    factions: withPreviewColors(numbering.factions.map((f) => (f.color === undefined ? { id: f.id } : { id: f.id, color: f.color }))),
     entries: numbering.pieceEntries.map((e): PreviewEntry => (e.kind === 'land' ? { id: e.id, kind: 'land', owner: e.owner } : { id: e.id, kind: 'sea' })),
   });
   const raster = composePixels({
@@ -116,6 +120,7 @@ export function buildPackage(input: ImportInput): ImportOutcome {
 
   // Pixel steps: the sea (gap fill between the isolation and the zones), the minimum piece, the cleanup.
   const landCount = numbering.land.length;
+  const contextGapPixels = closeContextGaps(params.side, raster.value, params.contextGap ?? DEFAULT_CONTEXT_GAP, (value) => value >= 1 && value <= landCount);
   const zones: SeaZone[] = numbering.sea.map((s) => (s.seed === undefined ? { id: s.id } : { id: s.id, seed: curation.seas[s.seed]! }));
   const fill = params.gapFill === undefined ? undefined : makeGapFill(params.side, params.gapFill, (value) => value >= 1 && value <= landCount);
   const water = assignSea({ views: views.value, pixels: raster.value, zones, ...(fill === undefined ? {} : { between: fill.between }) });
@@ -148,6 +153,7 @@ export function buildPackage(input: ImportInput): ImportOutcome {
       views: views.value,
       numbering,
       filled: fill?.filled ?? [],
+      contextGapPixels,
       enclosed: water.value.enclosed,
       reassigned: cleaned.value.reassigned,
     },

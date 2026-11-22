@@ -126,12 +126,37 @@ function sourcesOf(pixels: Uint32Array, zones: readonly SeaZone[]): Sources {
   return sources;
 }
 
+/** A pixel rectangle of the image (an inset's place). */
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * FR-601: the sealed insets. An inset rectangle that holds at least one source pixel (a seed or a sea unit of its own) is a
+ * sea apart: its water is reached only from the sources inside it, and the water outside never flows in, so the main
+ * map's zones cannot claim the sea around an island group by being nearer to its edge. Returns the rectangle index of every
+ * pixel (-1 outside the sealed ones), or undefined when no rectangle is sealed. A rectangle without a source keeps joining
+ * the zone that reaches it through the main water.
+ */
+function sealedRegions(width: number, rects: readonly Rect[], sourcePixels: readonly number[]): Int8Array | undefined {
+  const sealed = rects.filter((r) => sourcePixels.some((p) => p % width >= r.x && p % width < r.x + r.w && Math.floor(p / width) >= r.y && Math.floor(p / width) < r.y + r.h));
+  if (sealed.length === 0) return undefined;
+  const regionOf = new Int8Array(width * width).fill(-1);
+  sealed.forEach((r, i) => {
+    for (let y = r.y; y < r.y + r.h; y++) regionOf.fill(i, y * width + r.x, y * width + r.x + r.w);
+  });
+  return regionOf;
+}
+
 /**
  * 003c, before any zone is assigned: the water no source reaches through 4-adjacent water. One pass labels the water
  * reachable from the sources, one visit per pixel; every remaining group of water pixels is one set, in row-major order of
  * its first pixel.
  */
-export function isolateEnclosed(width: number, pixels: Uint32Array, sourcePixels: readonly number[]): WaterSet[] {
+export function isolateEnclosed(width: number, pixels: Uint32Array, sourcePixels: readonly number[], regionOf?: Int8Array): WaterSet[] {
   const total = width * width;
   const reached = new Uint8Array(total);
   const stack: number[] = [];
@@ -140,7 +165,7 @@ export function isolateEnclosed(width: number, pixels: Uint32Array, sourcePixels
     stack.push(p);
   }
   const toward = (from: number, to: number): void => {
-    if (pixels[to] === WATER && reached[to] === 0) {
+    if (pixels[to] === WATER && reached[to] === 0 && (regionOf === undefined || regionOf[from] === regionOf[to])) {
       reached[to] = 1;
       stack.push(to);
     }
@@ -162,7 +187,7 @@ export function isolateEnclosed(width: number, pixels: Uint32Array, sourcePixels
       const p = set[head]!;
       const x = p % width;
       const visit = (q: number): void => {
-        if (pixels[q] === WATER && reached[q] === 0) {
+        if (pixels[q] === WATER && reached[q] === 0 && (regionOf === undefined || regionOf[p] === regionOf[q])) {
           reached[q] = 1;
           set.push(q);
         }
@@ -184,9 +209,16 @@ export function isolateEnclosed(width: number, pixels: Uint32Array, sourcePixels
  * remaining enclosed set joins, whole, the zone with the nearest source or reached pixel by squared distance between
  * pixel centres (ties to the first zone in order). With no zone at all every water pixel becomes background (0).
  */
-export function assignWater(width: number, pixels: Uint32Array, zones: readonly SeaZone[], between?: SeaInput['between']): SeaResult {
+export function assignWater(
+  width: number,
+  pixels: Uint32Array,
+  zones: readonly SeaZone[],
+  between?: SeaInput['between'],
+  insetRects: readonly Rect[] = [],
+): SeaResult {
   const sources = sourcesOf(pixels, zones);
-  let sets = isolateEnclosed(width, pixels, sources.pixel);
+  const regionOf = sealedRegions(width, insetRects, sources.pixel);
+  let sets = isolateEnclosed(width, pixels, sources.pixel, regionOf);
   if (between !== undefined) sets = between(sets, pixels);
   const total = width * width;
   // zero zones, or zones with no source pixel at all (a sea territory that rasterized to nothing and no seed
@@ -204,6 +236,7 @@ export function assignWater(width: number, pixels: Uint32Array, zones: readonly 
   sources.pixel.forEach((p, i) => (label[p] = sources.zone[i]!));
   const claimFrom = (from: number, to: number, touched: number[]): void => {
     if (pixels[to] !== WATER || label[to] !== -1) return;
+    if (regionOf !== undefined && regionOf[from] !== regionOf[to]) return;
     const zone = label[from]!;
     const current = claim[to]!;
     if (current === -1) {
@@ -234,7 +267,24 @@ export function assignWater(width: number, pixels: Uint32Array, zones: readonly 
   }
 
   const enclosed: EnclosedSet[] = [];
+  // only the pixels on the rim of a set can be its nearest pixel to a zone (a pixel with all eight neighbours in the set has a
+  // neighbour strictly nearer to any pixel outside it), so the ring search starts from the rim alone
+  const inSet = new Uint8Array(sets.length === 0 ? 0 : total);
   for (const set of sets) {
+    for (const p of set.pixels) inSet[p] = 1;
+    const rim = set.pixels.filter((p) => {
+      const x = p % width;
+      const y = (p - x) / width;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx;
+          const yy = y + dy;
+          if (xx < 0 || xx >= width || yy < 0 || yy >= width || inSet[yy * width + xx] === 0) return true;
+        }
+      }
+      return false;
+    });
+    for (const p of set.pixels) inSet[p] = 0;
     let bestD2 = Infinity;
     let bestZone = -1;
     const consider = (q: number, d2: number): void => {
@@ -245,7 +295,7 @@ export function assignWater(width: number, pixels: Uint32Array, zones: readonly 
         bestZone = zone;
       }
     };
-    for (const p of set.pixels) {
+    for (const p of rim) {
       const px = p % width;
       const py = (p - px) / width;
       for (let r = 1; r * r <= bestD2 && r < width; r++) {
@@ -285,5 +335,5 @@ export function assignSea(input: SeaInput): Result<SeaResult, SeaSeedError> {
   for (const [z, pixel] of located.value) {
     if (input.pixels[pixel] === WATER) input.pixels[pixel] = input.zones[z]!.id;
   }
-  return { ok: true, value: assignWater(input.views.width, input.pixels, input.zones, input.between) };
+  return { ok: true, value: assignWater(input.views.width, input.pixels, input.zones, input.between, input.views.insets.map((inset) => inset.rect)) };
 }
