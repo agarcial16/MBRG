@@ -27,7 +27,8 @@ export const PANEL_CSS = `${pageCss()}
 
 /* top bar (spec 031: slim 52 px refined cartographic brass bar) */
 .hud-top { position: absolute; left: 0; right: 0; top: 0; height: 52px; display: flex; align-items: center; box-sizing: border-box; gap: 16px; padding: 0 18px; }
-.hud-brand { display: inline-flex; align-items: center; padding-right: 14px; border-right: 1px solid var(--hud-gilt-dim); font: 700 17px/1 var(--hud-display, 'Cormorant SC', Georgia, serif); letter-spacing: 0.14em; color: var(--hud-gilt); flex: none; }
+.hud-brand { display: inline-flex; align-items: center; gap: 8px; padding-right: 14px; border-right: 1px solid var(--hud-gilt-dim); font: 700 17px/1 var(--hud-display, 'Cormorant SC', Georgia, serif); letter-spacing: 0.14em; color: var(--hud-gilt); flex: none; }
+.hud-brand-logo { width: 26px; height: 29px; flex: none; display: block; }
 .hud-top .hud-round { font: 600 22px var(--hud-display, 'Cormorant SC', Georgia, serif); }
 .hud-top .hud-phase { padding: 2px 10px; border-radius: 3px; background: var(--hud-umber); box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); color: var(--hud-gilt); font-size: 12px; letter-spacing: 0.02em; white-space: nowrap; }
 .hud-top .hud-count { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 600 30px/1 var(--hud-display, 'Cormorant SC', Georgia, serif); }
@@ -44,10 +45,12 @@ export const PANEL_CSS = `${pageCss()}
 .hud-band .hud-btn { min-height: 30px; }
 
 /* left column: chronicle and factions */
-.hud-left { position: absolute; left: 12px; top: 64px; width: 280px; box-sizing: border-box; max-height: calc(100vh - 76px); overflow: auto; padding: 12px 14px; border-radius: 4px; }
+.hud-left { position: absolute; left: 12px; top: 64px; width: 280px; box-sizing: border-box; max-height: calc(100vh - 76px); display: flex; flex-direction: column; overflow: hidden; padding: 12px 14px; border-radius: 4px; }
+.hud-chron-section { flex: 0 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.hud-factions-section { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
 
-.hud-chron { list-style: none; margin: 8px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 30vh; overflow: auto; }
-.hud-chron li { display: grid; grid-template-columns: 24px 1fr; gap: 8px; padding: 7px 9px; border-radius: 3px; background: var(--hud-umber); box-shadow: inset 0 0 0 1px var(--hud-wood2); font-size: 12.5px; line-height: 1.35; }
+.hud-chron { list-style: none; margin: 8px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 28vh; overflow: auto; }
+.hud-chron li { flex: none; display: grid; grid-template-columns: 24px 1fr; gap: 8px; padding: 7px 9px; border-radius: 3px; background: var(--hud-umber); box-shadow: inset 0 0 0 1px var(--hud-wood2); font-size: 12.5px; line-height: 1.35; }
 .hud-chron b { font: 700 14px var(--hud-display, 'Cormorant SC', Georgia, serif); color: var(--hud-gilt); }
 .hud-chron li.pending { color: var(--hud-gilt); box-shadow: inset 2px 0 0 var(--hud-gilt), inset 0 0 0 1px var(--hud-gilt-dim); }
 .hud-factions-title { margin-top: 4px; border-top: 1px solid var(--hud-gilt-dim); padding-top: 10px; font-size: 15px; }
@@ -65,12 +68,13 @@ export const PANEL_CSS = `${pageCss()}
 .hud-row.out .hud-name, .hud-row.out .hud-fig { color: var(--hud-muted); }
 .hud-row.out .hud-n { text-decoration: line-through; }
 .hud-fig { text-align: right; color: var(--hud-muted); }
-.hud-legend { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.hud-legend li { min-height: 28px; }
+.hud-legend { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; flex: 0 1 auto; min-height: 0; overflow-y: auto; }
+.hud-legend li { flex: none; min-height: 28px; }
+.hud-more { flex: none; margin-top: 8px; align-self: flex-start; }
 .hud-swatch { width: 12px; height: 12px; border-radius: 2px; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4); }
 
 /* command panel / bottom hub (spec 031: Direction 2 centred broadcast scrubber hub) */
-.hud-command { position: absolute; left: 304px; right: 228px; bottom: 14px; box-sizing: border-box; max-width: 680px; margin: 0 auto; min-height: 0; padding: 12px 16px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-shadow: inset 0 0 0 1px var(--hud-gilt-dim), 0 10px 28px rgba(0, 0, 0, 0.5); }
+.hud-command { position: absolute; left: 304px; right: 262px; bottom: 14px; box-sizing: border-box; max-width: 680px; margin: 0 auto; min-height: 0; padding: 12px 16px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-shadow: inset 0 0 0 1px var(--hud-gilt-dim), 0 10px 28px rgba(0, 0, 0, 0.5); }
 .hud-line { font-size: 14px; }
 .hud-line:empty { display: none; }
 .hud-alert { color: var(--hud-ember); }
@@ -88,7 +92,7 @@ export const PANEL_CSS = `${pageCss()}
 .hud[data-layout="phone"] .hud-tools a { min-height: 44px; min-width: 44px; }
 
 /* minimap (spec 031: Direction 2 headerless bottom-corner dock; Carta general panel removed) */
-.hud-mini { position: absolute; right: 12px; bottom: 12px; width: 204px; box-sizing: border-box; padding: 6px; border-radius: 6px; }
+.hud-mini { position: absolute; right: 12px; bottom: 12px; width: 238px; box-sizing: border-box; padding: 6px; border-radius: 4px; }
 .hud-minibox { position: relative; overflow: hidden; touch-action: none; cursor: crosshair; line-height: 0; border-radius: 3px; }
 .hud-minicanvas { width: 100%; height: auto; display: block; box-shadow: 0 0 0 1px var(--hud-gilt-dim); }
 .hud-minirect { position: absolute; border: 1.5px solid var(--hud-text); box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.28); pointer-events: none; }
@@ -257,9 +261,9 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="desk"] .hud-command .hud-dot { min-width: 26px; min-height: 26px; }
 .hud[data-layout="desk"] .hud-command:has(.hud-predict:not([hidden])) > .hud-stage { display: none; }
 .hud-seal[data-empty="true"] { visibility: hidden; }
-.hud-right { position: absolute; right: 12px; top: 64px; width: 238px; box-sizing: border-box; max-height: calc(100vh - 290px); overflow: auto; padding: 12px 14px; border-radius: 4px; }
+.hud-right { position: absolute; right: 12px; top: 64px; width: 238px; box-sizing: border-box; max-height: calc(100vh - 316px); overflow: auto; padding: 12px 14px; border-radius: 4px; }
 /* the board (spec 019): a column with a fixed height, the list scrolls inside it and is drawn by window (rows are placed by transform) */
-.hud-right:has(.hud-boardscroll) { display: flex; flex-direction: column; height: calc(100vh - 290px); max-height: 640px; min-height: 260px; overflow: hidden; }
+.hud-right:has(.hud-boardscroll) { display: flex; flex-direction: column; height: calc(100vh - 316px); max-height: 640px; min-height: 260px; overflow: hidden; }
 .hud-boardtools { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
 .hud-boardtools .hud-boardsearch { flex: 1 1 auto; min-width: 0; margin: 0; }
 .hud-boardmine { flex: none; padding: 0 6px; min-height: 36px; font-size: 12px; }
@@ -305,7 +309,10 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="phone"][data-dock="folded"] .hud-nav > .hud-nav-btn { display: none; }
 .hud[data-layout="phone"] .hud-command > .hud-title { display: none; }
 .hud[data-layout="phone"] .hud-chron-title { display: none; }
+.hud[data-layout="phone"] .hud-chron-section,
+.hud[data-layout="phone"] .hud-factions-section { display: block; flex: none; }
 .hud[data-layout="phone"] .hud-chron { max-height: none; overflow: visible; margin: 0; }
+.hud[data-layout="phone"] .hud-legend { overflow: visible; }
 .hud[data-layout="phone"] .hud-factions-title { margin-top: 0; border-top: 0; padding-top: 0; }
 .hud[data-layout="phone"] .hud-result { flex-direction: column; align-items: flex-start; white-space: normal; }
 .hud[data-layout="phone"] .hud-predict,

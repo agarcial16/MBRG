@@ -180,6 +180,7 @@ export const STRINGS = {
   hudFinishedText: 'La partida terminó en la ronda {total}. Puedes repasar cualquier ronda.',
   hudHaltedTitle: 'Partida detenida',
   hudErrorTitle: 'No se puede mostrar la partida',
+  hudBackToMenu: 'Volver al menú',
   // Create, join and lobby (spec 013 FR-393 to FR-400).
   createPaceFast: 'Rápido',
   createPaceNormal: 'Normal',

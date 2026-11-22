@@ -14,7 +14,7 @@ describe('FR-408 the round banner', () => {
     expect(bannerView(state, model(), NAMES, 1000, false)).toBeUndefined();
   });
 
-  it('FR-408 a round applied at the live edge shows the number, victim, absorber and territories for 3 s', () => {
+  it('FR-408 a round applied at the live edge shows the number, victim, absorber and territories for 6 s', () => {
     let state = bannerNext(bannerStart, input(2, 2), 0);
     state = bannerNext(state, input(3, 3), 5000);
     const view = bannerView(state, model(), NAMES, 5000, false);
@@ -33,11 +33,11 @@ describe('FR-408 the round banner', () => {
         detail: fillTemplate(STRINGS.hudChronicleApplied, { victim: 'Norte', absorber: 'Sur', count: 3 }),
       },
     });
-    expect(BANNER_MS).toBe(3000);
-    expect(bannerView(state, model(), NAMES, 5000 + 2999, false)).toBeDefined();
-    expect(bannerView(state, model(), NAMES, 5000 + 3000, false)).toBeUndefined();
-    expect(bannerExpiresIn(state, 6000)).toBe(2000);
-    expect(bannerExpiresIn(state, 9000)).toBeUndefined();
+    expect(BANNER_MS).toBe(6000);
+    expect(bannerView(state, model(), NAMES, 5000 + 5999, false)).toBeDefined();
+    expect(bannerView(state, model(), NAMES, 5000 + 6000, false)).toBeUndefined();
+    expect(bannerExpiresIn(state, 6000)).toBe(5000);
+    expect(bannerExpiresIn(state, 11000)).toBeUndefined();
   });
 
   it('spec 031 when the round owners are held, the duel callout includes the absorber map-control percentage', () => {
