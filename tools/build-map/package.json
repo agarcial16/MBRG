@@ -6,7 +6,8 @@
   "scripts": {
     "build-map": "tsx src/cli/build.ts",
     "extract": "tsx src/cli/extract.ts",
-    "import-map": "tsx src/cli/import.ts"
+    "import-map": "tsx src/cli/import.ts",
+    "scale:prototype": "tsx src/cli/scale-prototype.ts"
   },
   "dependencies": {
     "@mbrg/shared": "*",

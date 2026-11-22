@@ -4,6 +4,7 @@ import { ErrorCollector } from '../src/importer/errors';
 import { parseCuration } from '../src/importer/curation';
 import { inspectSource } from '../src/importer/inspect';
 import { readSource, readSources } from '../src/importer/read-source';
+import { generateScaleFixture } from '../src/importer/scale-fixture';
 import { selectUnits } from '../src/importer/select';
 import { buildUnits } from '../src/importer/units';
 import type { ShpGeometry } from '../src/importer/types';
@@ -28,6 +29,7 @@ describe('the source scan of the importer core', () => {
       '../src/importer/inspect.ts',
       '../src/importer/read-dbf.ts',
       '../src/importer/read-source.ts',
+      '../src/importer/scale-fixture.ts',
       '../src/importer/select.ts',
       '../src/importer/types.ts',
       '../src/importer/units.ts',
@@ -135,6 +137,14 @@ describe('the importer cores take bytes in and give bytes out, whatever the cloc
     const [a, b] = withoutClock(() => [inspectSource(read.value, 's.geojson'), inspectSource(read.value, 's.geojson')]);
     expect(a!.summary).toBe(b!.summary);
     expect(same(a!.draft, b!.draft)).toBe(true);
+  });
+
+  it('the scale fixture generator runs twice with byte-identical output while the clock and randomness throw', () => {
+    const options = { units: 30, islandUnits: 4, columns: 5, factions: 4, seas: 4, verticesPerSide: 4, side: 128, minPieceSize: 2, insetAt: [2, 90] as [number, number] };
+    const [a, b] = withoutClock(() => [generateScaleFixture(options), generateScaleFixture(options)]);
+    expect(same(a!.primary, b!.primary)).toBe(true);
+    expect(same(a!.context, b!.context)).toBe(true);
+    expect(same(a!.curationBytes, b!.curationBytes)).toBe(true);
   });
 
   it('the reader, the curation, the units and the selection run twice with identical results while the clock and randomness throw', () => {
