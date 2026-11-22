@@ -326,6 +326,7 @@ describe('FR-592 the size of the curation file', () => {
       unlink: () => undefined,
       mkdir: () => undefined,
       size: () => 17 * MIB,
+      entries: () => undefined,
     };
     const r = readBounded(fs, '/x/c.json', 'c.json', CURATION_MAX_BYTES);
     expect(r).toStrictEqual({ ok: false, errors: [{ kind: 'source-too-large', file: 'c.json', what: 'bytes', cap: 16 * MIB, found: 17 * MIB }] });

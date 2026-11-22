@@ -259,6 +259,7 @@ function fakeFs(size: number, bytes: Uint8Array, onRead: () => void = () => unde
     unlink: () => undefined,
     mkdir: () => undefined,
     size: () => size,
+    entries: () => undefined,
   };
 }
 

@@ -1,5 +1,5 @@
 import type { Result } from '@mbrg/shared';
-import { statSync } from 'node:fs';
+import { readdirSync, statSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openShpGeometry } from '../extract/read-shapefile';
@@ -7,14 +7,32 @@ import { extractGeo, MAX_ROUND, MIN_ROUND } from '../importer/extract-geo';
 import { inspectSource } from '../importer/inspect';
 import { readSource, SOURCE_CAPS } from '../importer/read-source';
 import type { ExtractGeoError, SourceError } from '../importer/types';
+import { buildPackage } from '../importer/import';
+import { CURATION_MAX_BYTES, parseCuration } from '../importer/curation';
+import type { PngCodec } from '../core/types';
 import { realFs, type FsOps } from '../io/fs-ops';
+import { pngCodec } from '../io/png-codec';
+import { writePackage } from '../io/write-package';
 
 /** The file operations of the import command: those of the builder plus the size of a file (`stat`, never a read). */
 export interface ImportFs extends FsOps {
   size(path: string): number;
+  /** The names inside a folder, or undefined when the folder does not exist; throws for anything else (a file, no access). */
+  entries(path: string): string[] | undefined;
 }
 
-export const realImportFs: ImportFs = { ...realFs, size: (path) => statSync(path).size };
+export const realImportFs: ImportFs = {
+  ...realFs,
+  size: (path) => statSync(path).size,
+  entries: (path) => {
+    try {
+      return readdirSync(path);
+    } catch (error) {
+      if ((error as { code?: string }).code === 'ENOENT') return undefined;
+      throw error;
+    }
+  },
+};
 
 /**
  * FR-588, NFR-135, PD10: the bytes of a file within `cap`. The size comes from `stat` first, so an oversized file is
@@ -48,6 +66,8 @@ export interface ImportDeps {
   root: string;
   stdout(text: string): void;
   stderr(text: string): void;
+  /** The PNG codec of the import mode (the real one when absent); tests inject a spy. */
+  codec?: PngCodec;
 }
 
 /** FR-586: the three modes of the one command. */
@@ -282,9 +302,84 @@ export function runInspectMode(args: string[], deps: ImportDeps): number {
   return 0;
 }
 
+const IMPORT_MODE_USAGE = 'usage: import-map import --curation=<file.json> --out=<folder>';
+
+/**
+ * FR-586, FR-608: the import mode. The stages run in this order and the first one with errors stops the run, every
+ * error of that stage printed as one JSON object per line on stderr: usage (exit 2); the output folder (`output-not-empty`
+ * for a folder that exists and holds anything, before any input is read); the curation file (size cap first, then the
+ * schema); the sources (size cap first, then the reader); then the pure core (curation stage, projection and insets,
+ * pixel steps, self-check). A failed import creates, modifies and deletes no file: the three artifacts are written only
+ * after every check, with the temporary-file and rename rules of 003b (`write-failed`, `partial-write`). No network.
+ * Exit status: 0 success, 1 failure, 2 usage error.
+ */
+export function runImportMode(args: string[], deps: ImportDeps): number {
+  const seen = new Map<string, string>();
+  for (const arg of args) {
+    const at = arg.indexOf('=');
+    const flag = at < 0 ? arg : arg.slice(0, at);
+    const value = at < 0 ? '' : arg.slice(at + 1);
+    const problem = !['--curation', '--out'].includes(flag)
+      ? `unknown option: ${arg}`
+      : value === ''
+        ? `missing value for ${flag}`
+        : seen.has(flag)
+          ? `duplicate option: ${flag}`
+          : undefined;
+    if (problem !== undefined) {
+      deps.stderr(`${problem}\n${IMPORT_MODE_USAGE}\n`);
+      return 2;
+    }
+    seen.set(flag, value);
+  }
+  const curationArg = seen.get('--curation');
+  const outArg = seen.get('--out');
+  if (curationArg === undefined || outArg === undefined) {
+    deps.stderr(`the --curation file and the --out folder are required\n${IMPORT_MODE_USAGE}\n`);
+    return 2;
+  }
+  const curationPath = resolve(deps.root, curationArg);
+  const out = resolve(deps.root, outArg);
+  const printErrors = (errors: readonly unknown[]): number => {
+    for (const error of errors) deps.stderr(JSON.stringify(error) + '\n');
+    return 1;
+  };
+
+  // The output folder is judged before any input is read: a listed package is never replaced.
+  try {
+    const present = deps.fs.entries(out);
+    if (present !== undefined && present.length > 0) return printErrors([{ kind: 'output-not-empty', out }]);
+  } catch {
+    return printErrors([{ kind: 'output-not-empty', out }]);
+  }
+
+  const curationLabel = basename(curationPath);
+  const curationBytes = readBounded(deps.fs, curationPath, curationLabel, CURATION_MAX_BYTES);
+  if (!curationBytes.ok) return printErrors(curationBytes.errors);
+  const curation = parseCuration(curationBytes.value, curationLabel);
+  if (!curation.ok) return printErrors(curation.errors);
+
+  // Sources: paths are relative to the curation file; every file is size-checked before it is read, all named at once.
+  const folder = dirname(curationPath);
+  const labels = [curation.value.primary, ...curation.value.context];
+  const reads = labels.map((label) => readBounded(deps.fs, resolve(folder, label), label, SOURCE_CAPS.bytes));
+  const failed = reads.flatMap((r) => (r.ok ? [] : r.errors));
+  if (failed.length > 0) return printErrors(failed);
+  const inputs = reads.map((r, i) => ({ file: labels[i]!, bytes: (r as { ok: true; value: Uint8Array }).value }));
+
+  const outcome = buildPackage({ curation: curation.value, primary: inputs[0]!, context: inputs.slice(1), codec: deps.codec ?? pngCodec });
+  if (!outcome.ok) return printErrors(outcome.errors);
+
+  const written = writePackage(out, outcome.files, deps.fs);
+  if (!written.ok) return printErrors(written.errors);
+  const { numbering } = outcome.details;
+  deps.stdout(`imported ${numbering.land.length} land territories, ${numbering.factions.length} factions and ${numbering.sea.length} sea zones into ${basename(out)}\n`);
+  return 0;
+}
+
 /** The part of a mode that runs it; later tasks register extract, inspect and import here. */
 export type ModeHandler = (args: string[], deps: ImportDeps) => number | Promise<number>;
-export const MODE_HANDLERS: Partial<Record<ImportMode, ModeHandler>> = { extract: runExtractMode, inspect: runInspectMode };
+export const MODE_HANDLERS: Partial<Record<ImportMode, ModeHandler>> = { extract: runExtractMode, inspect: runInspectMode, import: runImportMode };
 
 /** FR-586: the mode word is the first argument, exactly one of the three (case-sensitive); the rest is the mode's own. */
 export function parseMode(args: string[]): { mode: ImportMode; rest: string[] } | string {

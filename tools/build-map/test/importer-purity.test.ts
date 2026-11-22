@@ -30,6 +30,7 @@ describe('the source scan of the importer core', () => {
       '../src/importer/extract-geo.ts',
       '../src/importer/gap-fill.ts',
       '../src/importer/grouping.ts',
+      '../src/importer/import.ts',
       '../src/importer/inspect.ts',
       '../src/importer/min-size.ts',
       '../src/importer/numbering.ts',

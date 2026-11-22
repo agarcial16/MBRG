@@ -3,6 +3,7 @@ import { readBounded, runImport, type ImportFs } from '../src/cli/import';
 import { CURATION_KIND_ORDER } from '../src/importer/errors';
 import { extractGeo } from '../src/importer/extract-geo';
 import { groupFactions, groupTerritories } from '../src/importer/grouping';
+import { writePackage } from '../src/io/write-package';
 import { belowMinSize } from '../src/importer/min-size';
 import { assignSea } from '../src/importer/sea-sources';
 import { buildViews, insetHidesLand } from '../src/importer/views';
@@ -30,7 +31,7 @@ const FACTION_KINDS = ['invalid-name', 'invalid-color', 'duplicate-faction-key',
 const VIEW_KINDS = ['selection-too-wide', 'antimeridian-edge', 'unit-in-two-insets', 'empty-inset', 'inset-outside-image', 'insets-overlap', 'inset-hides-land'];
 const SEA_KINDS = ['seed-outside-frame', 'seed-not-water', 'duplicate-seed-pixel'];
 const CLEANUP_KINDS = ['territory-below-min-size'];
-const COMMAND_KINDS = ['usage-error'];
+const COMMAND_KINDS = ['usage-error', 'output-not-empty', 'write-failed', 'partial-write'];
 const IMPORTER_KINDS = [...SOURCE_KINDS, ...EXTRACT_KINDS, ...CURATION_KINDS, ...UNIT_KINDS, ...SELECT_KINDS, ...GROUP_KINDS, ...FACTION_KINDS, ...VIEW_KINDS, ...SEA_KINDS, ...CLEANUP_KINDS, ...COMMAND_KINDS];
 /** Data fields of the importer errors (the kind is always present). */
 const DATA_FIELDS = [
@@ -62,6 +63,10 @@ const DATA_FIELDS = [
   'y',
   'pixels',
   'largest',
+  'out',
+  'artifact',
+  'replaced',
+  'notReplaced',
 ];
 const ALLOWED_KEYS = ['kind', ...DATA_FIELDS];
 const INVALID_SOURCE_REASONS = ['not-utf8', 'not-json', 'not-feature-collection', 'bad-feature', 'bad-geometry', 'unreadable'];
@@ -316,8 +321,22 @@ async function commandErrors(): Promise<Err[]> {
       stdout: () => undefined,
       stderr: (s) => (stderr += s),
     });
+    // the import mode: an output folder that holds a file
+    await runImport(['import', `--curation=${join(dir, 'c.json')}`, `--out=${join(dir, 'pkg')}`], {
+      fs: realImportFs,
+      root: dir,
+      stdout: () => undefined,
+      stderr: (s) => (stderr += s),
+    });
     const lines = stderr.split('\n').filter((l) => l.startsWith('{'));
-    return lines.map((l) => JSON.parse(l) as Err);
+    // the writer's errors: a failed write, and a failed second rename
+    const files = { map: new Uint8Array(1), presentation: new Uint8Array(1), image: new Uint8Array(1) };
+    let renames = 0;
+    const written = [
+      writePackage(join(dir, 'w1'), files, { ...realImportFs, writeFile: () => { throw new Error('full'); } }),
+      writePackage(join(dir, 'w2'), files, { ...realImportFs, rename: () => { if (++renames === 2) throw new Error('locked'); } }),
+    ];
+    return [...lines.map((l) => JSON.parse(l) as Err), ...written.flatMap((w) => (w.ok ? [] : (w.errors as unknown as Err[])))];
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
