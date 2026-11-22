@@ -32,6 +32,7 @@ describe('the source scan of the importer core', () => {
       '../src/importer/grouping.ts',
       '../src/importer/inspect.ts',
       '../src/importer/min-size.ts',
+      '../src/importer/numbering.ts',
       '../src/importer/pixels.ts',
       '../src/importer/read-dbf.ts',
       '../src/importer/read-source.ts',
