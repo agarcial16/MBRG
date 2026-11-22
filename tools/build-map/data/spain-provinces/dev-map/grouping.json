@@ -1,0 +1,579 @@
+{
+  "countries": [
+    {
+      "country": "ESP-5801"
+    },
+    {
+      "country": "ESP-5802"
+    },
+    {
+      "country": "ESP-5803"
+    },
+    {
+      "country": "ESP-5804"
+    },
+    {
+      "country": "ESP-5805"
+    },
+    {
+      "country": "ESP-5806"
+    },
+    {
+      "country": "ESP-5807"
+    },
+    {
+      "country": "ESP-5808"
+    },
+    {
+      "country": "ESP-5809"
+    },
+    {
+      "country": "ESP-5810"
+    },
+    {
+      "country": "ESP-5811"
+    },
+    {
+      "country": "ESP-5812"
+    },
+    {
+      "country": "ESP-5813"
+    },
+    {
+      "country": "ESP-5814"
+    },
+    {
+      "country": "ESP-5815"
+    },
+    {
+      "country": "ESP-5816"
+    },
+    {
+      "country": "ESP-5817"
+    },
+    {
+      "country": "ESP-5818"
+    },
+    {
+      "country": "ESP-5820"
+    },
+    {
+      "country": "ESP-5821"
+    },
+    {
+      "country": "ESP-5822"
+    },
+    {
+      "country": "ESP-5823"
+    },
+    {
+      "country": "ESP-5824"
+    },
+    {
+      "country": "ESP-5825"
+    },
+    {
+      "country": "ESP-5826"
+    },
+    {
+      "country": "ESP-5827"
+    },
+    {
+      "country": "ESP-5828"
+    },
+    {
+      "country": "ESP-5829"
+    },
+    {
+      "country": "ESP-5830"
+    },
+    {
+      "country": "ESP-5831"
+    },
+    {
+      "country": "ESP-5832"
+    },
+    {
+      "country": "ESP-5833"
+    },
+    {
+      "country": "ESP-5834"
+    },
+    {
+      "country": "ESP-5835"
+    },
+    {
+      "country": "ESP-5836"
+    },
+    {
+      "country": "ESP-5837"
+    },
+    {
+      "country": "ESP-5838"
+    },
+    {
+      "country": "ESP-5839"
+    },
+    {
+      "country": "ESP-5840"
+    },
+    {
+      "country": "ESP-5841"
+    },
+    {
+      "country": "ESP-5842"
+    },
+    {
+      "country": "ESP-5843"
+    },
+    {
+      "country": "ESP-5844"
+    },
+    {
+      "country": "ESP-5845"
+    },
+    {
+      "country": "ESP-5846"
+    },
+    {
+      "country": "ESP-5847"
+    },
+    {
+      "country": "ESP-5848"
+    },
+    {
+      "country": "ESP-5849"
+    },
+    {
+      "country": "ESP-5850"
+    },
+    {
+      "country": "ESP-5851"
+    },
+    {
+      "country": "ESP-5852"
+    },
+    {
+      "country": "ESP-5853"
+    }
+  ],
+  "territories": [
+    {
+      "key": "es-alava",
+      "country": "ESP-5801",
+      "name": "Álava",
+      "provinces": [
+        "ESP-5801"
+      ]
+    },
+    {
+      "key": "es-albacete",
+      "country": "ESP-5802",
+      "name": "Albacete",
+      "provinces": [
+        "ESP-5802"
+      ]
+    },
+    {
+      "key": "es-alicante",
+      "country": "ESP-5803",
+      "name": "Alicante",
+      "provinces": [
+        "ESP-5803"
+      ]
+    },
+    {
+      "key": "es-almeria",
+      "country": "ESP-5804",
+      "name": "Almería",
+      "provinces": [
+        "ESP-5804"
+      ]
+    },
+    {
+      "key": "es-asturias",
+      "country": "ESP-5805",
+      "name": "Asturias",
+      "provinces": [
+        "ESP-5805"
+      ]
+    },
+    {
+      "key": "es-avila",
+      "country": "ESP-5806",
+      "name": "Ávila",
+      "provinces": [
+        "ESP-5806"
+      ]
+    },
+    {
+      "key": "es-badajoz",
+      "country": "ESP-5807",
+      "name": "Badajoz",
+      "provinces": [
+        "ESP-5807"
+      ]
+    },
+    {
+      "key": "es-islas-baleares",
+      "country": "ESP-5808",
+      "name": "Islas Baleares",
+      "provinces": [
+        "ESP-5808"
+      ]
+    },
+    {
+      "key": "es-barcelona",
+      "country": "ESP-5809",
+      "name": "Barcelona",
+      "provinces": [
+        "ESP-5809"
+      ]
+    },
+    {
+      "key": "es-burgos",
+      "country": "ESP-5810",
+      "name": "Burgos",
+      "provinces": [
+        "ESP-5810"
+      ]
+    },
+    {
+      "key": "es-caceres",
+      "country": "ESP-5811",
+      "name": "Cáceres",
+      "provinces": [
+        "ESP-5811"
+      ]
+    },
+    {
+      "key": "es-cadiz",
+      "country": "ESP-5812",
+      "name": "Cádiz",
+      "provinces": [
+        "ESP-5812"
+      ]
+    },
+    {
+      "key": "es-cantabria",
+      "country": "ESP-5813",
+      "name": "Cantabria",
+      "provinces": [
+        "ESP-5813"
+      ]
+    },
+    {
+      "key": "es-castellon",
+      "country": "ESP-5814",
+      "name": "Castellón",
+      "provinces": [
+        "ESP-5814"
+      ]
+    },
+    {
+      "key": "es-ceuta",
+      "country": "ESP-5815",
+      "name": "Ceuta",
+      "provinces": [
+        "ESP-5815"
+      ]
+    },
+    {
+      "key": "es-ciudad-real",
+      "country": "ESP-5816",
+      "name": "Ciudad Real",
+      "provinces": [
+        "ESP-5816"
+      ]
+    },
+    {
+      "key": "es-cordoba",
+      "country": "ESP-5817",
+      "name": "Córdoba",
+      "provinces": [
+        "ESP-5817"
+      ]
+    },
+    {
+      "key": "es-cuenca",
+      "country": "ESP-5818",
+      "name": "Cuenca",
+      "provinces": [
+        "ESP-5818"
+      ]
+    },
+    {
+      "key": "es-girona",
+      "country": "ESP-5820",
+      "name": "Girona",
+      "provinces": [
+        "ESP-5820"
+      ]
+    },
+    {
+      "key": "es-granada",
+      "country": "ESP-5821",
+      "name": "Granada",
+      "provinces": [
+        "ESP-5821"
+      ]
+    },
+    {
+      "key": "es-guadalajara",
+      "country": "ESP-5822",
+      "name": "Guadalajara",
+      "provinces": [
+        "ESP-5822"
+      ]
+    },
+    {
+      "key": "es-guipuzcoa",
+      "country": "ESP-5823",
+      "name": "Guipúzcoa",
+      "provinces": [
+        "ESP-5823"
+      ]
+    },
+    {
+      "key": "es-huelva",
+      "country": "ESP-5824",
+      "name": "Huelva",
+      "provinces": [
+        "ESP-5824"
+      ]
+    },
+    {
+      "key": "es-huesca",
+      "country": "ESP-5825",
+      "name": "Huesca",
+      "provinces": [
+        "ESP-5825"
+      ]
+    },
+    {
+      "key": "es-jaen",
+      "country": "ESP-5826",
+      "name": "Jaén",
+      "provinces": [
+        "ESP-5826"
+      ]
+    },
+    {
+      "key": "es-a-coruna",
+      "country": "ESP-5827",
+      "name": "A Coruña",
+      "provinces": [
+        "ESP-5827"
+      ]
+    },
+    {
+      "key": "es-la-rioja",
+      "country": "ESP-5828",
+      "name": "La Rioja",
+      "provinces": [
+        "ESP-5828"
+      ]
+    },
+    {
+      "key": "es-las-palmas",
+      "country": "ESP-5829",
+      "name": "Las Palmas",
+      "provinces": [
+        "ESP-5829"
+      ]
+    },
+    {
+      "key": "es-leon",
+      "country": "ESP-5830",
+      "name": "León",
+      "provinces": [
+        "ESP-5830"
+      ]
+    },
+    {
+      "key": "es-lleida",
+      "country": "ESP-5831",
+      "name": "Lleida",
+      "provinces": [
+        "ESP-5831"
+      ]
+    },
+    {
+      "key": "es-lugo",
+      "country": "ESP-5832",
+      "name": "Lugo",
+      "provinces": [
+        "ESP-5832"
+      ]
+    },
+    {
+      "key": "es-madrid",
+      "country": "ESP-5833",
+      "name": "Madrid",
+      "provinces": [
+        "ESP-5833"
+      ]
+    },
+    {
+      "key": "es-malaga",
+      "country": "ESP-5834",
+      "name": "Málaga",
+      "provinces": [
+        "ESP-5834"
+      ]
+    },
+    {
+      "key": "es-melilla",
+      "country": "ESP-5835",
+      "name": "Melilla",
+      "provinces": [
+        "ESP-5835"
+      ]
+    },
+    {
+      "key": "es-murcia",
+      "country": "ESP-5836",
+      "name": "Murcia",
+      "provinces": [
+        "ESP-5836"
+      ]
+    },
+    {
+      "key": "es-navarra",
+      "country": "ESP-5837",
+      "name": "Navarra",
+      "provinces": [
+        "ESP-5837"
+      ]
+    },
+    {
+      "key": "es-ourense",
+      "country": "ESP-5838",
+      "name": "Ourense",
+      "provinces": [
+        "ESP-5838"
+      ]
+    },
+    {
+      "key": "es-palencia",
+      "country": "ESP-5839",
+      "name": "Palencia",
+      "provinces": [
+        "ESP-5839"
+      ]
+    },
+    {
+      "key": "es-pontevedra",
+      "country": "ESP-5840",
+      "name": "Pontevedra",
+      "provinces": [
+        "ESP-5840"
+      ]
+    },
+    {
+      "key": "es-salamanca",
+      "country": "ESP-5841",
+      "name": "Salamanca",
+      "provinces": [
+        "ESP-5841"
+      ]
+    },
+    {
+      "key": "es-santa-cruz-de-tenerife",
+      "country": "ESP-5842",
+      "name": "Santa Cruz de Tenerife",
+      "provinces": [
+        "ESP-5842"
+      ]
+    },
+    {
+      "key": "es-segovia",
+      "country": "ESP-5843",
+      "name": "Segovia",
+      "provinces": [
+        "ESP-5843"
+      ]
+    },
+    {
+      "key": "es-sevilla",
+      "country": "ESP-5844",
+      "name": "Sevilla",
+      "provinces": [
+        "ESP-5844"
+      ]
+    },
+    {
+      "key": "es-soria",
+      "country": "ESP-5845",
+      "name": "Soria",
+      "provinces": [
+        "ESP-5845"
+      ]
+    },
+    {
+      "key": "es-tarragona",
+      "country": "ESP-5846",
+      "name": "Tarragona",
+      "provinces": [
+        "ESP-5846"
+      ]
+    },
+    {
+      "key": "es-teruel",
+      "country": "ESP-5847",
+      "name": "Teruel",
+      "provinces": [
+        "ESP-5847"
+      ]
+    },
+    {
+      "key": "es-toledo",
+      "country": "ESP-5848",
+      "name": "Toledo",
+      "provinces": [
+        "ESP-5848"
+      ]
+    },
+    {
+      "key": "es-valencia",
+      "country": "ESP-5849",
+      "name": "Valencia",
+      "provinces": [
+        "ESP-5849"
+      ]
+    },
+    {
+      "key": "es-valladolid",
+      "country": "ESP-5850",
+      "name": "Valladolid",
+      "provinces": [
+        "ESP-5850"
+      ]
+    },
+    {
+      "key": "es-vizcaya",
+      "country": "ESP-5851",
+      "name": "Vizcaya",
+      "provinces": [
+        "ESP-5851"
+      ]
+    },
+    {
+      "key": "es-zamora",
+      "country": "ESP-5852",
+      "name": "Zamora",
+      "provinces": [
+        "ESP-5852"
+      ]
+    },
+    {
+      "key": "es-zaragoza",
+      "country": "ESP-5853",
+      "name": "Zaragoza",
+      "provinces": [
+        "ESP-5853"
+      ]
+    }
+  ],
+  "excluded": []
+}

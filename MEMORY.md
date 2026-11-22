@@ -2,7 +2,7 @@
 Durable decisions, limits and lessons; no per-task diary (that is `specs/<id>/PROGRESS.md`; live work is `docs/board.md`). Area lessons: `docs/lessons/{web,bot,server,map}.md`. Keep <= ~4 KB.
 
 ## State
-Specs 001-027 implemented. Branch from `main`, PR into `main`.
+Specs 001-027 and 029 implemented (028, the map importer, queued). Branch from `main`, PR into `main`.
 Predefined maps: `maps/spain-provinces` (52 provinces) and `maps/world-countries` (193 sovereign countries, 7 sea zones; data in `tools/build-map/data/world-countries/`, provenance and micro-country decisions in its README). Next big feature: the map importer. Deployment guide done (#84).
 
 ## Game
@@ -16,6 +16,7 @@ Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random
 - State stores owner per territory, so modes are rule changes, not model changes. Ids 1..16,777,215 (24-bit texture). Round k uses `roundRng(seed, k)`: any round is computable alone.
 - Per-server history (024): the bot sends only a SHA-256 community key (never the guild id), in request bodies; a finished match is listed once settled (> `TOLERANCE_MS` after its finish) so a paging walk keeps one snapshot.
 - Ranking windows (027): rolling 7/30 days; the server fixes the floor at the first page and the cursor carries it; wire member `period` (absent = all time).
+- Viewer count refusal (029): a package beyond the viewer's tables (over 65,535 territories or 255 factions) is refused at load naming the limit; `checkCounts` reads the sizes from `core/entries.ts` so widening the tables (V2/V3) widens the refusal with them.
 - Sea is an explicit entry kind (no owner); enclosed water joins the nearest sea zone; lakes stay background.
 
 ## Limits
@@ -31,7 +32,7 @@ Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random
 - Node timings are noisy: run perf tests alone; under CPU load tests near 5 s need explicit timeouts. Untracked `.vitest/` is harmless, never commit it.
 - Approvals typed in the orchestrator chat are not accepted by child threads: type them in the child or quote them in the brief.
 - Never junction/symlink `node_modules` or workspace folders into a worktree (a forced remove followed the links and deleted real files).
-- E2E screenshots without a desktop browser: headless Chrome `--screenshot --window-size=W,H` (a file:// URL is fine), but measure the page first (`--dump-dom` + a title-writing probe script) — window height is a guess otherwise.
+- E2E screenshots without a desktop browser: headless Chrome `--screenshot --window-size=W,H` (a file:// URL is fine), but measure the page first — window height is a guess otherwise.
 - Worktrees: `npm install` creates junctions in `node_modules/@mbrg` (workspaces). Before deleting a worktree, delete those junctions first (link only), then the folder; never `git worktree remove --force` and never `gh pr merge --delete-branch` while the branch's worktree exists (gh removes it and follows the links).
 
 ## Glossary
