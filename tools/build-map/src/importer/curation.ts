@@ -4,7 +4,7 @@ import type { CurationError, SourceError } from './types';
 
 /**
  * FR-592: the curation file. This module reads and checks its schema only: types, members, ranges and the caps on
- * list lengths. What a value means against the data (an unknown unit, a key of the wrong length, a bad colour) is
+ * list lengths. What a value means against the data (an unknown unit, a key of the wrong length, a bad color) is
  * checked in the curation stage (FR-599), never here; in particular a territory or faction key outside 1 to 256 code
  * units is `invalid-key` there, not `invalid-curation` here.
  */
