@@ -18,6 +18,8 @@ export interface TerritoryLineParams {
 
 export interface Theme {
   palette: readonly Rgb[];
+  /** When true, colour assignment falls back to the deterministic procedural palette as a last resort (FR-642). */
+  procedural?: boolean;
   sea: Rgb;
   background: Rgb;
   /** Opaque colour of every class except `territory` (its colour comes from the owner). */
@@ -32,7 +34,10 @@ function hex(text: string): Rgb {
   return [parseInt(text.slice(1, 3), 16), parseInt(text.slice(3, 5), 16), parseInt(text.slice(5, 7), 16)];
 }
 
-/** Viewer palette, in assignment order (FR-141, FR-142). */
+/**
+ * Curated viewer palette, in assignment order (FR-141, FR-142, spec 033 FR-641): the original 12
+ * colours first verbatim, followed by 8 cartographic colours matching the Spec 031 viewer aesthetic.
+ */
 export const PALETTE: readonly Rgb[] = [
   hex('#c0504d'), // red
   hex('#e8b04b'), // ochre
@@ -46,6 +51,15 @@ export const PALETTE: readonly Rgb[] = [
   hex('#f2d65c'), // yellow
   hex('#c98fd6'), // lilac
   hex('#d4a373'), // tan
+  // Spec 033 FR-641: 8 additional curated cartographic colours
+  hex('#2e856e'), // deep emerald
+  hex('#e67e88'), // coral rose
+  hex('#4d60ad'), // Prussian blue
+  hex('#9e436d'), // imperial burgundy
+  hex('#82c9a0'), // verdigris mint
+  hex('#768532'), // antique olive
+  hex('#c4962c'), // antique brass
+  hex('#5f5296'), // slate indigo
 ];
 
 export const SEA: Rgb = hex('#9cc0dc');
@@ -74,6 +88,7 @@ export const TERRITORY_LINE: TerritoryLineParams = { fadeStart: 1.5, fadeFull: 2
 
 export const THEME: Theme = {
   palette: PALETTE,
+  procedural: true,
   sea: SEA,
   background: BACKGROUND,
   border: BORDER_COLORS,
