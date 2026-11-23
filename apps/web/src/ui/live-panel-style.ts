@@ -299,13 +299,14 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="phone"] .hud-command { padding: 0; gap: 6px; min-height: 0; }
 /* the strip: the selector of rounds on one row and the buttons on another, on every tab, never in the scrolling pane */
 .hud-strip { display: none; }
-.hud[data-layout="phone"] .hud-strip { display: block; flex: none; box-sizing: border-box; height: var(--hud-strip-h); padding: 4px 8px; border-top: 1px solid var(--hud-gilt-dim); }
+.hud[data-layout="phone"] .hud-strip { position: relative; display: block; flex: none; box-sizing: border-box; height: var(--hud-strip-h); padding: 4px 8px; border-top: 1px solid var(--hud-gilt-dim); }
+.hud[data-layout="phone"] .hud-jump-error { position: absolute; left: 8px; right: 8px; bottom: calc(100% + 4px); z-index: 4; padding: 4px 10px; border-radius: 4px; background: var(--hud-dock); box-shadow: inset 0 0 0 1px var(--hud-ember); }
 .hud[data-layout="phone"] .hud-controls { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 4px; margin: 0; }
 .hud[data-layout="phone"] .hud-track { gap: 4px; }
 .hud[data-layout="phone"] .hud-track .hud-dot { min-width: ${PHONE.chip}px; min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; padding: 0 3px; }
 .hud-dot.start { border-radius: 14px; padding: 0 9px; }
 .hud[data-layout="phone"] .hud-dot.start { min-width: 44px; min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; padding: 0 10px; }
-.hud[data-layout="phone"] .hud-track-pager { min-width: 30px; min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; }
+.hud[data-layout="phone"] .hud-track-pager { min-width: ${PHONE.chip}px; min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; }
 .hud[data-layout="phone"] .hud-track-label,
 .hud[data-layout="phone"] .hud-jump-input { min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; }
 .hud[data-layout="phone"] .hud-roundsel { min-height: ${PHONE.chip}px; gap: 4px; }

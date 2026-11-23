@@ -35,15 +35,12 @@ export interface Dot {
 
 export interface RoundTrack {
   readonly items: readonly Dot[];
-  /** The displayed round, compact: "Ronda N" (never with the total), or empty at Inicio (the chip names it). */
-  readonly label: string;
 }
 
 /**
  * The selector of rounds (FR-364, amended by FR-442): the entry for the state before round 1 (round 0, "Inicio", FR-444), the rounds already played (1 to `applied`) and, while a round is in play, that
  * round (`applied + 1`, not a target yet). The rounds beyond it are not listed, so the total is not told before the match is over.
- * `past` is before the round on the map, `ahead` after it up to the live round, `future` the round in play. Always one list: the
- * shell scrolls it sideways, however many rounds there are. The "Primera" control goes to round 0 too.
+ * `past` is before the round on the map, `ahead` after it up to the live round, `future` the round in play. The "Primera" control goes to round 0 too.
  */
 export function roundTrack(total: number, displayed: number, applied: number, inPlay: boolean): RoundTrack {
   const last = inPlay && applied < total ? applied + 1 : applied;
@@ -52,13 +49,7 @@ export function roundTrack(total: number, displayed: number, applied: number, in
     const state: DotState = round === displayed ? 'current' : round < displayed ? 'past' : round <= applied ? 'ahead' : 'future';
     items.push({ round, state, live: round === applied });
   }
-  return { items, label: displayed < 1 ? '' : fillTemplate(STRINGS.roundNow, { round: displayed }) };
-}
-
-/** The scroll position (px) that centres an item in a strip, kept inside the content. */
-export function stripScroll(box: { readonly left: number; readonly width: number; readonly view: number; readonly content: number }): number {
-  const centred = box.left - (box.view - box.width) / 2;
-  return Math.max(0, Math.min(centred, box.content - box.view));
+  return { items };
 }
 
 /** Where a dot leads: the jump to its round, or nothing for a round that has not been played. */

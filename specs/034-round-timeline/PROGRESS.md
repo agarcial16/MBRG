@@ -29,3 +29,13 @@
   - Branch: `feat/034-round-timeline`
   - State: implemented, tested, pushed, PR #100 marked ready for review.
   - Next step: Light-SDD review and squash merge into `main`.
+
+## Step 5 — Reviewer fixes on PR #100
+- Phone `jumpError` overlay (FR-664): made `.hud[data-layout="phone"] .hud-strip` `position: relative` and positioned `.hud[data-layout="phone"] .hud-jump-error` as an overlay (`position: absolute; bottom: calc(100% + 4px)`) so validation errors float above the strip without changing its 92 px height or pushing `.hud-nav` off-screen.
+- Phone window-pager arrows: raised `.hud[data-layout="phone"] .hud-track-pager` `min-width` from `30px` to `${PHONE.chip}px` (`36px`) to match sibling controls.
+- Removed dead `stripScroll` and unused `RoundTrack.label` from `apps/web/src/core/live-track.ts` and their obsolete tests from `apps/web/test/live-track.test.ts`; added phone error overlay + pager width pins in `apps/web/test/live-hud-shell.test.ts` (seen red, then green).
+- Captured `.claude/review/034/after-phone-jump-error.png` verifying unclipped nav row and floating error banner; `npm run typecheck` + 6 affected web test suites (157/157 tests) green.
+- Handover:
+  - Branch: `feat/034-round-timeline`
+  - State: review fixes implemented, tested, pushed to PR #100.
+  - Next step: reviewer re-check and squash merge into `main`.

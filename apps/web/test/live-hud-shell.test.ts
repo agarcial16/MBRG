@@ -198,6 +198,13 @@ describe('FR-359 to FR-364 the shell of the left column, the band, the track and
     expect(rules('.hud-track').join(';')).toMatch(/flex-wrap:\s*nowrap/);
     expect(rules('[data-layout="desk"] .hud-command').join(';')).toMatch(/overflow-x:\s*hidden/);
     expect(rules('.hud-controls').join(';')).toMatch(/min-width:\s*0/);
+    expect(rules('[data-layout="phone"] .hud-strip').join(';')).toMatch(/position:\s*relative/);
+    const phoneErr = rules('[data-layout="phone"] .hud-jump-error').join(';');
+    expect(phoneErr).toMatch(/position:\s*absolute/);
+    expect(phoneErr).toMatch(/bottom:\s*calc\(100%/);
+    const phonePager = rules('[data-layout="phone"] .hud-track-pager').join(';');
+    expect(phonePager).toMatch(/min-width:\s*36px/);
+    expect(phonePager).toMatch(/min-height:\s*36px/);
   });
 
   it('FR-441 the round controls move between the command panel (desk) and the strip of the dock (phone) as one element, so they are on every tab', () => {

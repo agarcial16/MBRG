@@ -11,7 +11,6 @@ import {
   roundTrack,
   roundWindow,
   shiftWindow,
-  stripScroll,
   swipeShift,
   trackTarget,
   windowCapacity,
@@ -97,14 +96,8 @@ describe('FR-364 FR-442 the selector of rounds', () => {
 
   it('FR-442 there is always one list of items, however many rounds: no slider', () => {
     const track = roundTrack(240, 17, 200, true);
-    expect(Object.keys(track).sort()).toStrictEqual(['items', 'label']);
+    expect(Object.keys(track).sort()).toStrictEqual(['items']);
     expect(track.items).toHaveLength(202);
-  });
-
-  it('FR-442 the label names the displayed round without a total, and none at Inicio (the Inicio chip says it)', () => {
-    expect(roundTrack(8, 3, 5, true).label).toBe('Ronda 3');
-    expect(roundTrack(8, 0, 5, true).label).toBe('');
-    expect(roundTrack(8, 3, 5, true).label).not.toMatch(/ de /);
   });
 
   it('FR-364 a dot is a target only up to the live round; the round in play is not', () => {
@@ -130,15 +123,6 @@ describe('FR-364 FR-442 the selector of rounds', () => {
 
   it('FR-442 the in-play stages are the three that run a window', () => {
     expect(['phase-1', 'phase-2', 'locked', 'finished', 'halted', 'lobby'].map((s) => inPlayStage(s as Stage))).toStrictEqual([true, true, true, false, false, false]);
-  });
-});
-
-describe('FR-442 the strip keeps the current round in view', () => {
-  it('FR-442 the current item is centred when it fits, and the scroll stays inside the content', () => {
-    expect(stripScroll({ left: 500, width: 44, view: 200, content: 1000 })).toBe(422);
-    expect(stripScroll({ left: 10, width: 44, view: 200, content: 1000 })).toBe(0);
-    expect(stripScroll({ left: 980, width: 44, view: 200, content: 1024 })).toBe(824);
-    expect(stripScroll({ left: 10, width: 44, view: 300, content: 200 })).toBe(0);
   });
 });
 
