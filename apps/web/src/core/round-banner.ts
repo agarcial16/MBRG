@@ -1,10 +1,10 @@
 // The round banner (spec 013 FR-408): a centred card with the round number, the victim, the absorber and the territories taken, shown for
-// 3 s when a round is applied at the live edge. Pure state over the displayed round; the shell draws it and arms one timer to hide it.
+// 6 s when a round is applied at the live edge. Pure state over the displayed round; the shell draws it and arms one timer to hide it.
 import type { LiveModel } from './live-model';
 import type { FactionName } from './live-view';
 import { STRINGS, fillTemplate } from './strings';
 
-export const BANNER_MS = 3000;
+export const BANNER_MS = 6000;
 
 export interface BannerState {
   /** The round on display the last time the state looked (none before the first sight). */
