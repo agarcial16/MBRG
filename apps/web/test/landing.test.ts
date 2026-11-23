@@ -10,6 +10,7 @@ import { chooseScene } from '../src/core/live-address';
 import { STRINGS } from '../src/core/strings';
 import { LANDING_CSS } from '../src/ui/landing-style';
 import landingStyleSource from '../src/ui/landing-style.ts?raw';
+import brandLogoSvg from '../src/ui/brand-logo-svg.ts?raw';
 import startShell from '../src/ui/live-start.ts?raw';
 import { codeOnly, languageViolations } from './helpers/scan';
 
@@ -185,7 +186,8 @@ describe('FR-611 FR-613 FR-616 NFR-140 NFR-141 landing strings, stylesheet and s
   });
 
   it('FR-611 FR-612 FR-613 FR-615 the landing shell wires the inline SVG logo, spectator hidden input, deterministic atlas rotation and create drawer', () => {
-    expect(startShell).toContain('createElementNS');
+    expect(brandLogoSvg).toContain('createElementNS');
+    expect(startShell).toContain('buildBrandLogo(');
     expect(startShell).toContain('selectAtlasPlate(');
     expect(startShell).toContain('nextVisitIndex(');
     expect(startShell).toContain('spectate');
