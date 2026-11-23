@@ -17,7 +17,7 @@ Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random
 - State stores owner per territory, so modes are rule changes, not model changes. Ids 1..16,777,215 (24-bit texture). Round k uses `roundRng(seed, k)`: any round is computable alone.
 - Per-server history (024): the bot sends only a SHA-256 community key (never the guild id), in request bodies; a finished match is listed once settled (> `TOLERANCE_MS` after its finish) so a paging walk keeps one snapshot.
 - Ranking windows (027): rolling 7/30 days; the server fixes the floor at the first page and the cursor carries it; wire member `period` (absent = all time).
-- Viewer count refusal (029): a package beyond the viewer's tables (over 65,535 territories or 255 factions) is refused at load naming the limit; `checkCounts` reads the sizes from `core/entries.ts` so widening the tables (V2/V3) widens the refusal with them.
+- Viewer count refusal (029) & many factions (033): a package beyond the viewer's tables (over 65,535 territories or 65,535 factions) is refused at load naming the limit; `checkCounts` reads `MAX_ENTRIES`/`MAX_FACTIONS` from `core/entries.ts`. Owner tables are 16-bit (`Uint16Array` / RG8 GPU texture, 2 bytes/entry, matching the 16-bit entry index). Faction colouring uses a 20-colour curated base palette (original 12 first + 8 Spec 031-aligned colours rotating in steps 1-2), soft-sea relaxation (PR #98), and a deterministic procedural last resort (`core/palette.ts`, >= 65,535 distinct colours) only when land neighbours exhaust curated colours; `palette-exhausted` stays as a defensive guard for custom finite themes.
 - Sea is an explicit entry kind (no owner); enclosed water joins the nearest sea zone; lakes stay background.
 
 ## Limits
