@@ -221,6 +221,75 @@ describe('spec 032 FR-621 label layer enforces maxPx cap on screen for horizonta
     expect(terDraws).toHaveLength(2);
     for (const d of terDraws) expect(d.fontPx).toBeCloseTo(28, 6);
   });
+
+  it('FR-621 FR-623 scales labels linearly with zoom within a tier until maxPx and keeps capped arc labels centred', () => {
+    // Territory with tiers: full (h=6) and abbrev (h=10). Between scale 2.0 and 4.0, full tier grows 12 -> 24 px linearly.
+    const terBox = boxLabel('Amurrio', 480, 490, 6, 36, 'territory');
+    const terStraight = straightLabel('Aramaio', 500, 500, 6, 36, 15, 'territory');
+    const terArc: ShapedDraw = {
+      text: 'Bernedo',
+      role: 'territory',
+      frame: { shape: 'arc', cx: 500, cy: 500, angle: 0, h: 6, w: 42, bend: 20, radius: 200 },
+      factor: 1,
+      ink: LABEL_INK,
+      halo: LABEL_HALO,
+    };
+    for (const s of [2.0, 2.5, 3.5, 4.5]) {
+      const drawn = recordFonts([terBox, terStraight, terArc], s);
+      const expected = Math.min(6 * s, READABLE_PARAMS.maxPx.territory);
+      expect(drawn.length).toBeGreaterThan(2);
+      for (const d of drawn) expect(d.fontPx).toBeCloseTo(expected, 6);
+    }
+
+    // Capped arc label (h=20 at scale 4 -> raw 80 px, capped to 28 px, k=0.35) must remain centred around sx=640!
+    const xs: number[] = [];
+    let curX = 0;
+    const ctx = {
+      font: '',
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+      lineJoin: 'miter',
+      lineCap: 'butt',
+      textAlign: 'start',
+      textBaseline: 'alphabetic',
+      globalAlpha: 1,
+      setTransform() {},
+      clearRect() {},
+      save() {},
+      restore() { curX = 0; },
+      translate(x: number) { curX = x; },
+      rotate() {},
+      scale() {},
+      transform() {},
+      beginPath() {},
+      moveTo() {},
+      lineTo() {},
+      stroke() {},
+      measureText(t: string) {
+        const px = Number(/(\d+(?:\.\d+)?)px/.exec(ctx.font)?.[1] ?? '10');
+        return { width: t.length * 0.6 * px };
+      },
+      strokeText() {},
+      fillText() { xs.push(curX); },
+    };
+    const canvas = { width: 0, height: 0, getContext: (k: string) => (k === '2d' ? ctx : null) } as unknown as HTMLCanvasElement;
+    const layer = attachLabelLayer(canvas);
+    layer.resize(VP, 1);
+    const cappedArc: ShapedDraw = {
+      text: 'ABBA',
+      role: 'territory',
+      frame: { shape: 'arc', cx: 500, cy: 500, angle: 0, h: 20, w: 100, bend: 20, radius: 400 },
+      factor: 1,
+      ink: LABEL_INK,
+      halo: LABEL_HALO,
+    };
+    layer.draw([cappedArc], { camera: cam(4), viewport: VP, dpr: 1 });
+    expect(xs).toHaveLength(4);
+    const meanX = xs.reduce((a, b) => a + b, 0) / xs.length;
+    // Camera is at (500, 500) on 1280x720 -> screen centre x = 640
+    expect(meanX).toBeCloseTo(640, 1);
+  });
 });
 
 describe('spec 032 NFR-151 performance on 8,220-label synthetic input', () => {
@@ -299,6 +368,36 @@ describe('spec 032 FR-627 active tier preserved during round steps and reveal to
     expect(upgraded).toHaveLength(1);
     expect(upgraded[0]!.text).toBe('SCT');
     expect(upgraded[0]!.factor).toBeCloseTo(0.35, 6);
+  });
+
+  it('FR-627 upgradeTourDraws keys by territory/faction id so duplicate names do not mispair during tours', () => {
+    const drawA = boxLabel('San Juan', 100, 100, 6, 48, 'territory', 0.25);
+    const drawB = boxLabel('San Juan', 400, 400, 6, 48, 'territory', 0.25);
+    const tiersA: LabelTier[] = [
+      { text: 'San Juan', box: { x0: 100, y0: 100, h: 6, w: 48 }, height: 6 },
+      { text: 'S. Juan', box: { x0: 105, y0: 100, h: 20, w: 40 }, height: 20 },
+    ];
+    const tiersB: LabelTier[] = [
+      { text: 'San Juan', box: { x0: 400, y0: 400, h: 6, w: 48 }, height: 6 },
+      { text: 'SJ', box: { x0: 415, y0: 400, h: 22, w: 22 }, height: 22 },
+    ];
+    const currentDraws: ReadableDraw[] = [
+      { ...drawA, id: 10, factor: 1, tiers: tiersA },
+      { ...drawB, id: 20, factor: 1, tiers: tiersB },
+    ];
+    const roundLabels = {
+      factions: [],
+      territories: [
+        { entry: 10, text: 'San Juan', box: drawA.box },
+        { entry: 20, text: 'San Juan', box: drawB.box },
+      ],
+    };
+    const upgraded = upgradeTourDraws([drawA, drawB], currentDraws, 0.5, READABLE_PARAMS.minPx, roundLabels);
+    expect(upgraded).toHaveLength(2);
+    expect(upgraded[0]!.text).toBe('S. Juan');
+    expect(frameOf(upgraded[0]!).cx).toBeCloseTo(125, 1);
+    expect(upgraded[1]!.text).toBe('SJ');
+    expect(frameOf(upgraded[1]!).cx).toBeCloseTo(426, 1);
   });
 });
 

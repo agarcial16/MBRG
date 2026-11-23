@@ -277,7 +277,7 @@ export function createMapView(input: MapViewInput): MapView {
     const view = { camera, viewport, dpr: ratio, detail: detailFactor(image, viewport), fonts: fontEpoch() };
     mapScene.setView(view);
     renderer.draw();
-    const shown = overlay !== undefined ? upgradeTourDraws(drawn, current.draws, camera.scale, READABLE_PARAMS.minPx) : drawn;
+    const shown = overlay !== undefined ? upgradeTourDraws(drawn, current.draws, camera.scale, READABLE_PARAMS.minPx, current.labels) : drawn;
     labelLayer.draw(shown, view, overlay);
   };
 

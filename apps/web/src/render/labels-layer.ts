@@ -50,6 +50,27 @@ const toScreen = (cam: Camera, vp: Viewport, x: number, y: number): [number, num
   (y - cam.y) * cam.scale + vp.height / 2,
 ];
 
+/** Quantized sprite heights in CSS pixels (always >= drawnH so no sprite is ever enlarged, FR-175). */
+const SPRITE_BUCKETS = [12, 16, 22, 30, 40, 48] as const;
+const ATLAS_SIZE = 2048;
+const SPRITE_PAD = Math.ceil(HALO_WIDTH + 4);
+
+interface TextSprite {
+  readonly sx: number;
+  readonly sy: number;
+  readonly sw: number;
+  readonly sh: number;
+  readonly cssW: number;
+  readonly cssH: number;
+  readonly textW: number;
+  readonly bucket: number;
+}
+
+const bucketFor = (drawnH: number): number => {
+  for (const b of SPRITE_BUCKETS) if (drawnH <= b) return b;
+  return SPRITE_BUCKETS[SPRITE_BUCKETS.length - 1]!;
+};
+
 /** Attaches the layer to its canvas. Throws when the browser gives no 2D context. */
 export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
   const ctx = canvas.getContext('2d');
@@ -59,7 +80,37 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
   let params = base;
   /** Glyph advances of each arc text at the reference size, measured once per text. */
   const advances = new Map<string, readonly number[]>();
+  /** Single shelf-packed sprite atlas (browser contexts with drawImage; avoids per-frame strokeText & texture stalls). */
+  const canSprite = typeof document !== 'undefined' && typeof ctx.drawImage === 'function';
+  let atlasCanvas: HTMLCanvasElement | undefined;
+  let atlasCtx: CanvasRenderingContext2D | null = null;
+  const sprites = new Map<string, TextSprite>();
+  let curX = 0;
+  let curY = 0;
+  let rowH = 0;
   let measuredAt: number | undefined;
+  let spriteDpr = 0;
+
+  const ensureAtlas = (): CanvasRenderingContext2D | null => {
+    if (atlasCtx !== null) return atlasCtx;
+    atlasCanvas = document.createElement('canvas');
+    atlasCanvas.width = ATLAS_SIZE;
+    atlasCanvas.height = ATLAS_SIZE;
+    atlasCtx = atlasCanvas.getContext('2d');
+    return atlasCtx;
+  };
+
+  const resetAtlas = (): void => {
+    sprites.clear();
+    curX = 0;
+    curY = 0;
+    rowH = 0;
+    if (atlasCtx !== null) {
+      atlasCtx.setTransform(1, 0, 0, 1, 0, 0);
+      atlasCtx.clearRect(0, 0, ATLAS_SIZE, ATLAS_SIZE);
+    }
+  };
+
   const advancesOf = (text: string): readonly number[] => {
     let a = advances.get(text);
     if (a === undefined) {
@@ -70,6 +121,49 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
     return a;
   };
 
+  const getSprite = (text: string, bucket: number, d: AnyLabelDraw, dpr: number): TextSprite | undefined => {
+    const ink = css(d.ink);
+    const halo = css(d.halo);
+    const key = `${text}|${bucket}|${ink}|${halo}`;
+    const hit = sprites.get(key);
+    if (hit !== undefined) return hit;
+    const sctx = ensureAtlas();
+    if (sctx === null) return undefined;
+    const font = fontString(bucket);
+    sctx.setTransform(1, 0, 0, 1, 0, 0);
+    sctx.font = font;
+    const textW = sctx.measureText(text).width;
+    if (!(textW > 0)) return undefined;
+    const cssW = Math.ceil(textW + SPRITE_PAD * 2);
+    const cssH = Math.ceil(bucket * 1.5 + SPRITE_PAD * 2);
+    const sw = Math.max(1, Math.ceil(cssW * dpr));
+    const sh = Math.max(1, Math.ceil(cssH * dpr));
+    if (sw > ATLAS_SIZE || sh > ATLAS_SIZE) return undefined;
+    if (curX + sw > ATLAS_SIZE) {
+      curX = 0;
+      curY += rowH + 1;
+      rowH = 0;
+    }
+    if (curY + sh > ATLAS_SIZE) resetAtlas();
+    const sx = curX;
+    const sy = curY;
+    sctx.setTransform(dpr, 0, 0, dpr, sx, sy);
+    sctx.font = font;
+    sctx.textAlign = 'center';
+    sctx.textBaseline = 'middle';
+    sctx.lineJoin = 'round';
+    sctx.lineWidth = HALO_WIDTH;
+    sctx.strokeStyle = halo;
+    sctx.strokeText(text, cssW / 2, cssH / 2);
+    sctx.fillStyle = ink;
+    sctx.fillText(text, cssW / 2, cssH / 2);
+    curX += sw + 1;
+    if (sh > rowH) rowH = sh;
+    const entry: TextSprite = { sx, sy, sw, sh, cssW, cssH, textW, bucket };
+    sprites.set(key, entry);
+    return entry;
+  };
+
   const paint = (d: AnyLabelDraw, text: string, x: number, y: number): void => {
     ctx.strokeStyle = css(d.halo);
     ctx.strokeText(text, x, y);
@@ -78,7 +172,7 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
   };
 
   const drawBox = (d: LabelDraw, view: MapView): void => {
-    const { camera, viewport } = view;
+    const { camera, viewport, dpr } = view;
     const box = screenBox(d.box, camera, viewport);
     const drawnH = clampScreenHeight(box.h, d.role);
     if (drawnH <= 0) return;
@@ -87,6 +181,18 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
     const cx = box.x + box.w / 2;
     const cy = box.y + box.h / 2;
     if (cx + drawnW / 2 < 0 || cy + drawnH / 2 < 0 || cx - drawnW / 2 > viewport.width || cy - drawnH / 2 > viewport.height) return;
+    if (canSprite) {
+      const sprite = getSprite(d.text, bucketFor(drawnH), d, dpr);
+      if (sprite !== undefined && atlasCanvas !== undefined) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(drawnW / sprite.textW, drawnH / sprite.bucket);
+        ctx.globalAlpha = labelAlpha(d, camera.scale, params);
+        ctx.drawImage(atlasCanvas, sprite.sx, sprite.sy, sprite.sw, sprite.sh, -sprite.cssW / 2, -sprite.cssH / 2, sprite.cssW, sprite.cssH);
+        ctx.restore();
+        return;
+      }
+    }
     // The font size is the clamped box height; the horizontal factor makes the advance width match drawnW exactly.
     ctx.font = fontString(drawnH);
     const measured = ctx.measureText(d.text).width;
@@ -100,7 +206,7 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
   };
 
   const drawShaped = (d: ShapedDraw, view: MapView): void => {
-    const { camera, viewport } = view;
+    const { camera, viewport, dpr } = view;
     const f = frameOf(d);
     const [sx, sy] = toScreen(camera, viewport, f.cx, f.cy);
     const rawH = f.h * camera.scale;
@@ -110,10 +216,24 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
     // Bounding circle of the capped frame: half its length plus its height, on screen.
     const reach = (f.w * camera.scale * k) / 2 + drawnH;
     if (sx + reach < 0 || sy + reach < 0 || sx - reach > viewport.width || sy - reach > viewport.height) return;
-    ctx.font = fontString(drawnH);
-    ctx.globalAlpha = labelAlpha(d, camera.scale, params);
+    const alpha = labelAlpha(d, camera.scale, params);
     if (d.frame.shape === 'straight') {
       const w = f.w * camera.scale * k;
+      if (canSprite) {
+        const sprite = getSprite(d.text, bucketFor(drawnH), d, dpr);
+        if (sprite !== undefined && atlasCanvas !== undefined) {
+          const m = straightMatrix({ cx: sx, cy: sy, angle: f.angle }, w, sprite.textW);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f);
+          ctx.scale(1, drawnH / sprite.bucket);
+          ctx.drawImage(atlasCanvas, sprite.sx, sprite.sy, sprite.sw, sprite.sh, -sprite.cssW / 2, -sprite.cssH / 2, sprite.cssW, sprite.cssH);
+          ctx.restore();
+          return;
+        }
+      }
+      ctx.font = fontString(drawnH);
+      ctx.globalAlpha = alpha;
       const measured = ctx.measureText(d.text).width;
       if (!(measured > 0)) return;
       const m = straightMatrix({ cx: sx, cy: sy, angle: f.angle }, w, measured);
@@ -125,9 +245,39 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
     }
     const glyphs = Array.from(d.text);
     const arcW = d.frame.w * k;
-    const places = arcGlyphs(d.frame, glyphOffsets(advancesOf(d.text), arcW));
+    const arcFrame = k === 1 ? d.frame : { ...d.frame, w: arcW };
+    const places = arcGlyphs(arcFrame, glyphOffsets(advancesOf(d.text), arcW));
+    if (canSprite) {
+      const bucket = bucketFor(drawnH);
+      const scale = drawnH / bucket;
+      ctx.globalAlpha = alpha;
+      glyphs.forEach((g, i) => {
+        const p = places[i];
+        if (p === undefined || g === ' ') return;
+        const sprite = getSprite(g, bucket, d, dpr);
+        if (sprite === undefined || atlasCanvas === undefined) return;
+        const [gx, gy] = toScreen(camera, viewport, p.x, p.y);
+        ctx.save();
+        ctx.translate(gx, gy);
+        ctx.rotate((-p.angle * Math.PI) / 180);
+        ctx.drawImage(
+          atlasCanvas,
+          sprite.sx,
+          sprite.sy,
+          sprite.sw,
+          sprite.sh,
+          (-sprite.cssW * scale) / 2,
+          (-sprite.cssH * scale) / 2,
+          sprite.cssW * scale,
+          sprite.cssH * scale,
+        );
+        ctx.restore();
+      });
+      return;
+    }
     // advancesOf set the reference font; the glyphs are drawn at the clamped displayed size.
     ctx.font = fontString(drawnH);
+    ctx.globalAlpha = alpha;
     glyphs.forEach((g, i) => {
       const p = places[i];
       if (p === undefined) return;
@@ -208,7 +358,12 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
       // The font may arrive after a first measurement (fallback glyphs): measure again then (FR-437).
       if (view.fonts !== measuredAt) {
         advances.clear();
+        resetAtlas();
         measuredAt = view.fonts;
+      }
+      if (dpr !== spriteDpr) {
+        resetAtlas();
+        spriteDpr = dpr;
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, viewport.width, viewport.height);

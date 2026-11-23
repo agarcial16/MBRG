@@ -37,8 +37,11 @@ export interface LabelTier {
   readonly height: number;
 }
 
-/** A label draw that may carry precomputed shorter display-form tiers for zoom/overlap fallback. */
-export type ReadableDraw = AnyLabelDraw & { readonly tiers?: readonly LabelTier[] };
+/** A label draw that may carry precomputed shorter display-form tiers and its faction/territory id. */
+export type ReadableDraw = AnyLabelDraw & {
+  readonly id?: number;
+  readonly tiers?: readonly LabelTier[];
+};
 
 /** Clamps a raw on-screen height (h * scale) to [minPx, maxPx[role]], or 0 when below minPx. */
 export function clampScreenHeight(rawPx: number, role: LabelRole, params: ReadableParams = READABLE_PARAMS): number {
@@ -86,22 +89,56 @@ interface ScreenRect {
 
 const DEG = Math.PI / 180;
 
-/** Padded screen-space AABB of a draw after clamping its height to maxPx[role]. */
-function screenRectOf(draw: AnyLabelDraw, cam: Camera, vp: Viewport, params: ReadableParams): ScreenRect | undefined {
-  const f = frameOf(draw);
-  const rawH = f.h * cam.scale;
-  const drawnH = clampScreenHeight(rawH, draw.role, params);
+/** Padded screen-space AABB of raw geometry (cx, cy, w, h, angle) after clamping height to maxPx[role]. */
+function screenRectOfGeom(
+  cx: number,
+  cy: number,
+  w: number,
+  h: number,
+  angle: number,
+  role: LabelRole,
+  cam: Camera,
+  vp: Viewport,
+  params: ReadableParams,
+): ScreenRect | undefined {
+  const rawH = h * cam.scale;
+  const drawnH = clampScreenHeight(rawH, role, params);
   if (drawnH <= 0) return undefined;
   const k = drawnH / rawH;
-  const drawnW = f.w * cam.scale * k;
-  const sx = (f.cx - cam.x) * cam.scale + vp.width / 2;
-  const sy = (f.cy - cam.y) * cam.scale + vp.height / 2;
-  const rad = Math.abs(f.angle) * DEG;
+  const drawnW = w * cam.scale * k;
+  const sx = (cx - cam.x) * cam.scale + vp.width / 2;
+  const sy = (cy - cam.y) * cam.scale + vp.height / 2;
+  const rad = Math.abs(angle) * DEG;
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
   const halfW = (drawnW * cos + drawnH * sin) / 2 + params.minGapPx / 2;
   const halfH = (drawnW * sin + drawnH * cos) / 2 + params.minGapPx / 2;
   return { minX: sx - halfW, minY: sy - halfH, maxX: sx + halfW, maxY: sy + halfH };
+}
+
+/** Padded screen-space AABB of a tier without allocating a draw or FrameData. */
+function tierScreenRect(
+  tier: LabelTier,
+  role: LabelRole,
+  cam: Camera,
+  vp: Viewport,
+  params: ReadableParams,
+): ScreenRect | undefined {
+  if (tier.frame !== undefined) {
+    const f = tier.frame;
+    return screenRectOfGeom(f.cx, f.cy, f.w, f.h, f.angle, role, cam, vp, params);
+  }
+  if (tier.box !== undefined) {
+    const b = tier.box;
+    return screenRectOfGeom(b.x0 + b.w / 2, b.y0 + b.h / 2, b.w, b.h, 0, role, cam, vp, params);
+  }
+  return undefined;
+}
+
+/** Padded screen-space AABB of a draw after clamping its height to maxPx[role]. */
+function screenRectOf(draw: AnyLabelDraw, cam: Camera, vp: Viewport, params: ReadableParams): ScreenRect | undefined {
+  const f = frameOf(draw);
+  return screenRectOfGeom(f.cx, f.cy, f.w, f.h, f.angle, draw.role, cam, vp, params);
 }
 
 const overlaps = (a: ScreenRect, b: ScreenRect): boolean =>
@@ -180,11 +217,11 @@ export function resolveFrameLabels(
         if (d.tiers[d.tiers.length - 1]!.height * scale < params.minPx) continue;
         for (const tier of d.tiers) {
           if (tier.height * scale < params.minPx) continue;
-          const td = drawFromTier(tier, role, d.factor);
-          if (td === undefined) continue;
-          const rect = screenRectOf(td, camera, viewport, params);
+          const rect = tierScreenRect(tier, role, camera, viewport, params);
           if (rect === undefined) continue;
           if (rect.maxX < 0 || rect.minX > vpW || rect.maxY < 0 || rect.minY > vpH) continue;
+          const td = drawFromTier(tier, role, d.factor);
+          if (td === undefined) continue;
           candidates.push({ draw: td, rect });
         }
       } else {
@@ -382,7 +419,7 @@ export function readableRoundLabels(
       aspect,
     });
     const base = drawFromTier(primary, 'faction', 1);
-    if (base !== undefined) draws.push({ ...base, tiers });
+    if (base !== undefined) draws.push({ ...base, id: faction, tiers });
   }
   const territories: TerritoryLabelInput[] = [];
   for (let entry = 1; entry < table.length; entry++) {
@@ -398,7 +435,7 @@ export function readableRoundLabels(
       ...(primary.frame !== undefined ? { frame: primary.frame } : {}),
     });
     const base = drawFromTier(primary, 'territory', 1);
-    if (base !== undefined) draws.push({ ...base, tiers });
+    if (base !== undefined) draws.push({ ...base, id: entry, tiers });
   }
   return { labels: { factions, territories }, draws };
 }
@@ -509,20 +546,38 @@ export function stepReadableLabels(
 
 /**
  * Upgrades tour label draws to their active tier at `scale` while preserving each draw's tour opacity factor (FR-627).
+ * Keys tiers by faction/territory id (from `roundLabels` matching `tourLabelDraws` order, or `draw.id`) so duplicate
+ * names or abbreviations never mispair during tours.
  */
 export function upgradeTourDraws(
-  tourDraws: readonly AnyLabelDraw[],
+  tourDraws: readonly ReadableDraw[],
   currentDraws: readonly ReadableDraw[],
   scale: number,
   minPx: number = READABLE_PARAMS.minPx,
+  roundLabels?: RoundLabels,
 ): AnyLabelDraw[] {
-  const byKey = new Map<string, readonly LabelTier[]>();
+  const byId = new Map<string, readonly LabelTier[]>();
+  const byText = new Map<string, readonly LabelTier[]>();
   for (const d of currentDraws) {
-    if (d.tiers !== undefined && d.tiers.length > 0) byKey.set(`${d.role}:${d.text}`, d.tiers);
+    if (d.tiers === undefined || d.tiers.length === 0) continue;
+    if (d.id !== undefined) byId.set(`${d.role}:${d.id}`, d.tiers);
+    byText.set(`${d.role}:${d.text}`, d.tiers);
+  }
+  let orderKeys: string[] | undefined;
+  if (roundLabels !== undefined) {
+    orderKeys = [];
+    for (const l of [...roundLabels.factions].sort((a, b) => a.faction - b.faction)) {
+      if (l.frame !== undefined || l.box !== undefined) orderKeys.push(`faction:${l.faction}`);
+    }
+    for (const l of [...roundLabels.territories].sort((a, b) => a.entry - b.entry)) {
+      if (l.frame !== undefined || l.box !== undefined) orderKeys.push(`territory:${l.entry}`);
+    }
   }
   const out: AnyLabelDraw[] = [];
-  for (const d of tourDraws) {
-    const tiers = byKey.get(`${d.role}:${d.text}`);
+  for (let i = 0; i < tourDraws.length; i++) {
+    const d = tourDraws[i]!;
+    const idKey = d.id !== undefined ? `${d.role}:${d.id}` : orderKeys?.[i];
+    const tiers = (idKey !== undefined ? byId.get(idKey) : undefined) ?? byText.get(`${d.role}:${d.text}`);
     if (tiers === undefined) {
       out.push(d);
       continue;
