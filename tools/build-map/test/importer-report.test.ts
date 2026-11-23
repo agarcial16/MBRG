@@ -182,6 +182,7 @@ const REPORT_LABELS = [
   'reassignedPieces',
   'gapFilledSets',
   'contextGapPixels',
+  'exclaveBridges',
   'enclosedWaterSets',
   'enclosedWaterPixels',
   'enclosedWaterZones',

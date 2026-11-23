@@ -315,8 +315,10 @@ on stderr, nothing written in the output folder), and `2` on usage error.
      (default 3, 0 turns it off) is turned into other land, because two sources
      rarely fit along a shared border and the strip would otherwise be a sea
      zone linking every territory on that border. A territory this leaves with no
-     neighbour (an exclave such as Llívia) fails the import as
-     `disconnected-map`: exclude it in the curation. An inset that holds a sea
+     neighbour (an exclave such as Llívia or Kaliningrad) is linked by thin
+     bridges to its (up to) 3 nearest territories within `params.exclaveReach`
+     pixels (default 64; the report lists them as `exclaveBridges`); with none in
+     reach the import fails as `unreachable-exclave`. An inset that holds a sea
      seed is a sea of its own (no main-map zone flows into it).
    - `paletteExhaustedFaction`: the first faction for which the viewer's
      12-colour assignment fails; supply explicit `color` values in `factions`

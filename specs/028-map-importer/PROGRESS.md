@@ -276,3 +276,11 @@ Findings and fixes:
 Tests: new importer-context-gap (8), importer-preview-colors (3), import-command end-to-end strip test, curation contextGap tests; report/language/purity lists updated; docs test now expects the refusal wording.
 Spec amended (FR-600/601/602, edge case); Status unchanged. deployment.md: V1 refusal wording (spec 029) and the new review bullet.
 Next: final review of PR #94, then user hand runs.
+
+## 2026-11-23 — Exclave rule (Llívia, Kaliningrad)
+User decisions: contextGap default 3 kept; do not exclude or merge Llívia; a general rule links an isolated group to its nearest territories (k = 3, reach 64 px, water bridges allowed if the sea zone stays whole).
+Format check: `map.json` neighbours must be mutual and equal pixel contact (003a FR-108, `extra-adjacency`), so a link needs painted contact; a bridge of land pixels is explicitly allowed there. A sea zone is an id, not a connected region (no contiguity rule in shared or 003a; entries already have several pieces), so a zone cut by a bridge stays one entry. No change to the map format, `shared` or `sim`.
+Rule (new `importer/exclave.ts`, `params.exclaveReach` 0..1024 default 64, report `exclaveBridges`, error `unreachable-exclave`): after sea and cleanup, groups with no contact to the main group (most land territories) are linked to their 3 nearest territories by a 4-connected line in the exclave's id over other land and sea; the first land territory met takes the link; sea pixels beside a line over water become other land, so the exclave never touches the zone (zone neighbours unchanged, test); groups chain; pieces are cleaned again; none in reach fails, nothing written.
+Real data: Llívia (2592) is linked to Puigcerdà (2633, 6.3 px), Queralbs (2545, 35.9 px), Toses (2691, 35.9 px); 95 painted pixels, none over water. `spain-municipios-3` imported in about 2 min 17 s.
+Tests: importer-exclave (9), end-to-end exclave test in import-command, curation exclaveReach tests; language/libraries/purity/report lists updated. Spec FR-600 and FR-602 text amended (still pending approval, as FR-601).
+Next: final review of PR #94.

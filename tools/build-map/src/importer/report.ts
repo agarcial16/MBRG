@@ -6,6 +6,7 @@ import type { EnclosedSet } from '../core/sea';
 import type { BuiltPresentation } from '../core/types';
 import type { CurationPlan } from './check-curation';
 import type { FilledSet } from './gap-fill';
+import type { Bridge } from './exclave';
 import type { ImportNumbering } from './numbering';
 import type { ViewSet } from './views';
 
@@ -207,6 +208,7 @@ export interface ImportReportDetails {
   reassigned: readonly Reassignment[];
   filled: readonly FilledSet[];
   contextGapPixels: number;
+  bridges: readonly Bridge[];
   enclosed: readonly EnclosedSet[];
 }
 
@@ -285,6 +287,8 @@ export function formatImportReport(input: ImportReportInput): string {
   lines.push(`gapFilledSets: ${details.filled.length}`);
   lines.push(...details.filled.map((s) => `  - pixels=${s.pixels} territory=${s.territory}`));
   lines.push(`contextGapPixels: ${details.contextGapPixels}`);
+  lines.push(`exclaveBridges: ${details.bridges.length}`);
+  lines.push(...details.bridges.map((b) => `  - from=${b.from} to=${b.to} pixels=${b.pixels} water=${b.water} distance=${b.distance}`));
   const enclosed = summariseEnclosed([...details.enclosed]);
   lines.push(`enclosedWaterSets: ${enclosed.sets}`);
   lines.push(`enclosedWaterPixels: ${enclosed.pixels}`);

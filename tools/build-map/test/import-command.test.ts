@@ -500,6 +500,29 @@ describe('FR-608 the pixel steps of an import, end to end', () => {
     expect(closed.details.contextGapPixels).toBeGreaterThan(0);
   });
 
+  it('FR-602 links an exclave inside other land to its nearest territories with bridges, or fails when none is within reach', () => {
+    const ex = world();
+    // E belongs to Yland and lies inside a context country, a little east of Gamma (4 to 6 degrees), across a strip of water
+    ex.features.push(feat({ code: 'E', name: 'Enclave', adm: 'Y' }, rect(7, 0.5, 7.5, 1)));
+    ex.context = collection([feat({ name: 'Strip' }, rect(0, -1.5, 6, -1.2)), feat({ name: 'East' }, rect(6.4, -0.5, 9, 2.5))]);
+    const ok = core(ex);
+    if (!ok.ok) throw new Error(JSON.stringify(ok.errors));
+    const entry = (id: number) => ok.map.territories.find((e) => e.id === id)!;
+    expect(ok.details.bridges.length).toBeGreaterThan(0);
+    expect(ok.details.bridges.every((b) => b.from === 4)).toBe(true);
+    expect(ok.details.bridges.map((b) => b.to)).toContain(3);
+    expect(entry(4).neighbors).toContain(3);
+    // the bridge never touches a sea zone: the exclave is linked to land only
+    const seaIds = new Set(ok.map.territories.filter((e) => e.kind === 'sea').map((e) => e.id));
+    expect(entry(4).neighbors.some((n) => seaIds.has(n))).toBe(false);
+    ex.curation.params.exclaveReach = 3;
+    const far = core(ex);
+    expect(far.ok ? [] : far.errors).toStrictEqual([{ kind: 'unreachable-exclave', territories: [4], reach: 3 }]);
+    ex.curation.params.exclaveReach = 0;
+    const off = core(ex);
+    expect(off.ok ? [] : off.errors.map((e) => e.kind)).toStrictEqual(['disconnected-map']);
+  });
+
   it('FR-601 draws a unit of an inset from its own projection at the rectangle, and the rest in the main view', () => {
     const w = world();
     // a small island of country Y far to the north-east: drawn by itself in a rectangle below the land, not at its place

@@ -4,6 +4,7 @@ import { CURATION_KIND_ORDER } from '../src/importer/errors';
 import { extractGeo } from '../src/importer/extract-geo';
 import { groupFactions, groupTerritories } from '../src/importer/grouping';
 import { writePackage } from '../src/io/write-package';
+import { bridgeExclaves } from '../src/importer/exclave';
 import { belowMinSize } from '../src/importer/min-size';
 import { assignSea } from '../src/importer/sea-sources';
 import { buildViews, insetHidesLand } from '../src/importer/views';
@@ -30,7 +31,7 @@ const GROUP_KINDS = ['invalid-key', 'missing-group-value', 'mixed-territory-kind
 const FACTION_KINDS = ['invalid-name', 'invalid-color', 'duplicate-faction-key', 'missing-faction', 'split-territory-faction', 'missing-faction-name', 'faction-without-territory', 'too-many-factions'];
 const VIEW_KINDS = ['selection-too-wide', 'antimeridian-edge', 'unit-in-two-insets', 'empty-inset', 'inset-outside-image', 'insets-overlap', 'inset-hides-land'];
 const SEA_KINDS = ['seed-outside-frame', 'seed-not-water', 'duplicate-seed-pixel'];
-const CLEANUP_KINDS = ['territory-below-min-size'];
+const CLEANUP_KINDS = ['territory-below-min-size', 'unreachable-exclave'];
 const COMMAND_KINDS = ['usage-error', 'output-not-empty', 'write-failed', 'partial-write', 'preview-write-failed'];
 const IMPORTER_KINDS = [...SOURCE_KINDS, ...EXTRACT_KINDS, ...CURATION_KINDS, ...UNIT_KINDS, ...SELECT_KINDS, ...GROUP_KINDS, ...FACTION_KINDS, ...VIEW_KINDS, ...SEA_KINDS, ...CLEANUP_KINDS, ...COMMAND_KINDS];
 /** Data fields of the importer errors (the kind is always present). */
@@ -63,6 +64,8 @@ const DATA_FIELDS = [
   'y',
   'pixels',
   'largest',
+  'territories',
+  'reach',
   'out',
   'artifact',
   'replaced',
@@ -100,6 +103,7 @@ const REPORT_LABELS = [
   'reassignedPieces',
   'gapFilledSets',
   'contextGapPixels',
+  'exclaveBridges',
   'enclosedWaterSets',
   'enclosedWaterPixels',
   'enclosedWaterZones',
@@ -110,7 +114,7 @@ const REPORT_SECTION_LABELS = ['requiredTextureSize', 'warnings'];
 const REPORT_WARNING_LABELS = ['textureAbove2048', 'entriesAbove65535', 'factionsAbove255', 'paletteExhaustedFaction'];
 const REPORT_ITEM_WORDS = [
   'file', 'sha256', 'features', 'skippedNullGeometries', 'inset', 'x', 'y', 'w', 'h',
-  'entry', 'pixels', 'to', 'territory', 'zone', 'sets', 'pieces', 'faction', 'groups',
+  'entry', 'pixels', 'to', 'territory', 'zone', 'sets', 'pieces', 'faction', 'groups', 'from', 'water', 'distance',
 ];
 
 type Err = Record<string, unknown>;
@@ -318,6 +322,13 @@ function cleanupErrors(): Err[] {
   return belowMinSize(4, pixels, [{ id: 1, key: 'A', name: 'Alfa' }, { id: 2, key: 'B', name: 'Beta' }], 2) as unknown as Err[];
 }
 
+function exclaveErrors(): Err[] {
+  const rows = ['3...1', '....1', '.....', '.....', '.....'];
+  const pixels = new Uint32Array(25);
+  rows.forEach((row, y) => [...row].forEach((ch, x) => (pixels[y * 5 + x] = ch === '.' ? 0 : Number(ch))));
+  return errs(bridgeExclaves({ width: 5, pixels, landIds: [1, 3], seaIds: [], reach: 1, links: 3 }));
+}
+
 function groupErrors(): Err[] {
   const c = parseCuration(
     curationText((x) => {
@@ -437,7 +448,7 @@ async function previewErrors(): Promise<Err[]> {
 }
 
 async function allErrors(): Promise<Err[]> {
-  return [...sourceErrors(), ...extractErrors(), ...curationErrors(), ...unitErrors(), ...groupErrors(), ...factionErrors(), ...viewErrors(), ...seaErrors(), ...cleanupErrors(), ...(await commandErrors()), ...(await previewErrors())];
+  return [...sourceErrors(), ...extractErrors(), ...curationErrors(), ...unitErrors(), ...groupErrors(), ...factionErrors(), ...viewErrors(), ...seaErrors(), ...cleanupErrors(), ...exclaveErrors(), ...(await commandErrors()), ...(await previewErrors())];
 }
 
 const sources = import.meta.glob('../src/importer/**/*.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
@@ -513,7 +524,7 @@ describe('NFR-137 the language of the importer', () => {
 
   it('NFR-137 every importer source and CLI file is ASCII-only', () => {
     const allSources = { ...sources, ...cliSources };
-    expect(Object.keys(sources)).toHaveLength(24);
+    expect(Object.keys(sources)).toHaveLength(25);
     expect(Object.keys(cliSources)).toHaveLength(3);
     const offenders = Object.keys(allSources).filter((f) => /[^\x00-\x7f]/.test(allSources[f]!));
     expect(offenders).toStrictEqual([]);

@@ -9,6 +9,7 @@ import type { Artifact, BuildError, BuiltPresentation, PngCodec } from '../core/
 import { checkCuration, type CurationPlan, type CurationStageError } from './check-curation';
 import { usedProperties, type Curation } from './curation';
 import { closeContextGaps, DEFAULT_CONTEXT_GAP } from './context-gap';
+import { bridgeExclaves, DEFAULT_EXCLAVE_REACH, EXCLAVE_LINKS, type Bridge, type UnreachableExclave } from './exclave';
 import { makeGapFill, type FilledSet } from './gap-fill';
 import { cleanPieces, type BelowMinSize, type TerritoryInfo } from './min-size';
 import { withPreviewColors } from './preview-colors';
@@ -24,7 +25,7 @@ import type { PreviewEntry, PreviewSource } from '../core/types';
 export type ImportStage = 'sources' | 'curation' | 'projection' | 'pixels' | 'self-check';
 
 /** Every error an import can report after the files are read. */
-export type ImportError = SourceError | CurationStageError | ViewError | InsetError | SeaSeedError | BelowMinSize | CleanupError | BuildError;
+export type ImportError = SourceError | CurationStageError | ViewError | InsetError | SeaSeedError | BelowMinSize | CleanupError | UnreachableExclave | BuildError;
 
 /** What the import core takes: the parsed curation and the bytes of its sources, the PNG codec injected (NFR-134). */
 export interface ImportInput {
@@ -44,6 +45,8 @@ export interface ImportDetails {
   filled: FilledSet[];
   /** FR-602: the water pixels of strips between a land territory and other land that became other land. */
   contextGapPixels: number;
+  /** FR-602: the bridges that linked exclave groups to the main group, in the order they were drawn. */
+  bridges: Bridge[];
   enclosed: EnclosedSet[];
   reassigned: Reassignment[];
 }
@@ -132,7 +135,25 @@ export function buildPackage(input: ImportInput): ImportOutcome {
   ];
   const cleaned = cleanPieces(params.side, water.value.pixels, numbering.pieceEntries, territories, params.minPieceSize);
   if (!cleaned.ok) return { ok: false, stage: 'pixels', errors: cleaned.errors, preview: previewOf(water.value.pixels) };
-  const pixels = cleaned.value.pixels;
+  let pixels = cleaned.value.pixels;
+  let reassigned = cleaned.value.reassigned;
+
+  // FR-602: a group of territories that touches the rest of the map nowhere is linked to its nearest territories, then the pieces are cleaned again
+  const bridged = bridgeExclaves({
+    width: params.side,
+    pixels,
+    landIds: numbering.land.map((l) => l.id),
+    seaIds: numbering.sea.map((s) => s.id),
+    reach: params.exclaveReach ?? DEFAULT_EXCLAVE_REACH,
+    links: EXCLAVE_LINKS,
+  });
+  if (!bridged.ok) return { ok: false, stage: 'pixels', errors: bridged.errors, preview: previewOf(pixels) };
+  if (bridged.bridges.length > 0) {
+    const again = cleanPieces(params.side, pixels, numbering.pieceEntries, territories, params.minPieceSize);
+    if (!again.ok) return { ok: false, stage: 'pixels', errors: again.errors, preview: previewOf(pixels) };
+    pixels = again.value.pixels;
+    reassigned = [...reassigned, ...again.value.reassigned];
+  }
 
   // FR-606: the package gate of 003b on the final map.
   const map = buildMapData(params.side, pixels, numbering.plan);
@@ -154,8 +175,9 @@ export function buildPackage(input: ImportInput): ImportOutcome {
       numbering,
       filled: fill?.filled ?? [],
       contextGapPixels,
+      bridges: bridged.bridges,
       enclosed: water.value.enclosed,
-      reassigned: cleaned.value.reassigned,
+      reassigned,
     },
     preview: previewOf(pixels),
   };

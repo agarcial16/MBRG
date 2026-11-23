@@ -38,6 +38,7 @@ describe('NFR-134 the source scan of the importer core', () => {
       '../src/importer/curation.ts',
       '../src/importer/equal-earth.ts',
       '../src/importer/errors.ts',
+      '../src/importer/exclave.ts',
       '../src/importer/extract-geo.ts',
       '../src/importer/gap-fill.ts',
       '../src/importer/grouping.ts',

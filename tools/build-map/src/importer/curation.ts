@@ -32,6 +32,8 @@ export interface Params {
   gapFill?: number;
   /** FR-602: the widest strip of water between a land territory and other land that becomes other land (0 to 16). */
   contextGap?: number;
+  /** FR-602: how far (pixels) an exclave group looks for territories to link to (0 to 1,024; 0 turns it off). */
+  exclaveReach?: number;
 }
 
 /** FR-595: one entry of the per-unit layer. */
@@ -219,7 +221,7 @@ function readParams(value: unknown, problems: Problems): Params | undefined {
     problems.add('params');
     return undefined;
   }
-  noUnknown(value, ['side', 'margin', 'minPieceSize', 'projection', 'gapFill', 'contextGap'], 'params', problems);
+  noUnknown(value, ['side', 'margin', 'minPieceSize', 'projection', 'gapFill', 'contextGap', 'exclaveReach'], 'params', problems);
   const side = readRange(value, 'side', 64, 16384, true, problems);
   const margin = readRange(value, 'margin', 0, 0.5, false, problems);
   const minPieceSize = readRange(value, 'minPieceSize', 1, 10000, true, problems);
@@ -230,7 +232,9 @@ function readParams(value: unknown, problems: Problems): Params | undefined {
   if (side === undefined || margin === undefined || minPieceSize === undefined) return undefined;
   if (projection !== 'laea' && projection !== 'equal-earth') return undefined;
   if (Object.hasOwn(value, 'gapFill') && gapFill === undefined) return undefined;
+  const exclaveReach = Object.hasOwn(value, 'exclaveReach') ? readRange(value, 'exclaveReach', 0, 1024, true, problems) : undefined;
   if (Object.hasOwn(value, 'contextGap') && contextGap === undefined) return undefined;
+  if (Object.hasOwn(value, 'exclaveReach') && exclaveReach === undefined) return undefined;
   return {
     side,
     margin,
@@ -238,6 +242,7 @@ function readParams(value: unknown, problems: Problems): Params | undefined {
     projection,
     ...(gapFill === undefined ? {} : { gapFill }),
     ...(contextGap === undefined ? {} : { contextGap }),
+    ...(exclaveReach === undefined ? {} : { exclaveReach }),
   };
 }
 
