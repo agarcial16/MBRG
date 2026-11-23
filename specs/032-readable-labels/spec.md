@@ -1,5 +1,5 @@
 # Spec 032 — Readable map labels
-Status: draft
+Status: approved
 Tier: Light SDD (viewer labels). Ids outside the traceability ledger: FR-620..FR-627, NFR-150..NFR-153.
 
 ## Context and goal
