@@ -471,7 +471,8 @@ describe('FR-608 the pixel steps of an import, end to end', () => {
       const sea = new Set(r.map.territories.filter((t) => t.kind === 'sea').map((t) => t.id));
       const w = r.width;
       let n = 0;
-      for (let y = 2; y < w - 2; y++) {
+      // the rows around the sliver south of the three units (the corners of the frame hold ordinary coast)
+      for (let y = 58; y < 70; y++) {
         for (let x = 2; x < w - 2; x++) {
           if (!sea.has(r.pixels[y * w + x]!)) continue;
           let touchesLand = false;
@@ -493,7 +494,7 @@ describe('FR-608 the pixel steps of an import, end to end', () => {
     near.curation.params.contextGap = 0;
     const open = core(near);
     expect(seaTouchesBoth(open), 'without the rule the sliver is sea').toBeGreaterThan(0);
-    delete near.curation.params.contextGap;
+    near.curation.params.contextGap = 4;
     const closed = core(near);
     expect(seaTouchesBoth(closed)).toBe(0);
     if (!closed.ok) throw new Error('unreachable');
@@ -544,6 +545,36 @@ describe('FR-608 the pixel steps of an import, end to end', () => {
     }
     expect(inside).toBeGreaterThan(40);
     expect(outside).toBe(0);
+  });
+
+  it('FR-601 gives all the water of an inset to the sea zone it names, wherever its seed lies', () => {
+    const w = world();
+    w.features.push(feat({ code: 'I', name: 'Isle', adm: 'Y' }, rect(5, 3.6, 5.6, 4.2)));
+    w.curation.insets = [{ select: [{ property: 'code', eq: 'I' }], at: [4, 76] }];
+    const waterOf = (r: ReturnType<typeof core>): number[] => {
+      if (!r.ok) throw new Error(JSON.stringify(r.errors));
+      const { x, y, w: rw, h } = r.details.views.insets[0]!.rect;
+      const ids = new Set<number>();
+      for (let j = y; j < y + h; j++) for (let i = x; i < x + rw; i++) ids.add(r.pixels[j * 96 + i]!);
+      return [...ids].filter((v) => v > 4).sort((p, q) => p - q);
+    };
+    // without the name the water of the rectangle joins whatever reaches it through the main water
+    w.curation.insets[0]!.sea = undefined;
+    const free = waterOf(core(w));
+    expect(free.length).toBeGreaterThan(0);
+    w.curation.insets[0]!.sea = 'South Sea';
+    const named = core(w);
+    if (!named.ok) throw new Error(JSON.stringify(named.errors));
+    const zone = named.map.territories.filter((e) => e.kind === 'sea').map((e) => e.id);
+    expect(waterOf(named)).toStrictEqual([zone[zone.length - 1]]);
+  });
+
+  it('FR-601 refuses an inset that names a sea no entry of seas has', () => {
+    const w = world();
+    w.features.push(feat({ code: 'I', name: 'Isle', adm: 'Y' }, rect(5, 3.6, 5.6, 4.2)));
+    w.curation.insets = [{ select: [{ property: 'code', eq: 'I' }], at: [4, 76], sea: 'Nowhere' }];
+    const parsed = parseCuration(textBytes(JSON.stringify(w.curation)), 'curation.json');
+    expect(parsed.ok ? [] : parsed.errors).toStrictEqual([{ kind: 'invalid-curation', path: 'insets[0].sea' }]);
   });
 
   it('FR-598 imports with no sea at all: zero zones make every water pixel background', () => {

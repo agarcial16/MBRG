@@ -102,8 +102,10 @@ const REPORT_LABELS = [
   'smallestPiece',
   'reassignedPieces',
   'gapFilledSets',
+  'contextGap',
   'contextGapPixels',
   'exclaveBridges',
+  'thinCoastFactions',
   'enclosedWaterSets',
   'enclosedWaterPixels',
   'enclosedWaterZones',
@@ -114,7 +116,7 @@ const REPORT_SECTION_LABELS = ['requiredTextureSize', 'warnings'];
 const REPORT_WARNING_LABELS = ['textureAbove2048', 'entriesAbove65535', 'factionsAbove255', 'paletteExhaustedFaction'];
 const REPORT_ITEM_WORDS = [
   'file', 'sha256', 'features', 'skippedNullGeometries', 'inset', 'x', 'y', 'w', 'h',
-  'entry', 'pixels', 'to', 'territory', 'zone', 'sets', 'pieces', 'faction', 'groups', 'from', 'water', 'distance',
+  'entry', 'pixels', 'to', 'territory', 'zone', 'sets', 'pieces', 'faction', 'groups', 'from', 'water', 'distance', 'territories',
 ];
 
 type Err = Record<string, unknown>;
@@ -524,7 +526,7 @@ describe('NFR-137 the language of the importer', () => {
 
   it('NFR-137 every importer source and CLI file is ASCII-only', () => {
     const allSources = { ...sources, ...cliSources };
-    expect(Object.keys(sources)).toHaveLength(25);
+    expect(Object.keys(sources)).toHaveLength(26);
     expect(Object.keys(cliSources)).toHaveLength(3);
     const offenders = Object.keys(allSources).filter((f) => /[^\x00-\x7f]/.test(allSources[f]!));
     expect(offenders).toStrictEqual([]);

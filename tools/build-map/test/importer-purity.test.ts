@@ -34,6 +34,7 @@ describe('NFR-134 the source scan of the importer core', () => {
     const files = Object.keys(importerSources).sort();
     expect(files).toStrictEqual([
       '../src/importer/check-curation.ts',
+      '../src/importer/coast-check.ts',
       '../src/importer/context-gap.ts',
       '../src/importer/curation.ts',
       '../src/importer/equal-earth.ts',

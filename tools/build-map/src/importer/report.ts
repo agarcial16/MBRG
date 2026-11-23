@@ -5,6 +5,7 @@ import { summariseEnclosed } from '../core/report';
 import type { EnclosedSet } from '../core/sea';
 import type { BuiltPresentation } from '../core/types';
 import type { CurationPlan } from './check-curation';
+import { thinCoastFactions } from './coast-check';
 import type { FilledSet } from './gap-fill';
 import type { Bridge } from './exclave';
 import type { ImportNumbering } from './numbering';
@@ -207,6 +208,7 @@ export interface ImportReportDetails {
   numbering: ImportNumbering;
   reassigned: readonly Reassignment[];
   filled: readonly FilledSet[];
+  contextGap: number;
   contextGapPixels: number;
   bridges: readonly Bridge[];
   enclosed: readonly EnclosedSet[];
@@ -286,9 +288,21 @@ export function formatImportReport(input: ImportReportInput): string {
   lines.push(...details.reassigned.map((r) => `  - entry=${r.entry} pixels=${r.pixels} to=${r.to === 0 ? 'background' : String(r.to)}`));
   lines.push(`gapFilledSets: ${details.filled.length}`);
   lines.push(...details.filled.map((s) => `  - pixels=${s.pixels} territory=${s.territory}`));
+  lines.push(`contextGap: ${details.contextGap}`);
   lines.push(`contextGapPixels: ${details.contextGapPixels}`);
   lines.push(`exclaveBridges: ${details.bridges.length}`);
   lines.push(...details.bridges.map((b) => `  - from=${b.from} to=${b.to} pixels=${b.pixels} water=${b.water} distance=${b.distance}`));
+  // factions whose every sea contact is thin water (a sliver that links an inland territory to a zone)
+  const owner = new Map(input.map.territories.flatMap((t): [number, number][] => ('owner' in t ? [[t.id, t.owner]] : [])));
+  const thinCoast = thinCoastFactions({
+    width: input.width,
+    pixels: input.pixels,
+    owner,
+    seaIds: new Set(input.map.territories.filter((t) => 'kind' in t && t.kind === 'sea').map((t) => t.id)),
+    radius: Math.floor(details.contextGap / 2),
+  });
+  lines.push(`thinCoastFactions: ${thinCoast.length}`);
+  lines.push(...thinCoast.map((c) => `  - faction=${numbering.factions.find((f) => f.id === c.faction)?.key ?? String(c.faction)} territories=${c.territories.join(',')} pixels=${c.pixels}`));
   const enclosed = summariseEnclosed([...details.enclosed]);
   lines.push(`enclosedWaterSets: ${enclosed.sets}`);
   lines.push(`enclosedWaterPixels: ${enclosed.pixels}`);

@@ -8,7 +8,8 @@ import { selfCheck } from '../core/self-check';
 import type { Artifact, BuildError, BuiltPresentation, PngCodec } from '../core/types';
 import { checkCuration, type CurationPlan, type CurationStageError } from './check-curation';
 import { usedProperties, type Curation } from './curation';
-import { closeContextGaps, DEFAULT_CONTEXT_GAP } from './context-gap';
+import { WATER } from '../core/rasterize';
+import { closeContextGaps, defaultContextGap } from './context-gap';
 import { bridgeExclaves, DEFAULT_EXCLAVE_REACH, EXCLAVE_LINKS, type Bridge, type UnreachableExclave } from './exclave';
 import { makeGapFill, type FilledSet } from './gap-fill';
 import { cleanPieces, type BelowMinSize, type TerritoryInfo } from './min-size';
@@ -44,6 +45,8 @@ export interface ImportDetails {
   numbering: ImportNumbering;
   filled: FilledSet[];
   /** FR-602: the water pixels of strips between a land territory and other land that became other land. */
+  /** FR-602: the context gap in force, in pixels (the curation's or the default of the map's pixel size). */
+  contextGap: number;
   contextGapPixels: number;
   /** FR-602: the bridges that linked exclave groups to the main group, in the order they were drawn. */
   bridges: Bridge[];
@@ -121,9 +124,24 @@ export function buildPackage(input: ImportInput): ImportOutcome {
   });
   if (!raster.ok) return fail('projection', raster.errors);
 
+  // FR-601: an inset that names a sea gives all the water inside its rectangle to that zone
+  curation.insets.forEach((inset, i) => {
+    if (inset.sea === undefined) return;
+    const zone = numbering.sea.find((s) => s.seed !== undefined && curation.seas[s.seed]?.name === inset.sea);
+    const view = views.value.insets[i];
+    if (zone === undefined || view === undefined) return;
+    const { x, y, w, h } = view.rect;
+    for (let row = y; row < y + h; row++) {
+      for (let col = x; col < x + w; col++) {
+        if (raster.value[row * params.side + col] === WATER) raster.value[row * params.side + col] = zone.id;
+      }
+    }
+  });
+
   // Pixel steps: the sea (gap fill between the isolation and the zones), the minimum piece, the cleanup.
   const landCount = numbering.land.length;
-  const contextGapPixels = closeContextGaps(params.side, raster.value, params.contextGap ?? DEFAULT_CONTEXT_GAP, (value) => value >= 1 && value <= landCount);
+  const contextGap = params.contextGap ?? defaultContextGap((views.value.main.frame.side / params.side) * 6371);
+  const contextGapPixels = closeContextGaps(params.side, raster.value, contextGap, (value) => value >= 1 && value <= landCount);
   const zones: SeaZone[] = numbering.sea.map((s) => (s.seed === undefined ? { id: s.id } : { id: s.id, seed: curation.seas[s.seed]! }));
   const fill = params.gapFill === undefined ? undefined : makeGapFill(params.side, params.gapFill, (value) => value >= 1 && value <= landCount);
   const water = assignSea({ views: views.value, pixels: raster.value, zones, ...(fill === undefined ? {} : { between: fill.between }) });
@@ -174,6 +192,7 @@ export function buildPackage(input: ImportInput): ImportOutcome {
       views: views.value,
       numbering,
       filled: fill?.filled ?? [],
+      contextGap,
       contextGapPixels,
       bridges: bridged.bridges,
       enclosed: water.value.enclosed,

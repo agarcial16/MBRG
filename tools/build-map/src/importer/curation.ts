@@ -65,6 +65,8 @@ export interface SeaEntry {
 export interface InsetEntry {
   select: Filter[];
   at: [number, number];
+  /** FR-601: the name of an entry of `seas`: all the water inside the rectangle belongs to that zone. */
+  sea?: string;
 }
 
 /** FR-592: a checked curation; optional members are given empty when absent. Paths are the text as written. */
@@ -390,7 +392,7 @@ export function parseCuration(bytes: Uint8Array, file: string): Result<Curation,
           return;
         }
         const before = problems.paths.length;
-        noUnknown(entry, ['select', 'at'], path, problems);
+        noUnknown(entry, ['select', 'at', 'sea'], path, problems);
         const filters = Object.hasOwn(entry, 'select') ? readFilters(own(entry, 'select'), at(path, 'select'), problems) : (problems.add(at(path, 'select')), []);
         const position = own(entry, 'at');
         if (!Array.isArray(position) || position.length !== 2) problems.add(at(path, 'at'));
@@ -398,7 +400,9 @@ export function parseCuration(bytes: Uint8Array, file: string): Result<Curation,
           position.forEach((n: unknown, j) => {
             if (!isInteger(n)) problems.add(item(at(path, 'at'), j));
           });
-        if (problems.paths.length === before) insets.push({ select: filters, at: position as [number, number] });
+        const sea = Object.hasOwn(entry, 'sea') ? own(entry, 'sea') : undefined;
+        if (Object.hasOwn(entry, 'sea') && (typeof sea !== 'string' || !seas.some((s) => s.name === sea))) problems.add(at(path, 'sea'));
+        if (problems.paths.length === before) insets.push({ select: filters, at: position as [number, number], ...(typeof sea === 'string' ? { sea } : {}) });
       });
     }
   }

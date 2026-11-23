@@ -310,16 +310,24 @@ on stderr, nothing written in the output folder), and `2` on usage error.
      (many factions) or **V3** (tiling) ships. A texture above the device's
      maximum and a failed colour assignment also stop with a message (follow-up
      **V1** is covered by these refusals).
-   - `contextGapPixels`: water between a land territory and other land (a context
-     source or an unselected unit) that is at most `params.contextGap` pixels wide
-     (default 3, 0 turns it off) is turned into other land, because two sources
-     rarely fit along a shared border and the strip would otherwise be a sea
-     zone linking every territory on that border. A territory this leaves with no
+   - `contextGap`, `contextGapPixels`, `thinCoastFactions`: thin water (at most
+     `params.contextGap` pixels wide; the default is a strip of 3.5 km at the
+     map's pixel size, at most 16; 0 turns it off) between a land territory and
+     other land (a context source or an unselected unit) is turned into other
+     land, because two sources rarely fit along a shared border and the strip
+     would otherwise be a sea zone linking every territory on that border.
+     `thinCoastFactions` lists any faction whose every sea contact is thin
+     water: it should be empty (an inland province in it means a sliver or a
+     notch is still joined to a zone; raise `contextGap` or set `gapFill`). Set
+     `params.gapFill` above the largest inland reservoir (Spain by municipalities:
+     5000) so enclosed water inside the land is not a zone. A territory this leaves with no
      neighbour (an exclave such as Llívia or Kaliningrad) is linked by thin
      bridges to its (up to) 3 nearest territories within `params.exclaveReach`
      pixels (default 64; the report lists them as `exclaveBridges`); with none in
      reach the import fails as `unreachable-exclave`. An inset that holds a sea
-     seed is a sea of its own (no main-map zone flows into it).
+     seed is a sea of its own (no main-map zone flows into it); `insets[i].sea`
+     names the `seas` entry whose zone owns all the water of the rectangle, so
+     the Canary Islands can belong to the Atlantic zone.
    - `paletteExhaustedFaction`: the first faction for which the viewer's
      12-colour assignment fails; supply explicit `color` values in `factions`
      (or wait for **V2**) before listing.

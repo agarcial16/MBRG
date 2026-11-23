@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WATER } from '../src/core/rasterize';
-import { closeContextGaps } from '../src/importer/context-gap';
+import { closeContextGaps, defaultContextGap } from '../src/importer/context-gap';
 import { assignSea, type SeaZone } from '../src/importer/sea-sources';
 import type { InsetView, View, ViewSet } from '../src/importer/views';
 
@@ -41,30 +41,49 @@ describe('FR-602 the gap between a land territory and other land', () => {
   });
 
   it('FR-602 closes a strip as wide as the gap and leaves a wider one, a strait, as water', () => {
+    // a strip of three pixels between land and other land: a gap of 2 (radius 1) cannot see it, a gap of 4 (radius 2) closes it
     const rows = Array(7).fill('W1WWW..') as string[];
     const narrow = grid(rows);
     expect(closeContextGaps(narrow.width, narrow.pixels, 2, isLand)).toBe(0);
     expect(show(narrow.pixels, narrow.width)).toStrictEqual(rows);
     const wide = grid(rows);
-    expect(closeContextGaps(wide.width, wide.pixels, 3, isLand)).toBe(21);
+    expect(closeContextGaps(wide.width, wide.pixels, 4, isLand)).toBe(21);
     expect(show(wide.pixels, wide.width)).toStrictEqual(Array(7).fill('W1.....'));
   });
 
-  it('FR-602 leaves water between two land territories, between two pieces of other land, and open coast alone', () => {
-    const { width, pixels } = grid(['WWWWWWWW', 'W11W22WW', 'W11W22WW', 'WWWWWWWW', 'WWWWWWWW', 'W..W..WW', 'W..W..WW', 'WWWWWWWW']);
+  it('FR-602 closes a strip wider than the old three pixels: twelve pixels at a gap of 12', () => {
+    const rows = Array(20).fill('WW' + '1' + 'W'.repeat(12) + '.'.repeat(5)) as string[];
+    const strip = grid(rows);
+    expect(closeContextGaps(strip.width, strip.pixels, 12, isLand)).toBe(12 * 20);
+    const strait = grid(Array(20).fill('WW1' + 'W'.repeat(13) + '....') as string[]);
+    expect(closeContextGaps(strait.width, strait.pixels, 12, isLand)).toBe(0);
+  });
+
+  it('FR-602 leaves water that touches only land territories, only other land, or neither, alone', () => {
+    const { width, pixels } = grid(Array.from({ length: 12 }, (_, y) => (y === 1 || y === 2 ? 'W11W22WWWWWW' : y === 8 || y === 9 ? 'W..W..WWWWWW' : 'WWWWWWWWWWWW')));
     const before = [...pixels];
-    // no water pixel has a land territory and other land both next to it: the rows between them are two pixels wide
-    expect(closeContextGaps(width, pixels, 1, isLand)).toBe(0);
+    // the water between the two land territories (column 3) and between the two pieces of other land is thin, but touches
+    // only one kind of land
+    expect(closeContextGaps(width, pixels, 2, isLand)).toBe(0);
     expect([...pixels]).toStrictEqual(before);
   });
 
-  it('FR-602 changes nothing at a gap of 0 and never touches a sea zone pixel', () => {
+  it('FR-602 changes nothing at a gap below 2 and never touches a sea zone pixel', () => {
     const a = grid(['WWWWWW', 'W1WaWW', 'W1W.WW', 'WWWWWW', 'WWWWWW', 'WWWWWW']);
     const before = [...a.pixels];
     expect(closeContextGaps(a.width, a.pixels, 0, isLand)).toBe(0);
+    expect(closeContextGaps(a.width, a.pixels, 1, isLand)).toBe(0);
     expect([...a.pixels]).toStrictEqual(before);
     expect(closeContextGaps(a.width, a.pixels, 2, isLand)).toBeGreaterThan(0);
     expect(show(a.pixels, a.width)[1]![3]).toBe('a');
+  });
+
+  it('FR-602 defaults to the width of a strip of 3.5 km at the pixel size of the map, at most 16 pixels, and to nothing when it is under 2 pixels', () => {
+    expect(defaultContextGap(0.288)).toBe(12);
+    expect(defaultContextGap(0.1)).toBe(16);
+    expect(defaultContextGap(6.4)).toBe(1);
+    expect(defaultContextGap(0)).toBe(0);
+    expect(defaultContextGap(Number.NaN)).toBe(0);
   });
 
   it('FR-598 keeps the strip out of every sea zone: it joins the other land, and the zone keeps only the open sea', () => {
