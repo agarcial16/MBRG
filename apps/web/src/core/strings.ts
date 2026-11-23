@@ -330,6 +330,14 @@ export const STRINGS = {
   landingAtlasTag: 'ATLAS · VISTA ESTÁTICA',
   landingAtlasCaption: '{name} · Ronda {round}',
   landingMapDev: 'Europa Occidental',
+  // Windowed round timeline and jump-to-round (spec 034).
+  hudTrackWindowPrev: 'Mostrar rondas anteriores',
+  hudTrackWindowNext: 'Mostrar rondas siguientes',
+  hudTrackWindowPrevShort: '‹',
+  hudTrackWindowNextShort: '›',
+  hudJumpTrigger: 'Ir a una ronda (0 a {round})',
+  hudJumpInput: 'Número de ronda (0 a {round})',
+  hudJumpInvalid: 'Escribe un número entero entre 0 y {round}.',
 } as const;
 
 /** Fills {name} placeholders; a placeholder without a value is left as written. */

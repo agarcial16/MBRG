@@ -1,5 +1,5 @@
 # Spec 034 — Windowed round timeline and jump-to-round
-Status: draft
+Status: implemented (approved by user: "apruebo ... 034", 2026-11-23)
 Tier: Light SDD (`apps/web`). Ids outside the traceability ledger: FR-660..FR-666, NFR-170..NFR-172. Amends spec 010 (FR-364) and spec 013 (FR-442, FR-444).
 
 ## Context and goal

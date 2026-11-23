@@ -3,7 +3,20 @@
 import { describe, expect, it } from 'vitest';
 import type { Stage } from '@mbrg/protocol';
 import { inPlayStage } from '../src/core/live-hud';
-import { liveMark, replayBand, roundTrack, stripScroll, trackTarget } from '../src/core/live-track';
+import {
+  TRACK_METRICS,
+  liveMark,
+  parseJumpRound,
+  replayBand,
+  roundTrack,
+  roundWindow,
+  shiftWindow,
+  stripScroll,
+  swipeShift,
+  trackTarget,
+  windowCapacity,
+  windowPageStep,
+} from '../src/core/live-track';
 import { controlsState, navigate } from '../src/core/navigation';
 import { STRINGS } from '../src/core/strings';
 import { Driver, eventsOfRound, scripted, type Scripted } from './helpers/scripted-match';
@@ -126,5 +139,113 @@ describe('FR-442 the strip keeps the current round in view', () => {
     expect(stripScroll({ left: 10, width: 44, view: 200, content: 1000 })).toBe(0);
     expect(stripScroll({ left: 980, width: 44, view: 200, content: 1024 })).toBe(824);
     expect(stripScroll({ left: 10, width: 44, view: 300, content: 200 })).toBe(0);
+  });
+});
+
+describe('spec 034 FR-660..FR-666 NFR-170 windowed round timeline and jump-to-round', () => {
+  it('FR-660 NFR-170 windowCapacity computes dynamic N for desktop, phone, 3-digit rounds and degenerate widths', () => {
+    expect(windowCapacity(310, TRACK_METRICS.desk, 51)).toBeGreaterThanOrEqual(8);
+    expect(windowCapacity(310, TRACK_METRICS.desk, 51)).toBeLessThanOrEqual(11);
+    expect(windowCapacity(200, TRACK_METRICS.phone, 51)).toBeGreaterThanOrEqual(4);
+    expect(windowCapacity(200, TRACK_METRICS.phone, 51)).toBeLessThanOrEqual(6);
+    expect(windowCapacity(310, TRACK_METRICS.desk, 250)).toBeLessThanOrEqual(windowCapacity(310, TRACK_METRICS.desk, 51));
+    expect(windowCapacity(0, TRACK_METRICS.desk, 10)).toBe(1);
+    expect(windowCapacity(-40, TRACK_METRICS.phone, 10)).toBe(1);
+    expect(windowCapacity(Number.NaN, TRACK_METRICS.desk, 10)).toBe(1);
+  });
+
+  it('FR-660 FR-661 pins Inicio separately and slices at most capacity numbered rounds across 0, 1, 10, 52 and 250 rounds', () => {
+    const atZero = roundWindow(51, 0, 0, false, 9);
+    expect(atZero.start).toStrictEqual({ round: 0, state: 'current', live: true });
+    expect(atZero.items).toStrictEqual([]);
+    expect(atZero.canShiftLeft).toBe(false);
+    expect(atZero.canShiftRight).toBe(false);
+    expect(atZero.canJump).toBe(false);
+    expect(atZero.label).toBe('');
+
+    const atOne = roundWindow(51, 1, 1, true, 9);
+    expect(atOne.start).toStrictEqual({ round: 0, state: 'past', live: false });
+    expect(atOne.items.map((d) => [d.round, d.state])).toStrictEqual([[1, 'current'], [2, 'future']]);
+    expect(atOne.canShiftLeft).toBe(false);
+    expect(atOne.canShiftRight).toBe(false);
+
+    const atTen = roundWindow(51, 10, 10, false, 9);
+    expect(atTen.items.map((d) => d.round)).toStrictEqual([2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(atTen.canShiftLeft).toBe(true);
+    expect(atTen.canShiftRight).toBe(false);
+
+    const at52 = roundWindow(52, 51, 51, false, 9);
+    expect(at52.start.round).toBe(0);
+    expect(at52.items.map((d) => d.round)).toStrictEqual([43, 44, 45, 46, 47, 48, 49, 50, 51]);
+    expect(at52.items[at52.items.length - 1]).toStrictEqual({ round: 51, state: 'current', live: true });
+    expect(at52.canShiftLeft).toBe(true);
+    expect(at52.canShiftRight).toBe(false);
+
+    const at250 = roundWindow(260, 250, 250, true, 8);
+    expect(at250.items).toHaveLength(8);
+    expect(at250.items.map((d) => d.round)).toStrictEqual([244, 245, 246, 247, 248, 249, 250, 251]);
+    expect(at250.items[7]!.state).toBe('future');
+    expect(trackTarget(at250.items[7]!)).toBeUndefined();
+  });
+
+  it('FR-660 slides automatically when displayed moves outside the window, and keeps offset while replaying when live advances', () => {
+    // Window showing 43..51; user jumps to round 12 -> slides so 12 is visible.
+    const jumped = roundWindow(51, 12, 51, false, 9, 43, true);
+    expect(jumped.items.some((d) => d.round === 12)).toBe(true);
+    expect(jumped.offset).toBe(12);
+
+    // User is replaying round 12 with window at 12..20; live advances from 51 to 52 without focus change -> window stays at 12..20.
+    const replayAdvance = roundWindow(60, 12, 52, true, 9, 12, false);
+    expect(replayAdvance.offset).toBe(12);
+    expect(replayAdvance.canShiftRight).toBe(true);
+
+    // User is viewing Inicio (0) with applied >= 1 -> label stays reachable ("Ronda 0") without repeating "Inicio".
+    const atInicio = roundWindow(51, 0, 51, false, 9, 1, true);
+    expect(atInicio.label).toBe('Ronda 0');
+    expect(atInicio.label).not.toContain(STRINGS.hudTrackStart);
+    expect(atInicio.canJump).toBe(true);
+  });
+
+  it('FR-662 shiftWindow, windowPageStep and swipeShift clamp to [1, maxStart] without changing displayed round', () => {
+    expect(windowPageStep(9)).toBeGreaterThanOrEqual(4);
+    expect(windowPageStep(5)).toBeGreaterThanOrEqual(2);
+    expect(windowPageStep(1)).toBe(1);
+
+    expect(shiftWindow(43, 51, 9, -8)).toBe(35);
+    expect(shiftWindow(3, 51, 9, -8)).toBe(1);
+    expect(shiftWindow(40, 51, 9, 8)).toBe(43);
+    expect(shiftWindow(1, 5, 9, 4)).toBe(1);
+
+    // Horizontal swipe left (negative dx) shifts window right (positive delta); small jitter ignored.
+    expect(swipeShift(-80, 40)).toBe(2);
+    expect(swipeShift(80, 40)).toBe(-2);
+    expect(swipeShift(-10, 40)).toBe(0);
+  });
+
+  it('FR-663 FR-666 parseJumpRound validates [0, applied] and never reveals total rounds', () => {
+    expect(parseJumpRound('0', 51)).toStrictEqual({ outcome: 'ok', round: 0 });
+    expect(parseJumpRound(' 27 ', 51)).toStrictEqual({ outcome: 'ok', round: 27 });
+    expect(parseJumpRound('51', 51)).toStrictEqual({ outcome: 'ok', round: 51 });
+
+    for (const bad of ['', '   ', 'abc', '-1', '+5', '3.5', '52', '193']) {
+      const res = parseJumpRound(bad, 51);
+      expect(res.outcome, bad).toBe('invalid');
+      if (res.outcome === 'invalid') {
+        expect(res.message).toContain('0');
+        expect(res.message).toContain('51');
+        expect(res.message).not.toContain('193');
+      }
+    }
+  });
+
+  it('FR-666 anti-spoiler: window never lists beyond applied+1 or exposes totalRounds', () => {
+    const w = roundWindow(240, 17, 40, true, 9);
+    expect(w.maxJump).toBe(40);
+    expect(w.count).toBe(41);
+    expect(w.label).toBe('Ronda 17');
+    expect(w.label).not.toContain('240');
+    expect(w.label).not.toMatch(/ de /);
+    const atLive = roundWindow(240, 40, 40, true, 9);
+    expect(Math.max(...atLive.items.map((d) => d.round))).toBe(41);
   });
 });

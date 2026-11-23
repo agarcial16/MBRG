@@ -176,14 +176,28 @@ describe('FR-359 to FR-364 the shell of the left column, the band, the track and
     expect(shell).toMatch(/hud\.live/);
   });
 
-  it('FR-364 FR-442 the selector is one scrolling strip of dots that jump to their round through the navigation of the runner, with no slider', () => {
+  it('FR-364 FR-442 spec 034 FR-660..FR-665 the selector is a dynamic sliding window with pinned Inicio, pager arrows, wheel/swipe shift, click-to-jump label, and no horizontal panel overflow', () => {
     expect(shell).toMatch(/trackTarget\(/);
+    expect(shell).toMatch(/roundWindow\(/);
+    expect(shell).toMatch(/windowCapacity\(/);
+    expect(shell).toMatch(/shiftWindow\(/);
+    expect(shell).toMatch(/parseJumpRound\(/);
     expect(shell).toContain('STRINGS.hudTrackRound');
+    expect(shell).toContain('STRINGS.hudTrackStart');
+    expect(shell).toContain('STRINGS.hudTrackWindowPrev');
+    expect(shell).toContain('STRINGS.hudTrackWindowNext');
+    expect(shell).toContain('STRINGS.hudJumpTrigger');
+    expect(shell).toContain('STRINGS.hudJumpInput');
     expect(shell).not.toMatch(/type\s*=\s*'range'/);
     expect(shell).toMatch(/handlers\.onNavigate\(target\)/);
-    expect(shell).toMatch(/stripScroll\(/);
-    expect(rules('.hud-track').join(';')).toMatch(/overflow-x:\s*auto/);
+    expect(shell).toMatch(/addEventListener\(\s*'wheel'/);
+    expect(shell).toMatch(/addEventListener\(\s*'touchstart'/);
+    expect(shell).toMatch(/Enter/);
+    expect(shell).toMatch(/Escape/);
+    expect(rules('.hud-track').join(';')).toMatch(/overflow:\s*hidden/);
     expect(rules('.hud-track').join(';')).toMatch(/flex-wrap:\s*nowrap/);
+    expect(rules('[data-layout="desk"] .hud-command').join(';')).toMatch(/overflow-x:\s*hidden/);
+    expect(rules('.hud-controls').join(';')).toMatch(/min-width:\s*0/);
   });
 
   it('FR-441 the round controls move between the command panel (desk) and the strip of the dock (phone) as one element, so they are on every tab', () => {
