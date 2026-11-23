@@ -15,6 +15,7 @@ import {
   TRACK_METRICS,
   parseJumpRound,
   roundWindow,
+  sanitizeJumpInput,
   shiftWindow,
   swipeShift,
   trackTarget,
@@ -349,7 +350,6 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const mismatch = el('div', 'hud-line hud-alert', command);
   // The round controls: the selector of rounds and the buttons. On the desk they are the bottom row of this panel; on the phone they
   // are the strip of the dock, always visible with the dock open, on every tab (FR-441, spec 034 FR-660..FR-666).
-  const jumpError = el('div', 'hud-jump-error', command);
   const controls = el('div', 'hud-controls', command);
   const roundSel = el('div', 'hud-roundsel', controls);
   roundSel.setAttribute('role', 'group');
@@ -367,6 +367,7 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const jumpInput = el('input', 'hud-jump-input hud-num', roundSel) as HTMLInputElement;
   jumpInput.type = 'text';
   jumpInput.inputMode = 'numeric';
+  jumpInput.pattern = '[0-9]*';
   jumpInput.hidden = true;
   const startDot = button(roundSel, STRINGS.hudTrackStart, () => handlers.onNavigate({ to: 0 }), 'hud-dot start');
   startDot.setAttribute('aria-label', STRINGS.hudTrackStart);
@@ -385,7 +386,6 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   function openJump(): void {
     if (lastMaxJump < 1) return;
     jumpEditing = true;
-    jumpError.textContent = '';
     trackLabel.hidden = true;
     jumpInput.hidden = false;
     jumpInput.value = String(lastDisplayed ?? 0);
@@ -399,7 +399,6 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     jumpEditing = false;
     jumpInput.hidden = true;
     trackLabel.hidden = false;
-    jumpError.textContent = '';
     if (restoreFocus) trackLabel.focus();
   }
 
@@ -411,13 +410,25 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
         closeJump(false);
         handlers.onNavigate({ to: res.round });
       } else {
-        jumpError.textContent = res.message;
-        jumpInput.select();
+        closeJump(true);
       }
     } else if (event.key === 'Escape') {
       event.preventDefault();
       closeJump(true);
+    } else if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1 && !/^[0-9]$/.test(event.key)) {
+      event.preventDefault();
     }
+  });
+  jumpInput.addEventListener('paste', (event) => {
+    event.preventDefault();
+    const pasted = sanitizeJumpInput(event.clipboardData?.getData('text') ?? '');
+    const start = jumpInput.selectionStart ?? jumpInput.value.length;
+    const end = jumpInput.selectionEnd ?? jumpInput.value.length;
+    jumpInput.setRangeText(pasted, start, end, 'end');
+  });
+  jumpInput.addEventListener('input', () => {
+    const clean = sanitizeJumpInput(jumpInput.value);
+    if (jumpInput.value !== clean) jumpInput.value = clean;
   });
   jumpInput.addEventListener('blur', () => closeJump(false));
 
@@ -559,7 +570,6 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       (panes.get('order') ?? panes.get('chronicle'))?.append(command);
       command.insertBefore(victim, winner);
       pillBox.hidden = true;
-      strip.append(jumpError);
       strip.append(controls);
       panes.get('chronicle')?.append(chronSection);
       panes.get('factions')?.append(factionsSection);
@@ -568,7 +578,6 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       left.append(chronSection, factionsSection);
       pillBox.append(victim);
       pillBox.hidden = victim.hidden || last?.hud.band !== undefined || last?.hud.card !== undefined;
-      command.append(jumpError);
       command.append(controls);
       root.append(left, command, rightColumn);
     }
@@ -773,6 +782,8 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     const lastItem = track.items[track.items.length - 1];
     const inPlay = lastItem?.state === 'future';
     const lastRound = lastItem?.round ?? 0;
+    const previewLabel = applied < 1 ? '' : fillTemplate(STRINGS.roundNow, { round: displayed });
+    if (trackLabel.textContent !== previewLabel) trackLabel.textContent = previewLabel;
     const metrics = TRACK_METRICS[layout];
     const measured = trackBox.clientWidth;
     const capacity = windowCapacity(measured > 0 ? measured : layout === 'desk' ? 310 : 200, metrics, lastRound);

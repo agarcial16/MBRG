@@ -10,6 +10,7 @@ import {
   replayBand,
   roundTrack,
   roundWindow,
+  sanitizeJumpInput,
   shiftWindow,
   swipeShift,
   trackTarget,
@@ -206,19 +207,32 @@ describe('spec 034 FR-660..FR-666 NFR-170 windowed round timeline and jump-to-ro
     expect(swipeShift(-10, 40)).toBe(0);
   });
 
-  it('FR-663 FR-666 parseJumpRound validates [0, applied] and never reveals total rounds', () => {
-    expect(parseJumpRound('0', 51)).toStrictEqual({ outcome: 'ok', round: 0 });
+  it('FR-663 FR-666 sanitizeJumpInput keeps digits only and parseJumpRound clamps out-of-range numbers to [0, applied] and closes on empty input', () => {
+    expect(sanitizeJumpInput('27')).toBe('27');
+    expect(sanitizeJumpInput('2a7b!@#')).toBe('27');
+    expect(sanitizeJumpInput('Ronda 15')).toBe('15');
+    expect(sanitizeJumpInput('-12.5')).toBe('125');
+    expect(sanitizeJumpInput('abc')).toBe('');
+
+    // Within range [1, applied]
+    expect(parseJumpRound('1', 51)).toStrictEqual({ outcome: 'ok', round: 1 });
     expect(parseJumpRound(' 27 ', 51)).toStrictEqual({ outcome: 'ok', round: 27 });
     expect(parseJumpRound('51', 51)).toStrictEqual({ outcome: 'ok', round: 51 });
 
-    for (const bad of ['', '   ', 'abc', '-1', '+5', '3.5', '52', '193']) {
-      const res = parseJumpRound(bad, 51);
-      expect(res.outcome, bad).toBe('invalid');
-      if (res.outcome === 'invalid') {
-        expect(res.message).toContain('0');
-        expect(res.message).toContain('51');
-        expect(res.message).not.toContain('193');
-      }
+    // Below the first round (0 or less) -> jumps to Inicio (0)
+    expect(parseJumpRound('0', 51)).toStrictEqual({ outcome: 'ok', round: 0 });
+    expect(parseJumpRound('000', 51)).toStrictEqual({ outcome: 'ok', round: 0 });
+    expect(parseJumpRound('-1', 51)).toStrictEqual({ outcome: 'ok', round: 0 });
+    expect(parseJumpRound('-99', 51)).toStrictEqual({ outcome: 'ok', round: 0 });
+
+    // Above the last available round (applied) -> jumps to applied (never leaks total rounds)
+    expect(parseJumpRound('52', 51)).toStrictEqual({ outcome: 'ok', round: 51 });
+    expect(parseJumpRound('193', 51)).toStrictEqual({ outcome: 'ok', round: 51 });
+    expect(parseJumpRound('999999999999999999999', 51)).toStrictEqual({ outcome: 'ok', round: 51 });
+
+    // Empty / non-numeric input -> closes without jumping or showing an error
+    for (const empty of ['', '   ', 'abc']) {
+      expect(parseJumpRound(empty, 51), empty).toStrictEqual({ outcome: 'close' });
     }
   });
 

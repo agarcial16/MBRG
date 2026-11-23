@@ -103,8 +103,6 @@ export const PANEL_CSS = `${pageCss()}
 .hud-track-label { flex: none; padding: 2px 5px; border: 0; border-radius: 3px; background: none; color: var(--hud-gilt); font: 600 13px var(--hud-display, 'Cormorant SC', Georgia, serif); white-space: nowrap; cursor: pointer; text-decoration: underline dotted var(--hud-gilt-dim); text-underline-offset: 3px; }
 .hud-track-label:disabled { cursor: default; text-decoration: none; }
 .hud-jump-input { flex: none; width: 58px; min-width: 52px; min-height: 26px; padding: 0 6px; box-sizing: border-box; text-align: center; background: var(--hud-umber); color: var(--hud-text); border: 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--hud-gilt); font: 600 13px var(--hud-display, 'Cormorant SC', Georgia, serif); }
-.hud-jump-error { font-size: 12px; color: var(--hud-ember); min-width: 0; overflow-wrap: anywhere; }
-.hud-jump-error:empty { display: none; }
 .hud-track-pager { flex: none; min-width: 24px; min-height: 26px; padding: 0 4px; border: 0; border-radius: 3px; background: var(--hud-umber); color: var(--hud-gilt); box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); cursor: pointer; font: 600 14px/1 var(--hud-body, Spectral, Georgia, serif); }
 .hud-track-pager:disabled { opacity: 0.35; cursor: default; }
 /* FR-660 FR-664: dynamic sliding window confined to available width, no horizontal overflow */
@@ -300,7 +298,6 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 /* the strip: the selector of rounds on one row and the buttons on another, on every tab, never in the scrolling pane */
 .hud-strip { display: none; }
 .hud[data-layout="phone"] .hud-strip { position: relative; display: block; flex: none; box-sizing: border-box; height: var(--hud-strip-h); padding: 4px 8px; border-top: 1px solid var(--hud-gilt-dim); }
-.hud[data-layout="phone"] .hud-jump-error { position: absolute; left: 8px; right: 8px; bottom: calc(100% + 4px); z-index: 4; padding: 4px 10px; border-radius: 4px; background: var(--hud-dock); box-shadow: inset 0 0 0 1px var(--hud-ember); }
 .hud[data-layout="phone"] .hud-controls { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 4px; margin: 0; }
 .hud[data-layout="phone"] .hud-track { gap: 4px; }
 .hud[data-layout="phone"] .hud-track .hud-dot { min-width: ${PHONE.chip}px; min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; padding: 0 3px; }

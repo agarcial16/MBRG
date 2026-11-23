@@ -39,3 +39,13 @@
   - Branch: `feat/034-round-timeline`
   - State: review fixes implemented, tested, pushed to PR #100.
   - Next step: reviewer re-check and squash merge into `main`.
+
+## Step 6 — Hand-test feedback on jump-to-round box (digits-only + clamp)
+- Amended `specs/034-round-timeline/spec.md` (`FR-663 (amended after hand test)` and edge cases): jump input accepts digits only (`inputmode="numeric"`, blocks/strips non-digits as typed and on paste), clamps submitted values to `[0, applied]` (`<= 0` jumps to Inicio `0`, `> applied` jumps to `applied`), and closes without jumping or showing an error on empty input.
+- Tests first (seen red, then green): updated `apps/web/test/live-track.test.ts` (`sanitizeJumpInput`, clamping `parseJumpRound` to `[0, applied]`, `{ outcome: 'close' }` on empty input) and `apps/web/test/live-hud-shell.test.ts` (`sanitizeJumpInput`, `input` + `paste` listeners, no `.hud-jump-error` / `hudJumpInvalid`).
+- Implemented `sanitizeJumpInput` and clamping `parseJumpRound` in `apps/web/src/core/live-track.ts`, wired digits-only `keydown`/`paste`/`input` handlers and removed `jumpError` in `apps/web/src/ui/live-panel.ts` and `apps/web/src/ui/live-panel-style.ts`, and removed unused `STRINGS.hudJumpInvalid` from `apps/web/src/core/strings.ts`.
+- Captured desktop (1280×720) and mobile (390×844) screenshots of the jump box under `.claude/review/034-jump/` (`jump-desk.png`, `jump-phone.png`).
+- Handover:
+  - Branch: `feat/034-round-timeline`
+  - State: hand-test jump box changes implemented, tested, pushed to PR #100.
+  - Next step: review and squash merge PR #100 into `main`.

@@ -180,20 +180,28 @@ export function roundWindow(
 
 export type JumpResult =
   | { readonly outcome: 'ok'; readonly round: number }
-  | { readonly outcome: 'invalid'; readonly message: string };
+  | { readonly outcome: 'close' };
 
-const JUMP_DIGITS = /^[0-9]+$/;
+const JUMP_INT = /^[+-]?[0-9]+$/;
 
-/** Parses and validates a jump-to-round input strictly against `[0, applied]` (FR-663, FR-666). */
+/** Strips all non-digit characters from a jump-to-round input string (FR-663). */
+export const sanitizeJumpInput = (raw: string): string => raw.replace(/[^0-9]/g, '');
+
+/**
+ * Parses and clamps a jump-to-round input to `[0, applied]` (FR-663, FR-666):
+ * below round 1 (0 or less) jumps to Inicio (0); above `applied` jumps to `applied`;
+ * empty or non-numeric input closes without jumping.
+ */
 export function parseJumpRound(raw: string, applied: number): JumpResult {
   const max = Math.max(0, Math.floor(applied));
   const trimmed = raw.trim();
-  if (!JUMP_DIGITS.test(trimmed)) {
-    return { outcome: 'invalid', message: fillTemplate(STRINGS.hudJumpInvalid, { round: max }) };
+  if (!JUMP_INT.test(trimmed)) {
+    return { outcome: 'close' };
   }
   const value = Number(trimmed);
-  if (!Number.isSafeInteger(value) || value < 0 || value > max) {
-    return { outcome: 'invalid', message: fillTemplate(STRINGS.hudJumpInvalid, { round: max }) };
+  if (Number.isNaN(value)) {
+    return { outcome: 'close' };
   }
-  return { outcome: 'ok', round: value };
+  const round = value <= 0 ? 0 : value >= max ? max : Math.floor(value);
+  return { outcome: 'ok', round };
 }

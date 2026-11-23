@@ -176,19 +176,26 @@ describe('FR-359 to FR-364 the shell of the left column, the band, the track and
     expect(shell).toMatch(/hud\.live/);
   });
 
-  it('FR-364 FR-442 spec 034 FR-660..FR-665 the selector is a dynamic sliding window with pinned Inicio, pager arrows, wheel/swipe shift, click-to-jump label, and no horizontal panel overflow', () => {
+  it('FR-364 FR-442 spec 034 FR-660..FR-665 the selector is a dynamic sliding window with pinned Inicio, pager arrows, wheel/swipe shift, digits-only click-to-jump label, and no horizontal panel overflow', () => {
     expect(shell).toMatch(/trackTarget\(/);
     expect(shell).toMatch(/roundWindow\(/);
     expect(shell).toMatch(/windowCapacity\(/);
     expect(shell).toMatch(/shiftWindow\(/);
     expect(shell).toMatch(/parseJumpRound\(/);
+    expect(shell).toMatch(/sanitizeJumpInput\(/);
     expect(shell).toContain('STRINGS.hudTrackRound');
     expect(shell).toContain('STRINGS.hudTrackStart');
     expect(shell).toContain('STRINGS.hudTrackWindowPrev');
     expect(shell).toContain('STRINGS.hudTrackWindowNext');
     expect(shell).toContain('STRINGS.hudJumpTrigger');
     expect(shell).toContain('STRINGS.hudJumpInput');
+    expect(shell).not.toContain('hudJumpInvalid');
+    expect(shell).not.toContain('hud-jump-error');
+    expect(css).not.toContain('.hud-jump-error');
     expect(shell).not.toMatch(/type\s*=\s*'range'/);
+    expect(shell).toMatch(/inputMode\s*=\s*'numeric'/);
+    expect(shell).toMatch(/addEventListener\(\s*'input'/);
+    expect(shell).toMatch(/addEventListener\(\s*'paste'/);
     expect(shell).toMatch(/handlers\.onNavigate\(target\)/);
     expect(shell).toMatch(/addEventListener\(\s*'wheel'/);
     expect(shell).toMatch(/addEventListener\(\s*'touchstart'/);
@@ -198,10 +205,6 @@ describe('FR-359 to FR-364 the shell of the left column, the band, the track and
     expect(rules('.hud-track').join(';')).toMatch(/flex-wrap:\s*nowrap/);
     expect(rules('[data-layout="desk"] .hud-command').join(';')).toMatch(/overflow-x:\s*hidden/);
     expect(rules('.hud-controls').join(';')).toMatch(/min-width:\s*0/);
-    expect(rules('[data-layout="phone"] .hud-strip').join(';')).toMatch(/position:\s*relative/);
-    const phoneErr = rules('[data-layout="phone"] .hud-jump-error').join(';');
-    expect(phoneErr).toMatch(/position:\s*absolute/);
-    expect(phoneErr).toMatch(/bottom:\s*calc\(100%/);
     const phonePager = rules('[data-layout="phone"] .hud-track-pager').join(';');
     expect(phonePager).toMatch(/min-width:\s*36px/);
     expect(phonePager).toMatch(/min-height:\s*36px/);

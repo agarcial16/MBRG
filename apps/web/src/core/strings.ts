@@ -337,7 +337,6 @@ export const STRINGS = {
   hudTrackWindowNextShort: '›',
   hudJumpTrigger: 'Ir a una ronda (0 a {round})',
   hudJumpInput: 'Número de ronda (0 a {round})',
-  hudJumpInvalid: 'Escribe un número entero entre 0 y {round}.',
 } as const;
 
 /** Fills {name} placeholders; a placeholder without a value is left as written. */
