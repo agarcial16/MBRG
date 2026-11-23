@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { WATER } from '../src/core/rasterize';
 import { assignSeaZonesDetailed } from '../src/core/sea';
 import { makeGapFill } from '../src/importer/gap-fill';
-import { assignSea, assignWater, isolateEnclosed, locateSeeds, type SeaZone, type WaterSet } from '../src/importer/sea-sources';
+import { assignSea, assignWater, defaultEnclosedReach, isolateEnclosed, locateSeeds, type SeaZone, type WaterSet } from '../src/importer/sea-sources';
 import type { InsetView, View, ViewSet } from '../src/importer/views';
 
 /** A view whose pixel coordinates are the longitude and latitude themselves. */
@@ -214,6 +214,78 @@ describe('FR-598 the water pass', () => {
     expect(r.rows[1]![2]).toBe('a');
     expect(r.rows[2]![1]).toBe('b');
     expect(r.rows.join('')).not.toContain('W');
+  });
+});
+
+describe('FR-603 the reach of an enclosed water set (hand run 3: inland seas)', () => {
+  /** A one-pixel pond at (6, 4) in a ring of land, in the water of the zone of column 0. */
+  const pond = ['aWWWWWWWW', 'aWWWWWWWW', 'aWWWWWWWW', 'aWWWW111W', 'aWWWW1W1W', 'aWWWW111W', 'aWWWWWWWW', 'aWWWWWWWW', 'aWWWWWWWW'];
+  const withReach = (rows: string[], zones: SeaZone[], enclosedReach?: number) => {
+    const { width, pixels } = grid(rows);
+    const r = assignSea({ views: views(width), pixels, zones, ...(enclosedReach === undefined ? {} : { enclosedReach }) });
+    if (!r.ok) throw new Error(`expected a sea, got ${JSON.stringify(r.errors)}`);
+    return { ...r.value, rows: show(r.value.pixels, width) };
+  };
+
+  it('FR-603 joins the set when a zone is within the reach (the distance itself included) and lists it as joined', () => {
+    // the nearest water of zone 100 to the pond is two pixels away
+    const joined = withReach(pond, [unitZone(100)], 2);
+    expect(joined.rows[4]![6]).toBe('a');
+    expect(joined.enclosed).toStrictEqual([{ pixels: 1, zone: 100 }]);
+    expect(joined.lakes).toStrictEqual([]);
+  });
+
+  it('FR-603 turns a set farther than the reach into other land and lists it, with its first pixel, as a lake', () => {
+    const r = withReach(pond, [unitZone(100)], 1);
+    expect(r.rows[4]![6]).toBe('.');
+    expect(r.rows.join('')).not.toContain('W');
+    expect(r.enclosed).toStrictEqual([]);
+    expect(r.lakes).toStrictEqual([{ pixels: 1, x: 6, y: 4 }]);
+  });
+
+  it('FR-603 judges each set by its own distance: the near one joins, the far one is a lake', () => {
+    // a 16-pixel field of water with the zone on column 0; a pond in a thin wall (2 pixels from open water) at (4, 2),
+    // and a pond at (9, 11) in the middle of a block of land seven pixels wide (4 pixels from open water)
+    const cells: string[][] = Array.from({ length: 16 }, () => Array.from({ length: 16 }, (_, x) => (x === 0 ? 'a' : 'W')));
+    for (let y = 1; y <= 3; y++) for (let x = 3; x <= 5; x++) cells[y]![x] = '1';
+    cells[2]![4] = 'W';
+    for (let y = 8; y <= 14; y++) for (let x = 6; x <= 12; x++) cells[y]![x] = '2';
+    cells[11]![9] = 'W';
+    const rows = cells.map((row) => row.join(''));
+    const three = withReach(rows, [unitZone(100)], 3);
+    expect(three.rows[2]![4]).toBe('a');
+    expect(three.rows[11]![9]).toBe('.');
+    expect(three.enclosed).toStrictEqual([{ pixels: 1, zone: 100 }]);
+    expect(three.lakes).toStrictEqual([{ pixels: 1, x: 9, y: 11 }]);
+    const four = withReach(rows, [unitZone(100)], 4);
+    expect(four.rows[11]![9]).toBe('a');
+    expect(four.lakes).toStrictEqual([]);
+  });
+
+  it('FR-603 takes no limit when the reach is absent or 0: the set joins the nearest zone however far it is', () => {
+    const cells: string[][] = Array.from({ length: 16 }, () => Array.from({ length: 16 }, (_, x) => (x === 0 ? 'a' : '1')));
+    cells[8]![12] = 'W';
+    const rows = cells.map((row) => row.join(''));
+    // the pond is 12 pixels from the zone, through land
+    expect(withReach(rows, [unitZone(100)]).enclosed).toStrictEqual([{ pixels: 1, zone: 100 }]);
+    expect(withReach(rows, [unitZone(100)], 0).enclosed).toStrictEqual([{ pixels: 1, zone: 100 }]);
+    expect(withReach(rows, [unitZone(100)], 11).lakes).toStrictEqual([{ pixels: 1, x: 12, y: 8 }]);
+    expect(withReach(rows, [unitZone(100)], 12).lakes).toStrictEqual([]);
+  });
+
+  it('FR-603 keeps a map with a seed in the inland sea as it was: the sea is reached, so no set is left to judge', () => {
+    // the pond holds the seed of a zone of its own: no enclosed set, whatever the reach
+    const r = withReach(['aWWWW', 'aW111', 'aW1W1', 'aW111', 'aWWWW'], [unitZone(100), seedZone(7, 3, 2)], 1);
+    expect(r.rows[2]![3]).toBe('7');
+    expect(r.enclosed).toStrictEqual([]);
+    expect(r.lakes).toStrictEqual([]);
+  });
+
+  it('FR-603 gives a default reach of 250 km at the pixel size of the map, at least one pixel', () => {
+    expect(defaultEnclosedReach(10)).toBe(25);
+    expect(defaultEnclosedReach(8.587527753973891)).toBe(29);
+    expect(defaultEnclosedReach(0.5)).toBe(500);
+    expect(defaultEnclosedReach(1000)).toBe(1);
   });
 });
 

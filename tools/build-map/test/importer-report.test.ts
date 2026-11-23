@@ -167,6 +167,7 @@ const REPORT_LABELS = [
   'skippedNullGeometries',
   'units',
   'selectedUnits',
+  'noOwnerUnits',
   'multiFeatureUnits',
   'projection',
   'projectionCenter',
@@ -188,6 +189,8 @@ const REPORT_LABELS = [
   'enclosedWaterSets',
   'enclosedWaterPixels',
   'enclosedWaterZones',
+  'enclosedReach',
+  'enclosedLakes',
   'multiPieceEntries',
   'splitFactions',
 ];

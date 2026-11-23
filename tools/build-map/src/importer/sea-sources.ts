@@ -42,12 +42,30 @@ export interface SeaInput {
    * removes into land.
    */
   between?: (sets: WaterSet[], pixels: Uint32Array) => WaterSet[];
+  /** FR-603: the farthest an enclosed set looks for a zone, in pixels (absent or 0: no limit). */
+  enclosedReach?: number;
 }
 
-/** The outcome of the sea pass: the raster with no water left, and the enclosed sets that joined a zone. */
+/** FR-603: an enclosed water set with no zone within the reach, made other land: its pixel count and its first pixel in row-major order. */
+export interface LakeSet {
+  pixels: number;
+  x: number;
+  y: number;
+}
+
+/** The outcome of the sea pass: the raster with no water left, the enclosed sets that joined a zone and the ones that became lakes. */
 export interface SeaResult {
   pixels: Uint32Array;
   enclosed: EnclosedSet[];
+  lakes: LakeSet[];
+}
+
+/** FR-603: the kilometres an enclosed water set may be from a zone and still join it, unless the curation says otherwise. */
+export const ENCLOSED_REACH_KM = 250;
+
+/** FR-603: the default reach of an enclosed set at a map's pixel size (kilometres a side), in whole pixels, at least one. */
+export function defaultEnclosedReach(pixelKm: number): number {
+  return Math.max(1, Math.round(ENCLOSED_REACH_KM / pixelKm));
 }
 
 /**
@@ -207,7 +225,9 @@ export function isolateEnclosed(width: number, pixels: Uint32Array, sourcePixels
  * enclosed sets away first (the gap fill). Every other water pixel goes, by a multi-source breadth-first search through
  * water, to the zone reached in the fewest 4-adjacent steps, a tie to the zone first in the FR-605 order; each
  * remaining enclosed set joins, whole, the zone with the nearest source or reached pixel by squared distance between
- * pixel centres (ties to the first zone in order). With no zone at all every water pixel becomes background (0).
+ * pixel centres (ties to the first zone in order), provided that distance is at most `enclosedReach` pixels when that
+ * is given (FR-603: a set with no zone in reach is a lake, background like other land, and listed in `lakes`).
+ * With no zone at all every water pixel becomes background (0).
  */
 export function assignWater(
   width: number,
@@ -215,6 +235,7 @@ export function assignWater(
   zones: readonly SeaZone[],
   between?: SeaInput['between'],
   insetRects: readonly Rect[] = [],
+  enclosedReach = 0,
 ): SeaResult {
   const sources = sourcesOf(pixels, zones);
   const regionOf = sealedRegions(width, insetRects, sources.pixel);
@@ -227,7 +248,7 @@ export function assignWater(
   // whole raster per water pixel with no nearest zone to stop it, at a cost that grows past hours at scale.
   if (zones.length === 0 || sources.pixel.length === 0) {
     for (let i = 0; i < total; i++) if (pixels[i] === WATER) pixels[i] = 0;
-    return { pixels, enclosed: [] };
+    return { pixels, enclosed: [], lakes: [] };
   }
 
   const label = new Int32Array(total).fill(-1);
@@ -267,6 +288,7 @@ export function assignWater(
   }
 
   const enclosed: EnclosedSet[] = [];
+  const lakes: LakeSet[] = [];
   // only the pixels on the rim of a set can be its nearest pixel to a zone (a pixel with all eight neighbours in the set has a
   // neighbour strictly nearer to any pixel outside it), so the ring search starts from the rim alone
   const inSet = new Uint8Array(sets.length === 0 ? 0 : total);
@@ -285,7 +307,8 @@ export function assignWater(
       return false;
     });
     for (const p of set.pixels) inSet[p] = 0;
-    let bestD2 = Infinity;
+    // with a reach, only the distances up to it are searched (a candidate must be strictly nearer than reach squared plus one)
+    let bestD2 = enclosedReach > 0 ? enclosedReach * enclosedReach + 1 : Infinity;
     let bestZone = -1;
     const consider = (q: number, d2: number): void => {
       const zone = label[q]!;
@@ -316,13 +339,14 @@ export function assignWater(
     if (bestZone === -1) {
       // no zone has a single pixel to join (every zone is empty): the water is background, and the empty zones fail later
       for (const p of set.pixels) pixels[p] = 0;
+      if (enclosedReach > 0) lakes.push({ pixels: set.pixels.length, x: set.pixels[0]! % width, y: Math.floor(set.pixels[0]! / width) });
       continue;
     }
     const id = zones[bestZone]!.id;
     for (const p of set.pixels) pixels[p] = id;
     enclosed.push({ pixels: set.pixels.length, zone: id });
   }
-  return { pixels, enclosed };
+  return { pixels, enclosed, lakes };
 }
 
 /**
@@ -335,5 +359,5 @@ export function assignSea(input: SeaInput): Result<SeaResult, SeaSeedError> {
   for (const [z, pixel] of located.value) {
     if (input.pixels[pixel] === WATER) input.pixels[pixel] = input.zones[z]!.id;
   }
-  return { ok: true, value: assignWater(input.views.width, input.pixels, input.zones, input.between, input.views.insets.map((inset) => inset.rect)) };
+  return { ok: true, value: assignWater(input.views.width, input.pixels, input.zones, input.between, input.views.insets.map((inset) => inset.rect), input.enclosedReach) };
 }

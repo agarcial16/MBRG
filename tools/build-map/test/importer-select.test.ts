@@ -64,6 +64,50 @@ describe('FR-594 the selection of units', () => {
     expect(r.ok && r.value.other.map((u) => u.key)).toStrictEqual(['B', 'C']);
   });
 
+  it('FR-597 turns the land units whose owner value is listed into other land, in unit order, and counts them', () => {
+    // A has an owner, B an empty one, C none at all, D the listed text, E the listed integer, F a value that is not listed
+    const features = [
+      feature({ code: 'A', own: 'Rome' }),
+      feature({ code: 'B', own: '' }),
+      feature({ code: 'C' }),
+      feature({ code: 'D', own: 'Unclaimed' }),
+      feature({ code: 'E', own: 0 }),
+      feature({ code: 'F', own: 'unclaimed' }),
+    ];
+    const c = curation((x) => (x.factionBy = { property: 'own', noOwner: [null, 'Unclaimed', 0] }));
+    const r = selectUnits(unitsOf(features, c), c);
+    expect(r.ok && r.value.selected.map((u) => u.key)).toStrictEqual(['A', 'F']);
+    expect(r.ok && r.value.other.map((u) => u.key)).toStrictEqual(['B', 'C', 'D', 'E']);
+    expect(r.ok && r.value.noOwner).toStrictEqual(['B', 'C', 'D', 'E']);
+  });
+
+  it('FR-597 compares an owner value to the list by kind: the text 0 is not the integer 0, and no list means every unit stays', () => {
+    const features = [feature({ code: 'A', own: '0' }), feature({ code: 'B', own: 0 })];
+    const c = curation((x) => (x.factionBy = { property: 'own', noOwner: [0] }));
+    const r = selectUnits(unitsOf(features, c), c);
+    expect(r.ok && r.value.selected.map((u) => u.key)).toStrictEqual(['A']);
+    const none = curation((x) => (x.factionBy = { property: 'own' }));
+    const all = selectUnits(unitsOf([feature({ code: 'A' }), feature({ code: 'B', own: '' })], none), none);
+    expect(all.ok && all.value.selected.map((u) => u.key)).toStrictEqual(['A', 'B']);
+    expect(all.ok && all.value.noOwner).toStrictEqual([]);
+  });
+
+  it('FR-597 leaves a unit with its own faction in the units layer, a sea unit and a unit of another property alone', () => {
+    const features = [feature({ code: 'A' }), feature({ code: 'B' }), feature({ code: 'S' })];
+    const c = curation((x) => {
+      x.factionBy = { property: 'own', noOwner: [null] };
+      x.units = { A: { faction: 'rome' }, S: { kind: 'sea' } };
+    });
+    const r = selectUnits(unitsOf(features, c), c);
+    expect(r.ok && r.value.selected.map((u) => u.key)).toStrictEqual(['A', 'S']);
+    expect(r.ok && r.value.noOwner).toStrictEqual(['B']);
+  });
+
+  it('FR-597 fails with empty-selection when every unit has no owner', () => {
+    const c = curation((x) => (x.factionBy = { property: 'own', noOwner: [null] }));
+    expect(selectUnits(unitsOf([feature({ code: 'A' })], c), c)).toStrictEqual({ ok: false, errors: [{ kind: 'empty-selection' }] });
+  });
+
   it('FR-594 keeps the units that fail a filter in other land, with the excluded ones, in unit order', () => {
     const c = curation((x) => {
       x.select = [{ property: 'n', gte: 2 }];

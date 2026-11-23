@@ -464,6 +464,59 @@ describe('FR-608 the pixel steps of an import, end to end', () => {
     expect(count(withFill.pixels, 1) - count(without.pixels, 1)).toBe(withFill.details.filled[0]!.pixels);
   });
 
+  it('FR-603 gives an enclosed set a default reach of 250 km at the pixel size, and a lake past the reach becomes other land', () => {
+    const inland = world();
+    // a pond in the middle of Gamma, with land all round it: a good way from the sea in pixels
+    const gamma = inland.features[2] as { geometry: { coordinates: number[][][] } };
+    gamma.geometry.coordinates.push([[4.6, 0.6], [4.6, 1.4], [5.4, 1.4], [5.4, 0.6], [4.6, 0.6]]);
+    const open = core(inland);
+    if (!open.ok) throw new Error(JSON.stringify(open.errors));
+    const pixelKm = (open.details.views.main.frame.side / 96) * 6371;
+    expect(open.details.enclosedReach).toBe(Math.max(1, Math.round(250 / pixelKm)));
+    expect(open.details.enclosedReach).toBeGreaterThan(5);
+    expect(open.details.enclosed.length).toBe(1);
+    expect(open.details.lakes).toStrictEqual([]);
+    const joined = open.details.enclosed[0]!.pixels;
+    inland.curation.params.enclosedReach = 2;
+    const closed = core(inland);
+    if (!closed.ok) throw new Error(JSON.stringify(closed.errors));
+    expect(closed.details.enclosedReach).toBe(2);
+    expect(closed.details.enclosed).toStrictEqual([]);
+    expect(closed.details.lakes.length).toBe(1);
+    expect(closed.details.lakes[0]!.pixels).toBe(joined);
+    // the lake is other land: no pixel of a sea zone is left inside it, and the sea zone has lost its pixels
+    const seaIds = new Set(closed.map.territories.filter((t) => t.kind === 'sea').map((t) => t.id));
+    const { x, y } = closed.details.lakes[0]!;
+    expect(closed.pixels[y * 96 + x]).toBe(0);
+    expect(seaIds.has(closed.pixels[y * 96 + x]!)).toBe(false);
+    expect(open.pixels[y * 96 + x]).not.toBe(0);
+    // 0 means no limit, as before
+    inland.curation.params.enclosedReach = 0;
+    const unlimited = core(inland);
+    if (!unlimited.ok) throw new Error(JSON.stringify(unlimited.errors));
+    expect(unlimited.details.enclosedReach).toBe(0);
+    expect(unlimited.details.enclosed.length).toBe(1);
+  });
+
+  it('FR-597 draws a land unit with no owner as other land: no unit, no faction, no sea contact of its own', () => {
+    const w = world();
+    // a unit with no `adm` at all, west of Alfa: without the list it has no faction
+    w.features.push(feat({ code: 'N', name: 'Nowhere' }, rect(-2, 0, 0, 2)));
+    const missing = core(w);
+    expect(missing.ok ? [] : missing.errors).toStrictEqual([{ kind: 'missing-faction', unit: 'N' }]);
+    w.curation.factionBy = { property: 'adm', noOwner: [null] };
+    const r = core(w);
+    if (!r.ok) throw new Error(JSON.stringify(r.errors));
+    expect(r.details.curation.selection.noOwner).toStrictEqual(['N']);
+    expect(r.details.curation.selection.other.map((u) => u.key)).toStrictEqual(['N']);
+    expect(r.presentation.factions.map((f) => f.name)).toStrictEqual(['Xland', 'Yland']);
+    expect(r.map.territories.filter((t) => t.kind !== 'sea').length).toBe(3);
+    // the same package as one that never had the unit, except that its place is other land (0) and not water
+    const base = core(world());
+    if (!base.ok) throw new Error(JSON.stringify(base.errors));
+    expect(r.map.territories.map((t) => t.id)).toStrictEqual(base.map.territories.map((t) => t.id));
+  });
+
   it('FR-602 turns the strip between a unit and a context feature that does not fit it into other land, so no zone touches both', () => {
     const seaTouchesBoth = (r: ReturnType<typeof core>): number => {
       if (!r.ok) throw new Error(JSON.stringify(r.errors));

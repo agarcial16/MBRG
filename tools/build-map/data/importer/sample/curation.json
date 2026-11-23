@@ -7,7 +7,7 @@
     { "property": "to", "lte": "2000-01-01" }
   ],
   "exclude": ["VIEJO"],
-  "params": { "side": 128, "margin": 0.02, "minPieceSize": 4, "projection": "laea", "gapFill": 20 },
+  "params": { "side": 128, "margin": 0.02, "minPieceSize": 4, "projection": "laea", "gapFill": 20, "enclosedReach": 0 },
   "units": {
     "MAR": { "kind": "sea" },
     "SUR": { "faction": "C3" }

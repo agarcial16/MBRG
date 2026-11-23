@@ -11,6 +11,8 @@ export interface Selection {
   selected: Unit[];
   /** Unselected and excluded units, in unit order. */
   other: Unit[];
+  /** FR-597: the keys of the land units of `other` that are there because their owner value is a no-owner value, in unit order. */
+  noOwner: string[];
 }
 
 /** The longitude and latitude range of every ring of every polygon of a unit; null when it has no position. */
@@ -64,6 +66,17 @@ export function matchesFilter(unit: Unit, filter: Filter): boolean {
 }
 
 /**
+ * FR-597: whether a land unit has no owner: no `units` faction of its own, and a value of the `factionBy` property that
+ * the rule lists in `noOwner` (compared by kind and value; `null` stands for no usable value or an empty text).
+ */
+function hasNoOwner(unit: Unit, curation: Curation): boolean {
+  const rule = curation.factionBy;
+  if (rule?.noOwner === undefined || unit.kind !== 'land' || unit.faction !== undefined) return false;
+  const value = unitValue(unit, rule.property);
+  return rule.noOwner.some((listed) => (listed === null ? value === undefined || value === '' : listed === value));
+}
+
+/**
  * FR-594: the units that match every filter of `select` (all units when it is empty) and are neither in `exclude`
  * nor of kind `exclude`. An `exclude` entry or a `units` key that names no unit is `unknown-unit` (once per key);
  * nothing selected is `empty-selection`. Pure.
@@ -87,10 +100,16 @@ export function partitionUnits(units: readonly Unit[], curation: Curation): { se
   const excluded = new Set(curation.exclude);
   const selected: Unit[] = [];
   const other: Unit[] = [];
+  const noOwner: string[] = [];
   for (const unit of units) {
-    const keep = unit.kind !== 'exclude' && !excluded.has(unit.key) && curation.select.every((f) => matchesFilter(unit, f));
+    let keep = unit.kind !== 'exclude' && !excluded.has(unit.key) && curation.select.every((f) => matchesFilter(unit, f));
+    // FR-597: a unit with no owner is other land, like an unselected one, never a unit or a faction
+    if (keep && hasNoOwner(unit, curation)) {
+      keep = false;
+      noOwner.push(unit.key);
+    }
     (keep ? selected : other).push(unit);
   }
   if (selected.length === 0) errors.push({ kind: 'empty-selection' });
-  return { selection: { selected, other }, errors };
+  return { selection: { selected, other, noOwner }, errors };
 }

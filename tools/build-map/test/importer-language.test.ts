@@ -88,6 +88,7 @@ const REPORT_LABELS = [
   'skippedNullGeometries',
   'units',
   'selectedUnits',
+  'noOwnerUnits',
   'multiFeatureUnits',
   'projection',
   'projectionCenter',
@@ -109,6 +110,8 @@ const REPORT_LABELS = [
   'enclosedWaterSets',
   'enclosedWaterPixels',
   'enclosedWaterZones',
+  'enclosedReach',
+  'enclosedLakes',
   'multiPieceEntries',
   'splitFactions',
 ];
@@ -116,7 +119,7 @@ const REPORT_SECTION_LABELS = ['requiredTextureSize', 'warnings'];
 const REPORT_WARNING_LABELS = ['textureAbove2048', 'entriesAbove65535', 'factionsAbove255', 'paletteExhaustedFaction'];
 const REPORT_ITEM_WORDS = [
   'file', 'sha256', 'features', 'skippedNullGeometries', 'inset', 'x', 'y', 'w', 'h',
-  'entry', 'pixels', 'to', 'territory', 'zone', 'sets', 'pieces', 'faction', 'groups', 'from', 'water', 'distance', 'territories',
+  'entry', 'pixels', 'to', 'territory', 'zone', 'sets', 'pieces', 'faction', 'groups', 'from', 'water', 'distance', 'territories', 'unit',
 ];
 
 type Err = Record<string, unknown>;

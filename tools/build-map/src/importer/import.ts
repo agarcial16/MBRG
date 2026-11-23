@@ -17,7 +17,7 @@ import { withPreviewColors } from './preview-colors';
 import { numberMap, type ImportNumbering } from './numbering';
 import { composePixels } from './pixels';
 import { readSources, type SourceInput } from './read-source';
-import { assignSea, type SeaSeedError, type SeaZone } from './sea-sources';
+import { assignSea, defaultEnclosedReach, type LakeSet, type SeaSeedError, type SeaZone } from './sea-sources';
 import type { ReadSource, SourceError } from './types';
 import { buildViews, type InsetError, type ViewError, type ViewItem, type ViewSet } from './views';
 import type { PreviewEntry, PreviewSource } from '../core/types';
@@ -51,6 +51,10 @@ export interface ImportDetails {
   /** FR-602: the bridges that linked exclave groups to the main group, in the order they were drawn. */
   bridges: Bridge[];
   enclosed: EnclosedSet[];
+  /** FR-603: the reach in force, in pixels (the curation's, or the default of the map's pixel size; 0: no limit). */
+  enclosedReach: number;
+  /** FR-603: the enclosed water sets with no zone within the reach, made other land. */
+  lakes: LakeSet[];
   reassigned: Reassignment[];
 }
 
@@ -140,11 +144,13 @@ export function buildPackage(input: ImportInput): ImportOutcome {
 
   // Pixel steps: the sea (gap fill between the isolation and the zones), the minimum piece, the cleanup.
   const landCount = numbering.land.length;
-  const contextGap = params.contextGap ?? defaultContextGap((views.value.main.frame.side / params.side) * 6371);
+  const pixelKm = (views.value.main.frame.side / params.side) * 6371;
+  const contextGap = params.contextGap ?? defaultContextGap(pixelKm);
+  const enclosedReach = params.enclosedReach ?? defaultEnclosedReach(pixelKm);
   const contextGapPixels = closeContextGaps(params.side, raster.value, contextGap, (value) => value >= 1 && value <= landCount);
   const zones: SeaZone[] = numbering.sea.map((s) => (s.seed === undefined ? { id: s.id } : { id: s.id, seed: curation.seas[s.seed]! }));
   const fill = params.gapFill === undefined ? undefined : makeGapFill(params.side, params.gapFill, (value) => value >= 1 && value <= landCount);
-  const water = assignSea({ views: views.value, pixels: raster.value, zones, ...(fill === undefined ? {} : { between: fill.between }) });
+  const water = assignSea({ views: views.value, pixels: raster.value, zones, enclosedReach, ...(fill === undefined ? {} : { between: fill.between }) });
   if (!water.ok) return { ok: false, stage: 'pixels', errors: water.errors, preview: previewOf(raster.value) };
 
   const territories: TerritoryInfo[] = [
@@ -196,6 +202,8 @@ export function buildPackage(input: ImportInput): ImportOutcome {
       contextGapPixels,
       bridges: bridged.bridges,
       enclosed: water.value.enclosed,
+      enclosedReach,
+      lakes: water.value.lakes,
       reassigned,
     },
     preview: previewOf(pixels),

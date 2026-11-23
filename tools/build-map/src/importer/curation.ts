@@ -34,6 +34,8 @@ export interface Params {
   contextGap?: number;
   /** FR-602: how far (pixels) an exclave group looks for territories to link to (0 to 1,024; 0 turns it off). */
   exclaveReach?: number;
+  /** FR-603: how far (pixels) an enclosed water set looks for a zone to join; farther sets become lakes (0: no limit; absent: 250 km). */
+  enclosedReach?: number;
 }
 
 /** FR-595: one entry of the per-unit layer. */
@@ -48,6 +50,11 @@ export interface UnitEntry {
 export interface GroupBy {
   property: string;
   nameProperty?: string;
+  /**
+   * FR-597 (`factionBy` only): the values of the property that mean "no owner". A land unit with no faction of its own
+   * in `units` whose value is listed (`null` stands for an absent value) is other land, never a unit or a faction.
+   */
+  noOwner?: (Usable | null)[];
 }
 
 export interface FactionEntry {
@@ -194,18 +201,35 @@ function readFilters(value: unknown, path: string, problems: Problems): Filter[]
   return out;
 }
 
-function readGroupBy(value: unknown, path: string, problems: Problems): GroupBy | undefined {
+/** The most values a `noOwner` list holds. */
+const NO_OWNER_MAX = 64;
+
+function readGroupBy(value: unknown, path: string, problems: Problems, withNoOwner = false): GroupBy | undefined {
   if (!isObject(value)) {
     problems.add(path);
     return undefined;
   }
-  noUnknown(value, ['property', 'nameProperty'], path, problems);
+  noUnknown(value, withNoOwner ? ['property', 'nameProperty', 'noOwner'] : ['property', 'nameProperty'], path, problems);
   const property = text(value, 'property', path, problems);
   // An empty property names no column: refuse it here, so a draft filled in on its columns only fails cleanly.
   if (property === '') problems.add(at(path, 'property'));
   const nameProperty = optionalText(value, 'nameProperty', path, problems);
+  let noOwner: (Usable | null)[] | undefined;
+  if (withNoOwner && Object.hasOwn(value, 'noOwner')) {
+    const raw = own(value, 'noOwner');
+    const listPath = at(path, 'noOwner');
+    if (!Array.isArray(raw) || raw.length > NO_OWNER_MAX) problems.add(listPath);
+    else {
+      noOwner = [];
+      raw.forEach((entry: unknown, i) => {
+        if (entry === null || isUsable(entry)) noOwner!.push(entry);
+        else problems.add(item(listPath, i));
+      });
+    }
+  }
   if (property === undefined || property === '' || (Object.hasOwn(value, 'nameProperty') && nameProperty === undefined)) return undefined;
-  return nameProperty === undefined ? { property } : { property, nameProperty };
+  if (withNoOwner && Object.hasOwn(value, 'noOwner') && noOwner === undefined) return undefined;
+  return { property, ...(nameProperty === undefined ? {} : { nameProperty }), ...(noOwner === undefined ? {} : { noOwner }) };
 }
 
 function readRange(params: Record<string, unknown>, member: string, min: number, max: number, integer: boolean, problems: Problems): number | undefined {
@@ -223,7 +247,7 @@ function readParams(value: unknown, problems: Problems): Params | undefined {
     problems.add('params');
     return undefined;
   }
-  noUnknown(value, ['side', 'margin', 'minPieceSize', 'projection', 'gapFill', 'contextGap', 'exclaveReach'], 'params', problems);
+  noUnknown(value, ['side', 'margin', 'minPieceSize', 'projection', 'gapFill', 'contextGap', 'exclaveReach', 'enclosedReach'], 'params', problems);
   const side = readRange(value, 'side', 64, 16384, true, problems);
   const margin = readRange(value, 'margin', 0, 0.5, false, problems);
   const minPieceSize = readRange(value, 'minPieceSize', 1, 10000, true, problems);
@@ -237,6 +261,8 @@ function readParams(value: unknown, problems: Problems): Params | undefined {
   const exclaveReach = Object.hasOwn(value, 'exclaveReach') ? readRange(value, 'exclaveReach', 0, 1024, true, problems) : undefined;
   if (Object.hasOwn(value, 'contextGap') && contextGap === undefined) return undefined;
   if (Object.hasOwn(value, 'exclaveReach') && exclaveReach === undefined) return undefined;
+  const enclosedReach = Object.hasOwn(value, 'enclosedReach') ? readRange(value, 'enclosedReach', 0, 16384, true, problems) : undefined;
+  if (Object.hasOwn(value, 'enclosedReach') && enclosedReach === undefined) return undefined;
   return {
     side,
     margin,
@@ -245,6 +271,7 @@ function readParams(value: unknown, problems: Problems): Params | undefined {
     ...(gapFill === undefined ? {} : { gapFill }),
     ...(contextGap === undefined ? {} : { contextGap }),
     ...(exclaveReach === undefined ? {} : { exclaveReach }),
+    ...(enclosedReach === undefined ? {} : { enclosedReach }),
   };
 }
 
@@ -354,7 +381,7 @@ export function parseCuration(bytes: Uint8Array, file: string): Result<Curation,
       });
     }
   }
-  const factionBy = Object.hasOwn(root, 'factionBy') ? readGroupBy(own(root, 'factionBy'), 'factionBy', problems) : undefined;
+  const factionBy = Object.hasOwn(root, 'factionBy') ? readGroupBy(own(root, 'factionBy'), 'factionBy', problems, true) : undefined;
 
   const seas: SeaEntry[] = [];
   if (Object.hasOwn(root, 'seas')) {

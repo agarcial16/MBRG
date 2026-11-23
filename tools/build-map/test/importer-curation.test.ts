@@ -263,6 +263,25 @@ describe('FR-592 the curation file schema: what it refuses, each with its member
     }
   });
 
+  it('FR-592 accepts an enclosed reach of 0 to 16,384 and refuses one outside it or not an integer', () => {
+    for (const n of [0, 1, 16384]) expect(parse(changed((c) => (c.params.enclosedReach = n), minimal)).ok, `enclosed reach ${n}`).toBe(true);
+    expect(parsed(changed((c) => (c.params.enclosedReach = 40), minimal)).params.enclosedReach).toBe(40);
+    expect(parsed(minimal()).params.enclosedReach).toBeUndefined();
+    for (const n of [-1, 16385, 1.5, '40', null]) {
+      expect(paths(changed((c) => (c.params.enclosedReach = n), minimal)), String(n)).toStrictEqual(['params.enclosedReach']);
+    }
+  });
+
+  it('FR-597 reads the no-owner values of factionBy: texts, integers and null, in order, and refuses anything else', () => {
+    const rule = (noOwner: unknown) => changed((c) => (c.factionBy = { property: 'adm0', noOwner }));
+    expect(parsed(rule([null, 'Unclaimed', 0])).factionBy).toStrictEqual({ property: 'adm0', noOwner: [null, 'Unclaimed', 0] });
+    expect(parsed(rule([])).factionBy).toStrictEqual({ property: 'adm0', noOwner: [] });
+    for (const bad of ['Unclaimed', {}, 1]) expect(paths(rule(bad)), JSON.stringify(bad)).toStrictEqual(['factionBy.noOwner']);
+    expect(paths(rule([null, true, 1.5, {}]))).toStrictEqual(['factionBy.noOwner[1]', 'factionBy.noOwner[2]', 'factionBy.noOwner[3]']);
+    expect(paths(rule(Array.from({ length: 65 }, (_, i) => `v${i}`)))).toStrictEqual(['factionBy.noOwner']);
+    expect(parse(rule(Array.from({ length: 64 }, (_, i) => `v${i}`))).ok).toBe(true);
+  });
+
   it('FR-592 refuses a malformed filter: no operator, two operators, a value that is no text or integer, a bad box', () => {
     const bad = (filter: unknown) => paths(changed((c) => (c.select = [filter]), minimal));
     expect(bad({ property: 'a' })).toStrictEqual(['select[0]']);

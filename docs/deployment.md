@@ -328,6 +328,15 @@ on stderr, nothing written in the output folder), and `2` on usage error.
      seed is a sea of its own (no main-map zone flows into it); `insets[i].sea`
      names the `seas` entry whose zone owns all the water of the rectangle, so
      the Canary Islands can belong to the Atlantic zone.
+     Enclosed water (a lake or inland sea no zone reaches through water) joins the
+     nearest zone only within `params.enclosedReach` pixels (default 250 km at the
+     pixel size; 0 = no limit); farther sets become other land and are listed as
+     `enclosedLakes`, so the Caspian is never part of the Indian Ocean. Give an
+     inland sea a seed in `seas` to keep it as water of its own. Land with no owner
+     (a null `SUBJECTO`, say) is declared with `factionBy.noOwner` (a list of values,
+     `null` for an absent or empty one): it is other land, listed as `noOwnerUnits`;
+     factions left inside it are linked by the exclave rule, so raise
+     `exclaveReach` if the import fails with `unreachable-exclave`.
    - `paletteExhaustedFaction`: the first faction for which the viewer's
      12-colour assignment fails; supply explicit `color` values in `factions`
      (or wait for **V2**) before listing.

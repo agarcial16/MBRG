@@ -9,6 +9,7 @@ import { thinCoastFactions } from './coast-check';
 import type { FilledSet } from './gap-fill';
 import type { Bridge } from './exclave';
 import type { ImportNumbering } from './numbering';
+import type { LakeSet } from './sea-sources';
 import type { ViewSet } from './views';
 
 /**
@@ -212,6 +213,8 @@ export interface ImportReportDetails {
   contextGapPixels: number;
   bridges: readonly Bridge[];
   enclosed: readonly EnclosedSet[];
+  enclosedReach: number;
+  lakes: readonly LakeSet[];
 }
 
 /** What the import report takes: the digests (the CLI holds the bytes), the import facts and the final map. */
@@ -243,6 +246,8 @@ export function formatImportReport(input: ImportReportInput): string {
     `skippedNullGeometries: ${input.sources.reduce((n, s) => n + s.skippedNull, 0)}`,
     `units: ${details.curation.units.length}`,
     `selectedUnits: ${details.curation.selection.selected.length}`,
+    `noOwnerUnits: ${details.curation.selection.noOwner.length}`,
+    ...details.curation.selection.noOwner.map((key) => `  - unit=${key}`),
     `multiFeatureUnits: ${details.curation.units.filter((u) => u.features.length > 1).length}`,
     `projection: ${main.projection}`,
     `projectionCenter: lon=${main.lon0} lat=${main.lat0}`,
@@ -308,6 +313,9 @@ export function formatImportReport(input: ImportReportInput): string {
   lines.push(`enclosedWaterPixels: ${enclosed.pixels}`);
   lines.push(`enclosedWaterZones: ${enclosed.zones.length}`);
   lines.push(...enclosed.zones.map((z) => `  - zone=${z.zone} sets=${z.sets} pixels=${z.pixels}`));
+  lines.push(`enclosedReach: ${details.enclosedReach}`);
+  lines.push(`enclosedLakes: ${details.lakes.length}`);
+  lines.push(...details.lakes.map((l) => `  - pixels=${l.pixels} x=${l.x} y=${l.y}`));
   const multiPiece = [...pieceCount].filter(([, n]) => n > 1).sort((a, b) => a[0] - b[0]).map(([entry, pieces]) => ({ entry, pieces }));
   lines.push(`multiPieceEntries: ${multiPiece.length}`);
   lines.push(...multiPiece.map((m) => `  - entry=${m.entry} pieces=${m.pieces}`));
