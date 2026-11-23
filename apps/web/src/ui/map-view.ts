@@ -14,7 +14,6 @@ import { factionColorList, buildEntryIndex, factionIndexOf, ownerTable } from '.
 import type { EntryIndex } from '../core/entries';
 import { frontField } from '../core/front';
 import type { FrontField } from '../core/front';
-import { labelsAt } from '../core/label-frame';
 import type { AnyLabelDraw, RoundLabels, StepLabels } from '../core/label-frame';
 import { labelTexts } from '../core/label-input';
 import type { Counts } from '../core/label-counts';
@@ -30,6 +29,8 @@ import {
   readableCounts,
   readableRoundLabels,
   resolveFrameLabels,
+  stepReadableLabels,
+  upgradeTourDraws,
 } from '../core/label-readable';
 import type { ReadableDraw, ReadableFactionTiers } from '../core/label-readable';
 import { completeRunning, frame, motionChanged, request, startPlayback } from '../core/playback';
@@ -276,7 +277,8 @@ export function createMapView(input: MapViewInput): MapView {
     const view = { camera, viewport, dpr: ratio, detail: detailFactor(image, viewport), fonts: fontEpoch() };
     mapScene.setView(view);
     renderer.draw();
-    labelLayer.draw(drawn, view, overlay);
+    const shown = overlay !== undefined ? upgradeTourDraws(drawn, current.draws, camera.scale, READABLE_PARAMS.minPx) : drawn;
+    labelLayer.draw(shown, view, overlay);
   };
 
   const report = (status: TourStatus): void => {
@@ -352,7 +354,16 @@ export function createMapView(input: MapViewInput): MapView {
       if (shownTable !== stepView.later.table) mapScene.setOwners(stepView.later.table);
       shownTable = stepView.later.table;
       mapScene.setFront({ before: stepView.earlier.table, field: stepView.field, forward: shown.forward });
-      drawn = labelsAt(stepView.labels, shown.forward);
+      drawn = stepReadableLabels(
+        stepView.earlier.layout.readable,
+        stepView.later.layout.readable,
+        territoryTiers,
+        stepView.later.table,
+        { eliminated: stepView.labels.eliminated, absorber: stepView.labels.absorber },
+        aspectOf,
+        camera.scale,
+        shown.forward,
+      );
     } else {
       if (shownTable !== current.table) mapScene.setOwners(current.table);
       shownTable = current.table;

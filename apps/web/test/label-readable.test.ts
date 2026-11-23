@@ -1,16 +1,37 @@
 import { describe, expect, it } from 'vitest';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { MapData, PresentationData } from '@mbrg/shared';
+import { getRounds, getState, ownerOf, totalRounds } from '@mbrg/sim';
 import type { Camera, Viewport } from '../src/core/camera';
-import { LABEL_HALO, LABEL_INK } from '../src/core/label-frame';
+import { initialCamera } from '../src/core/camera';
+import { CENTRE_PARAMS } from '../src/core/centre-params';
+import { buildEntryIndex, factionIndexOf, ownerTable } from '../src/core/entries';
+import { LABEL_HALO, LABEL_INK, frameOf } from '../src/core/label-frame';
 import type { AnyLabelDraw, LabelDraw, ShapedDraw } from '../src/core/label-frame';
+import { labelTexts } from '../src/core/label-input';
+import { LABEL_PARAMS } from '../src/core/label-params';
 import {
   READABLE_PARAMS,
+  allCandidateTexts,
   clampScreenHeight,
+  placeReadableFactions,
+  placeReadableTerritories,
+  readableRoundLabels,
   resolveFrameLabels,
   selectTier,
+  stepReadableLabels,
   tierDraws,
+  upgradeTourDraws,
 } from '../src/core/label-readable';
-import type { LabelTier } from '../src/core/label-readable';
+import type { LabelTier, ReadableDraw } from '../src/core/label-readable';
+import { parsePackage } from '../src/core/package';
+import { buildPieceIndex } from '../src/core/regions';
+import { sceneAt } from '../src/core/scene';
+import { SHAPE_PARAMS } from '../src/core/shape-params';
 import { attachLabelLayer } from '../src/render/labels-layer';
+import { inflateStream } from '../src/ui/load';
 
 const VP: Viewport = { width: 1280, height: 720 };
 const cam = (scale: number, x = 500, y = 500): Camera => ({ x, y, scale });
@@ -200,4 +221,185 @@ describe('spec 032 FR-621 label layer enforces maxPx cap on screen for horizonta
     expect(terDraws).toHaveLength(2);
     for (const d of terDraws) expect(d.fontPx).toBeCloseTo(28, 6);
   });
+});
+
+describe('spec 032 NFR-151 performance on 8,220-label synthetic input', () => {
+  it('NFR-151 resolveFrameLabels runs in < 16 ms median on 8,220 territory labels (viewport culled + spatial grid)', () => {
+    const draws: ReadableDraw[] = [];
+    for (let i = 0; i < 8220; i++) {
+      const gx = (i % 90) * 44;
+      const gy = Math.floor(i / 90) * 44;
+      const tiers: LabelTier[] = [
+        { text: `Municipio Largo ${i}`, box: { x0: gx, y0: gy, h: 4, w: 36 }, height: 4 },
+        { text: `Mun. ${i}`, box: { x0: gx + 4, y0: gy + 2, h: 8, w: 28 }, height: 8 },
+      ];
+      draws.push({
+        text: tiers[0]!.text,
+        role: 'territory',
+        box: tiers[0]!.box!,
+        factor: 1,
+        ink: LABEL_INK,
+        halo: LABEL_HALO,
+        tiers,
+      });
+    }
+    const zoomed = cam(4.5, 2000, 2000);
+    // Warm up
+    resolveFrameLabels(draws, zoomed, VP, READABLE_PARAMS);
+    const times: number[] = [];
+    for (let k = 0; k < 7; k++) {
+      const t0 = performance.now();
+      resolveFrameLabels(draws, zoomed, VP, READABLE_PARAMS);
+      times.push(performance.now() - t0);
+    }
+    times.sort((a, b) => a - b);
+    const median = times[Math.floor(times.length / 2)]!;
+    expect(median).toBeLessThan(16);
+  });
+});
+
+describe('spec 032 FR-627 active tier preserved during round steps and reveal tours', () => {
+  const sctTiers: LabelTier[] = [
+    { text: 'Santa Cruz de Tenerife', box: { x0: 100, y0: 100, h: 8, w: 80 }, height: 8 },
+    { text: 'SCT', box: { x0: 110, y0: 100, h: 20, w: 30 }, height: 20 },
+  ];
+  const grownTiers: LabelTier[] = [
+    { text: 'Santa Cruz de Tenerife', box: { x0: 90, y0: 90, h: 24, w: 240 }, height: 24 },
+  ];
+
+  it('FR-627 keeps a label whose active tier is SCT visible mid-step instead of blinking out on tiers[0]', () => {
+    const earlier = { tiers: new Map([[1, sctTiers]]), piecesByFaction: new Map([[1, [0]]]) };
+    const later = { tiers: new Map([[1, sctTiers]]), piecesByFaction: new Map([[1, [0]]]) };
+    const territories = { tiers: [undefined] };
+    const table = new Uint8Array([0, 1]);
+    const aspects = new Map([['Santa Cruz de Tenerife', 10], ['SCT', 1.5]]);
+    // At scale 0.5, tiers[0] (h=8 -> 4px < 9) would blink out, while SCT (h=20 -> 10px >= 9) stays visible!
+    const mid = stepReadableLabels(earlier, later, territories, table, { eliminated: 2, absorber: 3 }, aspects, 0.5, 0.5);
+    expect(mid.map((d) => d.text)).toStrictEqual(['SCT']);
+    expect(frameOf(mid[0]!).h * 0.5).toBeGreaterThanOrEqual(READABLE_PARAMS.minPx);
+  });
+
+  it('FR-627 crossfades cleanly when an absorber expands from abbreviated tier to full name across a step', () => {
+    const earlier = { tiers: new Map([[1, sctTiers]]), piecesByFaction: new Map([[1, [0]]]) };
+    const later = { tiers: new Map([[1, grownTiers]]), piecesByFaction: new Map([[1, [0, 1]]]) };
+    const territories = { tiers: [undefined] };
+    const table = new Uint8Array([0, 1]);
+    const aspects = new Map([['Santa Cruz de Tenerife', 10], ['SCT', 1.5]]);
+    const mid = stepReadableLabels(earlier, later, territories, table, { eliminated: 2, absorber: 1 }, aspects, 0.5, 0.4);
+    expect(mid.map((d) => [d.text, Number(d.factor.toFixed(2))])).toStrictEqual([
+      ['SCT', 0.6],
+      ['Santa Cruz de Tenerife', 0.4],
+    ]);
+  });
+
+  it('FR-627 upgradeTourDraws uses active tier at current scale while preserving tour opacity factor', () => {
+    const tourDraw = boxLabel('Santa Cruz de Tenerife', 100, 100, 8, 80, 'faction', 0.35);
+    const currentDraws: ReadableDraw[] = [{ ...tourDraw, factor: 1, tiers: sctTiers }];
+    const upgraded = upgradeTourDraws([tourDraw], currentDraws, 0.5);
+    expect(upgraded).toHaveLength(1);
+    expect(upgraded[0]!.text).toBe('SCT');
+    expect(upgraded[0]!.factor).toBeCloseTo(0.35, 6);
+  });
+});
+
+describe('spec 032 FR-620 FR-626 real maps in maps/ (zero overlaps at fit scale, uniform across every map)', () => {
+  const mapsRoot = fileURLToPath(new URL('../../../maps', import.meta.url));
+  const mapDirs = readdirSync(mapsRoot, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
+
+  const syntheticAspects = (names: readonly string[]): Map<string, number> =>
+    new Map(names.map((n) => [n, Math.max(0.6, Array.from(n).length * 0.58)]));
+
+  const screenBoxOf = (d: AnyLabelDraw, c: Camera, vp: Viewport) => {
+    const f = frameOf(d);
+    const rawH = f.h * c.scale;
+    const h = clampScreenHeight(rawH, d.role, READABLE_PARAMS);
+    const w = f.w * c.scale * (h / rawH);
+    const sx = (f.cx - c.x) * c.scale + vp.width / 2;
+    const sy = (f.cy - c.y) * c.scale + vp.height / 2;
+    const rad = (Math.abs(f.angle) * Math.PI) / 180;
+    const hw = (w * Math.cos(rad) + h * Math.sin(rad)) / 2;
+    const hh = (w * Math.sin(rad) + h * Math.cos(rad)) / 2;
+    return { minX: sx - hw, minY: sy - hh, maxX: sx + hw, maxY: sy + hh };
+  };
+
+  it('FR-620 maps/spain-provinces at fit scale (1920x1080) draws multiple factions with zero screen-space overlaps', async () => {
+    const dir = join(mapsRoot, 'spain-provinces');
+    const parsed = await parsePackage(
+      {
+        map: readFileSync(join(dir, 'map.json'), 'utf8'),
+        presentation: readFileSync(join(dir, 'presentation.json'), 'utf8'),
+        image: new Uint8Array(readFileSync(join(dir, 'ids.png'))),
+      },
+      inflateStream,
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const pkg = parsed.value;
+    const map = pkg.map as MapData;
+    const presentation = pkg.presentation as PresentationData;
+    const index = buildEntryIndex(map, pkg.width, pkg.height, pkg.values);
+    const pieces = buildPieceIndex(index);
+    const owners = factionIndexOf(map);
+    const sim = { totalRounds, getState, getRounds, ownerOf };
+    const sc = sceneAt(map, presentation, 1, 0, sim);
+    expect(sc.ok).toBe(true);
+    if (!sc.ok) return;
+    const table = ownerTable(index, sc.value.owners, owners);
+    const texts = labelTexts(map, presentation, owners);
+    const aspects = syntheticAspects(allCandidateTexts([...texts.factions.values()]));
+    const fac = placeReadableFactions(pieces, table, texts.factions, aspects, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS);
+    const ter = { tiers: new Array<undefined>(pieces.entries).fill(undefined) };
+    const { draws } = readableRoundLabels(texts, table, fac, ter, aspects);
+    const vp: Viewport = { width: 1920, height: 1080 };
+    const fit = initialCamera({ w: pkg.width, h: pkg.height }, vp);
+    const resolved = resolveFrameLabels(draws, fit, vp, READABLE_PARAMS);
+    expect(resolved.length).toBeGreaterThan(20);
+    const rects = resolved.map((d) => screenBoxOf(d, fit, vp));
+    for (let i = 0; i < rects.length; i++) {
+      for (let j = i + 1; j < rects.length; j++) {
+        const a = rects[i]!;
+        const b = rects[j]!;
+        const overlap = a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY;
+        expect(overlap, `${resolved[i]!.text} vs ${resolved[j]!.text}`).toBe(false);
+      }
+    }
+  }, 15000);
+
+  it('FR-626 runs the readable-label pipeline across every map in maps/ with zero off-land leader lines', async () => {
+    expect(mapDirs.length).toBeGreaterThanOrEqual(2);
+    for (const name of mapDirs) {
+      const dir = join(mapsRoot, name);
+      const parsed = await parsePackage(
+        {
+          map: readFileSync(join(dir, 'map.json'), 'utf8'),
+          presentation: readFileSync(join(dir, 'presentation.json'), 'utf8'),
+          image: new Uint8Array(readFileSync(join(dir, 'ids.png'))),
+        },
+        inflateStream,
+      );
+      expect(parsed.ok, name).toBe(true);
+      if (!parsed.ok) continue;
+      const pkg = parsed.value;
+      const map = pkg.map as MapData;
+      const presentation = pkg.presentation as PresentationData;
+      const index = buildEntryIndex(map, pkg.width, pkg.height, pkg.values);
+      const pieces = buildPieceIndex(index);
+      const owners = factionIndexOf(map);
+      const sim = { totalRounds, getState, getRounds, ownerOf };
+      const sc = sceneAt(map, presentation, 1, 0, sim);
+      expect(sc.ok, name).toBe(true);
+      if (!sc.ok) continue;
+      const table = ownerTable(index, sc.value.owners, owners);
+      const texts = labelTexts(map, presentation, owners);
+      const aspects = syntheticAspects(allCandidateTexts([...texts.factions.values()]));
+      const fac = placeReadableFactions(pieces, table, texts.factions, aspects, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS);
+      const ter = placeReadableTerritories(pieces, texts.territories.slice(0, 1), aspects, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS);
+      const { draws } = readableRoundLabels(texts, table, fac, ter, aspects);
+      const vp: Viewport = { width: 1920, height: 1080 };
+      const fit = initialCamera({ w: pkg.width, h: pkg.height }, vp);
+      const resolved = resolveFrameLabels(draws, fit, vp, READABLE_PARAMS);
+      expect(resolved.length, name).toBeGreaterThan(0);
+      for (const d of resolved) expect('leader' in d, `${name}:${d.text}`).toBe(false);
+    }
+  }, 30000);
 });

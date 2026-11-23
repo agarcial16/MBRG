@@ -30,3 +30,13 @@
 - Untested: real-device phone touch readout and browser frame-time benchmark on 8,220-territory municipality map.
 - Branch: `feat/032-readable-labels`; State: pushed and PR #96 marked ready for review.
 - Next step: reviewer reviews PR #96 before merge.
+
+## 2026-11-23 — Review fixes (PR #96)
+- **NFR-151 / FR-626**: added early shortest-tier `minPx` reject, viewport culling, and a 64 px spatial hash grid to `resolveFrameLabels` (`apps/web/src/core/label-readable.ts`).
+  - Synthetic 8,220-label benchmark: `214.57 ms` median before -> `< 16 ms` test green (~2–4 ms).
+  - Real `spain-municipios-3` (7,995 draws, 1280x720): fit scale `1.90 ms` median (`2.94 ms` p95), zoomed 4.5x `3.63 ms` median (`7.23 ms` p95).
+- **FR-627**: added `stepReadableLabels` and `upgradeTourDraws` (`label-readable.ts`, wired in `map-view.ts`) so round steps and reveal tours use each label's active tier at `camera.scale` (no mid-step blink-out) and crossfade smoothly when display forms change.
+- **FR-620 / FR-626 tests**: added real `maps/spain-provinces` fit-scale zero-overlap test and a pipeline test across every map in `maps/` (`dev`, `spain-provinces`, `world-countries`).
+- Retained `label-centred-place.ts` and `label-offland.ts` because existing spec 006/007 regression & digest tests (`label-place.test.ts`, `label-offland.test.ts`, `label-centred-place.test.ts`, `shaped-purity.test.ts`, `centred-purity.test.ts`, `tour-pins-debug.test.ts`) pin their behavior and digests.
+- Branch: `feat/032-readable-labels`; State: fixes tested, typechecked, pushed.
+- Next step: reviewer re-checks PR #96.

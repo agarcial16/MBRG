@@ -4,7 +4,7 @@ import type { Camera, Viewport } from './camera';
 import type { CentreParams } from './centre-params';
 import { centredInLand } from './label-centred';
 import type { Counts } from './label-counts';
-import { LABEL_HALO, LABEL_INK, frameOf } from './label-frame';
+import { LABEL_HALO, LABEL_INK, frameOf, labelsAt } from './label-frame';
 import type { AnyLabelDraw, FactionLabelInput, LabelRole, RoundLabels, TerritoryLabelInput } from './label-frame';
 import type { LabelTexts } from './label-input';
 import type { FactionBoxes, FactionLabel, LabelBox, LayoutParams } from './label-layout';
@@ -107,10 +107,51 @@ function screenRectOf(draw: AnyLabelDraw, cam: Camera, vp: Viewport, params: Rea
 const overlaps = (a: ScreenRect, b: ScreenRect): boolean =>
   a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY;
 
+const GRID_CELL = 64;
+const GRID_BIAS = 32768;
+const GRID_STRIDE = 65536;
+
+const gridKey = (gx: number, gy: number): number => (gy + GRID_BIAS) * GRID_STRIDE + (gx + GRID_BIAS);
+
+function gridHits(grid: Map<number, ScreenRect[]>, rect: ScreenRect): boolean {
+  const gx0 = Math.floor(rect.minX / GRID_CELL);
+  const gx1 = Math.floor(rect.maxX / GRID_CELL);
+  const gy0 = Math.floor(rect.minY / GRID_CELL);
+  const gy1 = Math.floor(rect.maxY / GRID_CELL);
+  for (let gy = gy0; gy <= gy1; gy++) {
+    for (let gx = gx0; gx <= gx1; gx++) {
+      const cell = grid.get(gridKey(gx, gy));
+      if (cell === undefined) continue;
+      for (let i = 0; i < cell.length; i++) {
+        if (overlaps(rect, cell[i]!)) return true;
+      }
+    }
+  }
+  return false;
+}
+
+function gridInsert(grid: Map<number, ScreenRect[]>, rect: ScreenRect): void {
+  const gx0 = Math.floor(rect.minX / GRID_CELL);
+  const gx1 = Math.floor(rect.maxX / GRID_CELL);
+  const gy0 = Math.floor(rect.minY / GRID_CELL);
+  const gy1 = Math.floor(rect.maxY / GRID_CELL);
+  for (let gy = gy0; gy <= gy1; gy++) {
+    for (let gx = gx0; gx <= gx1; gx++) {
+      const k = gridKey(gx, gy);
+      let cell = grid.get(k);
+      if (cell === undefined) {
+        cell = [];
+        grid.set(k, cell);
+      }
+      cell.push(rect);
+    }
+  }
+}
+
 /**
  * Resolves screen-space overlaps among labels of the same role (FR-620), picking the fullest non-overlapping tier
- * per label (FR-623) and hiding labels that still collide or fall below minPx (FR-624). Different roles remain
- * independent so faction/territory crossfades work normally.
+ * per label (FR-623) and hiding labels that still collide or fall below minPx (FR-624). Culls to the viewport
+ * and uses a 64 px spatial hash grid for O(1) overlap queries (NFR-151). Different roles remain independent.
  */
 export function resolveFrameLabels(
   draws: readonly ReadableDraw[],
@@ -119,6 +160,9 @@ export function resolveFrameLabels(
   params: ReadableParams = READABLE_PARAMS,
 ): AnyLabelDraw[] {
   const accepted: (AnyLabelDraw | undefined)[] = new Array<AnyLabelDraw | undefined>(draws.length).fill(undefined);
+  const vpW = viewport.width;
+  const vpH = viewport.height;
+  const scale = camera.scale;
 
   for (const role of ['faction', 'territory'] as const) {
     interface Entry {
@@ -132,37 +176,36 @@ export function resolveFrameLabels(
       if (d.role !== role) continue;
       const candidates: { draw: AnyLabelDraw; rect: ScreenRect }[] = [];
       if (d.tiers !== undefined && d.tiers.length > 0) {
+        // Tiers are strictly increasing in height; if the shortest tier fails minPx, skip in O(1).
+        if (d.tiers[d.tiers.length - 1]!.height * scale < params.minPx) continue;
         for (const tier of d.tiers) {
-          if (tier.height * camera.scale < params.minPx) continue;
+          if (tier.height * scale < params.minPx) continue;
           const td = drawFromTier(tier, role, d.factor);
           if (td === undefined) continue;
           const rect = screenRectOf(td, camera, viewport, params);
-          if (rect !== undefined) candidates.push({ draw: td, rect });
+          if (rect === undefined) continue;
+          if (rect.maxX < 0 || rect.minX > vpW || rect.maxY < 0 || rect.minY > vpH) continue;
+          candidates.push({ draw: td, rect });
         }
       } else {
         const rect = screenRectOf(d, camera, viewport, params);
-        if (rect !== undefined) candidates.push({ draw: d, rect });
+        if (rect !== undefined && rect.maxX >= 0 && rect.minX <= vpW && rect.maxY >= 0 && rect.minY <= vpH) {
+          candidates.push({ draw: d, rect });
+        }
       }
       if (candidates.length === 0) continue;
       const top = candidates[0]!;
-      const topH = clampScreenHeight(frameOf(top.draw).h * camera.scale, role, params);
+      const topH = clampScreenHeight(frameOf(top.draw).h * scale, role, params);
       entries.push({ idx, priority: topH, candidates });
     }
     // Taller / more prominent labels win; ties keep deterministic input order.
     entries.sort((a, b) => (b.priority !== a.priority ? b.priority - a.priority : a.idx - b.idx));
 
-    const placed: ScreenRect[] = [];
+    const grid = new Map<number, ScreenRect[]>();
     for (const entry of entries) {
       for (const cand of entry.candidates) {
-        let hit = false;
-        for (let i = 0; i < placed.length; i++) {
-          if (overlaps(cand.rect, placed[i]!)) {
-            hit = true;
-            break;
-          }
-        }
-        if (!hit) {
-          placed.push(cand.rect);
+        if (!gridHits(grid, cand.rect)) {
+          gridInsert(grid, cand.rect);
           accepted[entry.idx] = cand.draw;
           break;
         }
@@ -385,4 +428,109 @@ export function readableCounts(
     if (table[entry]! > 0 && territoriesLayout.tiers[entry] !== undefined) territoryLists.push(territoriesLayout.tiers[entry]);
   }
   return { faction: countOf(factionsLayout.tiers.values()), territory: countOf(territoryLists) };
+}
+
+/**
+ * Builds step labels at `scale` using each label's active tier (FR-627): keeps abbreviated labels visible
+ * mid-step instead of blinking out on tiers[0], and crossfades smoothly when display forms change.
+ */
+export function stepReadableLabels(
+  earlier: ReadableFactionTiers,
+  later: ReadableFactionTiers,
+  territories: ReadableTerritoryTiers,
+  table: ArrayLike<number>,
+  meta: { readonly eliminated: number; readonly absorber: number },
+  aspectOf: ReadonlyMap<string, number>,
+  scale: number,
+  forward: number,
+  minPx: number = READABLE_PARAMS.minPx,
+): AnyLabelDraw[] {
+  const out: AnyLabelDraw[] = [];
+  const factionIds = [...new Set([...earlier.tiers.keys(), ...later.tiers.keys()])].sort((a, b) => a - b);
+
+  for (const id of factionIds) {
+    const bList = earlier.tiers.get(id);
+    const aList = later.tiers.get(id);
+    const b = bList === undefined ? undefined : selectTier(bList, scale, minPx);
+    const a = aList === undefined ? undefined : selectTier(aList, scale, minPx);
+
+    if (id === meta.eliminated) {
+      if (b !== undefined && 1 - forward > 0) {
+        const d = drawFromTier(b, 'faction', 1 - forward);
+        if (d !== undefined) out.push(d);
+      }
+      continue;
+    }
+
+    if (id === meta.absorber && b !== undefined && a !== undefined && b.text === a.text) {
+      const aspect = aspectOf.get(a.text) ?? 1;
+      const single = labelsAt(
+        {
+          earlier: { factions: [{ faction: id, text: b.text, box: b.box, ...(b.frame !== undefined ? { frame: b.frame } : {}), aspect }], territories: [] },
+          later: { factions: [{ faction: id, text: a.text, box: a.box, ...(a.frame !== undefined ? { frame: a.frame } : {}), aspect }], territories: [] },
+          eliminated: meta.eliminated,
+          absorber: meta.absorber,
+          transferred: new Set(),
+        },
+        forward,
+      );
+      for (const d of single) out.push(d);
+      continue;
+    }
+
+    if (b !== undefined && a !== undefined && b.text === a.text && b.height === a.height && b.box?.x0 === a.box?.x0 && b.box?.y0 === a.box?.y0) {
+      const d = drawFromTier(forward < 0.5 ? b : a, 'faction', 1);
+      if (d !== undefined) out.push(d);
+      continue;
+    }
+
+    // Display form or geometry changed: smooth crossfade.
+    if (b !== undefined && 1 - forward > 0) {
+      const d = drawFromTier(b, 'faction', 1 - forward);
+      if (d !== undefined) out.push(d);
+    }
+    if (a !== undefined && forward > 0) {
+      const d = drawFromTier(a, 'faction', forward);
+      if (d !== undefined) out.push(d);
+    }
+  }
+
+  for (let entry = 1; entry < table.length; entry++) {
+    if (table[entry]! <= 0) continue;
+    const tList = territories.tiers[entry];
+    if (tList === undefined) continue;
+    const chosen = selectTier(tList, scale, minPx);
+    if (chosen === undefined) continue;
+    const d = drawFromTier(chosen, 'territory', 1);
+    if (d !== undefined) out.push(d);
+  }
+  return out;
+}
+
+/**
+ * Upgrades tour label draws to their active tier at `scale` while preserving each draw's tour opacity factor (FR-627).
+ */
+export function upgradeTourDraws(
+  tourDraws: readonly AnyLabelDraw[],
+  currentDraws: readonly ReadableDraw[],
+  scale: number,
+  minPx: number = READABLE_PARAMS.minPx,
+): AnyLabelDraw[] {
+  const byKey = new Map<string, readonly LabelTier[]>();
+  for (const d of currentDraws) {
+    if (d.tiers !== undefined && d.tiers.length > 0) byKey.set(`${d.role}:${d.text}`, d.tiers);
+  }
+  const out: AnyLabelDraw[] = [];
+  for (const d of tourDraws) {
+    const tiers = byKey.get(`${d.role}:${d.text}`);
+    if (tiers === undefined) {
+      out.push(d);
+      continue;
+    }
+    const chosen = selectTier(tiers, scale, minPx);
+    if (chosen === undefined) continue;
+    const upgraded = drawFromTier(chosen, d.role, d.factor);
+    if (upgraded !== undefined) out.push(upgraded);
+  }
+  return out;
 }
