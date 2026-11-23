@@ -39,3 +39,18 @@ describe('spec 032 FR-625 FR-627 map hover/tap full-name readout', () => {
     expect(mapReadout(index, owners, DEV_PRESENTATION, { x: 1.5, y: 0.5 }, true)).toBeUndefined();
   });
 });
+
+import liveMainRaw from '../src/ui/live-main.ts?raw';
+import livePanelRaw from '../src/ui/live-panel.ts?raw';
+import liveStyleRaw from '../src/ui/live-panel-style.ts?raw';
+
+describe('spec 032 FR-625 live HUD wiring of hover/tap readout', () => {
+  it('FR-625 wires pointerMoved and onTap through mapReadout to showReadout using STRINGS.mapTipLine', () => {
+    expect(liveMainRaw).toContain('mapReadout(');
+    expect(liveMainRaw).toContain('pointerMoved: updateReadout');
+    expect(liveMainRaw).toContain('updateReadout(point)');
+    expect(livePanelRaw).toContain('STRINGS.mapTipLine');
+    expect(livePanelRaw).toContain('hud-maptip');
+    expect(liveStyleRaw).toContain('.hud-maptip');
+  });
+});

@@ -358,6 +358,9 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-overlay { position: absolute; left: 50%; top: 110px; transform: translateX(-50%); z-index: 4; padding: 10px 22px; font: 600 20px var(--hud-display, 'Cormorant SC', Georgia, serif); letter-spacing: 0.08em; color: var(--hud-gilt); pointer-events: none; text-align: center; }
 .hud-overlay[hidden] { display: none; }
 .hud[data-layout="phone"] .hud-overlay { top: 100px; left: 8px; transform: none; box-sizing: border-box; max-width: calc(100vw - 130px); font-size: 16px; }
+/* spec 032 FR-625: hover/tap full-name readout */
+.hud-maptip { position: fixed; z-index: 6; pointer-events: none; padding: 5px 10px; border-radius: 4px; background: var(--hud-panel); color: var(--hud-text); font: 500 13px/1.3 var(--hud-body, Spectral, Georgia, serif); box-shadow: inset 0 0 0 1px var(--hud-gilt-dim), 0 6px 18px rgba(0, 0, 0, 0.55); max-width: min(320px, calc(100vw - 24px)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud-maptip[hidden] { display: none; }
 @keyframes hud-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {

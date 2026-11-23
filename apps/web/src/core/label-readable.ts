@@ -3,9 +3,11 @@
 import type { Camera, Viewport } from './camera';
 import type { CentreParams } from './centre-params';
 import { centredInLand } from './label-centred';
+import type { Counts } from './label-counts';
 import { LABEL_HALO, LABEL_INK, frameOf } from './label-frame';
-import type { AnyLabelDraw, LabelRole } from './label-frame';
-import type { LabelBox, LayoutParams } from './label-layout';
+import type { AnyLabelDraw, FactionLabelInput, LabelRole, RoundLabels, TerritoryLabelInput } from './label-frame';
+import type { LabelTexts } from './label-input';
+import type { FactionBoxes, FactionLabel, LabelBox, LayoutParams } from './label-layout';
 import type { InLandFrame, ShapedFrame } from './label-shape';
 import { abbreviateName } from './label-abbreviate';
 import { mainPieces, mainRegions, regionsOf } from './regions';
@@ -293,4 +295,94 @@ export function placeReadableFactions(
     }
   }
   return { tiers, piecesByFaction };
+}
+
+/** Builds FactionBoxes from readable faction tiers so reveal-tour framing (`framingBoxOf`) stays intact. */
+export function factionBoxesOf(
+  p: PieceIndex,
+  readable: ReadableFactionTiers,
+  names: ReadonlyMap<number, string>,
+  aspectOf: ReadonlyMap<string, number>,
+  params: LayoutParams,
+): FactionBoxes {
+  const labels = new Map<number, FactionLabel>();
+  for (const [faction, pieces] of readable.piecesByFaction) {
+    const name = names.get(faction);
+    if (name === undefined) continue;
+    const primary = readable.tiers.get(faction)?.[0];
+    const aspect = aspectOf.get(primary?.text ?? name) ?? 1;
+    labels.set(faction, { pieces, aspect, box: primary?.box });
+  }
+  return { index: p, params: { margin: params.margin, maxHeight: params.maxHeight }, labels, recomputed: [] };
+}
+
+/** Builds RoundLabels and ReadableDraw[] (with tiers attached, zero off-land boxes or leader lines). */
+export function readableRoundLabels(
+  texts: LabelTexts,
+  table: ArrayLike<number>,
+  factionsLayout: ReadableFactionTiers,
+  territoriesLayout: ReadableTerritoryTiers,
+  aspectOf: ReadonlyMap<string, number>,
+): { readonly labels: RoundLabels; readonly draws: ReadableDraw[] } {
+  const factions: FactionLabelInput[] = [];
+  const draws: ReadableDraw[] = [];
+  for (const faction of Array.from(factionsLayout.tiers.keys()).sort((a, b) => a - b)) {
+    const tiers = factionsLayout.tiers.get(faction);
+    if (tiers === undefined || tiers.length === 0) continue;
+    const primary = tiers[0]!;
+    const aspect = aspectOf.get(primary.text) ?? 1;
+    factions.push({
+      faction,
+      text: primary.text,
+      box: primary.box,
+      ...(primary.frame !== undefined ? { frame: primary.frame } : {}),
+      aspect,
+    });
+    const base = drawFromTier(primary, 'faction', 1);
+    if (base !== undefined) draws.push({ ...base, tiers });
+  }
+  const territories: TerritoryLabelInput[] = [];
+  for (let entry = 1; entry < table.length; entry++) {
+    const owner = table[entry]!;
+    if (owner <= 0) continue;
+    const tiers = territoriesLayout.tiers[entry];
+    if (tiers === undefined || tiers.length === 0) continue;
+    const primary = tiers[0]!;
+    territories.push({
+      entry,
+      text: primary.text,
+      box: primary.box,
+      ...(primary.frame !== undefined ? { frame: primary.frame } : {}),
+    });
+    const base = drawFromTier(primary, 'territory', 1);
+    if (base !== undefined) draws.push({ ...base, tiers });
+  }
+  return { labels: { factions, territories }, draws };
+}
+
+/** Counts of primary in-land shapes for the debug panel (offLand is always 0 under FR-624). */
+export function readableCounts(
+  table: ArrayLike<number>,
+  factionsLayout: ReadableFactionTiers,
+  territoriesLayout: ReadableTerritoryTiers,
+): { readonly faction: Counts; readonly territory: Counts } {
+  const countOf = (lists: Iterable<readonly LabelTier[] | undefined>): Counts => {
+    let horizontal = 0;
+    let straight = 0;
+    let arc = 0;
+    let none = 0;
+    for (const tiers of lists) {
+      const primary = tiers?.[0];
+      if (primary === undefined) none++;
+      else if (primary.frame === undefined) horizontal++;
+      else if (primary.frame.shape === 'straight') straight++;
+      else arc++;
+    }
+    return { horizontal, straight, arc, offLand: 0, none };
+  };
+  const territoryLists: (readonly LabelTier[] | undefined)[] = [];
+  for (let entry = 1; entry < table.length; entry++) {
+    if (table[entry]! > 0 && territoriesLayout.tiers[entry] !== undefined) territoryLists.push(territoriesLayout.tiers[entry]);
+  }
+  return { faction: countOf(factionsLayout.tiers.values()), territory: countOf(territoryLists) };
 }

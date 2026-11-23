@@ -14,3 +14,19 @@
 - Tests: `label-abbreviate.test.ts` (5), `label-readable.test.ts` (9), `map-readout.test.ts` (3) — 17/17 green.
 - Branch: `feat/032-readable-labels`; State: core modules complete and tested.
 - Next step: Step 2 — wire screen-space capping, tier selection & overlap resolution into `render/labels-layer.ts` and `ui/map-view.ts`, plus render tests.
+
+## 2026-11-23 — Steps 2 & 3: Render cap, tier/overlap wiring, and always-on hover/tap readout
+- Updated `apps/web/src/render/labels-layer.ts` (FR-621): clamped on-screen height to `[minPx=9, maxPx]` (48 px faction, 28 px territory) for horizontal, straight and arc frames while keeping centre, angle and curvature centred.
+- Updated `apps/web/src/ui/map-view.ts` (FR-620, FR-623, FR-624, FR-626, FR-627): switched map layout to precomputed in-land abbreviation tiers (`placeReadableFactions`, `placeReadableTerritories`, zero off-land/leader lines) and screen-space overlap resolution (`resolveFrameLabels`) outside round steps.
+- Wired always-on hover/tap full-name readout (FR-625, FR-627) into `apps/web/src/ui/live-main.ts`, `apps/web/src/ui/live-panel.ts`, `apps/web/src/ui/live-panel-style.ts`, and `apps/web/src/core/strings.ts` (`STRINGS.mapTipLine`).
+- Branch: `feat/032-readable-labels`; State: implementation wired, running typecheck, tests, and after screenshots.
+- Next step: review before/after screenshots, run full `npm test` + `npm run typecheck`, build before/after slider widget, mark spec `implemented`, push and ready PR #96.
+
+## 2026-11-23 — Final verification & PR ready
+- Fixed `map-view.ts` (`current.layout.boxes` + 1-arg `present(drawn)`) and `live-main.ts` (`setCamera: (next) => userMoved(next)`) so `map-view-tour-scan.test.ts` (16/16) and `round-shell.test.ts` (12/12) pass without modifying any scan test.
+- Captured before/after desktop & phone screenshots under `.claude/review/032/` for `spain-provinces` (overview + zoomed-in) and `spain-municipios-3` (zoomed-in, 8,220 territories), and rendered desktop + phone before/after slider widgets.
+- Verification: `npm run typecheck` green across all 12 tsconfigs; full `npm test` green (426/434 passed on first run + 8/8 re-verified cleanly after fixing the 2 scan assertions and clearing concurrent Chrome CPU load; 19/19 new spec 032 tests green).
+- Marked `specs/032-readable-labels/spec.md` as `Status: implemented` and updated `MEMORY.md`.
+- Untested: real-device phone touch readout and browser frame-time benchmark on 8,220-territory municipality map.
+- Branch: `feat/032-readable-labels`; State: pushed and PR #96 marked ready for review.
+- Next step: reviewer reviews PR #96 before merge.

@@ -10,6 +10,7 @@ import {
   tierDraws,
 } from '../src/core/label-readable';
 import type { LabelTier } from '../src/core/label-readable';
+import { attachLabelLayer } from '../src/render/labels-layer';
 
 const VP: Viewport = { width: 1280, height: 720 };
 const cam = (scale: number, x = 500, y = 500): Camera => ({ x, y, scale });
@@ -131,5 +132,72 @@ describe('spec 032 FR-620 no overlapping on-screen footprints within the same ro
     };
     const resolved = resolveFrameLabels([big, guada], cam(1), VP, READABLE_PARAMS);
     expect(resolved.map((d) => d.text)).toStrictEqual(['Madrid', 'Gua.']);
+  });
+});
+
+describe('spec 032 FR-621 label layer enforces maxPx cap on screen for horizontal, straight and arc frames', () => {
+  function recordFonts(draws: readonly AnyLabelDraw[], scale: number): { text: string; fontPx: number }[] {
+    const out: { text: string; fontPx: number }[] = [];
+    const ctx = {
+      font: '',
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+      lineJoin: 'miter',
+      lineCap: 'butt',
+      textAlign: 'start',
+      textBaseline: 'alphabetic',
+      globalAlpha: 1,
+      setTransform() {},
+      clearRect() {},
+      save() {},
+      restore() {},
+      translate() {},
+      rotate() {},
+      scale() {},
+      transform() {},
+      beginPath() {},
+      moveTo() {},
+      lineTo() {},
+      stroke() {},
+      measureText(t: string) {
+        const px = Number(/(\d+(?:\.\d+)?)px/.exec(ctx.font)?.[1] ?? '10');
+        return { width: t.length * 0.6 * px };
+      },
+      strokeText() {},
+      fillText(t: string) {
+        out.push({ text: t, fontPx: Number(/(\d+(?:\.\d+)?)px/.exec(ctx.font)?.[1] ?? '0') });
+      },
+    };
+    const canvas = { width: 0, height: 0, getContext: (k: string) => (k === '2d' ? ctx : null) } as unknown as HTMLCanvasElement;
+    const layer = attachLabelLayer(canvas);
+    layer.resize(VP, 1);
+    layer.draw(draws, { camera: cam(scale), viewport: VP, dpr: 1 });
+    return out;
+  }
+
+  it('FR-621 caps faction labels at 48 px and territory labels at 28 px when zoomed in', () => {
+    // Faction horizontal box: h=50 at scale 1.4 -> raw 70 px, capped to 48 px (scale 1.4 < fadeStart 1.5 so faction visible)
+    const facBox = boxLabel('España', 450, 475, 50, 150, 'faction');
+    const facStraight = straightLabel('Aragón', 500, 500, 50, 150, 15, 'faction');
+    const facArc: ShapedDraw = {
+      text: 'Italia',
+      role: 'faction',
+      frame: { shape: 'arc', cx: 500, cy: 500, angle: 0, h: 50, w: 150, bend: 30, radius: 300 },
+      factor: 1,
+      ink: LABEL_INK,
+      halo: LABEL_HALO,
+    };
+    const facDraws = recordFonts([facBox, facStraight, facArc], 1.4);
+    expect(facDraws.length).toBeGreaterThan(0);
+    for (const d of facDraws) expect(d.fontPx).toBeLessThanOrEqual(48);
+    expect(facDraws[0]!.fontPx).toBeCloseTo(48, 6);
+
+    // Territory labels at scale 4 (> fadeFull 2): h=20 -> raw 80 px, capped to 28 px
+    const terBox = boxLabel('Zuera', 480, 490, 20, 60, 'territory');
+    const terStraight = straightLabel('Huesca', 500, 500, 20, 60, 30, 'territory');
+    const terDraws = recordFonts([terBox, terStraight], 4);
+    expect(terDraws).toHaveLength(2);
+    for (const d of terDraws) expect(d.fontPx).toBeCloseTo(28, 6);
   });
 });

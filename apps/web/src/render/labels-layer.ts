@@ -10,6 +10,7 @@ import { scaledFade } from '../core/detail-scale';
 import { drawable, frameOf, labelAlpha, screenBox } from '../core/label-frame';
 import type { AnyLabelDraw, LabelDraw, ShapedDraw } from '../core/label-frame';
 import { LABEL_PARAMS, fontString } from '../core/label-params';
+import { clampScreenHeight } from '../core/label-readable';
 import type { Indicator, Marker } from '../core/tour-frame';
 import { TOUR_PARAMS } from '../core/tour-params';
 import { deviceSize } from './map-scene';
@@ -79,14 +80,20 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
   const drawBox = (d: LabelDraw, view: MapView): void => {
     const { camera, viewport } = view;
     const box = screenBox(d.box, camera, viewport);
-    if (box.x + box.w < 0 || box.y + box.h < 0 || box.x > viewport.width || box.y > viewport.height) return;
-    // The font size is the box height; the horizontal factor makes the advance width the box width exactly.
-    ctx.font = fontString(box.h);
+    const drawnH = clampScreenHeight(box.h, d.role);
+    if (drawnH <= 0) return;
+    const k = drawnH / box.h;
+    const drawnW = box.w * k;
+    const cx = box.x + box.w / 2;
+    const cy = box.y + box.h / 2;
+    if (cx + drawnW / 2 < 0 || cy + drawnH / 2 < 0 || cx - drawnW / 2 > viewport.width || cy - drawnH / 2 > viewport.height) return;
+    // The font size is the clamped box height; the horizontal factor makes the advance width match drawnW exactly.
+    ctx.font = fontString(drawnH);
     const measured = ctx.measureText(d.text).width;
     if (!(measured > 0)) return;
     ctx.save();
-    ctx.translate(box.x + box.w / 2, box.y + box.h / 2);
-    ctx.scale(box.w / measured, 1);
+    ctx.translate(cx, cy);
+    ctx.scale(drawnW / measured, 1);
     ctx.globalAlpha = labelAlpha(d, camera.scale, params);
     paint(d, d.text, 0, 0);
     ctx.restore();
@@ -96,14 +103,17 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
     const { camera, viewport } = view;
     const f = frameOf(d);
     const [sx, sy] = toScreen(camera, viewport, f.cx, f.cy);
-    // Bounding circle of the frame: half its length plus its height, on screen.
-    const reach = (f.w / 2 + f.h) * camera.scale;
+    const rawH = f.h * camera.scale;
+    const drawnH = clampScreenHeight(rawH, d.role);
+    if (drawnH <= 0) return;
+    const k = drawnH / rawH;
+    // Bounding circle of the capped frame: half its length plus its height, on screen.
+    const reach = (f.w * camera.scale * k) / 2 + drawnH;
     if (sx + reach < 0 || sy + reach < 0 || sx - reach > viewport.width || sy - reach > viewport.height) return;
-    const h = f.h * camera.scale;
-    ctx.font = fontString(h);
+    ctx.font = fontString(drawnH);
     ctx.globalAlpha = labelAlpha(d, camera.scale, params);
     if (d.frame.shape === 'straight') {
-      const w = f.w * camera.scale;
+      const w = f.w * camera.scale * k;
       const measured = ctx.measureText(d.text).width;
       if (!(measured > 0)) return;
       const m = straightMatrix({ cx: sx, cy: sy, angle: f.angle }, w, measured);
@@ -114,9 +124,10 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
       return;
     }
     const glyphs = Array.from(d.text);
-    const places = arcGlyphs(d.frame, glyphOffsets(advancesOf(d.text), d.frame.w));
-    // advancesOf set the reference font; the glyphs are drawn at the displayed size.
-    ctx.font = fontString(h);
+    const arcW = d.frame.w * k;
+    const places = arcGlyphs(d.frame, glyphOffsets(advancesOf(d.text), arcW));
+    // advancesOf set the reference font; the glyphs are drawn at the clamped displayed size.
+    ctx.font = fontString(drawnH);
     glyphs.forEach((g, i) => {
       const p = places[i];
       if (p === undefined) return;
