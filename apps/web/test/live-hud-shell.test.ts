@@ -7,6 +7,7 @@ import { pageCss } from '../src/core/table';
 import shell from '../src/ui/live-panel.ts?raw';
 import main from '../src/ui/live-main.ts?raw';
 import startShell from '../src/ui/live-start.ts?raw';
+import messageShell from '../src/ui/message.ts?raw';
 import terraShell from '../src/ui/live-terra.ts?raw';
 import entryShell from '../src/ui/entry.ts?raw';
 import { readFileSync } from 'node:fs';
@@ -304,5 +305,46 @@ describe('FR-359 the minimap dims only itself', () => {
   it('FR-359 the box that holds the view rectangle clips its shadow: the 999 px shadow of the rectangle must not dim the screen', () => {
     expect(css).toMatch(/\.hud-minirect\s*\{[^}]*box-shadow:\s*0 0 0 999px/);
     expect(rules('.hud-minibox').join(';')).toMatch(/overflow:\s*hidden/);
+  });
+});
+
+describe('HUD polish: minimap alignment, factions overflow, brand logo and refusal exit', () => {
+  const px = (rule: string, property: string): number => {
+    const found = new RegExp(`(?:^|[;\\s])${property}:\\s*(\\d+)px`).exec(rule);
+    if (found === null) throw new Error(`${property} not found`);
+    return Number(found[1]);
+  };
+
+  it('the minimap aligns with the right leaderboard column on desktop (same right offset and width)', () => {
+    const mini = rules('.hud-mini').find((r) => /width:\s*\d+px/.test(r) && /right:\s*\d+px/.test(r));
+    const right = rules('.hud-right').find((r) => /width:\s*\d+px/.test(r) && /right:\s*\d+px/.test(r));
+    expect(mini).toBeDefined();
+    expect(right).toBeDefined();
+    expect(px(mini!, 'right')).toBe(px(right!, 'right'));
+    expect(px(mini!, 'width')).toBe(px(right!, 'width'));
+  });
+
+  it('the left column scrolls the factions list internally so the show-all button never clips or overlaps', () => {
+    const leftRule = rules('.hud-left').find((r) => /width:\s*280px/.test(r));
+    expect(leftRule).toMatch(/display:\s*flex/);
+    expect(leftRule).toMatch(/flex-direction:\s*column/);
+    expect(leftRule).toMatch(/overflow:\s*hidden/);
+    expect(rules('.hud-legend').join(';')).toMatch(/overflow-y:\s*auto/);
+    expect(rules('.hud-more').join(';')).toMatch(/flex:\s*none/);
+    expect(rules('[data-layout="phone"] .hud-legend').join(';')).toMatch(/overflow:\s*visible/);
+    expect(shell).toContain('hud-more');
+  });
+
+  it('the HUD top bar renders the brand logo SVG next to the FactionFall wordmark', () => {
+    expect(shell).toContain("buildBrandLogo('hud-brand-logo')");
+    expect(rules('.hud-brand-logo').join(';')).toMatch(/width:\s*\d+px/);
+    expect(rules('.hud-brand-logo').join(';')).toMatch(/height:\s*\d+px/);
+  });
+
+  it('the refusal screen includes a back-to-menu link to ?start using STRINGS.hudBackToMenu', () => {
+    expect(messageShell).toContain('STRINGS.hudBackToMenu');
+    expect(messageShell).toContain("'?start'");
+    expect(messageShell).toMatch(/hud-btn primary/);
+    expect(languageViolations(messageShell)).toStrictEqual([]);
   });
 });

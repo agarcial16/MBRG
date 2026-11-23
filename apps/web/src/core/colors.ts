@@ -18,11 +18,10 @@ function parseColor(text: string): Rgb {
 }
 
 /**
- * Direct candidates of every faction at round 0 (002 FR-75, FR-76): factions owning a land neighbour
- * and factions owning land that touches a sea zone shared with it. Links count only when written on
- * both ends. A faction is never its own candidate.
+ * Land neighbours of every faction at round 0: factions owning a land territory with a mutual
+ * border to one of its land territories. A faction is never its own neighbour.
  */
-export function directCandidates(map: MapData): Map<FactionId, Set<FactionId>> {
+export function landNeighbors(map: MapData): Map<FactionId, Set<FactionId>> {
   const entryById = new Map<number, MapEntry>(map.territories.map((t) => [t.id, t]));
   const isSea = (e: MapEntry): boolean => entryKind(e) === 'sea';
   const linked = (a: MapEntry, b: MapEntry): boolean =>
@@ -47,6 +46,28 @@ export function directCandidates(map: MapData): Map<FactionId, Set<FactionId>> {
       if (other !== undefined) link(owner, other);
     }
   }
+  return result;
+}
+
+/**
+ * Direct candidates of every faction at round 0 (002 FR-75, FR-76): factions owning a land neighbour
+ * and factions owning land that touches a sea zone shared with it. Links count only when written on
+ * both ends. A faction is never its own candidate.
+ */
+export function directCandidates(map: MapData): Map<FactionId, Set<FactionId>> {
+  const entryById = new Map<number, MapEntry>(map.territories.map((t) => [t.id, t]));
+  const isSea = (e: MapEntry): boolean => entryKind(e) === 'sea';
+  const linked = (a: MapEntry, b: MapEntry): boolean =>
+    a.id !== b.id && a.neighbors.includes(b.id) && b.neighbors.includes(a.id);
+  const ownerOfEntry = (e: MapEntry): FactionId | undefined => (isSea(e) ? undefined : (e as { owner: FactionId }).owner);
+
+  const result = landNeighbors(map);
+  const link = (a: FactionId, b: FactionId): void => {
+    if (a === b) return;
+    result.get(a)?.add(b);
+    result.get(b)?.add(a);
+  };
+
   // Land touching the same sea zone: all owners around one zone are candidates of each other.
   for (const z of map.territories) {
     if (!isSea(z)) continue;
@@ -66,7 +87,10 @@ export function directCandidates(map: MapData): Map<FactionId, Set<FactionId>> {
  * FR-141: one colour per faction, in faction order. A preferred colour is used as given. Otherwise
  * step (1) takes the first palette colour used by no coloured faction and equal to no preferred colour
  * of the map; step (2) the first palette colour used by none of the faction's already coloured direct
- * candidates and equal to no preferred colour of its direct candidates; else `palette-exhausted`.
+ * candidates and equal to no preferred colour of its direct candidates; step (3) when a large sea zone
+ * exhausts the palette across sea-only candidates, the palette colour used by no land neighbour (and
+ * equal to no preferred colour of a land neighbour) that appears fewest times among the faction's
+ * direct candidates (ties broken by palette order); else `palette-exhausted`.
  */
 export function assignFactionColors(
   map: MapData,
@@ -78,6 +102,7 @@ export function assignFactionColors(
   for (const f of presentation.factions) {
     if (isValidColor(f.color)) preferred.set(f.id, parseColor(f.color));
   }
+  const land = landNeighbors(map);
   const candidates = directCandidates(map);
   const colors = new Map<FactionId, Rgb>();
   // Preferred colours count as coloured from the start: a faction can see them whatever the order.
@@ -100,6 +125,24 @@ export function assignFactionColors(
         return c === undefined ? [] : [c];
       });
       pick = theme.palette.find((c) => !nearColors.some((u) => sameColor(u, c)));
+      if (pick === undefined) {
+        // Sea-zone fallback: strictly avoid land neighbours and pick the least-used colour among direct candidates.
+        const landNear = [...(land.get(f) ?? [])];
+        const landColors = landNear.flatMap((g) => {
+          const c = colors.get(g);
+          return c === undefined ? [] : [c];
+        });
+        let bestCount = Infinity;
+        for (const c of theme.palette) {
+          if (landColors.some((u) => sameColor(u, c))) continue;
+          let count = 0;
+          for (const u of nearColors) if (sameColor(u, c)) count++;
+          if (count < bestCount) {
+            bestCount = count;
+            pick = c;
+          }
+        }
+      }
     }
     if (pick === undefined) return { ok: false, errors: [{ kind: 'palette-exhausted', faction: f }] };
     colors.set(f, pick);
