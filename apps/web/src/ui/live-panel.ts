@@ -21,6 +21,7 @@ import type { ResultView } from '../core/results-model';
 import type { BoardView } from '../core/board-model';
 import type { ScreenRect } from '../core/reveal-camera';
 import { createBoardPanel, type BoardPanel } from './board-panel';
+import { buildBrandLogo } from './brand-logo-svg';
 import { STRINGS, fillTemplate } from '../core/strings';
 import type { BannerView } from '../core/round-banner';
 import { PANEL_CSS } from './live-panel-style';
@@ -152,17 +153,19 @@ function installStyle(): void {
 }
 
 /** The state card of a screen that has nothing else to show yet (the map is not up): loading, an error. */
-export function showCard(container: HTMLElement, card: StateCard, working: boolean): void {
+export function showCard(container: HTMLElement, card: StateCard, working: boolean): HTMLElement {
   installStyle();
   container.replaceChildren();
   const root = el('div', 'hud');
   root.dataset.state = working ? 'loading' : 'error';
+  root.dataset.layout = layoutFor(window.innerWidth);
   const box = el('div', 'hud-card hud-frame', root);
   box.setAttribute('role', 'status');
   el('div', 'hud-title', box).textContent = card.title;
   el('p', '', box).textContent = card.text;
   if (working) el('div', 'hud-bar', box).append(document.createElement('i'));
   container.append(root);
+  return box;
 }
 
 export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<number, Rgb>, handlers: LivePanelHandlers): LivePanel {
@@ -181,7 +184,9 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   // Top bar (spec 031: slim 52 px refined cartographic brass bar on desktop).
   const top = zone('top-bar', 'hud-top hud-frame', root);
   const brand = el('span', 'hud-brand', top);
-  brand.textContent = STRINGS.hudBrand;
+  const logo = buildBrandLogo('hud-brand-logo');
+  brand.append(logo);
+  el('span', 'hud-brand-name', brand).textContent = STRINGS.hudBrand;
   const round = el('span', 'hud-round hud-num', top);
   const phase = el('span', 'hud-phase', top);
   const liveMark = el('span', 'hud-livemark', top);
@@ -255,7 +260,7 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const more = button(factionsSection, STRINGS.hudShowAll, () => {
     showAll = !showAll;
     renderFactions();
-  }, 'hud-btn');
+  }, 'hud-btn hud-more');
   more.hidden = true;
   const rightColumn = zone('right-column', 'hud-right hud-frame', root);
   rightColumn.hidden = true;
