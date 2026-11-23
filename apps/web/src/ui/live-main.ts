@@ -180,7 +180,7 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials, spec
       // The viewer's own tables refuse the counts first (spec 029), before any browser check.
       const refusals = checkCounts(map);
       if (refusals.length > 0) return { ok: false, message: capabilityMessage(refusals[0]!) };
-      const problems = checkCapabilities(probeCapabilities(), pkg.width, pkg.height, map.territories.length + 1);
+      const problems = checkCapabilities(probeCapabilities(), pkg.width, pkg.height, map.territories.length + 1, presentation.factions.length + 1);
       if (problems.length > 0) return { ok: false, message: capabilityMessage(problems[0]!) };
       await font;
       const colors = assignFactionColors(map, presentation, THEME);

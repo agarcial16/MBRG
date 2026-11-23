@@ -72,10 +72,10 @@ describe('FR-134 texture flags: values reach the shader exactly as stored', () =
     expect([...(kinds.image.data as Uint8Array)]).toStrictEqual(index.fills.map((f) => (f === 'outside' ? 0 : f === 'land' ? 1 : 2)));
 
     const owners = scene.textures.owners;
-    expect(owners.format).toBe(RedFormat);
+    expect(owners.format).toBe(RGFormat);
     expect(owners.image.width).toBe(index.ids.length);
     expect(owners.image.height).toBe(1);
-    expect([...(owners.image.data as Uint8Array)]).toStrictEqual(new Array<number>(index.ids.length).fill(0));
+    expect([...(owners.image.data as Uint8Array)]).toStrictEqual(new Array<number>(index.ids.length * 2).fill(0));
 
     const palette = scene.textures.colors;
     expect(palette.format).toBe(RGBAFormat);
@@ -98,31 +98,31 @@ describe('NFR-24 a round change updates only the owner texture', () => {
     const { index, scene } = make();
     const before = versions(scene);
     const pixels = scene.textures.index.image.data;
-    const table = new Uint8Array(index.ids.length);
+    const table = new Uint16Array(index.ids.length);
     table[1] = 2;
     table[2] = 5;
     scene.setOwners(table);
     const after = versions(scene);
     expect(after[2]).toBe(before[2]! + 1);
     expect([after[0], after[1], after[3]]).toStrictEqual([before[0], before[1], before[3]]);
-    expect([...(scene.textures.owners.image.data as Uint8Array)]).toStrictEqual([...table]);
+    expect([...(scene.textures.owners.image.data as Uint8Array)]).toStrictEqual([...table].flatMap((v) => [v & 255, v >> 8]));
     expect(scene.textures.index.image.data).toBe(pixels);
     expect(scene.textures.index.image.data).toBe(index.indexPixels);
   });
 
   it('NFR-24 each further setOwners is again one owner-texture upload and nothing else', () => {
     const { index, scene } = make();
-    const t1 = new Uint8Array(index.ids.length).fill(1);
-    const t2 = new Uint8Array(index.ids.length).fill(3);
+    const t1 = new Uint16Array(index.ids.length).fill(1);
+    const t2 = new Uint16Array(index.ids.length).fill(3);
     scene.setOwners(t1);
     const v1 = versions(scene);
     scene.setOwners(t2);
     const v2 = versions(scene);
     expect(v2.map((v, i) => v - v1[i]!)).toStrictEqual([0, 0, 1, 0]);
-    expect([...(scene.textures.owners.image.data as Uint8Array)]).toStrictEqual([...t2]);
+    expect([...(scene.textures.owners.image.data as Uint8Array)]).toStrictEqual([...t2].flatMap((v) => [v & 255, v >> 8]));
   });
 
-  it('NFR-24 the owner table of a real round has exactly one byte per entry and is accepted as it is', () => {
+  it('NFR-24 the owner table of a real round has exactly one 16-bit slot per entry and is accepted as it is', () => {
     const { scene } = make();
     const full = createMapScene(
       buildEntryIndex(DEV_MAP, 1, 1, [DEV_MAP.territories[0]!.id]),
@@ -136,8 +136,8 @@ describe('NFR-24 a round change updates only the owner texture', () => {
     const before = versions(full);
     full.setOwners(table);
     expect(versions(full).map((v, i) => v - before[i]!)).toStrictEqual([0, 0, 1, 0]);
-    expect(() => scene.setOwners(new Uint8Array(1))).toThrow(RangeError);
-    expect(() => scene.setOwners(new Uint8Array(1000))).toThrow(RangeError);
+    expect(() => scene.setOwners(new Uint16Array(1))).toThrow(RangeError);
+    expect(() => scene.setOwners(new Uint16Array(1000))).toThrow(RangeError);
   });
 
   it('NFR-24 setView changes uniforms only: no texture is uploaded again', () => {
@@ -276,7 +276,7 @@ describe('FR-136 FR-138 FR-139 the shader is a port of the reference rule', () =
 describe('FR-159 the rendering part takes only the package views, the owner table and the camera', () => {
   it('FR-159 exported signatures name no seed, round or sim type (type-level)', () => {
     expectTypeOf(createMapScene).parameters.toEqualTypeOf<[EntryIndex, readonly Rgb[], MapTheme]>();
-    expectTypeOf<MapScene['setOwners']>().parameters.toEqualTypeOf<[Uint8Array]>();
+    expectTypeOf<MapScene['setOwners']>().parameters.toEqualTypeOf<[Uint16Array]>();
     expectTypeOf<MapScene['setView']>().parameters.toEqualTypeOf<[MapView]>();
     expectTypeOf<keyof MapView>().toEqualTypeOf<'camera' | 'viewport' | 'dpr' | 'detail' | 'fonts'>();
     expectTypeOf(attachRenderer).parameters.toEqualTypeOf<[HTMLCanvasElement, MapScene]>();

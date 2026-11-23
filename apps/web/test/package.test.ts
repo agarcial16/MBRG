@@ -243,11 +243,11 @@ describe('NFR-24 owner table: per-entry data only', () => {
   };
   const index = buildEntryIndex(map, 3, 1, Uint32Array.from([10, 30, 20]));
 
-  it('NFR-24 the table has one byte per entry plus the outside slot, with no pixel data', () => {
+  it('NFR-24 the table has one 16-bit slot per entry plus the outside slot, with no pixel data', () => {
     const factions = factionIndexOf(map);
     expect(Array.from(factions)).toStrictEqual([[7, 1], [8, 2]]);
     const table = ownerTable(index, new Map([[10, 7], [20, 8]]), factions);
-    expect(table).toBeInstanceOf(Uint8Array);
+    expect(table).toBeInstanceOf(Uint16Array);
     expect(Array.from(table)).toStrictEqual([0, 1, 2, 0]);
     expect(table.length).toBe(index.ids.length);
   });
@@ -279,11 +279,10 @@ describe('NFR-24 owner table: per-entry data only', () => {
     expect(Array.from(table)).toStrictEqual([0, 1, 0, 0]);
   });
 
-  it('NFR-24 more than 255 factions are refused', () => {
-    const territories = Array.from({ length: 256 }, (_, i) => ({ id: i + 1, owner: i + 1, neighbors: [] as number[] }));
-    const big: MapData = { territories };
-    const bigIndex = buildEntryIndex(big, 1, 1, Uint32Array.from([1]));
-    expect(() => ownerTable(bigIndex, new Map(), factionIndexOf(big))).toThrow(RangeError);
+  it('NFR-24 more than 65,535 factions are refused', () => {
+    const tooMany = new Map<number, number>();
+    for (let i = 1; i <= 65536; i++) tooMany.set(i, i);
+    expect(() => ownerTable(index, new Map(), tooMany)).toThrow(RangeError);
   });
 
   it('NFR-24 the faction colour list is indexed by faction index', () => {

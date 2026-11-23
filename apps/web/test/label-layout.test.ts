@@ -355,7 +355,7 @@ describe('FR-169 FR-171 FR-189 and NFR-33 on the dev map with injected aspects',
   let p: PieceIndex;
   const REAL: SimPort = { totalRounds, getState, getRounds, ownerOf };
   const factionIndex = factionIndexOf(DEV_MAP);
-  const ownersAt = (round: number): Uint8Array => {
+  const ownersAt = (round: number): Uint16Array => {
     const scene = sceneAt(DEV_MAP, DEV_PRESENTATION, 1, round, REAL);
     if (!scene.ok) throw new Error('scene');
     return ownerTable(index, scene.value.owners, factionIndex);

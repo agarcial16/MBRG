@@ -35,7 +35,7 @@ let index: EntryIndex;
 let pieces: PieceIndex;
 let imageWidth = 0;
 const factionIndex = factionIndexOf(DEV_MAP);
-const ownersAt = (seed: number, round: number): Uint8Array => {
+const ownersAt = (seed: number, round: number): Uint16Array => {
   const s = sceneAt(DEV_MAP, DEV_PRESENTATION, seed, round, REAL);
   if (!s.ok) throw new Error('scene');
   return ownerTable(index, s.value.owners, factionIndex);

@@ -35,7 +35,7 @@ describe('NFR-32 what a round step of the dev map recomputes, with timings logge
     if (!s.ok) throw new Error('scene');
     return s.value;
   };
-  const tableOf = (round: number): Uint8Array => ownerTable(index, scene(round).owners, factionIndex);
+  const tableOf = (round: number): Uint16Array => ownerTable(index, scene(round).owners, factionIndex);
 
   beforeAll(async () => {
     const decoded = await decodeIdPng(devPngBytes(), inflateStream);

@@ -32,7 +32,7 @@ export interface MeasuredRun {
   factionAspects: Map<number, number>;
   territoryAspects: number[];
   rounds: number;
-  tables: Uint8Array[];
+  tables: Uint16Array[];
   territories: TerritoryLayout;
   /** Each round placed from that state alone (seed 1). */
   factions: FactionLayout[];
@@ -64,11 +64,11 @@ export function aspectsOf(index: EntryIndex): { texts: LabelTexts; factionAspect
 }
 
 /** Owner table of every round 0..T of a seed. */
-export function tablesOf(index: EntryIndex, seed: number): Uint8Array[] {
+export function tablesOf(index: EntryIndex, seed: number): Uint16Array[] {
   const factionIndex = factionIndexOf(DEV_MAP);
   const total = totalRounds(DEV_MAP);
   if (!total.ok) throw new Error('rounds');
-  const tables: Uint8Array[] = [];
+  const tables: Uint16Array[] = [];
   for (let round = 0; round <= total.value; round++) {
     const scene = sceneAt(DEV_MAP, DEV_PRESENTATION, seed, round, REAL);
     if (!scene.ok) throw new Error('scene');

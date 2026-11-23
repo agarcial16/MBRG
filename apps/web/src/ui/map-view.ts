@@ -57,7 +57,7 @@ import { measureAspects } from './text-metrics';
 
 /** Everything the drawing needs of one round: its owner table, faction label layout and label draw data. */
 interface RoundView {
-  table: Uint8Array;
+  table: Uint16Array;
   layout: CentredFactionLayout;
   labels: RoundLabels;
   draws: AnyLabelDraw[];
@@ -190,7 +190,7 @@ export function createMapView(input: MapViewInput): MapView {
   // Layouts computed while a tour is on screen (the debug panel shows it: 0 for a victim tour, 1 for an absorber tour).
   let counting = false;
   let tourLayouts = 0;
-  const viewOf = (table: Uint8Array, previous?: RoundView): RoundView => {
+  const viewOf = (table: Uint16Array, previous?: RoundView): RoundView => {
     if (counting) tourLayouts++;
     const layout = placeCentredFactions(pieces, table, factionAspects, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS, previous?.layout);
     const placement = { factions: layout.placed, territories: territoryLayout.placed };
@@ -254,7 +254,7 @@ export function createMapView(input: MapViewInput): MapView {
   const dpr = (): number => window.devicePixelRatio || 1;
 
   // One drawing at clock reading `nowMs`: the playback says whole round or step at forward progress f.
-  let shownTable: Uint8Array | undefined;
+  let shownTable: Uint16Array | undefined;
   let sizedFor = '';
   /** The framing box of each faction of the drawn round, from its label set (PD6). */
   const boxesOf = (factions: readonly number[]): ReadonlyMap<number, Box> => {

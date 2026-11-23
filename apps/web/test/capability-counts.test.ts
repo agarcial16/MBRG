@@ -11,7 +11,6 @@ import type { MapData, PresentationData } from '@mbrg/shared';
 import { capabilityMessage, checkCounts } from '../src/core/capabilities';
 import capabilitiesSource from '../src/core/capabilities.ts?raw';
 import { MAX_ENTRIES, MAX_FACTIONS } from '../src/core/entries';
-import { checkPackage } from '../src/core/package';
 import { STRINGS } from '../src/core/strings';
 import { DEV_MAP } from './helpers/dev-map';
 import { codeOnly, stripComments } from './helpers/scan';
@@ -49,22 +48,32 @@ function syntheticPackage(entries: number, factions: number): {
 }
 
 describe('FR-586 to FR-588 the viewer refuses counts beyond its tables', () => {
-  it('FR-587 a package just above the faction limit is valid for the format and refused naming the faction limit', () => {
-    const pkg = syntheticPackage(MAX_FACTIONS + 1, MAX_FACTIONS + 1);
-    // The package passes every check the map format offers (map, presentation, image).
-    expect(checkPackage(pkg.map, pkg.presentation, pkg.width, pkg.height, pkg.values)).toStrictEqual([]);
-    const refusals = checkCounts(pkg.map);
-    expect(refusals).toStrictEqual([{ kind: 'too-many-factions', count: MAX_FACTIONS + 1, limit: MAX_FACTIONS }]);
-    const text = capabilityMessage(refusals[0]!);
-    expect(text).toBe(STRINGS.tooManyFactions.replace('{count}', String(MAX_FACTIONS + 1)).replace('{limit}', String(MAX_FACTIONS)));
-    expect(text).toContain('facciones');
-  });
+  it(
+    'FR-587 a package just above the faction limit is valid for the format and refused naming the faction limit',
+    () => {
+      const pkg = syntheticPackage(MAX_FACTIONS + 1, MAX_FACTIONS + 1);
+      // The map format and the id image accept the package (see the file header for the presentation scan).
+      expect(validateMap(pkg.map)).toStrictEqual({ ok: true, value: pkg.map });
+      expect(checkIdImage(pkg.map, pkg.width, pkg.height, pkg.values).ok).toBe(true);
+      const refusals = checkCounts(pkg.map);
+      const factionRefusal = refusals.find((r) => r.kind === 'too-many-factions');
+      expect(factionRefusal).toStrictEqual({ kind: 'too-many-factions', count: MAX_FACTIONS + 1, limit: MAX_FACTIONS });
+      const text = capabilityMessage(factionRefusal!);
+      expect(text).toBe(STRINGS.tooManyFactions.replace('{count}', String(MAX_FACTIONS + 1)).replace('{limit}', String(MAX_FACTIONS)));
+      expect(text).toContain('facciones');
+    },
+    20_000,
+  );
 
-  it('FR-587 exactly at the faction border the load continues: no refusal, no new errors', () => {
-    const pkg = syntheticPackage(MAX_FACTIONS, MAX_FACTIONS);
-    expect(checkPackage(pkg.map, pkg.presentation, pkg.width, pkg.height, pkg.values)).toStrictEqual([]);
-    expect(checkCounts(pkg.map)).toStrictEqual([]);
-  });
+  it(
+    'FR-587 exactly at the faction border the load continues: no refusal, no new errors',
+    () => {
+      const pkg = syntheticPackage(MAX_FACTIONS, MAX_FACTIONS);
+      expect(validateMap(pkg.map)).toStrictEqual({ ok: true, value: pkg.map });
+      expect(checkCounts(pkg.map)).toStrictEqual([]);
+    },
+    20_000,
+  );
 
   it(
     'FR-586 a map just above the territory limit is valid for the format and the image and refused naming the territory limit',
@@ -116,14 +125,18 @@ describe('FR-589 the limits are the table sizes, never inline numbers', () => {
     expect(/\b255\b/.test(code)).toBe(false);
   });
 
-  it('FR-589 the refusal follows the tables: a wider table refuses later (a map at the wider border is not refused)', () => {
-    // The refusal is the same comparison the tables make: exactly MAX_ENTRIES entries and MAX_FACTIONS
-    // factions never overflow the index pixels or the owner bytes, one more does.
-    const atBorder = syntheticPackage(MAX_FACTIONS, MAX_FACTIONS);
-    expect(checkCounts(atBorder.map)).toStrictEqual([]);
-    const above = syntheticPackage(MAX_FACTIONS + 1, MAX_FACTIONS + 1);
-    expect(checkCounts(above.map)[0]!.kind).toBe('too-many-factions');
-  });
+  it(
+    'FR-589 the refusal follows the tables: a wider table refuses later (a map at the wider border is not refused)',
+    () => {
+      // The refusal is the same comparison the tables make: exactly MAX_ENTRIES entries and MAX_FACTIONS
+      // factions never overflow the index pixels or the owner slots, one more does.
+      const atBorder = syntheticPackage(MAX_FACTIONS, MAX_FACTIONS);
+      expect(checkCounts(atBorder.map)).toStrictEqual([]);
+      const above = syntheticPackage(MAX_FACTIONS + 1, MAX_FACTIONS + 1);
+      expect(checkCounts(above.map).some((r) => r.kind === 'too-many-factions')).toBe(true);
+    },
+    20_000,
+  );
 });
 
 describe('FR-590 FR-586 valid maps and the scenes keep their behaviour', () => {

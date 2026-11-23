@@ -281,8 +281,8 @@ describe('FR-179 the backward drawing is the forward drawing in the opposite ord
 
 describe('FR-179 FR-180 on the dev map, seed 1, step 0 to 1', () => {
   let index: EntryIndex;
-  let before: Uint8Array;
-  let after: Uint8Array;
+  let before: Uint16Array;
+  let after: Uint16Array;
   let front: FrontField;
   let colors: Rgb[];
   const REAL: SimPort = { totalRounds, getState, getRounds, ownerOf };

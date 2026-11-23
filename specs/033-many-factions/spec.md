@@ -1,5 +1,5 @@
 # Spec 033 — Many Factions in the Viewer
-Status: draft
+Status: approved (user: "apruebo ... 033", 2026-11-23)
 Tier: Light SDD (viewer `apps/web` now; importer report `tools/build-map` when PR #94 merges; **no map format, protocol, `packages/shared`, `packages/sim`, `apps/server`, or `apps/bot` change**). Depends on 004 (viewer rendering, capabilities, colour assignment), 005/009/013 (fronts, reveal tours, chosen-faction outline), 029 (viewer count refusal), parallel bug fix `fix/world-palette-exhausted` (sea-only adjacency as a soft preference), and 028 (importer `viewerLimits` report, PR #94). Ids: FR-640 to FR-646, NFR-160 to NFR-164 (outside the `packages/sim` traceability ledger, clear of all archived specs and Spec 032 PR #96).
 
 ## Context and goal

@@ -18,28 +18,30 @@ export type CapabilityError =
   | { kind: 'too-many-factions'; count: number; limit: number };
 
 /**
- * No WebGL 2 context, or a maximum texture size below the id image width or height or below the
- * owner table size (entries + 1), means the map cannot be drawn.
+ * No WebGL 2 context, or a maximum texture size below the id image width or height, below the
+ * owner table size (entries + 1), or below the faction colour table size (factions + 1), means
+ * the map cannot be drawn (FR-135, spec 033 FR-644).
  */
 export function checkCapabilities(
   caps: Capabilities,
   width: number,
   height: number,
   tableSize: number,
+  factionTableSize = 0,
 ): CapabilityError[] {
   if (!caps.webgl2) return [{ kind: 'no-webgl2' }];
-  const required = Math.max(width, height, tableSize);
+  const required = Math.max(width, height, tableSize, factionTableSize);
   if (caps.maxTextureSize < required) return [{ kind: 'texture-too-small', maxTextureSize: caps.maxTextureSize, required }];
   return [];
 }
 
 /**
  * Refuses a package whose counts pass the map format but exceed the viewer's own tables (FR-586 to
- * FR-589): the entry index holds one entry index in two bytes per pixel, the owner table one faction
- * index in a byte, so more entries than `MAX_ENTRIES` or more factions than `MAX_FACTIONS` cannot be
- * drawn and used to crash the load with an internal error. The limits are read from the table sizes
- * themselves (FR-589), never written inline, so widening the tables widens the refusal with them.
- * Territories are named before factions (FR-588). Pure.
+ * FR-589, spec 033 FR-644): the entry index holds one entry index in two bytes per pixel, the owner
+ * table one faction index in two bytes per entry, so more entries than `MAX_ENTRIES` or more factions
+ * than `MAX_FACTIONS` cannot be drawn. The limits are read from the table sizes themselves (FR-589),
+ * never written inline, so widening the tables widens the refusal with them. Territories are named
+ * before factions (FR-588). Pure.
  */
 export function checkCounts(map: MapData): CapabilityError[] {
   const errors: CapabilityError[] = [];

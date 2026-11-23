@@ -24,6 +24,7 @@ import {
 import type { Rgb } from '@mbrg/shared';
 import { BORDER_PRIORITY } from '../core/borders';
 import type { Camera, Viewport } from '../core/camera';
+import { MAX_FACTIONS, packOwnerTable } from '../core/entries';
 import type { EntryIndex } from '../core/entries';
 import type { FrontField } from '../core/front';
 import { scaledFade } from '../core/detail-scale';
@@ -48,11 +49,11 @@ export interface MapTextures {
   index: DataTexture;
   /** R8 fill class per entry. Uploaded once. */
   kinds: DataTexture;
-  /** R8 faction index per entry: the only texture a round change touches. */
+  /** RG8 faction index per entry (low byte in R): the only texture a round change touches. */
   owners: DataTexture;
   /** RGBA8 fill colour per faction index. Uploaded once. */
   colors: DataTexture;
-  /** R8 faction index per entry at the earlier state of a step. Uploaded by `setFront` only. */
+  /** RG8 faction index per entry at the earlier state of a step. Uploaded by `setFront` only. */
   before: DataTexture;
   /** R32F normalised front distance over the front box. Replaced by `setFront` when the field changes. */
   front: DataTexture;
@@ -64,7 +65,7 @@ export interface MapTextures {
  * fraction f. A field is not changed after it is handed over.
  */
 export interface MapFront {
-  before: Uint8Array;
+  before: Uint16Array;
   field: FrontField;
   forward: number;
 }
@@ -74,8 +75,8 @@ export interface MapScene {
   camera: OrthographicCamera;
   material: RawShaderMaterial;
   textures: MapTextures;
-  /** Replaces the owner table (one byte per entry, entries + 1 bytes). */
-  setOwners(table: Uint8Array): void;
+  /** Replaces the owner table (two bytes per entry, entries + 1 slots). */
+  setOwners(table: Uint16Array): void;
   setView(view: MapView): void;
   /**
    * Draws the colour front of a step (FR-179, FR-180), or the plain drawing again when called with undefined.
@@ -144,10 +145,10 @@ export function createMapScene(index: EntryIndex, factionColors: readonly Rgb[],
   const textures: MapTextures = {
     index: exactTexture(index.indexPixels, index.width, index.height, RGFormat),
     kinds: exactTexture(kindBytes, entries, 1, RedFormat),
-    owners: exactTexture(new Uint8Array(entries), entries, 1, RedFormat),
+    owners: exactTexture(new Uint8Array(entries * 2), entries, 1, RGFormat),
     colors: exactTexture(colorBytes, factionColors.length, 1, RGBAFormat),
     // Placeholders until the first `setFront`: every sampler needs a texture, none is read while the front is off.
-    before: exactTexture(new Uint8Array(entries), entries, 1, RedFormat),
+    before: exactTexture(new Uint8Array(entries * 2), entries, 1, RGFormat),
     front: exactTexture(new Float32Array([-1]), 1, 1, RedFormat, FloatType),
   };
 
@@ -201,9 +202,9 @@ export function createMapScene(index: EntryIndex, factionColors: readonly Rgb[],
     camera,
     material,
     textures,
-    setOwners(table: Uint8Array): void {
-      if (table.length !== entries) throw new RangeError(`owner table has ${table.length} bytes, expected ${entries}`);
-      (textures.owners.image.data as Uint8Array).set(table);
+    setOwners(table: Uint16Array): void {
+      if (table.length !== entries) throw new RangeError(`owner table has ${table.length} entries, expected ${entries}`);
+      packOwnerTable(table, textures.owners.image.data as Uint8Array);
       textures.owners.needsUpdate = true;
     },
     setView(view: MapView): void {
@@ -226,7 +227,7 @@ export function createMapScene(index: EntryIndex, factionColors: readonly Rgb[],
       }
       const { before, field, forward } = front;
       if (!(forward >= 0 && forward <= 1)) throw new RangeError(`forward progress ${forward} is not in 0..1`);
-      if (before.length !== entries) throw new RangeError(`earlier owner table has ${before.length} bytes, expected ${entries}`);
+      if (before.length !== entries) throw new RangeError(`earlier owner table has ${before.length} entries, expected ${entries}`);
       if (field.values.length !== field.width * field.height) {
         throw new RangeError(`front field has ${field.values.length} values, expected ${field.width * field.height}`);
       }
@@ -236,8 +237,16 @@ export function createMapScene(index: EntryIndex, factionColors: readonly Rgb[],
       }
 
       const held = textures.before.image.data as Uint8Array;
-      if (!held.every((byte, i) => byte === before[i])) {
-        held.set(before);
+      let changed = false;
+      for (let i = 0; i < entries; i++) {
+        const v = before[i]!;
+        if (held[i * 2] !== (v & 255) || held[i * 2 + 1] !== (v >> 8)) {
+          changed = true;
+          break;
+        }
+      }
+      if (changed) {
+        packOwnerTable(before, held);
         textures.before.needsUpdate = true;
       }
       if (field !== shownField) {
@@ -256,7 +265,9 @@ export function createMapScene(index: EntryIndex, factionColors: readonly Rgb[],
     },
     setPick(faction: number | undefined): void {
       const index = faction ?? 0;
-      if (!Number.isInteger(index) || index < 0 || index > 255) throw new RangeError(`picked faction index ${index} is not a byte`);
+      if (!Number.isInteger(index) || index < 0 || index > MAX_FACTIONS) {
+        throw new RangeError(`picked faction index ${index} is out of range`);
+      }
       u.uPick!.value = index;
     },
     setTour(tour: MapTour | undefined): void {
@@ -268,7 +279,9 @@ export function createMapScene(index: EntryIndex, factionColors: readonly Rgb[],
       const { lit, dim } = tour;
       if (!(dim >= 0 && dim <= 1)) throw new RangeError(`tour dim ${dim} is not in 0..1`);
       if (lit.length > 2) throw new RangeError(`a tour lights at most 2 factions, got ${lit.length}`);
-      for (const f of lit) if (!Number.isInteger(f) || f < 0 || f > 255) throw new RangeError(`lit faction index ${f} is not a byte`);
+      for (const f of lit) {
+        if (!Number.isInteger(f) || f < 0 || f > MAX_FACTIONS) throw new RangeError(`lit faction index ${f} is out of range`);
+      }
       u.uDim!.value = dim;
       // One lit faction fills both slots; a missing one is 0, the index of no owner (never lit).
       (u.uLit!.value as Vector2).set(lit[0] ?? 0, lit[1] ?? lit[0] ?? 0);

@@ -49,13 +49,13 @@ describe('the chosen faction is outlined in white on the map (design of spec 013
     expect(pickedOf(undefined)).toBeUndefined();
   });
 
-  it('the scene takes the faction index of the outline as one uniform and refuses a non-byte', () => {
+  it('the scene takes the faction index of the outline as one uniform and refuses out-of-range indices', () => {
     const scene = createMapScene(smallIndex(), [[0, 0, 0], [1, 2, 3]], toMapTheme(THEME));
     scene.setPick(1);
     expect(scene.material.uniforms.uPick!.value).toBe(1);
     scene.setPick(undefined);
     expect(scene.material.uniforms.uPick!.value).toBe(0);
-    expect(() => scene.setPick(256)).toThrow(RangeError);
+    expect(() => scene.setPick(65536)).toThrow(RangeError);
     expect(() => scene.setPick(1.5)).toThrow(RangeError);
   });
 });

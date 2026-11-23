@@ -43,7 +43,7 @@ precision highp sampler2D;
 
 uniform sampler2D uIndex;   // RG8: entry index of every map unit (low byte in R)
 uniform sampler2D uKinds;   // R8, per entry: 0 outside, 1 land, 2 sea
-uniform sampler2D uOwners;  // R8, per entry: faction index of the owner (0 none)
+uniform sampler2D uOwners;  // RG8, per entry: faction index of the owner (0 none, low byte in R)
 uniform sampler2D uColors;  // RGBA8, per faction index: fill colour
 uniform vec2 uImage;        // id image size in map units
 uniform vec2 uCenterCell;   // floor of the camera centre, in map units
@@ -58,7 +58,7 @@ uniform vec3 uBorderColors[${BORDER_PRIORITY.length}];
 uniform float uWidths[${BORDER_PRIORITY.length}];
 uniform float uTerritoryOpacity;
 uniform float uTerritoryDarken;
-uniform sampler2D uOwnersBefore; // R8, per entry: faction index of the owner at the earlier state of a step
+uniform sampler2D uOwnersBefore; // RG8, per entry: faction index of the owner at the earlier state of a step
 uniform sampler2D uFront;   // R32F, normalised front distance of the units of the moving pieces
 uniform vec4 uFrontBox;     // x0, y0, width, height of the front texture, in map units
 uniform int uFrontOn;       // 1 while a front is drawn, 0 for the plain drawing
@@ -81,6 +81,11 @@ int byteAt(sampler2D table, int i) {
   return int(floor(texelFetch(table, ivec2(i, 0), 0).r * 255.0 + 0.5));
 }
 
+int u16At(sampler2D table, int i) {
+  vec2 t = texelFetch(table, ivec2(i, 0), 0).rg;
+  return int(floor(t.r * 255.0 + 0.5)) + 256 * int(floor(t.g * 255.0 + 0.5));
+}
+
 // Entry index at a whole map position; outside the image is 0.
 int cellAt(ivec2 cell) {
   if (cell.x < 0 || cell.y < 0 || float(cell.x) >= uImage.x || float(cell.y) >= uImage.y) return 0;
@@ -94,7 +99,7 @@ int borderClassOf(int a, int b) {
   int fa = byteAt(uKinds, a);
   int fb = byteAt(uKinds, b);
   if (fa == 0 && fb == 0) return -1;
-  if (fa == 1 && fb == 1) return byteAt(uOwners, a) != byteAt(uOwners, b) ? C_FACTION : C_TERRITORY;
+  if (fa == 1 && fb == 1) return u16At(uOwners, a) != u16At(uOwners, b) ? C_FACTION : C_TERRITORY;
   if (fa == 0) return fb == 1 ? C_OUTER : C_SHORE;
   if (fb == 0) return fa == 1 ? C_OUTER : C_SHORE;
   if (fa == 2 && fb == 2) return C_SEA_ZONE;
@@ -113,8 +118,8 @@ float frontAtCell(ivec2 cell) {
 int stepClassOf(int a, int b) {
   if (a == b) return -1;
   if (byteAt(uKinds, a) == 1 && byteAt(uKinds, b) == 1) {
-    if (byteAt(uOwners, a) != byteAt(uOwners, b)) return S_FACTION;
-    return byteAt(uOwnersBefore, a) == byteAt(uOwnersBefore, b) ? S_TERRITORY : S_ABSORBED;
+    if (u16At(uOwners, a) != u16At(uOwners, b)) return S_FACTION;
+    return u16At(uOwnersBefore, a) == u16At(uOwnersBefore, b) ? S_TERRITORY : S_ABSORBED;
   }
   int c = borderClassOf(a, b);
   return c < 0 ? -1 : STEP_OF_BASE[c];
@@ -141,10 +146,10 @@ void main() {
 
   vec3 fillColor = uOutside;
   if (fillKind == 1) {
-    int owner = byteAt(uOwners, a);
+    int owner = u16At(uOwners, a);
     if (uFrontOn != 0) {
       // A moving unit keeps the earlier owner's colour until the front reaches it.
-      int ownerBefore = byteAt(uOwnersBefore, a);
+      int ownerBefore = u16At(uOwnersBefore, a);
       if (ownerBefore != owner) {
         float d = frontAtCell(base + ivec2(floor(q)));
         if (!(d < uProgress)) owner = ownerBefore;
@@ -193,13 +198,13 @@ void main() {
     if (stepBorder == S_ABSORBED) {
       // From the faction line colour to the territory line over the absorber, fading to the territory opacity.
       vec3 lineFrom = floor(uBorderColors[C_FACTION] * 255.0 + 0.5);
-      vec3 lineTo = territoryRgb(byteAt(uOwners, a));
+      vec3 lineTo = territoryRgb(u16At(uOwners, a));
       vec3 line = lineFrom + (lineTo - lineFrom) * uProgress;
       float alpha = 1.0 + (uTerritoryOpacity - 1.0) * uProgress;
       color = floor(fill255 * (1.0 - alpha) + line * alpha + 0.5) / 255.0;
     } else if (stepBorder == S_TERRITORY) {
-      vec3 lineFrom = territoryRgb(byteAt(uOwnersBefore, a));
-      vec3 lineTo = territoryRgb(byteAt(uOwners, a));
+      vec3 lineFrom = territoryRgb(u16At(uOwnersBefore, a));
+      vec3 lineTo = territoryRgb(u16At(uOwners, a));
       vec3 line = lineFrom + (lineTo - lineFrom) * uProgress;
       color = floor(fill255 * (1.0 - uTerritoryOpacity) + line * uTerritoryOpacity + 0.5) / 255.0;
     } else if (stepBorder >= 0) {
@@ -214,7 +219,7 @@ void main() {
   }
   // Reveal tour (FR-326, port of shadeTour in core/tour-shade.ts): a pixel of an unlit map unit is dimmed after the
   // colour is final; the gate keeps the drawing without a tour exactly as it was (FR-355).
-  int unitOwner = byteAt(uOwners, a);
+  int unitOwner = u16At(uOwners, a);
   // The chosen faction (spec 013, port of pickedColor in core/pick-outline.ts): its own side of its perimeter lines turns white.
   if (uPick != 0 && uFrontOn == 0 && fillKind == 1 && unitOwner == uPick && (${PICK_CONDITION})) color = uPickColor;
   // The band: a pixel of the chosen faction within ${PICK_REACH.toFixed(1)} screen pixels of one of those lines is white too.

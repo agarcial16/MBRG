@@ -1,4 +1,4 @@
-import { FloatType, NearestFilter, NoColorSpace, RedFormat } from 'three';
+import { FloatType, NearestFilter, NoColorSpace, RGFormat, RedFormat } from 'three';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import type { Rgb } from '@mbrg/shared';
 import webManifestRaw from '../package.json?raw';
@@ -114,8 +114,8 @@ function field(values: number[], width: number, height: number, x0 = 0, y0 = 0):
   return { x0, y0, width, height, values: new Float32Array(values) };
 }
 
-function earlier(entries: number, fill = 0): Uint8Array {
-  return new Uint8Array(entries).fill(fill);
+function earlier(entries: number, fill = 0): Uint16Array {
+  return new Uint16Array(entries).fill(fill);
 }
 
 describe('FR-188 setFront hands the colour front to the rendering part as data', () => {
@@ -130,8 +130,8 @@ describe('FR-188 setFront hands the colour front to the rendering part as data',
 
     expect(versions(scene)).toStrictEqual(base);
     expect(scene.textures.before.version).toBe(beforeVersion + 1);
-    expect([...(scene.textures.before.image.data as Uint8Array)]).toStrictEqual([...table]);
-    expect(scene.textures.before.format).toBe(RedFormat);
+    expect([...(scene.textures.before.image.data as Uint8Array)]).toStrictEqual([...table].flatMap((v) => [v & 255, v >> 8]));
+    expect(scene.textures.before.format).toBe(RGFormat);
     expect(scene.textures.before.image.width).toBe(entries);
 
     const t = scene.textures.front;
@@ -243,7 +243,7 @@ describe('FR-188 setFront hands the colour front to the rendering part as data',
   it('FR-188 type-level: setFront takes one MapFront or undefined and the data has no seed, round or record', () => {
     expectTypeOf<MapScene['setFront']>().parameters.toEqualTypeOf<[MapFront | undefined]>();
     expectTypeOf<keyof MapFront>().toEqualTypeOf<'before' | 'field' | 'forward'>();
-    expectTypeOf<MapFront['before']>().toEqualTypeOf<Uint8Array>();
+    expectTypeOf<MapFront['before']>().toEqualTypeOf<Uint16Array>();
     expectTypeOf<MapFront['field']>().toEqualTypeOf<FrontField>();
     expectTypeOf<MapFront['forward']>().toEqualTypeOf<number>();
     expect(true).toBe(true);
@@ -251,10 +251,10 @@ describe('FR-188 setFront hands the colour front to the rendering part as data',
 
   it('FR-188 the 004 pinned members are still there (setOwners, setView), and setOwners still touches only the owners', () => {
     const { entries, scene } = make();
-    expectTypeOf<MapScene['setOwners']>().parameters.toEqualTypeOf<[Uint8Array]>();
+    expectTypeOf<MapScene['setOwners']>().parameters.toEqualTypeOf<[Uint16Array]>();
     expectTypeOf<MapScene['setView']>().parameters.toEqualTypeOf<[MapView]>();
     const base = versions(scene);
-    scene.setOwners(new Uint8Array(entries).fill(1));
+    scene.setOwners(new Uint16Array(entries).fill(1));
     expect(versions(scene).map((v, i) => v - base[i]!)).toStrictEqual([0, 0, 1, 0]);
   });
 });
@@ -285,8 +285,8 @@ describe('FR-179 FR-180 the shader draws the front with the reference rules', ()
   });
 
   it('FR-180 the step class of a land edge: owners differ now is faction, same now but not before is absorbed', () => {
-    expect(FRAGMENT_SHADER).toContain('if (byteAt(uOwners, a) != byteAt(uOwners, b)) return S_FACTION;');
-    expect(FRAGMENT_SHADER).toContain('return byteAt(uOwnersBefore, a) == byteAt(uOwnersBefore, b) ? S_TERRITORY : S_ABSORBED;');
+    expect(FRAGMENT_SHADER).toContain('if (u16At(uOwners, a) != u16At(uOwners, b)) return S_FACTION;');
+    expect(FRAGMENT_SHADER).toContain('return u16At(uOwnersBefore, a) == u16At(uOwnersBefore, b) ? S_TERRITORY : S_ABSORBED;');
   });
 
   it('FR-180 a real faction line wins over the interpolated line (the D8 order is the reference order)', () => {

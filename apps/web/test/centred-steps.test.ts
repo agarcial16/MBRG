@@ -21,7 +21,7 @@ const roundOf = (r: number): RoundLabels => {
 function stepOf(r: number): StepLabels & { aspects: ReadonlyMap<number, number> } {
   const a = run.tables[r]!;
   const b = run.tables[r + 1]!;
-  const count = (t: Uint8Array): Map<number, number> => {
+  const count = (t: Uint16Array): Map<number, number> => {
     const m = new Map<number, number>();
     for (const v of t) if (v > 0) m.set(v, (m.get(v) ?? 0) + 1);
     return m;
