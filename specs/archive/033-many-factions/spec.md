@@ -1,5 +1,5 @@
 # Spec 033 — Many Factions in the Viewer
-Status: implemented (apps/web; FR-646 deferred until PR #94 merges)
+Status: implemented (apps/web + importer `viewerLimits` FR-646 in tools/build-map)
 Tier: Light SDD (viewer `apps/web` now; importer report `tools/build-map` when PR #94 merges; **no map format, protocol, `packages/shared`, `packages/sim`, `apps/server`, or `apps/bot` change**). Depends on 004 (viewer rendering, capabilities, colour assignment), 005/009/013 (fronts, reveal tours, chosen-faction outline), 029 (viewer count refusal), parallel bug fix `fix/world-palette-exhausted` (sea-only adjacency as a soft preference), and 028 (importer `viewerLimits` report, PR #94). Ids: FR-640 to FR-646, NFR-160 to NFR-164 (outside the `packages/sim` traceability ledger, clear of all archived specs and Spec 032 PR #96).
 
 ## Context and goal
@@ -50,7 +50,7 @@ Enable the viewer to load, colour, draw, step, pick, and reveal any valid map up
   Two land-adjacent factions SHALL NEVER receive the same colour (unless forced by identical preferred colours, which package validation forbids), and every valid map up to 65,535 factions (including `maps/world-countries` and `world-1815-4`) SHALL be coloured without failure.
 - FR-644: THE SYSTEM SHALL keep refusing unloadable packages before drawing, with Spanish messages from the UI strings module in strict order: (1) package, map, presentation, and id-image validation errors (004 FR-133); (2) viewer count limits read dynamically from the drawing table sizes — territories above 65,535 named before factions above 65,535 (029 FR-586 to FR-589); (3) browser graphics capability limits — missing WebGL 2, or `maxTextureSize < max(width, height, entries + 1, factions + 1)` (004 FR-135); and (4) defensive `palette-exhausted` refusal (keeping `STRINGS.paletteExhausted`) only if a caller explicitly supplies a finite custom palette without procedural extension (OQ2).
 - FR-645: WHEN the displayed round changes, THE SYSTEM SHALL update only per-entry owner data (at most 2 bytes per entry plus the outside slot, never pixel data), keeping borders, colour fronts, reveal dimming, and chosen-faction outlines exact for every faction index in `1..65,535` (including indices ≥ 256, where both bytes are non-zero).
-- FR-646: WHEN `feat/028-map-importer` (PR #94) merges, THE SYSTEM SHALL update the importer's `viewerLimits` report section to raise the faction-count warning threshold from 255 to 65,535 (no faction-count warning for 256..65,535 factions), SHALL align its palette-exhaustion check with FR-641 to FR-643 so maps coloured without exhaustion emit no `paletteExhaustedFaction` warning, and SHALL keep reporting `requiredTextureSize`, `textureAbove2048`, and `entriesAbove65535` unchanged (OQ3).
+- FR-646: WHEN `feat/028-map-importer` (PR #94) merges, THE SYSTEM SHALL update the importer's `viewerLimits` report section to raise the faction-count warning threshold from 255 to 65,535 (no faction-count warning for 256..65,535 factions), SHALL align its palette-exhaustion check with FR-641 to FR-643 so maps coloured without exhaustion emit no `paletteExhaustedFaction` warning, and SHALL keep reporting `requiredTextureSize`, `textureAbove2048`, and `entriesAbove65535` unchanged (OQ3). **Done** (2026-11-24, `fix/importer-viewer-limits`): `factionsAbove65535`, the 20-colour palette, and the procedural last resort modelled in `tools/build-map/src/importer/report.ts`.
 
 ## Non-functional requirements
 - NFR-160 (Performance bounds):
@@ -81,7 +81,7 @@ Enable the viewer to load, colour, draw, step, pick, and reveal any valid map up
 2. `world-1815-4` (302 factions, 424 entries) and `maps/world-countries` (193 factions) both load, colour, step, and render cleanly in the viewer with zero `too-many-factions` or `palette-exhausted` errors.
 3. Browser measurements (first frame, median/p95 frame time, round change) recorded in the PR for `world-1815-4` and `maps/dev`.
 4. Reviewed desktop + mobile screenshots and before/after comparison widget posted in the thread (captures under `.claude/review/033-many-factions/`, not committed).
-5. `viewerLimits` update (FR-646) applied to `tools/build-map` when PR #94 (`feat/028-map-importer`) merges to `main`.
+5. `viewerLimits` update (FR-646) applied to `tools/build-map` when PR #94 (`feat/028-map-importer`) merges to `main` — done (2026-11-24, `fix/importer-viewer-limits`).
 
 ## Open questions
 - None open.

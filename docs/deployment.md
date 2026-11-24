@@ -301,15 +301,15 @@ on stderr, nothing written in the output folder), and `2` on usage error.
      (`textureAbove2048`) exceeds the WebGL 2 guaranteed minimum and leaves out
      devices with a smaller texture limit (those devices show the viewer's
      capability message).
-   - `factionsAbove255` (more than **255** factions) or `entriesAbove65535`
-     (more than **65,535** entries): a package exceeding either limit is **not
-     drawable by today's viewer**. The viewer **refuses it at load with a
-     Spanish message naming the limit** (spec 029) and draws no map, instead of
-     the internal error of earlier versions; listing it still gives players an
-     unplayable map, so do not list it on the server until follow-up **V2**
-     (many factions) or **V3** (tiling) ships. A texture above the device's
-     maximum and a failed colour assignment also stop with a message (follow-up
-     **V1** is covered by these refusals).
+   - `factionsAbove65535` (more than **65,535** factions, raised from 255 in
+     **V2** / spec 033) or `entriesAbove65535` (more than **65,535** entries):
+     a package exceeding either limit is **not drawable by today's viewer**. The
+     viewer **refuses it at load with a Spanish message naming the limit**
+     (spec 029 / spec 033) and draws no map, instead of the internal error of
+     earlier versions; listing it still gives players an unplayable map, so do
+     not list it on the server until follow-up **V3** (tiling) ships. A texture
+     above the device's maximum also stops with a message (follow-up **V1** is
+     covered by these refusals).
    - `contextGap`, `contextGapPixels`, `thinCoastFactions`: thin water (at most
      `params.contextGap` pixels wide; the default is a strip of 3.5 km at the
      map's pixel size, at most 16; 0 turns it off) between a land territory and
@@ -365,9 +365,11 @@ on stderr, nothing written in the output folder), and `2` on usage error.
      vertex beyond 90 degrees of arc from its centre (the great oceans). The names
      file is read like a context source and its SHA-256 is in the report; its licence
      travels with the map like any source's.
-   - `paletteExhaustedFaction`: the first faction for which the viewer's
-     12-colour assignment fails; supply explicit `color` values in `factions`
-     (or wait for **V2**) before listing.
+   - `paletteExhaustedFaction`: the first faction for which the viewer's colour
+     assignment fails. The shipped viewer colours up to 65,535 factions with its
+     20-colour curated palette plus a procedural last resort (spec 033 FR-646),
+     so this stays a defensive guard for a custom finite theme; supply explicit
+     `color` values in `factions` if it ever appears.
 
 6. **List the package on the server**: copy the output folder (`map.json`,
    `presentation.json`, `ids.png`) onto the VPS, add its map id and **absolute**
