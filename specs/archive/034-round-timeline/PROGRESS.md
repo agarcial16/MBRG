@@ -4,7 +4,7 @@
 - Merged `origin/main` (`6724626`, PR #99 HUD layout polish) into `feat/034-round-timeline` (`ac292ec`).
 - Installed workspace dependencies (`npm install`).
 - Captured BEFORE screenshots under `.claude/review/034/` (gitignored): `before-long-desk.png`, `before-long-phone.png` (51 rounds), `before-short-desk.png`, `before-short-phone.png` (5 applied rounds, round 3 displayed, round 6 in play). Confirmed desktop horizontal overflow of `.hud-command` and phone clipping of "Inicio" and round 51.
-- Marked `specs/034-round-timeline/spec.md` as `Status: approved`.
+- Marked `specs/archive/034-round-timeline/spec.md` as `Status: approved`.
 - Branch: `feat/034-round-timeline` · State: ready for tests-first (red) · Next: add unit + shell tests for FR-660..FR-666 / NFR-170..NFR-172.
 
 ## Step 2 — Tests first (red) and pure/shell implementation (green)
@@ -24,7 +24,7 @@
 - `npm run typecheck`: green (0 errors).
 - `npm test`: 420/431 active files passed on initial parallel run (6,271 passed, 6 skipped); 9/11 parallel CPU-timeout untouched files passed on `--maxWorkers=2` rerun (only untouched `service-twins.test.ts` and `tour-shade.test.ts` timed out under local CPU load; verifying alone + CI).
 - Posted desktop and phone before/after screenshots under `.claude/review/034/` and interactive before/after slider widget (0 console errors).
-- Diff restricted to `apps/web` (round track / command panel + tests) and `specs/034-round-timeline/`; zero protected paths touched.
+- Diff restricted to `apps/web` (round track / command panel + tests) and `specs/archive/034-round-timeline/`; zero protected paths touched.
 - Handover:
   - Branch: `feat/034-round-timeline`
   - State: implemented, tested, pushed, PR #100 marked ready for review.
@@ -41,7 +41,7 @@
   - Next step: reviewer re-check and squash merge into `main`.
 
 ## Step 6 — Hand-test feedback on jump-to-round box (digits-only + clamp)
-- Amended `specs/034-round-timeline/spec.md` (`FR-663 (amended after hand test)` and edge cases): jump input accepts digits only (`inputmode="numeric"`, blocks/strips non-digits as typed and on paste), clamps submitted values to `[0, applied]` (`<= 0` jumps to Inicio `0`, `> applied` jumps to `applied`), and closes without jumping or showing an error on empty input.
+- Amended `specs/archive/034-round-timeline/spec.md` (`FR-663 (amended after hand test)` and edge cases): jump input accepts digits only (`inputmode="numeric"`, blocks/strips non-digits as typed and on paste), clamps submitted values to `[0, applied]` (`<= 0` jumps to Inicio `0`, `> applied` jumps to `applied`), and closes without jumping or showing an error on empty input.
 - Tests first (seen red, then green): updated `apps/web/test/live-track.test.ts` (`sanitizeJumpInput`, clamping `parseJumpRound` to `[0, applied]`, `{ outcome: 'close' }` on empty input) and `apps/web/test/live-hud-shell.test.ts` (`sanitizeJumpInput`, `input` + `paste` listeners, no `.hud-jump-error` / `hudJumpInvalid`).
 - Implemented `sanitizeJumpInput` and clamping `parseJumpRound` in `apps/web/src/core/live-track.ts`, wired digits-only `keydown`/`paste`/`input` handlers and removed `jumpError` in `apps/web/src/ui/live-panel.ts` and `apps/web/src/ui/live-panel-style.ts`, and removed unused `STRINGS.hudJumpInvalid` from `apps/web/src/core/strings.ts`.
 - Captured desktop (1280×720) and mobile (390×844) screenshots of the jump box under `.claude/review/034-jump/` (`jump-desk.png`, `jump-phone.png`).
@@ -52,7 +52,7 @@
 
 ## Step 7 — Second hand-test polish: blur-to-apply, explicit «Ir» confirm button, separation from «Inicio», and merge `origin/main` (#96)
 - Merged `origin/main` (`f73f8e3`, spec 032 readable labels #96) into `feat/034-round-timeline` and resolved the conflict in `apps/web/src/core/strings.ts` (preserving both spec 032's `mapTipLine` and spec 034's block; `MEMORY.md` auto-merged cleanly).
-- Amended `specs/034-round-timeline/spec.md` (`FR-663 (amended after hand test)` and edge cases): leaving the jump box (blur / click or tap outside) with a number typed applies the jump just like `Enter` or clicking `Ir`; empty input or `Escape` closes without jumping; added explicit `Ir` confirm button inside a framed jump box separated visually from `Inicio`.
+- Amended `specs/archive/034-round-timeline/spec.md` (`FR-663 (amended after hand test)` and edge cases): leaving the jump box (blur / click or tap outside) with a number typed applies the jump just like `Enter` or clicking `Ir`; empty input or `Escape` closes without jumping; added explicit `Ir` confirm button inside a framed jump box separated visually from `Inicio`.
 - Tests first (seen red, then green): added `resolveJump` tests in `apps/web/test/live-track.test.ts` and shell/CSS pins (`hud-jump-box`, `hud-jump-confirm`, `hudJumpConfirm`, `hudJumpConfirmLabel`, `focusout`/`pointerdown`, separation `margin-right`, phone 36 px target) in `apps/web/test/live-hud-shell.test.ts`.
 - Implemented `resolveJump` in `apps/web/src/core/live-track.ts`, added `hudJumpConfirm` (`'Ir'`) and `hudJumpConfirmLabel` in `apps/web/src/core/strings.ts`, wrapped the jump input + `Ir` button in `.hud-jump-box` with `focusout` + capture-phase `pointerdown` outside-click commit and `Escape` cancel in `apps/web/src/ui/live-panel.ts`, and styled the framed brass-gold box + vertical divider before `Inicio` for desktop and 390 px phone in `apps/web/src/ui/live-panel-style.ts`.
 - Verified live browser interactions (outside click jumps, `Escape` cancels, empty outside click closes without jumping, `Ir` button jumps) and captured desktop (1280×720) and mobile (390×844) screenshots under `.claude/review/034-jump2/` (`jump-desk.png`, `jump-phone.png`).

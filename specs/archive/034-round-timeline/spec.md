@@ -31,7 +31,7 @@ Tier: Light SDD (`apps/web`). Ids outside the traceability ledger: FR-660..FR-66
 ## Non-functional requirements
 - NFR-170: Window capacity calculation (from available width), window slicing, sliding on selection or live advance, window shift bounds (pager arrows, wheel, swipe), and jump-to-round digits sanitization and clamping SHALL be pure, deterministic functions tested in Node with no DOM or ambient state, verified at 0, 1, 10, 52, and 250+ rounds and across desktop and phone widths.
 - NFR-171: Every new user-visible string (labels, placeholders, accessible names) SHALL live in the single Spanish strings module in a dedicated spec 034 block; styling SHALL reuse existing `--hud-*` tokens (WCAG AA contrast >= 4.5:1 normal text, >= 3:1 large text and outlines), self-hosted fonts, and respect `prefers-reduced-motion: reduce`.
-- NFR-172: Existing match/spectator routes, anti-spoiler scans, reveal tour timing/goldens, phone dock height budget (FR-445: <= 40 % tall / 45 % short), and keyboard focus stability across per-second refreshes SHALL remain unchanged; diff restricted to `apps/web` and `specs/034-round-timeline/`.
+- NFR-172: Existing match/spectator routes, anti-spoiler scans, reveal tour timing/goldens, phone dock height budget (FR-445: <= 40 % tall / 45 % short), and keyboard focus stability across per-second refreshes SHALL remain unchanged; diff restricted to `apps/web` and `specs/archive/034-round-timeline/`.
 
 ## Edge cases
 - Match at round `0` (before round 1) or with fewer than `N` numbered rounds: "Inicio" is pinned on the left, only existing numbered rounds appear (no empty placeholder slots), and both window-pager arrows are disabled.
@@ -52,7 +52,7 @@ Tier: Light SDD (`apps/web`). Ids outside the traceability ledger: FR-660..FR-66
 ## Done criteria
 1. Pure unit tests written first (seen red, then green) covering dynamic capacity `N`, window slicing, sliding, boundary/shift clamping (pager/wheel/swipe), jump-to-round parsing/validation, anti-spoiler bounds, strings, and layout/overflow rules; `npm test` and `npm run typecheck` green.
 2. Desktop (1280 × 720) and phone (390 × 844) before/after screenshots of a long match (50+ rounds) showing the pinned "Inicio", dynamic windowed strip, pager arrows, jump input, and unclipped panel text saved under `.claude/review/034-round-timeline/`, posted in the thread with a before/after slider widget per viewport.
-3. Diff restricted to `apps/web` and `specs/034-round-timeline/`; PR opened into `main`.
+3. Diff restricted to `apps/web` and `specs/archive/034-round-timeline/`; PR opened into `main`.
 
 ## Open questions
 None.
