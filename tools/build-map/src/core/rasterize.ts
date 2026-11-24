@@ -28,7 +28,7 @@ interface RingRows {
   edges: Int32Array;
 }
 
-function bucketRing(coords: Point[], width: number): RingRows | null {
+function bucketRing(coords: Point[], height: number): RingRows | null {
   const n = coords.length;
   const from = new Int32Array(n);
   const to = new Int32Array(n);
@@ -41,7 +41,7 @@ function bucketRing(coords: Point[], width: number): RingRows | null {
     const vmax = Math.max(a[1], b[1]);
     // Rows y with vmin <= y + 0.5 <= vmax, clipped to the image.
     const ys = Math.max(0, Math.ceil(vmin - 0.5));
-    const ye = Math.min(width - 1, Math.floor(vmax - 0.5));
+    const ye = Math.min(height - 1, Math.floor(vmax - 0.5));
     from[i] = ys;
     to[i] = ye;
     if (ys <= ye) {
@@ -137,10 +137,10 @@ function resetTouched(t: Touched): void {
 
 /**
  * Rasterize the layers, first layer first: a pixel takes the value of the first layer whose
- * polygons contain its centre (FR-115), else WATER. `width` is W (the image is W x W).
+ * polygons contain its centre (FR-115), else WATER. `width` is W; the image is W x H (H defaults to W, FR-706).
  */
-export function rasterize(width: number, layers: readonly RasterLayer[]): Uint32Array {
-  const out = new Uint32Array(width * width).fill(WATER);
+export function rasterize(width: number, layers: readonly RasterLayer[], height: number = width): Uint32Array {
+  const out = new Uint32Array(width * height).fill(WATER);
   const inside = new Uint8Array(width);
   const removed = new Uint8Array(width);
   const strict = new Uint8Array(width);
@@ -152,11 +152,11 @@ export function rasterize(width: number, layers: readonly RasterLayer[]): Uint32
 
   for (const layer of layers) {
     for (const polygon of layer.polygons) {
-      const outer = bucketRing(polygon.outer.coords, width);
+      const outer = bucketRing(polygon.outer.coords, height);
       if (outer === null) continue;
       const holes: RingRows[] = [];
       for (const h of polygon.holes) {
-        const b = bucketRing(h.coords, width);
+        const b = bucketRing(h.coords, height);
         if (b !== null) holes.push(b);
       }
       for (let y = outer.y0; y <= outer.y1; y++) {

@@ -117,10 +117,10 @@ describe('the committed world map package: contents', () => {
     ]);
   });
 
-  it('is 4352 x 4352 with width 4352, margin 2%, S = 1 and the Robinson projection (no piece is ever removed)', { timeout: 60_000 }, () => {
+  it('is 4096 x 2179 (a Robinson rectangle, width 4096 so every device that drew the old map draws this), margin 2%, S = 1, minimum footprint 9', { timeout: 60_000 }, () => {
     const image = decode(join(committed, 'ids.png'));
-    expect([image.width, image.height]).toStrictEqual([4352, 4352]);
-    expect(loadInputs().params).toStrictEqual({ width: 4352, margin: 0.02, minPieceSize: 1, projection: 'robinson' });
+    expect([image.width, image.height]).toStrictEqual([4096, 2179]);
+    expect(loadInputs().params).toStrictEqual({ width: 4096, margin: 0.02, minPieceSize: 1, projection: 'robinson', minFootprint: 9 });
   });
 
   it('is authored from one admin-0 feature per sovereign country, with documented exceptions', () => {
@@ -155,15 +155,18 @@ describe('the committed world map package: contents', () => {
     expect([...records].sort()).toStrictEqual(codes);
   });
 
-  it('keeps every country that rasterizes to at least one pixel (Maldives is the smallest kept)', { timeout: 60_000 }, () => {
+  it('keeps every country with at least the minimum footprint of 9 pixels (Maldives, San Marino, Liechtenstein included)', { timeout: 60_000 }, () => {
     const image = decode(join(committed, 'ids.png'));
     const m = map();
     const codes = factionCodes();
-    const maldives = codes.indexOf('MDV') + 1;
-    let maldivesPixels = 0;
-    for (const v of image.pixels) if (v === maldives) maldivesPixels++;
-    expect(maldivesPixels).toBeGreaterThanOrEqual(1);
-    expect(m.territories.filter((e) => !isSea(e)).length).toBe(193);
+    const counts = new Map<number, number>();
+    for (const v of image.pixels) counts.set(v, (counts.get(v) ?? 0) + 1);
+    for (const code of ['MDV', 'SMR', 'LIE', 'MHL', 'SYC', 'MLT', 'AND', 'SGP']) {
+      expect(counts.get(codes.indexOf(code) + 1) ?? 0, code).toBeGreaterThanOrEqual(9);
+    }
+    const land = m.territories.filter((e) => !isSea(e));
+    expect(land.length).toBe(193);
+    for (const t of land) expect(counts.get(t.id) ?? 0, String(t.id)).toBeGreaterThanOrEqual(9);
   });
 });
 
@@ -208,14 +211,15 @@ describe('the committed world map package: planet shape', () => {
   const landNeighbors = (id: number): number[] => byId.get(id)!.neighbors.filter((n) => !isSea(byId.get(n)!));
   const seaNeighbors = (id: number): number[] => byId.get(id)!.neighbors.filter((n) => isSea(byId.get(n)!));
 
-  it('has the square corners and edge midpoints as sea (the Robinson world is about twice as wide as tall, the rest of the square is sea)', { timeout: 60_000 }, () => {
+  it('has the square corners and edge midpoints as sea (the Robinson image is the whole globe plus the margin)', { timeout: 60_000 }, () => {
     const width = image.width;
+    const height = image.height;
     const seaIds = new Set(sea.map((s) => s.id));
     const points: [number, number][] = [
-      [0, 0], [width - 1, 0], [0, width - 1], [width - 1, width - 1],
-      [Math.floor(width / 2), 0], [Math.floor(width / 2), width - 1],
-      [0, Math.floor(width / 2)], [width - 1, Math.floor(width / 2)],
-      [3, 3], [width - 4, 3], [3, width - 4], [width - 4, width - 4],
+      [0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1],
+      [Math.floor(width / 2), 0], [Math.floor(width / 2), height - 1],
+      [0, Math.floor(height / 2)], [width - 1, Math.floor(height / 2)],
+      [3, 3], [width - 4, 3], [3, height - 4], [width - 4, height - 4],
     ];
     for (const [x, y] of points) {
       expect(seaIds.has(image.pixels[y * width + x]!)).toBe(true);
@@ -290,14 +294,15 @@ describe('the world map rebuild is deterministic', () => {
 });
 
 describe('the Robinson frame covers the whole world', () => {
-  it('lays the land across the full width inside the 2% margin and in a band of rows around the middle', { timeout: 60_000 }, () => {
+  it('lays the land across the full width inside the 2% margin and in a band of rows between the poles', { timeout: 60_000 }, () => {
     const image = decode(join(committed, 'ids.png'));
     const m = map();
     const land = new Set(m.territories.filter((e) => !isSea(e)).map((e) => e.id));
     const w = image.width;
+    const h = image.height;
     let minCol = w;
     let maxCol = -1;
-    let minRow = w;
+    let minRow = h;
     let maxRow = -1;
     for (let i = 0; i < image.pixels.length; i++) {
       if (!land.has(image.pixels[i]!)) continue;
@@ -310,14 +315,15 @@ describe('the Robinson frame covers the whole world', () => {
     }
     // the frame is the bounding box of the countries plus a 2% margin on each side: the land touches that margin
     const margin = 0.02 * w;
-    expect(minCol).toBeGreaterThanOrEqual(0);
     expect(minCol).toBeLessThan(margin * 1.5);
     expect(maxCol).toBeGreaterThan(w - 1 - margin * 1.5);
-    expect(maxCol).toBeLessThanOrEqual(w - 1);
-    // a Robinson world is about 1.97 : 1: the countries use well under 60% of the square's height
-    expect(maxRow - minRow).toBeLessThan(0.6 * w);
-    expect(minRow).toBeGreaterThan(0.15 * w);
-    expect(maxRow).toBeLessThan(0.85 * w);
+    // the image is the globe, about 1.88 : 1 with the margin: the countries reach near the top (Russia, Canada, Norway)
+    // and stop well above the bottom (Antarctica is background land, below the last country)
+    expect(h / w).toBeGreaterThan(0.5);
+    expect(h / w).toBeLessThan(0.58);
+    expect(minRow).toBeLessThan(0.1 * h);
+    expect(maxRow).toBeGreaterThan(0.7 * h);
+    expect(maxRow).toBeLessThan(0.85 * h);
   });
 });
 

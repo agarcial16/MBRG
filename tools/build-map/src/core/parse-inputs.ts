@@ -170,10 +170,18 @@ function parseParams(root: unknown): BuildParams {
   if (typeof minPieceSize !== 'number' || !Number.isInteger(minPieceSize) || minPieceSize < 1) {
     return problem('minPieceSize must be an integer of at least 1');
   }
-  if (!Object.hasOwn(root, 'projection')) return { width, margin, minPieceSize };
-  const projection = own(root, 'projection');
-  if (projection !== 'laea' && projection !== 'robinson') return problem('projection must be laea or robinson');
-  return { width, margin, minPieceSize, projection };
+  const params: BuildParams = { width, margin, minPieceSize };
+  if (Object.hasOwn(root, 'projection')) {
+    const projection = own(root, 'projection');
+    if (projection !== 'laea' && projection !== 'robinson') return problem('projection must be laea or robinson');
+    params.projection = projection;
+  }
+  if (Object.hasOwn(root, 'minFootprint')) {
+    const n = own(root, 'minFootprint');
+    if (typeof n !== 'number' || !Number.isInteger(n) || n < 1 || n > 1000) return problem('minFootprint must be an integer from 1 to 1000');
+    params.minFootprint = n;
+  }
+  return params;
 }
 
 const PARSERS: { [K in InputName]: (root: unknown) => BuildInputs[K] } = {

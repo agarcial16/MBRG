@@ -7,7 +7,8 @@ import { numberEntries } from './numbering';
 import { cleanupPieces, labelPieces } from './pieces';
 import { toRgb } from './png-check';
 import { buildPresentation } from './presentation';
-import { frameFor, planeFor, projectionCenter, toPixel } from './projection';
+import { growFootprints, type Grown } from './footprint';
+import { frameFor, planeFor, projectionCenter, robinsonFrame, toPixel } from './projection';
 import { rasterize, type RasterLayer } from './rasterize';
 import { toPixelPolygons } from './rings';
 import { formatReport, summariseEnclosed } from './report';
@@ -63,10 +64,11 @@ export function buildInMemory(inputs: BuildInputs, codec: PngCodec): BuildOutcom
   const robinson = inputs.params.projection === 'robinson';
   const center = robinson ? { lon0: 0, lat0: 0 } : projectionCenter(vertices);
   const plane = planeFor(inputs.params.projection, center);
-  const frame = frameFor(
-    vertices.map(([lon, lat]) => plane(lon, lat)),
-    margin,
-  );
+  // FR-706: a Robinson image is as tall as the globe; every other build is a W x W square.
+  const projected = vertices.map(([lon, lat]): [number, number] => plane(lon, lat));
+  const rectangle = robinson ? robinsonFrame(projected, margin, width) : undefined;
+  const frame = rectangle?.frame ?? frameFor(projected, margin);
+  const height = rectangle?.height ?? width;
   const toUV = (lon: number, lat: number): [number, number] => {
     const [px, py] = plane(lon, lat);
     const at = toPixel(frame, width, px, py);
@@ -82,7 +84,30 @@ export function buildInMemory(inputs: BuildInputs, codec: PngCodec): BuildOutcom
     value: 0,
     polygons: toPixelPolygons([...inputs.otherLand, ...featuresOf(inputs.grouping.excluded)], toUV),
   });
-  const rasterized = rasterize(width, layers);
+  const rasterAll = rasterize(width, layers, height);
+
+  // FR-705: a land unit under the minimum footprint grows around its centre (the layers are the land units in map order)
+  const { minFootprint } = inputs.params;
+  let rasterized = rasterAll;
+  let grown: Grown[] = [];
+  if (minFootprint !== undefined) {
+    const anchors = plan.land.map((_, i): [number, number] => {
+      let sx = 0;
+      let sy = 0;
+      let n = 0;
+      for (const polygon of layers[i]!.polygons) {
+        for (const [u, v] of polygon.outer.coords) {
+          sx += u;
+          sy += v;
+          n++;
+        }
+      }
+      return n === 0 ? [0, 0] : [sx / n, sy / n];
+    });
+    const result = growFootprints(width, rasterAll, plan.land.map((land) => land.id), anchors, minFootprint);
+    rasterized = result.pixels;
+    grown = result.grown;
+  }
 
   const entries: PreviewEntry[] = [
     ...plan.land.map((land): PreviewEntry => ({ id: land.id, kind: 'land', owner: land.owner })),
@@ -108,8 +133,8 @@ export function buildInMemory(inputs: BuildInputs, codec: PngCodec): BuildOutcom
   // FR-118, FR-121, FR-105, FR-122.
   const map = buildMapData(width, pixels, plan);
   const presentation = buildPresentation(plan, inputs.countries, inputs.provinces);
-  const png = codec.encode(width, width, toRgb(pixels));
-  const errors = selfCheck(map, presentation, width, pixels, png, codec);
+  const png = codec.encode(width, height, toRgb(pixels));
+  const errors = selfCheck(map, presentation, width, pixels, png, codec, height);
   if (errors.length > 0) return { ok: false, errors, preview: previewOf(pixels) };
 
   // FR-124: the report facts from the final id image.
@@ -123,7 +148,8 @@ export function buildInMemory(inputs: BuildInputs, codec: PngCodec): BuildOutcom
   const report = formatReport({
     version: inputs.meta.version,
     width,
-    height: width,
+    height,
+    grown,
     center,
     ...(robinson ? { projection: 'robinson' as const } : {}),
     frame,
@@ -146,6 +172,7 @@ export function buildInMemory(inputs: BuildInputs, codec: PngCodec): BuildOutcom
     presentation: presentation as PresentationData,
     pixels,
     width,
+    height,
     files: { map: formatJson(map), presentation: formatJson(presentation), image: png },
     report,
     preview: previewOf(pixels),

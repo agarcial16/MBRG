@@ -66,12 +66,16 @@ export interface SeaSeed {
 /** FR-699: the builder's projections: Lambert azimuthal equal-area (FR-114, the default) or Robinson (FR-697). */
 export type BuildProjection = 'laea' | 'robinson';
 
-/** FR-112 build parameters: side W (H = W), margin, minimum piece size S, and FR-699 the optional projection. */
+/**
+ * FR-112 build parameters: side W, margin, minimum piece size S, FR-699 the optional projection and FR-705 the
+ * optional minimum footprint of a land unit, in pixels. The image is W x W, except with `robinson` (FR-706): W x H.
+ */
 export interface BuildParams {
   width: number;
   margin: number;
   minPieceSize: number;
   projection?: BuildProjection;
+  minFootprint?: number;
 }
 
 /** FR-112: exactly these inputs fully determine the output; no seed, round or match state. */
@@ -193,6 +197,8 @@ export type BuildOutcome =
       presentation: PresentationData;
       pixels: Uint32Array;
       width: number;
+      /** FR-706: the image height (W for every build but a Robinson one). */
+      height: number;
       files: Record<Artifact, Uint8Array>;
       report: string;
       preview: PreviewSource;

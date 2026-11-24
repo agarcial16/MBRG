@@ -60,12 +60,12 @@ Step 2, post-processing (one-off, documented here because the builder is not ext
 
 ## The micro-country decisions (measured, then decided per case)
 
-The build width resolves ~9.2 km per pixel at the equator of the Robinson world (spec 036; it was ~6.4
-km per pixel in the Lambert disk before). Rasterizing the final map gives, among the smallest:
-Maldives 1 px, San Marino 1, Liechtenstein 1, Grenada 2, Marshall Islands 2, Seychelles 2, St Kitts
-and Nevis 3, Malta 3, Palau 3 — all kept; a pixel is a pixel and the map does not invent
-or take any away (`minPieceSize` = 1, so the cleanup removes nothing). Four countries rasterize to
-nothing:
+The build width resolves ~9.2 km per pixel at the equator of the Robinson world (spec 036; ~6.4 km per pixel
+in the first, Lambert version). Rasterizing the features alone, 19 land units come out under 9 pixels and the
+Maldives at 0; the minimum footprint (below) brings each of them to 9 px — a small disc around its centre —
+so that every faction is a visible, clickable blob when zoomed. Every other country keeps exactly the pixels
+its outline gives (`minPieceSize` = 1, so the cleanup removes nothing). Four countries rasterize to nothing and
+are decided by hand:
 
 | Country | Decision | Why |
 |---|---|---|
@@ -78,20 +78,22 @@ Nauru and Tuvalu stay in `other-land.json` (background, id 0): at this scale tha
 
 ## Parameters and choices
 
-- `params.json`: width 4352, margin 2%, S = 1, `projection: "robinson"`. The whole-planet frame needs the
-  width: at 2048 half the island nations of the Pacific lose their last pixel. Robinson spends fewer
-  pixels on land than the Lambert disk (the world is ~2:1 inside a square image, the rest is sea), so
-  the width was measured, not inherited: at 4096 the Maldives rasterize to 0 px (a country would
-  vanish and the map would break), 4352 keeps all 193 (Maldives, San Marino and Liechtenstein at 1 px).
-  The sampling is not monotone in the width (5120 loses the Maldives again): a change of width or margin
-  needs this count redone. S = 1 because no piece may be removed.
-- The projection is Robinson (spec 036, the builder's `projection: "robinson"`; user feedback on the
-  first version: the Lambert disk was "un poco rara para jugarlo en 2d"). Central meridian 0, no
-  longitude wrapping (Natural Earth is split at 180), the builder's usual square frame: the world is
-  ~1.97:1, so it fills the width and about half of the height, the rest (above the north pole line and
-  below Antarctica) is sea. Robinson is neither equal-area nor conformal; sizes are slightly off at
-  high latitudes, which is what a flat world map looks like. The first version used Lambert
-  azimuthal equal-area (a disk, no wrapped longitudes).
+- `params.json`: width 4096, margin 2%, S = 1, `projection: "robinson"`, `minFootprint: 9`. The width stays
+  4096 so that every device that draws the Lambert version (a 4096 texture) still draws this one. A Robinson
+  image is a rectangle (below): 4096 x 2179. At 4096 the Maldives rasterize to 0 px and 18 more units to 8 or
+  fewer, so the builder's minimum footprint (spec 036, FR-705) grows each of the 19 to exactly 9 px:
+  deterministic, from the centroid of its own pixels (else of its outline), taking water first and, for a
+  landlocked state (San Marino, Liechtenstein, Andorra), a few pixels of a big neighbour (never of a unit under
+  four times the minimum, never background land or another small unit). Links stay pixel contact: San Marino is
+  now inland only. The sampling is not monotone in the width (a change of width or margin needs the pixel counts
+  redone). S = 1 because no piece may be removed.
+- The projection is Robinson (spec 036, the builder's `projection: "robinson"`; user feedback on the first
+  version: the Lambert disk was "un poco rara para jugarlo en 2d"). Central meridian 0, no longitude wrapping
+  (Natural Earth is split at 180). The image is the globe: as wide as the countries plus the margin, and as tall
+  as the north-pole line to the south-pole line plus the margin (about 1.88:1), so no pixel is spent on empty
+  frame. Robinson is neither equal-area nor conformal; sizes are slightly off at high latitudes, which is what
+  a flat world map looks like. The viewer and the map format already take a width different from the height; the
+  importer's Robinson stays square (spec 028 keeps non-square images out of scope).
 - `sea-seeds.json`: 8 seeds — Océano Pacífico, Océano Atlántico Norte, Océano Atlántico Sur,
   Océano Índico, Océano Ártico, Océano Antártico, Mar Mediterráneo, and (spec 036, last so the other
   sea ids stay put) Océano Pacífico Occidental: a flat map cuts the Pacific at 180 degrees, and without
@@ -116,14 +118,19 @@ stay byte-identical; the rebuild test in `tools/build-map/test/world-map.test.ts
 ## Spec 036: what changed against the Lambert package (measured 2026-11-24)
 
 Same 193 factions and 193 land territories (ids, owners, order), same 7 original sea ids; the presentation
-differs only by the new sea zone 201. Contact adjacency (4-connected pixel contact, FR-108) differs at
-the scale of a pixel, listed in full:
+differs only by the new sea zone 201. The image went from 4096 x 4096 to 4096 x 2179. Contact adjacency
+(4-connected pixel contact, FR-108) differs at the scale of a pixel, listed in full:
 
-- Land pairs removed (1): Azerbaiyán / Turquía (the 9 km Nakhchivan border no longer touches in a pixel).
-- Land pairs added (2): Botsuana / Zambia (pixel contact at the Kazungula quadripoint) and Dinamarca / Suecia
-  (the Öresund strait is narrower than one pixel).
-- Land-sea links: 31 removed, 33 added. Mostly the Pacific split (East Asia, Oceania, the Pacific islands,
-  Russia, Canada and the USA link to Océano Pacífico / Océano Pacífico Occidental instead of Índico, Ártico
-  and Antártico), plus the Atlántico Norte / Sur border (Guinea, Guyana and Surinam lose Norte; Guinea-Bisáu,
-  Guyana and Venezuela gain Sur) and Perú gaining Antártico. Sea-sea links (2 removed, 3 added): Pacífico-Ártico and Índico-Ártico
-  removed; Pacífico-Atlántico Norte, Índico-Pacífico Occidental and Ártico-Pacífico Occidental added.
+- Land pairs removed: none. Land pairs added (1): Botsuana / Zambia (pixel contact at the Kazungula
+  quadripoint). (Azerbaiyán / Turquía and Dinamarca / Suecia, which a plain Robinson at 4352 px changed, are as
+  before.)
+- Land-sea links: 30 removed, 34 added. Mostly the Pacific split (East Asia, Oceania, the Pacific islands,
+  Russia, Canada and the USA link to Océano Pacífico / Océano Pacífico Occidental instead of Índico, Ártico and
+  Antártico), plus the Atlántico Norte / Sur border (Guinea, Guyana and Surinam lose Norte; Guinea-Bisáu, Guyana
+  and Venezuela gain Sur), Perú gaining Antártico, and San Marino losing the Mediterráneo (its 9 px are inland).
+  Sea-sea links (2 removed, 3 added): Pacífico-Ártico and Índico-Ártico removed; Pacífico-Atlántico Norte,
+  Índico-Pacífico Occidental and Ártico-Pacífico Occidental added.
+- Smallest territories, in pixels: 19 units were grown to exactly 9 (Andorra, Antigua y Barbuda, Baréin, Barbados,
+  Dominica, Micronesia, Granada, San Cristóbal y Nieves, Santa Lucía, Liechtenstein, Maldivas, Islas Marshall,
+  Malta, Palaos, Singapur, San Marino, Seychelles, Tonga, San Vicente y las Granadinas); every other territory
+  has at least 9 on its own outline (Kiribati: exactly 9).

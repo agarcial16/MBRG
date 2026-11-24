@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { checkIdImage } from '@mbrg/shared';
 import { buildInMemory } from '../src/core/build';
+import { robinson } from '../src/core/robinson';
 import { parseBuildInputs } from '../src/core/parse-inputs';
 import { pngCodec } from '../src/io/png-codec';
 import type { BuildInputs, BuildOutcome } from '../src/core/types';
@@ -45,6 +47,8 @@ function built(inputs: BuildInputs): Extract<BuildOutcome, { ok: true }> {
   if (!outcome.ok) throw new Error(JSON.stringify(outcome.errors));
   return outcome;
 }
+
+const RAD = Math.PI / 180;
 
 describe('FR-699 the builder projection parameter', () => {
   it('FR-699 reads an optional projection of laea or robinson and keeps it in the parsed params', () => {
@@ -99,10 +103,11 @@ describe('FR-699 / FR-700 building with Robinson', () => {
       }
     }
     // the three countries span 30 + 20 = -20..-0 and 30..60 degrees of latitude: far less than the full height
-    expect(Math.max(...landRows) - Math.min(...landRows)).toBeLessThan(w * 0.75);
+    expect(Math.max(...landRows) - Math.min(...landRows)).toBeLessThan(outcome.height * 0.75);
     // and almost the whole width: -150 .. 140 degrees of longitude
     expect(Math.max(...landCols) - Math.min(...landCols)).toBeGreaterThan(w * 0.9);
-    for (const [x, y] of [[0, 0], [w - 1, 0], [0, w - 1], [w - 1, w - 1]] as const) expect(px[y * w + x]! > 3).toBe(true);
+    const h = outcome.height;
+    for (const [x, y] of [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]] as const) expect(px[y * w + x]! > 3).toBe(true);
   });
 
   it('FR-699 projects the sea seeds the same way: each seed is one sea zone and lands on a water pixel of the Robinson raster', () => {
@@ -146,5 +151,109 @@ describe('FR-699 / FR-700 building with Robinson', () => {
     }
     // the country BB spans lon -10..10: its pixel centre column is the middle of the image
     expect(sum / n + 0.5).toBeCloseTo(w / 2, 0);
+  });
+});
+
+describe('FR-706 the Robinson image is as tall as the world: a rectangle, not a square', () => {
+  it('FR-706 is W wide and H = ceil of the globe height plus the margin, in pixels of the same size as the width gives', () => {
+    const inputs = worldInputs('robinson');
+    const outcome = built(inputs);
+    const xs: number[] = [];
+    for (const f of inputs.provinces) for (const p of f.polygons) for (const [lon, lat] of p.outer.coords) xs.push(robinson(lon * RAD, lat * RAD)[0]);
+    const boxWidth = Math.max(...xs) - Math.min(...xs);
+    const margin = inputs.params.margin;
+    const pixel = (boxWidth * (1 + 2 * margin)) / inputs.params.width;
+    const pole = robinson(0, Math.PI / 2)[1];
+    expect(outcome.width).toBe(128);
+    expect(outcome.height).toBe(Math.ceil((2 * pole + 2 * margin * boxWidth) / pixel - 1e-9));
+    expect(outcome.height).toBeLessThan(outcome.width * 0.75);
+    expect(outcome.pixels.length).toBe(outcome.width * outcome.height);
+  });
+
+  it('FR-706 writes a PNG of that size, passes the id image check with W and H, and the report states the height', () => {
+    const outcome = built(worldInputs('robinson'));
+    const decoded = pngCodec.decode(outcome.files.image);
+    if (!decoded.ok) throw new Error('png');
+    expect([decoded.value.width, decoded.value.height]).toStrictEqual([outcome.width, outcome.height]);
+    expect(checkIdImage(outcome.map, outcome.width, outcome.height, outcome.pixels)).toMatchObject({ ok: true });
+    expect(outcome.report).toContain(`height: ${outcome.height}`);
+    expect(outcome.preview.pixels.length).toBe(outcome.width * outcome.height);
+  });
+
+  it('FR-706 puts the poles on the first and last rows (land there would sit on them): the top and bottom rows are sea but for the margin', () => {
+    const inputs = worldInputs('robinson');
+    inputs.otherLand = [feature({ adm0_a3: 'ANT' }, -180, -90, 90)];
+    const outcome = built(inputs);
+    const w = outcome.width;
+    // Antarctica reaches the pole line: the bottom margin (2% of the box width) holds only sea, the rows above it hold land
+    const lastRow = Array.from(outcome.pixels.slice((outcome.height - 1) * w));
+    expect(lastRow.every((v) => v > 3)).toBe(true);
+    expect(outcome.pixels.slice(0, w).every((v) => v > 3)).toBe(true);
+    expect(outcome.pixels.some((v) => v === 0)).toBe(true);
+  });
+
+  it('FR-706 leaves the Lambert build square', () => {
+    const outcome = built(miniInputs());
+    expect(outcome.height).toBe(outcome.width);
+  });
+});
+
+/** The world fixture with a fourth country, a tenth of a degree wide: under one pixel at width 128. */
+function withTinyIsland(minFootprint?: number): BuildInputs {
+  const inputs = worldInputs('robinson');
+  inputs.provinces.push(feature({ adm1_code: 'DD', adm0_a3: 'DDD', name: 'Tinyland', name_es: 'Chiquito' }, 30.3, 10.3, 0.1));
+  inputs.countries.push({ adm0_a3: 'DDD', name: 'Tinyland', name_es: 'Chiquito' });
+  inputs.grouping.countries.push({ country: 'DDD' });
+  inputs.grouping.territories.push({ key: 'dd', country: 'DDD', provinces: ['DD'] });
+  if (minFootprint !== undefined) inputs.params = { ...inputs.params, minFootprint };
+  return inputs;
+}
+
+describe('FR-705 the minimum footprint parameter', () => {
+  it('FR-705 reads an optional minFootprint, an integer from 1 to 1,000, and keeps it in the parsed params', () => {
+    for (const n of [1, 9, 1000]) {
+      const inputs = baseInputs();
+      inputs.params = { ...inputs.params, minFootprint: n };
+      expect(parseBuildInputs(inputTexts(inputs))).toStrictEqual({ ok: true, value: inputs });
+    }
+  });
+
+  it('FR-705 refuses 0, a fraction, 1,001, text and null with one invalid-input on params', () => {
+    for (const bad of [0, 2.5, 1001, '9', null, -1]) {
+      const texts = inputTexts(baseInputs());
+      texts.params = JSON.stringify({ width: 64, margin: 0.02, minPieceSize: 4, minFootprint: bad });
+      const result = parseBuildInputs(texts);
+      expect(result.ok, String(bad)).toBe(false);
+      if (!result.ok) expect(result.errors.map((e) => [e.kind, e.reason]), String(bad)).toStrictEqual([['invalid-input', 'params: minFootprint must be an integer from 1 to 1000']]);
+    }
+  });
+
+  it('FR-705 without the rule a country under one pixel vanishes and the build fails; with it the country keeps the minimum', () => {
+    const without = buildInMemory(withTinyIsland(), pngCodec);
+    expect(without.ok).toBe(false);
+    const outcome = built(withTinyIsland(9));
+    const id = 4;
+    expect(outcome.pixels.filter((v) => v === id).length).toBe(9);
+    expect(checkIdImage(outcome.map, outcome.width, outcome.height, outcome.pixels)).toMatchObject({ ok: true });
+    // its links come from pixel contact: the island touches a sea zone and nothing else
+    const entry = outcome.map.territories.find((t) => t.id === id)!;
+    expect(entry.neighbors.length).toBeGreaterThan(0);
+  });
+
+  it('FR-705 never makes a unit smaller or touches the others: units that reach the minimum keep every pixel', () => {
+    const plain = built(worldInputs('robinson'));
+    const withRule = worldInputs('robinson');
+    withRule.params = { ...withRule.params, minFootprint: 4 };
+    const ruled = built(withRule);
+    expect(Buffer.from(ruled.files.image).equals(Buffer.from(plain.files.image))).toBe(true);
+    expect(ruled.report).toBe(plain.report);
+  });
+
+  it('FR-705 is deterministic, and the report lists the grown units', () => {
+    const a = built(withTinyIsland(9));
+    const b = built(withTinyIsland(9));
+    expect(Buffer.from(a.files.image).equals(Buffer.from(b.files.image))).toBe(true);
+    expect(a.report).toContain('grownUnits: 1');
+    expect(a.report).toContain('  - entry=4 from=0 to=9');
   });
 });

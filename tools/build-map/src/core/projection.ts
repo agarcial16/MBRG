@@ -121,10 +121,35 @@ export function pixelSide(frame: Frame, width: number): number {
  * FR-114: u = (X - west) / pixel, v = (north - Y) / pixel; inside iff 0 <= u < W and 0 <= v < W;
  * the pixel is (floor u, floor v), so a point on an edge lies in the pixel to its east or south.
  */
-export function toPixel(frame: Frame, width: number, px: number, py: number): PixelPoint {
+export function toPixel(frame: Frame, width: number, px: number, py: number, height: number = width): PixelPoint {
   const pixel = pixelSide(frame, width);
   const u = (px - frame.west) / pixel;
   const v = (frame.north - py) / pixel;
-  const inside = u >= 0 && u < width && v >= 0 && v < width;
+  const inside = u >= 0 && u < width && v >= 0 && v < height;
   return { u, v, inside, x: Math.floor(u), y: Math.floor(v) };
+}
+
+/**
+ * FR-706: the Robinson frame, a rectangle. Its width is the width of the projected vertices plus margin * that width on
+ * each side, mapped onto W pixels; its height is the whole globe (the north pole line to the south pole line) plus the
+ * same margin above and below, in pixels of the same size, rounded up. The frame's `side` is its width in projected units.
+ */
+export function robinsonFrame(
+  points: readonly (readonly [number, number])[],
+  margin: number,
+  width: number,
+): { frame: Frame; height: number } {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  for (const [x] of points) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+  }
+  const boxWidth = maxX - minX;
+  const m = margin * boxWidth;
+  const pole = robinson(0, Math.PI / 2)[1];
+  const frame: Frame = { west: minX - m, north: pole + m, side: boxWidth + 2 * m };
+  const pixel = frame.side / width;
+  // the tiny subtraction keeps a height that is exactly whole from gaining a row to floating-point noise
+  return { frame, height: Math.max(1, Math.ceil((2 * pole + 2 * m) / pixel - 1e-9)) };
 }
