@@ -14,15 +14,25 @@ import { factionColorList, buildEntryIndex, factionIndexOf, ownerTable } from '.
 import type { EntryIndex } from '../core/entries';
 import { frontField } from '../core/front';
 import type { FrontField } from '../core/front';
-import { instantLabels, labelsAt } from '../core/label-frame';
 import type { AnyLabelDraw, RoundLabels, StepLabels } from '../core/label-frame';
-import { labelTexts, roundLabels } from '../core/label-input';
-import { labelCounts } from '../core/label-counts';
+import { labelTexts } from '../core/label-input';
 import type { Counts } from '../core/label-counts';
 import { LABEL_PARAMS } from '../core/label-params';
 import { CENTRE_PARAMS } from '../core/centre-params';
-import { placeCentredFactions, placeCentredTerritories } from '../core/label-centred-place';
-import type { CentredFactionLayout } from '../core/label-centred-place';
+import type { FactionBoxes } from '../core/label-layout';
+import {
+  READABLE_PARAMS,
+  allCandidateTexts,
+  factionBoxesOf,
+  placeReadableFactions,
+  placeReadableTerritories,
+  readableCounts,
+  readableRoundLabels,
+  resolveFrameLabels,
+  stepReadableLabels,
+  upgradeTourDraws,
+} from '../core/label-readable';
+import type { ReadableDraw, ReadableFactionTiers } from '../core/label-readable';
 import { completeRunning, frame, motionChanged, request, startPlayback } from '../core/playback';
 import type { PlaybackState, RequestOutcome } from '../core/playback';
 import { buildPieceIndex } from '../core/regions';
@@ -58,9 +68,9 @@ import { measureAspects } from './text-metrics';
 /** Everything the drawing needs of one round: its owner table, faction label layout and label draw data. */
 interface RoundView {
   table: Uint16Array;
-  layout: CentredFactionLayout;
+  layout: { readable: ReadableFactionTiers; boxes: FactionBoxes };
   labels: RoundLabels;
-  draws: AnyLabelDraw[];
+  draws: ReadableDraw[];
   counts: { faction: Counts; territory: Counts };
 }
 
@@ -170,32 +180,21 @@ export function createMapView(input: MapViewInput): MapView {
   const renderer = attachRenderer(canvas, mapScene);
   const labelLayer = attachLabelLayer(labelCanvas);
 
-  // Labels: the piece index and the territory boxes are computed once per page load (FR-171, NFR-32).
+  // Labels: the piece index and the territory tiers are computed once per page load (FR-171, NFR-32, spec 032).
   const pieces = buildPieceIndex(index);
   const texts = labelTexts(map, presentation, owners);
-  const aspectOf = measureAspects([...texts.factions.values(), ...texts.territories.filter((t): t is string => t !== undefined)]);
-  const factionAspects = new Map<number, number>();
-  for (const [faction, name] of texts.factions) {
-    const aspect = aspectOf.get(name);
-    if (aspect !== undefined) factionAspects.set(faction, aspect);
-  }
-  const territoryLayout = placeCentredTerritories(
-    pieces,
-    texts.territories.map((t) => (t === undefined ? undefined : aspectOf.get(t))),
-    LABEL_PARAMS,
-    SHAPE_PARAMS,
-    CENTRE_PARAMS,
-  );
+  const aspectOf = measureAspects(allCandidateTexts([...texts.factions.values(), ...texts.territories.filter((t): t is string => t !== undefined)]));
+  const territoryTiers = placeReadableTerritories(pieces, texts.territories, aspectOf, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS);
 
   // Layouts computed while a tour is on screen (the debug panel shows it: 0 for a victim tour, 1 for an absorber tour).
   let counting = false;
   let tourLayouts = 0;
   const viewOf = (table: Uint16Array, previous?: RoundView): RoundView => {
     if (counting) tourLayouts++;
-    const layout = placeCentredFactions(pieces, table, factionAspects, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS, previous?.layout);
-    const placement = { factions: layout.placed, territories: territoryLayout.placed };
-    const labels = roundLabels(texts, table, layout.boxes, territoryLayout.boxes, placement);
-    return { table, layout, labels, draws: instantLabels(labels), counts: labelCounts(texts, table, layout, territoryLayout) };
+    const readable = placeReadableFactions(pieces, table, texts.factions, aspectOf, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS, previous?.layout.readable);
+    const boxes = factionBoxesOf(pieces, readable, texts.factions, aspectOf, LABEL_PARAMS);
+    const { labels, draws } = readableRoundLabels(texts, table, readable, territoryTiers, aspectOf);
+    return { table, layout: { readable, boxes }, labels, draws, counts: readableCounts(table, readable, territoryTiers) };
   };
   const stepOf = (earlier: RoundView, later: RoundView, data: StepData): StepView => {
     const transferred = new Set<number>();
@@ -278,7 +277,8 @@ export function createMapView(input: MapViewInput): MapView {
     const view = { camera, viewport, dpr: ratio, detail: detailFactor(image, viewport), fonts: fontEpoch() };
     mapScene.setView(view);
     renderer.draw();
-    labelLayer.draw(drawn, view, overlay);
+    const shown = overlay !== undefined ? upgradeTourDraws(drawn, current.draws, camera.scale, READABLE_PARAMS.minPx, current.labels) : drawn;
+    labelLayer.draw(shown, view, overlay);
   };
 
   const report = (status: TourStatus): void => {
@@ -354,12 +354,21 @@ export function createMapView(input: MapViewInput): MapView {
       if (shownTable !== stepView.later.table) mapScene.setOwners(stepView.later.table);
       shownTable = stepView.later.table;
       mapScene.setFront({ before: stepView.earlier.table, field: stepView.field, forward: shown.forward });
-      drawn = labelsAt(stepView.labels, shown.forward);
+      drawn = stepReadableLabels(
+        stepView.earlier.layout.readable,
+        stepView.later.layout.readable,
+        territoryTiers,
+        stepView.later.table,
+        { eliminated: stepView.labels.eliminated, absorber: stepView.labels.absorber },
+        aspectOf,
+        camera.scale,
+        shown.forward,
+      );
     } else {
       if (shownTable !== current.table) mapScene.setOwners(current.table);
       shownTable = current.table;
       mapScene.setFront(undefined);
-      drawn = current.draws;
+      drawn = resolveFrameLabels(current.draws, camera, viewport, READABLE_PARAMS);
     }
     mapScene.setTour(undefined);
     lastFrame = undefined;

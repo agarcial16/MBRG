@@ -1,0 +1,50 @@
+{
+  "factions": [
+    {
+      "id": 1,
+      "name": "Faccion Uno"
+    },
+    {
+      "id": 2,
+      "name": "Faccion Dos"
+    },
+    {
+      "id": 3,
+      "name": "Faccion Tres"
+    }
+  ],
+  "territories": [
+    {
+      "id": 1,
+      "name": "El Este"
+    },
+    {
+      "id": 2,
+      "name": "Isla"
+    },
+    {
+      "id": 3,
+      "name": "Medio"
+    },
+    {
+      "id": 4,
+      "name": "Norte"
+    },
+    {
+      "id": 5,
+      "name": "Oeste"
+    },
+    {
+      "id": 6,
+      "name": "Sur"
+    },
+    {
+      "id": 7,
+      "name": "Mar Interior"
+    },
+    {
+      "id": 8,
+      "name": "Mar Abierto"
+    }
+  ]
+}

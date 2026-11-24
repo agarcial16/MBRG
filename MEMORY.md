@@ -2,8 +2,8 @@
 Durable decisions, limits and lessons; no per-task diary (that is `specs/<id>/PROGRESS.md`; live work is `docs/board.md`). Area lessons: `docs/lessons/{web,bot,server,map}.md`. Keep <= ~4 KB.
 
 ## State
-Specs 001-027 and 029 implemented (028, the map importer, queued). Branch from `main`, PR into `main`.
-Predefined maps: `maps/spain-provinces` (52 provinces) and `maps/world-countries` (193 sovereign countries, 7 sea zones; data in `tools/build-map/data/world-countries/`, provenance and micro-country decisions in its README). Next big feature: the map importer. Deployment guide done (#84).
+Specs 001-029 implemented (028, the vector map importer, in PR #94 awaiting merge; hand run 1 on Spain by municipalities passed review). Branch from `main`, PR into `main`.
+Predefined maps: `maps/spain-provinces` (52 provinces), `maps/world-countries` (193 countries, 7 sea zones; data in `tools/build-map/data/world-countries/`). Next: viewer follow-ups V1-V3 (`docs/board.md`), painted-image importer (route A), replay of finished matches.
 
 ## Game
 Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random alive faction dies; a random neighbor takes all its territories; repeat until one remains. Players predict; they never control.
@@ -18,11 +18,13 @@ Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random
 - Per-server history (024): the bot sends only a SHA-256 community key (never the guild id), in request bodies; a finished match is listed once settled (> `TOLERANCE_MS` after its finish) so a paging walk keeps one snapshot.
 - Ranking windows (027): rolling 7/30 days; the server fixes the floor at the first page and the cursor carries it; wire member `period` (absent = all time).
 - Viewer count refusal (029) & many factions (033): a package beyond the viewer's tables (over 65,535 territories or 65,535 factions) is refused at load naming the limit; `checkCounts` reads `MAX_ENTRIES`/`MAX_FACTIONS` from `core/entries.ts`. Owner tables are 16-bit (`Uint16Array` / RG8 GPU texture, 2 bytes/entry, matching the 16-bit entry index). Faction colouring uses a 20-colour curated base palette (original 12 first + 8 Spec 031-aligned colours rotating in steps 1-2), soft-sea relaxation (PR #98), and a deterministic procedural last resort (`core/palette.ts`, >= 65,535 distinct colours) only when land neighbours exhaust curated colours; `palette-exhausted` stays as a defensive guard for custom finite themes.
+- Vector map importer (028): offline `import-map` (`extract`/`inspect`/`import`) in `@mbrg/build-map`, GeoJSON + curation JSON, up to 9,999 factions & 2^28 pixel guard; viewer limits (>2,048 texture, >65,535 entries, >255 factions, 12-colour palette) warn only (enforced by viewer V1-V2); no new third-party deps (Equal Earth, SHA-256, DBF reader are own code; `@mbrg/shared` and `apps/web` untouched per NFR-22).
+- Readable labels (032): in-land precomputed abbreviation tiers (full -> prefix + `.` -> plain acronym), screen-space height bounds (`minPx` 9, `maxPx` 48 faction / 28 territory), per-role screen overlap resolution (`minGapPx` 4), no off-land/leader lines, and always-on map hover/tap full-name readout.
 - Sea is an explicit entry kind (no owner); enclosed water joins the nearest sea zone; lakes stay background.
 
 ## Limits
 - Anti-spoiler: future rounds never reach the client. Determinism: same seed, same match.
-- Out of scope: i18n, importers, editor, 3D. Node >=24 (`.nvmrc` 24): any raise goes to the user.
+- Out of scope: i18n, painted-image importer (route A), editor, 3D. Node >=24 (`.nvmrc` 24): any raise goes to the user.
 
 ## Lessons (general)
 - Region = 4-connected piece, not a color. Test at real scale early; tiny ASCII tests hid real bugs. Synthetic fixtures must mimic real file quirks (NUL-padded DBF); a fixture for a tunable value uses a literal.

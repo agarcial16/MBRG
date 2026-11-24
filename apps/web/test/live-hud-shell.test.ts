@@ -176,14 +176,50 @@ describe('FR-359 to FR-364 the shell of the left column, the band, the track and
     expect(shell).toMatch(/hud\.live/);
   });
 
-  it('FR-364 FR-442 the selector is one scrolling strip of dots that jump to their round through the navigation of the runner, with no slider', () => {
+  it('FR-364 FR-442 spec 034 FR-660..FR-665 the selector is a dynamic sliding window with pinned Inicio, pager arrows, wheel/swipe shift, digits-only click-to-jump label, and no horizontal panel overflow', () => {
     expect(shell).toMatch(/trackTarget\(/);
+    expect(shell).toMatch(/roundWindow\(/);
+    expect(shell).toMatch(/windowCapacity\(/);
+    expect(shell).toMatch(/shiftWindow\(/);
+    expect(shell).toMatch(/resolveJump\(/);
+    expect(shell).toMatch(/sanitizeJumpInput\(/);
     expect(shell).toContain('STRINGS.hudTrackRound');
+    expect(shell).toContain('STRINGS.hudTrackStart');
+    expect(shell).toContain('STRINGS.hudTrackWindowPrev');
+    expect(shell).toContain('STRINGS.hudTrackWindowNext');
+    expect(shell).toContain('STRINGS.hudJumpTrigger');
+    expect(shell).toContain('STRINGS.hudJumpInput');
+    expect(shell).toContain('STRINGS.hudJumpConfirm');
+    expect(shell).toContain('STRINGS.hudJumpConfirmLabel');
+    expect(shell).toContain('hud-jump-box');
+    expect(shell).toContain('hud-jump-confirm');
+    expect(shell).toMatch(/addEventListener\(\s*'focusout'/);
+    expect(shell).toMatch(/addEventListener\(\s*'pointerdown'/);
+    expect(shell).not.toContain('hudJumpInvalid');
+    expect(shell).not.toContain('hud-jump-error');
+    expect(css).not.toContain('.hud-jump-error');
+    expect(css).toContain('.hud-jump-box');
+    expect(css).toContain('.hud-jump-confirm');
+    expect(rules('.hud-jump-box').join(';')).toMatch(/margin-right:/);
+    const phoneConfirm = rules('[data-layout="phone"] .hud-jump-confirm').join(';');
+    expect(phoneConfirm).toMatch(/min-width:\s*36px/);
+    expect(phoneConfirm).toMatch(/min-height:\s*36px/);
     expect(shell).not.toMatch(/type\s*=\s*'range'/);
+    expect(shell).toMatch(/inputMode\s*=\s*'numeric'/);
+    expect(shell).toMatch(/addEventListener\(\s*'input'/);
+    expect(shell).toMatch(/addEventListener\(\s*'paste'/);
     expect(shell).toMatch(/handlers\.onNavigate\(target\)/);
-    expect(shell).toMatch(/stripScroll\(/);
-    expect(rules('.hud-track').join(';')).toMatch(/overflow-x:\s*auto/);
+    expect(shell).toMatch(/addEventListener\(\s*'wheel'/);
+    expect(shell).toMatch(/addEventListener\(\s*'touchstart'/);
+    expect(shell).toMatch(/Enter/);
+    expect(shell).toMatch(/Escape/);
+    expect(rules('.hud-track').join(';')).toMatch(/overflow:\s*hidden/);
     expect(rules('.hud-track').join(';')).toMatch(/flex-wrap:\s*nowrap/);
+    expect(rules('[data-layout="desk"] .hud-command').join(';')).toMatch(/overflow-x:\s*hidden/);
+    expect(rules('.hud-controls').join(';')).toMatch(/min-width:\s*0/);
+    const phonePager = rules('[data-layout="phone"] .hud-track-pager').join(';');
+    expect(phonePager).toMatch(/min-width:\s*36px/);
+    expect(phonePager).toMatch(/min-height:\s*36px/);
   });
 
   it('FR-441 the round controls move between the command panel (desk) and the strip of the dock (phone) as one element, so they are on every tab', () => {
@@ -346,5 +382,22 @@ describe('HUD polish: minimap alignment, factions overflow, brand logo and refus
     expect(messageShell).toContain("'?start'");
     expect(messageShell).toMatch(/hud-btn primary/);
     expect(languageViolations(messageShell)).toStrictEqual([]);
+  });
+
+  it('the personal link popover stacks above leaderboard and minimap with border-box sizing and opaque background', () => {
+    const pop = rules('.hud-pop').find((r) => r.includes('z-index:'));
+    expect(pop).toBeDefined();
+    expect(pop).toMatch(/z-index:\s*10/);
+    expect(pop).toMatch(/box-sizing:\s*border-box/);
+    expect(rules('[data-layout="desk"] .hud-pop').join(';')).toMatch(/background:\s*var\(--hud-wood\)/);
+  });
+
+  it('prediction chips keep padding inside their scroll container and use a real border so sub-pixel positions never clip the top edge', () => {
+    const picks = rules('.hud-picks').find((r) => r.includes('overflow: auto'));
+    expect(picks).toBeDefined();
+    expect(picks).toMatch(/padding:\s*2px 1px/);
+    const pick = rules('.hud-pick').find((r) => r.includes('border:'));
+    expect(pick).toBeDefined();
+    expect(pick).toMatch(/border:\s*1px solid var\(--hud-gilt-dim\)/);
   });
 });

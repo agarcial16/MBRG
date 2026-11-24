@@ -1,0 +1,1084 @@
+{
+  "primary": "../natural-earth/provinces.json",
+  "context": [
+    "../natural-earth/other-land.json"
+  ],
+  "columns": {
+    "key": "adm1_code",
+    "name": [
+      "name_es",
+      "name"
+    ]
+  },
+  "select": [],
+  "exclude": [
+    "ESP-5815",
+    "ESP-5829",
+    "ESP-5835",
+    "ESP-5842",
+    "FRA-1442",
+    "FRA-2000",
+    "FRA-4601",
+    "FRA-4602",
+    "FRA-4603",
+    "PRT-735",
+    "PRT-736"
+  ],
+  "params": {
+    "side": 2048,
+    "margin": 0.02,
+    "minPieceSize": 40,
+    "contextGap": 0,
+    "projection": "laea"
+  },
+  "units": {
+    "DEU-1573": {
+      "territory": "deu-baden-wurtemberg"
+    },
+    "DEU-1576": {
+      "territory": "deu-baja-sajonia"
+    },
+    "DEU-1591": {
+      "territory": "deu-baviera"
+    },
+    "DEU-1599": {
+      "territory": "deu-berlin"
+    },
+    "DEU-3487": {
+      "territory": "deu-brandeburgo"
+    },
+    "DEU-1575": {
+      "territory": "deu-bremen"
+    },
+    "DEU-1578": {
+      "territory": "deu-hamburgo"
+    },
+    "DEU-1574": {
+      "territory": "deu-hesse"
+    },
+    "DEU-3488": {
+      "territory": "deu-mecklemburgo"
+    },
+    "DEU-1580": {
+      "territory": "deu-renania-palatinado"
+    },
+    "DEU-1572": {
+      "territory": "deu-renania-westfalia"
+    },
+    "DEU-1601": {
+      "territory": "deu-sajonia"
+    },
+    "DEU-1600": {
+      "territory": "deu-sajonia-anhalt"
+    },
+    "DEU-1581": {
+      "territory": "deu-sarre"
+    },
+    "DEU-1579": {
+      "territory": "deu-schleswig-holstein"
+    },
+    "DEU-1577": {
+      "territory": "deu-turingia"
+    },
+    "ESP-5804": {
+      "territory": "esp-andalucia"
+    },
+    "ESP-5812": {
+      "territory": "esp-andalucia"
+    },
+    "ESP-5817": {
+      "territory": "esp-andalucia"
+    },
+    "ESP-5821": {
+      "territory": "esp-andalucia"
+    },
+    "ESP-5824": {
+      "territory": "esp-andalucia"
+    },
+    "ESP-5826": {
+      "territory": "esp-andalucia"
+    },
+    "ESP-5834": {
+      "territory": "esp-andalucia"
+    },
+    "ESP-5844": {
+      "territory": "esp-andalucia"
+    },
+    "ESP-5825": {
+      "territory": "esp-aragon"
+    },
+    "ESP-5847": {
+      "territory": "esp-aragon"
+    },
+    "ESP-5853": {
+      "territory": "esp-aragon"
+    },
+    "ESP-5805": {
+      "territory": "esp-asturias"
+    },
+    "ESP-5808": {
+      "territory": "esp-baleares"
+    },
+    "ESP-5813": {
+      "territory": "esp-cantabria"
+    },
+    "ESP-5802": {
+      "territory": "esp-castilla-la-mancha"
+    },
+    "ESP-5816": {
+      "territory": "esp-castilla-la-mancha"
+    },
+    "ESP-5818": {
+      "territory": "esp-castilla-la-mancha"
+    },
+    "ESP-5822": {
+      "territory": "esp-castilla-la-mancha"
+    },
+    "ESP-5848": {
+      "territory": "esp-castilla-la-mancha"
+    },
+    "ESP-5806": {
+      "territory": "esp-castilla-y-leon"
+    },
+    "ESP-5810": {
+      "territory": "esp-castilla-y-leon"
+    },
+    "ESP-5830": {
+      "territory": "esp-castilla-y-leon"
+    },
+    "ESP-5839": {
+      "territory": "esp-castilla-y-leon"
+    },
+    "ESP-5841": {
+      "territory": "esp-castilla-y-leon"
+    },
+    "ESP-5843": {
+      "territory": "esp-castilla-y-leon"
+    },
+    "ESP-5845": {
+      "territory": "esp-castilla-y-leon"
+    },
+    "ESP-5850": {
+      "territory": "esp-castilla-y-leon"
+    },
+    "ESP-5852": {
+      "territory": "esp-castilla-y-leon"
+    },
+    "ESP-5809": {
+      "territory": "esp-cataluna"
+    },
+    "ESP-5820": {
+      "territory": "esp-cataluna"
+    },
+    "ESP-5831": {
+      "territory": "esp-cataluna"
+    },
+    "ESP-5846": {
+      "territory": "esp-cataluna"
+    },
+    "ESP-5807": {
+      "territory": "esp-extremadura"
+    },
+    "ESP-5811": {
+      "territory": "esp-extremadura"
+    },
+    "ESP-5827": {
+      "territory": "esp-galicia"
+    },
+    "ESP-5832": {
+      "territory": "esp-galicia"
+    },
+    "ESP-5838": {
+      "territory": "esp-galicia"
+    },
+    "ESP-5840": {
+      "territory": "esp-galicia"
+    },
+    "ESP-5828": {
+      "territory": "esp-la-rioja"
+    },
+    "ESP-5833": {
+      "territory": "esp-madrid"
+    },
+    "ESP-5836": {
+      "territory": "esp-murcia"
+    },
+    "ESP-5837": {
+      "territory": "esp-navarra"
+    },
+    "ESP-5801": {
+      "territory": "esp-pais-vasco"
+    },
+    "ESP-5823": {
+      "territory": "esp-pais-vasco"
+    },
+    "ESP-5851": {
+      "territory": "esp-pais-vasco"
+    },
+    "ESP-5803": {
+      "territory": "esp-valencia"
+    },
+    "ESP-5814": {
+      "territory": "esp-valencia"
+    },
+    "ESP-5849": {
+      "territory": "esp-valencia"
+    },
+    "FRA-5263": {
+      "territory": "fra-alta-francia"
+    },
+    "FRA-5330": {
+      "territory": "fra-alta-francia"
+    },
+    "FRA-5331": {
+      "territory": "fra-alta-francia"
+    },
+    "FRA-5334": {
+      "territory": "fra-alta-francia"
+    },
+    "FRA-5345": {
+      "territory": "fra-alta-francia"
+    },
+    "FRA-5262": {
+      "territory": "fra-auvergne-rodano-alpes"
+    },
+    "FRA-5264": {
+      "territory": "fra-auvergne-rodano-alpes"
+    },
+    "FRA-5267": {
+      "territory": "fra-auvergne-rodano-alpes"
+    },
+    "FRA-5276": {
+      "territory": "fra-auvergne-rodano-alpes"
+    },
+    "FRA-5288": {
+      "territory": "fra-auvergne-rodano-alpes"
+    },
+    "FRA-5311": {
+      "territory": "fra-auvergne-rodano-alpes"
+    },
+    "FRA-5315": {
+      "territory": "fra-auvergne-rodano-alpes"
+    },
+    "FRA-5299": {
+      "territory": "fra-auvergne-rodano-alpes"
+    },
+    "FRA-5335": {
+      "territory": "fra-auvergne-rodano-alpes"
+    },
+    "FRA-5338": {
+      "territory": "fra-auvergne-rodano-alpes"
+    },
+    "FRA-5341": {
+      "territory": "fra-auvergne-rodano-alpes"
+    },
+    "FRA-5302": {
+      "territory": "fra-auvergne-rodano-alpes"
+    },
+    "FRA-5282": {
+      "territory": "fra-borgona-franco-condado"
+    },
+    "FRA-5287": {
+      "territory": "fra-borgona-franco-condado"
+    },
+    "FRA-5312": {
+      "territory": "fra-borgona-franco-condado"
+    },
+    "FRA-5329": {
+      "territory": "fra-borgona-franco-condado"
+    },
+    "FRA-5301": {
+      "territory": "fra-borgona-franco-condado"
+    },
+    "FRA-5339": {
+      "territory": "fra-borgona-franco-condado"
+    },
+    "FRA-5356": {
+      "territory": "fra-borgona-franco-condado"
+    },
+    "FRA-5348": {
+      "territory": "fra-borgona-franco-condado"
+    },
+    "FRA-5283": {
+      "territory": "fra-bretana"
+    },
+    "FRA-5292": {
+      "territory": "fra-bretana"
+    },
+    "FRA-5308": {
+      "territory": "fra-bretana"
+    },
+    "FRA-5327": {
+      "territory": "fra-bretana"
+    },
+    "FRA-5279": {
+      "territory": "fra-centro-valle-del-loira"
+    },
+    "FRA-5291": {
+      "territory": "fra-centro-valle-del-loira"
+    },
+    "FRA-5309": {
+      "territory": "fra-centro-valle-del-loira"
+    },
+    "FRA-5310": {
+      "territory": "fra-centro-valle-del-loira"
+    },
+    "FRA-5314": {
+      "territory": "fra-centro-valle-del-loira"
+    },
+    "FRA-5317": {
+      "territory": "fra-centro-valle-del-loira"
+    },
+    "FRA-5281": {
+      "territory": "fra-corcega"
+    },
+    "FRA-5297": {
+      "territory": "fra-corcega"
+    },
+    "FRA-5268": {
+      "territory": "fra-gran-este"
+    },
+    "FRA-5270": {
+      "territory": "fra-gran-este"
+    },
+    "FRA-5323": {
+      "territory": "fra-gran-este"
+    },
+    "FRA-5300": {
+      "territory": "fra-gran-este"
+    },
+    "FRA-5325": {
+      "territory": "fra-gran-este"
+    },
+    "FRA-5326": {
+      "territory": "fra-gran-este"
+    },
+    "FRA-5328": {
+      "territory": "fra-gran-este"
+    },
+    "FRA-5273": {
+      "territory": "fra-gran-este"
+    },
+    "FRA-5296": {
+      "territory": "fra-gran-este"
+    },
+    "FRA-5355": {
+      "territory": "fra-gran-este"
+    },
+    "FRA-5333": {
+      "territory": "fra-isla-de-francia"
+    },
+    "FRA-5342": {
+      "territory": "fra-isla-de-francia"
+    },
+    "FRA-5357": {
+      "territory": "fra-isla-de-francia"
+    },
+    "FRA-5289": {
+      "territory": "fra-isla-de-francia"
+    },
+    "FRA-5306": {
+      "territory": "fra-isla-de-francia"
+    },
+    "FRA-5344": {
+      "territory": "fra-isla-de-francia"
+    },
+    "FRA-5350": {
+      "territory": "fra-isla-de-francia"
+    },
+    "FRA-5349": {
+      "territory": "fra-isla-de-francia"
+    },
+    "FRA-5275": {
+      "territory": "fra-normandia"
+    },
+    "FRA-5290": {
+      "territory": "fra-normandia"
+    },
+    "FRA-5322": {
+      "territory": "fra-normandia"
+    },
+    "FRA-5332": {
+      "territory": "fra-normandia"
+    },
+    "FRA-5343": {
+      "territory": "fra-normandia"
+    },
+    "FRA-5277": {
+      "territory": "fra-nueva-aquitania"
+    },
+    "FRA-5278": {
+      "territory": "fra-nueva-aquitania"
+    },
+    "FRA-5280": {
+      "territory": "fra-nueva-aquitania"
+    },
+    "FRA-5284": {
+      "territory": "fra-nueva-aquitania"
+    },
+    "FRA-5286": {
+      "territory": "fra-nueva-aquitania"
+    },
+    "FRA-5295": {
+      "territory": "fra-nueva-aquitania"
+    },
+    "FRA-5313": {
+      "territory": "fra-nueva-aquitania"
+    },
+    "FRA-5319": {
+      "territory": "fra-nueva-aquitania"
+    },
+    "FRA-5336": {
+      "territory": "fra-nueva-aquitania"
+    },
+    "FRA-5285": {
+      "territory": "fra-nueva-aquitania"
+    },
+    "FRA-5354": {
+      "territory": "fra-nueva-aquitania"
+    },
+    "FRA-5303": {
+      "territory": "fra-nueva-aquitania"
+    },
+    "FRA-5269": {
+      "territory": "fra-occitania"
+    },
+    "FRA-5271": {
+      "territory": "fra-occitania"
+    },
+    "FRA-5272": {
+      "territory": "fra-occitania"
+    },
+    "FRA-5293": {
+      "territory": "fra-occitania"
+    },
+    "FRA-5298": {
+      "territory": "fra-occitania"
+    },
+    "FRA-5294": {
+      "territory": "fra-occitania"
+    },
+    "FRA-5307": {
+      "territory": "fra-occitania"
+    },
+    "FRA-5318": {
+      "territory": "fra-occitania"
+    },
+    "FRA-5320": {
+      "territory": "fra-occitania"
+    },
+    "FRA-5305": {
+      "territory": "fra-occitania"
+    },
+    "FRA-5337": {
+      "territory": "fra-occitania"
+    },
+    "FRA-5346": {
+      "territory": "fra-occitania"
+    },
+    "FRA-5347": {
+      "territory": "fra-occitania"
+    },
+    "FRA-5316": {
+      "territory": "fra-paises-del-loira"
+    },
+    "FRA-5321": {
+      "territory": "fra-paises-del-loira"
+    },
+    "FRA-5324": {
+      "territory": "fra-paises-del-loira"
+    },
+    "FRA-5340": {
+      "territory": "fra-paises-del-loira"
+    },
+    "FRA-5353": {
+      "territory": "fra-paises-del-loira"
+    },
+    "FRA-5265": {
+      "territory": "fra-provenza-alpes-costa-azul"
+    },
+    "FRA-5304": {
+      "territory": "fra-provenza-alpes-costa-azul"
+    },
+    "FRA-5266": {
+      "territory": "fra-provenza-alpes-costa-azul"
+    },
+    "FRA-5274": {
+      "territory": "fra-provenza-alpes-costa-azul"
+    },
+    "FRA-5351": {
+      "territory": "fra-provenza-alpes-costa-azul"
+    },
+    "FRA-5352": {
+      "territory": "fra-provenza-alpes-costa-azul"
+    },
+    "ITA-5418": {
+      "territory": "ita-abruzos"
+    },
+    "ITA-5419": {
+      "territory": "ita-abruzos"
+    },
+    "ITA-5420": {
+      "territory": "ita-abruzos"
+    },
+    "ITA-5421": {
+      "territory": "ita-abruzos"
+    },
+    "ITA-5403": {
+      "territory": "ita-apulia"
+    },
+    "ITA-5404": {
+      "territory": "ita-apulia"
+    },
+    "ITA-5405": {
+      "territory": "ita-apulia"
+    },
+    "ITA-5406": {
+      "territory": "ita-apulia"
+    },
+    "ITA-5407": {
+      "territory": "ita-apulia"
+    },
+    "ITA-5408": {
+      "territory": "ita-apulia"
+    },
+    "ITA-5389": {
+      "territory": "ita-basilicata"
+    },
+    "ITA-5390": {
+      "territory": "ita-basilicata"
+    },
+    "ITA-5391": {
+      "territory": "ita-calabria"
+    },
+    "ITA-5392": {
+      "territory": "ita-calabria"
+    },
+    "ITA-5393": {
+      "territory": "ita-calabria"
+    },
+    "ITA-5394": {
+      "territory": "ita-calabria"
+    },
+    "ITA-5395": {
+      "territory": "ita-calabria"
+    },
+    "ITA-5396": {
+      "territory": "ita-campania"
+    },
+    "ITA-5397": {
+      "territory": "ita-campania"
+    },
+    "ITA-5398": {
+      "territory": "ita-campania"
+    },
+    "ITA-5399": {
+      "territory": "ita-campania"
+    },
+    "ITA-5400": {
+      "territory": "ita-campania"
+    },
+    "ITA-5371": {
+      "territory": "ita-cerdena"
+    },
+    "ITA-5372": {
+      "territory": "ita-cerdena"
+    },
+    "ITA-5373": {
+      "territory": "ita-cerdena"
+    },
+    "ITA-5374": {
+      "territory": "ita-cerdena"
+    },
+    "ITA-5375": {
+      "territory": "ita-cerdena"
+    },
+    "ITA-5376": {
+      "territory": "ita-cerdena"
+    },
+    "ITA-5377": {
+      "territory": "ita-cerdena"
+    },
+    "ITA-5378": {
+      "territory": "ita-cerdena"
+    },
+    "ITA-5358": {
+      "territory": "ita-emilia-romana"
+    },
+    "ITA-5359": {
+      "territory": "ita-emilia-romana"
+    },
+    "ITA-5360": {
+      "territory": "ita-emilia-romana"
+    },
+    "ITA-5361": {
+      "territory": "ita-emilia-romana"
+    },
+    "ITA-5362": {
+      "territory": "ita-emilia-romana"
+    },
+    "ITA-5363": {
+      "territory": "ita-emilia-romana"
+    },
+    "ITA-5364": {
+      "territory": "ita-emilia-romana"
+    },
+    "ITA-5365": {
+      "territory": "ita-emilia-romana"
+    },
+    "ITA-5366": {
+      "territory": "ita-emilia-romana"
+    },
+    "ITA-5455": {
+      "territory": "ita-friuli-venecia-julia"
+    },
+    "ITA-5456": {
+      "territory": "ita-friuli-venecia-julia"
+    },
+    "ITA-5457": {
+      "territory": "ita-friuli-venecia-julia"
+    },
+    "ITA-5458": {
+      "territory": "ita-friuli-venecia-julia"
+    },
+    "ITA-5422": {
+      "territory": "ita-lacio"
+    },
+    "ITA-5423": {
+      "territory": "ita-lacio"
+    },
+    "ITA-5424": {
+      "territory": "ita-lacio"
+    },
+    "ITA-5425": {
+      "territory": "ita-lacio"
+    },
+    "ITA-5426": {
+      "territory": "ita-lacio"
+    },
+    "ITA-5367": {
+      "territory": "ita-liguria"
+    },
+    "ITA-5368": {
+      "territory": "ita-liguria"
+    },
+    "ITA-5369": {
+      "territory": "ita-liguria"
+    },
+    "ITA-5370": {
+      "territory": "ita-liguria"
+    },
+    "ITA-5443": {
+      "territory": "ita-lombardia"
+    },
+    "ITA-5444": {
+      "territory": "ita-lombardia"
+    },
+    "ITA-5445": {
+      "territory": "ita-lombardia"
+    },
+    "ITA-5446": {
+      "territory": "ita-lombardia"
+    },
+    "ITA-5447": {
+      "territory": "ita-lombardia"
+    },
+    "ITA-5448": {
+      "territory": "ita-lombardia"
+    },
+    "ITA-5449": {
+      "territory": "ita-lombardia"
+    },
+    "ITA-5450": {
+      "territory": "ita-lombardia"
+    },
+    "ITA-5451": {
+      "territory": "ita-lombardia"
+    },
+    "ITA-5452": {
+      "territory": "ita-lombardia"
+    },
+    "ITA-5453": {
+      "territory": "ita-lombardia"
+    },
+    "ITA-5454": {
+      "territory": "ita-lombardia"
+    },
+    "ITA-5427": {
+      "territory": "ita-marcas"
+    },
+    "ITA-5428": {
+      "territory": "ita-marcas"
+    },
+    "ITA-5429": {
+      "territory": "ita-marcas"
+    },
+    "ITA-5430": {
+      "territory": "ita-marcas"
+    },
+    "ITA-5431": {
+      "territory": "ita-marcas"
+    },
+    "ITA-5401": {
+      "territory": "ita-molise"
+    },
+    "ITA-5402": {
+      "territory": "ita-molise"
+    },
+    "ITA-5434": {
+      "territory": "ita-piamonte"
+    },
+    "ITA-5435": {
+      "territory": "ita-piamonte"
+    },
+    "ITA-5436": {
+      "territory": "ita-piamonte"
+    },
+    "ITA-5437": {
+      "territory": "ita-piamonte"
+    },
+    "ITA-5438": {
+      "territory": "ita-piamonte"
+    },
+    "ITA-5439": {
+      "territory": "ita-piamonte"
+    },
+    "ITA-5440": {
+      "territory": "ita-piamonte"
+    },
+    "ITA-5441": {
+      "territory": "ita-piamonte"
+    },
+    "ITA-5409": {
+      "territory": "ita-sicilia"
+    },
+    "ITA-5410": {
+      "territory": "ita-sicilia"
+    },
+    "ITA-5411": {
+      "territory": "ita-sicilia"
+    },
+    "ITA-5412": {
+      "territory": "ita-sicilia"
+    },
+    "ITA-5413": {
+      "territory": "ita-sicilia"
+    },
+    "ITA-5414": {
+      "territory": "ita-sicilia"
+    },
+    "ITA-5415": {
+      "territory": "ita-sicilia"
+    },
+    "ITA-5416": {
+      "territory": "ita-sicilia"
+    },
+    "ITA-5417": {
+      "territory": "ita-sicilia"
+    },
+    "ITA-5379": {
+      "territory": "ita-toscana"
+    },
+    "ITA-5380": {
+      "territory": "ita-toscana"
+    },
+    "ITA-5381": {
+      "territory": "ita-toscana"
+    },
+    "ITA-5382": {
+      "territory": "ita-toscana"
+    },
+    "ITA-5383": {
+      "territory": "ita-toscana"
+    },
+    "ITA-5384": {
+      "territory": "ita-toscana"
+    },
+    "ITA-5385": {
+      "territory": "ita-toscana"
+    },
+    "ITA-5386": {
+      "territory": "ita-toscana"
+    },
+    "ITA-5387": {
+      "territory": "ita-toscana"
+    },
+    "ITA-5388": {
+      "territory": "ita-toscana"
+    },
+    "ITA-5459": {
+      "territory": "ita-trentino-alto-adigio"
+    },
+    "ITA-5460": {
+      "territory": "ita-trentino-alto-adigio"
+    },
+    "ITA-5432": {
+      "territory": "ita-umbria"
+    },
+    "ITA-5433": {
+      "territory": "ita-umbria"
+    },
+    "ITA-5442": {
+      "territory": "ita-valle-de-aosta"
+    },
+    "ITA-5461": {
+      "territory": "ita-veneto"
+    },
+    "ITA-5462": {
+      "territory": "ita-veneto"
+    },
+    "ITA-5463": {
+      "territory": "ita-veneto"
+    },
+    "ITA-5464": {
+      "territory": "ita-veneto"
+    },
+    "ITA-5465": {
+      "territory": "ita-veneto"
+    },
+    "ITA-5466": {
+      "territory": "ita-veneto"
+    },
+    "ITA-5467": {
+      "territory": "ita-veneto"
+    },
+    "PRT-748": {
+      "territory": "prt-alentejo"
+    },
+    "PRT-747": {
+      "territory": "prt-alentejo"
+    },
+    "PRT-744": {
+      "territory": "prt-alentejo"
+    },
+    "PRT-743": {
+      "territory": "prt-alentejo"
+    },
+    "PRT-745": {
+      "territory": "prt-algarve"
+    },
+    "PRT-739": {
+      "territory": "prt-centro"
+    },
+    "PRT-752": {
+      "territory": "prt-centro"
+    },
+    "PRT-740": {
+      "territory": "prt-centro"
+    },
+    "PRT-755": {
+      "territory": "prt-centro"
+    },
+    "PRT-753": {
+      "territory": "prt-centro"
+    },
+    "PRT-751": {
+      "territory": "prt-centro"
+    },
+    "PRT-746": {
+      "territory": "prt-lisboa"
+    },
+    "PRT-5498": {
+      "territory": "prt-lisboa"
+    },
+    "PRT-741": {
+      "territory": "prt-norte"
+    },
+    "PRT-749": {
+      "territory": "prt-norte"
+    },
+    "PRT-754": {
+      "territory": "prt-norte"
+    },
+    "PRT-756": {
+      "territory": "prt-norte"
+    },
+    "PRT-750": {
+      "territory": "prt-norte"
+    }
+  },
+  "territoryNames": {
+    "deu-baden-wurtemberg": "Baden-Wurtemberg",
+    "deu-baja-sajonia": "Baja Sajonia",
+    "deu-baviera": "Baviera",
+    "deu-berlin": "Berlín",
+    "deu-brandeburgo": "Brandeburgo",
+    "deu-bremen": "Bremen",
+    "deu-hamburgo": "Hamburgo",
+    "deu-hesse": "Hesse",
+    "deu-mecklemburgo": "Mecklemburgo-Pomerania Occidental",
+    "deu-renania-palatinado": "Renania-Palatinado",
+    "deu-renania-westfalia": "Renania del Norte-Westfalia",
+    "deu-sajonia": "Sajonia",
+    "deu-sajonia-anhalt": "Sajonia-Anhalt",
+    "deu-sarre": "Sarre",
+    "deu-schleswig-holstein": "Schleswig-Holstein",
+    "deu-turingia": "Turingia",
+    "esp-andalucia": "Andalucía",
+    "esp-aragon": "Aragón",
+    "esp-asturias": "Asturias",
+    "esp-baleares": "Islas Baleares",
+    "esp-cantabria": "Cantabria",
+    "esp-castilla-la-mancha": "Castilla-La Mancha",
+    "esp-castilla-y-leon": "Castilla y León",
+    "esp-cataluna": "Cataluña",
+    "esp-extremadura": "Extremadura",
+    "esp-galicia": "Galicia",
+    "esp-la-rioja": "La Rioja",
+    "esp-madrid": "Comunidad de Madrid",
+    "esp-murcia": "Región de Murcia",
+    "esp-navarra": "Navarra",
+    "esp-pais-vasco": "País Vasco",
+    "esp-valencia": "Comunidad Valenciana",
+    "fra-alta-francia": "Alta Francia",
+    "fra-auvergne-rodano-alpes": "Auvernia-Ródano-Alpes",
+    "fra-borgona-franco-condado": "Borgoña-Franco Condado",
+    "fra-bretana": "Bretaña",
+    "fra-centro-valle-del-loira": "Centro-Valle del Loira",
+    "fra-corcega": "Córcega",
+    "fra-gran-este": "Gran Este",
+    "fra-isla-de-francia": "Isla de Francia",
+    "fra-normandia": "Normandía",
+    "fra-nueva-aquitania": "Nueva Aquitania",
+    "fra-occitania": "Occitania",
+    "fra-paises-del-loira": "Países del Loira",
+    "fra-provenza-alpes-costa-azul": "Provenza-Alpes-Costa Azul",
+    "ita-abruzos": "Abruzos",
+    "ita-apulia": "Apulia",
+    "ita-basilicata": "Basilicata",
+    "ita-calabria": "Calabria",
+    "ita-campania": "Campania",
+    "ita-cerdena": "Cerdeña",
+    "ita-emilia-romana": "Emilia-Romaña",
+    "ita-friuli-venecia-julia": "Friuli-Venecia Julia",
+    "ita-lacio": "Lacio",
+    "ita-liguria": "Liguria",
+    "ita-lombardia": "Lombardía",
+    "ita-marcas": "Marcas",
+    "ita-molise": "Molise",
+    "ita-piamonte": "Piamonte",
+    "ita-sicilia": "Sicilia",
+    "ita-toscana": "Toscana",
+    "ita-trentino-alto-adigio": "Trentino-Alto Adigio",
+    "ita-umbria": "Umbría",
+    "ita-valle-de-aosta": "Valle de Aosta",
+    "ita-veneto": "Véneto",
+    "prt-alentejo": "Alentejo",
+    "prt-algarve": "Algarve",
+    "prt-centro": "Centro",
+    "prt-lisboa": "Lisboa",
+    "prt-norte": "Norte"
+  },
+  "factions": [
+    {
+      "key": "DEU",
+      "name": "Alemania"
+    },
+    {
+      "key": "ESP",
+      "name": "España"
+    },
+    {
+      "key": "FRA",
+      "name": "Francia"
+    },
+    {
+      "key": "ITA",
+      "name": "Italia"
+    },
+    {
+      "key": "PRT",
+      "name": "Portugal"
+    }
+  ],
+  "factionBy": {
+    "property": "adm0_a3"
+  },
+  "seas": [
+    {
+      "name": "Mar del Norte",
+      "lon": 3.5,
+      "lat": 55
+    },
+    {
+      "name": "Mar Báltico",
+      "lon": 16.5,
+      "lat": 55.5
+    },
+    {
+      "name": "Canal de la Mancha",
+      "lon": -1.5,
+      "lat": 50
+    },
+    {
+      "name": "Mar Céltico",
+      "lon": -8,
+      "lat": 50.5
+    },
+    {
+      "name": "Golfo de Vizcaya",
+      "lon": -5,
+      "lat": 45
+    },
+    {
+      "name": "Atlántico Ibérico",
+      "lon": -10.3,
+      "lat": 40.5
+    },
+    {
+      "name": "Golfo de Cádiz",
+      "lon": -7.5,
+      "lat": 36.2
+    },
+    {
+      "name": "Mar de Alborán",
+      "lon": -3,
+      "lat": 36
+    },
+    {
+      "name": "Mar Balear",
+      "lon": 2.5,
+      "lat": 39.3
+    },
+    {
+      "name": "Golfo de León",
+      "lon": 4,
+      "lat": 42.5
+    },
+    {
+      "name": "Mar de Liguria",
+      "lon": 8.5,
+      "lat": 43.7
+    },
+    {
+      "name": "Mar de Cerdeña",
+      "lon": 6.5,
+      "lat": 39.5
+    },
+    {
+      "name": "Mar Tirreno",
+      "lon": 12,
+      "lat": 40
+    },
+    {
+      "name": "Canal de Sicilia",
+      "lon": 12.5,
+      "lat": 36.5
+    },
+    {
+      "name": "Mar Jónico",
+      "lon": 18,
+      "lat": 38.5
+    },
+    {
+      "name": "Mar Adriático",
+      "lon": 14.5,
+      "lat": 43.2
+    },
+    {
+      "name": "Mediterráneo Sur",
+      "lon": 5,
+      "lat": 37
+    }
+  ]
+}

@@ -74,7 +74,7 @@ export const PANEL_CSS = `${pageCss()}
 .hud-swatch { width: 12px; height: 12px; border-radius: 2px; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4); }
 
 /* command panel / bottom hub (spec 031: Direction 2 centred broadcast scrubber hub) */
-.hud-command { position: absolute; left: 304px; right: 262px; bottom: 14px; box-sizing: border-box; max-width: 680px; margin: 0 auto; min-height: 0; padding: 12px 16px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-shadow: inset 0 0 0 1px var(--hud-gilt-dim), 0 10px 28px rgba(0, 0, 0, 0.5); }
+.hud-command { position: absolute; left: 304px; right: 262px; bottom: 14px; box-sizing: border-box; max-width: 740px; margin: 0 auto; min-height: 0; padding: 12px 16px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; box-shadow: inset 0 0 0 1px var(--hud-gilt-dim), 0 10px 28px rgba(0, 0, 0, 0.5); }
 .hud-line { font-size: 14px; }
 .hud-line:empty { display: none; }
 .hud-alert { color: var(--hud-ember); }
@@ -97,14 +97,21 @@ export const PANEL_CSS = `${pageCss()}
 .hud-minicanvas { width: 100%; height: auto; display: block; box-shadow: 0 0 0 1px var(--hud-gilt-dim); }
 .hud-minirect { position: absolute; border: 1.5px solid var(--hud-text); box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.28); pointer-events: none; }
 
-/* track of rounds (spec 031: Direction 2 connected horizontal scrubber rail) */
-.hud-roundsel { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* track of rounds (spec 031 rail + spec 034 dynamic sliding window, pinned Inicio, pager arrows and click-to-jump) */
+.hud-roundsel { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }
 .hud-track-label:empty { display: none; }
-.hud-track-label { flex: none; color: var(--hud-gilt); font: 600 13px var(--hud-display, 'Cormorant SC', Georgia, serif); white-space: nowrap; }
-/* FR-442: ONE row that scrolls sideways, however many rounds there are; the shell keeps the current round in view */
-.hud-track { position: relative; display: flex; align-items: center; gap: 10px; flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding: 3px 2px; }
-.hud-track::before { content: ''; position: absolute; left: 14px; right: 14px; top: 50%; height: 2px; margin-top: -1px; background: var(--hud-gilt-dim); opacity: 0.45; pointer-events: none; z-index: 0; }
-.hud-dot { position: relative; z-index: 1; flex: none; min-width: 28px; min-height: 28px; border-radius: 50%; border: 0; background: var(--hud-umber); color: var(--hud-muted); font: 600 12px var(--hud-display, 'Cormorant SC', Georgia, serif); cursor: pointer; box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); }
+.hud-track-label { flex: none; padding: 2px 5px; border: 0; border-radius: 3px; background: none; color: var(--hud-gilt); font: 600 13px var(--hud-display, 'Cormorant SC', Georgia, serif); white-space: nowrap; cursor: pointer; text-decoration: underline dotted var(--hud-gilt-dim); text-underline-offset: 3px; }
+.hud-track-label:disabled { cursor: default; text-decoration: none; }
+.hud-jump-box { position: relative; display: inline-flex; align-items: stretch; flex: none; margin-right: 12px; border-radius: 4px; background: var(--hud-umber); box-shadow: 0 0 0 1px var(--hud-gilt); }
+.hud-jump-box::after { content: ''; position: absolute; right: -8px; top: 3px; bottom: 3px; width: 1px; background: var(--hud-gilt-dim); opacity: 0.7; pointer-events: none; }
+.hud-jump-input { flex: none; width: 46px; min-width: 42px; min-height: 26px; padding: 0 4px; box-sizing: border-box; text-align: center; background: transparent; color: var(--hud-text); border: 0; border-radius: 4px 0 0 4px; font: 600 13px var(--hud-display, 'Cormorant SC', Georgia, serif); }
+.hud-jump-confirm { flex: none; min-width: 30px; min-height: 26px; padding: 0 9px; border: 0; border-radius: 0 4px 4px 0; background: var(--hud-gilt); color: var(--hud-on-gilt); font: 700 12px var(--hud-display, 'Cormorant SC', Georgia, serif); letter-spacing: 0.04em; cursor: pointer; white-space: nowrap; }
+.hud-track-pager { flex: none; min-width: 24px; min-height: 26px; padding: 0 4px; border: 0; border-radius: 3px; background: var(--hud-umber); color: var(--hud-gilt); box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); cursor: pointer; font: 600 14px/1 var(--hud-body, Spectral, Georgia, serif); }
+.hud-track-pager:disabled { opacity: 0.35; cursor: default; }
+/* FR-660 FR-664: dynamic sliding window confined to available width, no horizontal overflow */
+.hud-track { position: relative; display: flex; align-items: center; justify-content: center; gap: 4px; flex: 1 1 0; min-width: 0; flex-wrap: nowrap; overflow: hidden; padding: 3px 2px; touch-action: pan-y; }
+.hud-track::before { content: ''; position: absolute; left: 10px; right: 10px; top: 50%; height: 2px; margin-top: -1px; background: var(--hud-gilt-dim); opacity: 0.45; pointer-events: none; z-index: 0; }
+.hud-dot { position: relative; z-index: 1; flex: none; min-width: 28px; min-height: 28px; padding: 0 4px; border-radius: 999px; border: 0; background: var(--hud-umber); color: var(--hud-muted); font: 600 12px var(--hud-display, 'Cormorant SC', Georgia, serif); cursor: pointer; box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); }
 .hud-dot.current { background: var(--hud-gilt); color: var(--hud-on-gilt); box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.45); }
 .hud-dot.live:not(.current) { box-shadow: inset 0 0 0 2px var(--hud-verdigris); color: var(--hud-verdigris); }
 .hud-dot:disabled { opacity: 0.45; cursor: default; }
@@ -204,13 +211,17 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="phone"] .hud-playerchip::after { top: -13px; bottom: -13px; }
 .hud-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hud-chip-stats { flex: none; white-space: nowrap; }
-.hud-pop { position: absolute; right: 12px; top: 58px; width: min(340px, calc(100vw - 24px)); padding: 12px 16px; }
+.hud-pop { position: absolute; right: 12px; top: 58px; z-index: 10; box-sizing: border-box; width: min(360px, calc(100vw - 24px)); max-height: calc(100vh - 70px); overflow-y: auto; padding: 12px 16px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--hud-gilt), 0 14px 36px rgba(0, 0, 0, 0.7); }
+.hud[data-layout="desk"] .hud-pop { background: var(--hud-wood); backdrop-filter: none; }
+.hud-pop .hud-personal { margin-top: 0; }
+.hud[data-layout="desk"] .hud-pop .hud-link { flex-wrap: wrap; }
+.hud-pop .hud-link .hud-input { flex: 1 1 100%; }
 .hud-predict { padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 .hud-predict-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .hud-predict-count { color: var(--hud-gilt); font-size: 18px; }
-.hud-picks { display: flex; flex-wrap: wrap; gap: 6px; max-height: 18vh; overflow: auto; }
-.hud-pick { display: inline-flex; align-items: center; gap: 7px; }
-.hud-pick[aria-pressed="true"] { background: var(--hud-gilt); color: var(--hud-on-gilt); box-shadow: none; font-weight: 600; }
+.hud-picks { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 1px; max-height: 18vh; overflow: auto; }
+.hud-pick { display: inline-flex; align-items: center; gap: 7px; box-sizing: border-box; border: 1px solid var(--hud-gilt-dim); box-shadow: none; }
+.hud-pick[aria-pressed="true"] { background: var(--hud-gilt); color: var(--hud-on-gilt); border-color: var(--hud-gilt); box-shadow: none; font-weight: 600; }
 .hud-seal { align-self: flex-start; padding: 2px 12px; background: none; color: var(--hud-gilt); box-shadow: inset 0 0 0 1px var(--hud-gilt); font: 600 13px var(--hud-body, Spectral, Georgia, serif); }
 /* the rule above the result only separates it from a prediction block shown above it; at the top of the panel the frame already draws the two lines (spec 015 FR-430) */
 .hud-result { padding-top: 0; }
@@ -220,12 +231,12 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-result[data-right="true"] .hud-title { color: var(--hud-verdigris); }
 .hud-result[data-right="false"] .hud-title { color: var(--hud-ember); }
 /* desk: the command panel is compact (prediction and result side by side, track and buttons on one row) and never crosses the left column or the minimap */
-.hud[data-layout="desk"] .hud-command { flex-direction: row; flex-wrap: wrap; align-content: flex-start; gap: 6px 16px; min-height: 0; padding: 8px 14px; max-height: calc(100vh - 82px); overflow: auto; }
-.hud[data-layout="desk"] .hud-command > * { flex: 1 1 100%; }
+.hud[data-layout="desk"] .hud-command { flex-direction: row; flex-wrap: wrap; align-content: flex-start; gap: 6px 16px; min-height: 0; padding: 8px 14px; max-height: calc(100vh - 82px); overflow-x: hidden; overflow-y: auto; }
+.hud[data-layout="desk"] .hud-command > * { flex: 1 1 100%; min-width: 0; max-width: 100%; }
 .hud[data-layout="desk"] .hud-command > .hud-predict,
 .hud[data-layout="desk"] .hud-command > .hud-result { flex: 1 1 280px; min-width: 0; }
 /* the dots and the five controls: ONE row, pinned to the bottom of the panel (the panel is anchored at the bottom, so the buttons never move between states) */
-.hud-controls { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px 16px; margin-top: auto; }
+.hud-controls { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px 12px; margin-top: auto; min-width: 0; max-width: 100%; }
 .hud-controls > .hud-roundsel { flex: 1 1 0; }
 .hud-controls > .hud-nav { flex: none; justify-content: flex-end; flex-wrap: nowrap; gap: 6px; }
 .hud[data-layout="desk"] .hud-command > .hud-predict,
@@ -254,7 +265,7 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="desk"] .hud-result > .hud-title,
 .hud[data-layout="desk"] .hud-result > p:nth-of-type(3) { display: none; }
 .hud[data-layout="desk"] .hud-command:has(.hud-predict:not([hidden])) > .hud-title { display: none; }
-.hud[data-layout="desk"] .hud-picks { max-height: 72px; }
+.hud[data-layout="desk"] .hud-picks { max-height: 74px; }
 /* compact controls on the desk so the panel stays about 230 px tall even at 1024 px wide; the phase sentence is already in the top bar */
 .hud[data-layout="desk"] .hud-command .hud-btn { min-height: 30px; padding: 0 10px; }
 .hud[data-layout="desk"] .hud-command .hud-nav-btn { min-width: 32px; padding: 0 8px; }
@@ -285,7 +296,7 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-winners-list { margin: 2px 0 0; padding-left: 16px; }
 .hud-link-btn { min-height: 24px; padding: 0 4px; border: 0; background: none; color: var(--hud-gilt); font: 500 12px var(--hud-body, Spectral, Georgia, serif); text-decoration: underline; cursor: pointer; }
 .hud[data-layout="phone"] .hud-right { position: static; max-height: none; width: auto; }
-.hud[data-layout="phone"] .hud-pop { top: 52px; right: 8px; }
+.hud[data-layout="phone"] .hud-pop { top: 54px; right: 8px; width: min(360px, calc(100vw - 16px)); }
 /* phone dock (FR-445): handle + tabs (72 px), one pane that scrolls and the strip of the round controls (FR-439 to FR-441). Open it is at most 40 % of the screen (45 % on a short one); the shell sets --hud-pane-h and --hud-open-h from dockPaneHeight/dockHeight (core/hud-layout.ts) on every resize, these are the same figures as a fallback. --hud-dock-h is the height the dock has now (the camera inset reads it) */
 .hud[data-layout="phone"] { --hud-pane-h: max(${PHONE.paneMin}px, calc(100vh * ${PHONE.shareTall} - ${PHONE.dockFolded + PHONE.strip}px)); --hud-strip-h: ${PHONE.strip}px; --hud-open-h: calc(${PHONE.dockFolded}px + var(--hud-pane-h) + var(--hud-strip-h)); --hud-dock-h: ${PHONE.dockFolded}px; }
 .hud[data-layout="phone"][data-dock="open"] { --hud-dock-h: var(--hud-open-h); }
@@ -293,14 +304,19 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="phone"] .hud-command { padding: 0; gap: 6px; min-height: 0; }
 /* the strip: the selector of rounds on one row and the buttons on another, on every tab, never in the scrolling pane */
 .hud-strip { display: none; }
-.hud[data-layout="phone"] .hud-strip { display: block; flex: none; box-sizing: border-box; height: var(--hud-strip-h); padding: 4px 8px; border-top: 1px solid var(--hud-gilt-dim); }
+.hud[data-layout="phone"] .hud-strip { position: relative; display: block; flex: none; box-sizing: border-box; height: var(--hud-strip-h); padding: 4px 8px; border-top: 1px solid var(--hud-gilt-dim); }
 .hud[data-layout="phone"] .hud-controls { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 4px; margin: 0; }
-.hud[data-layout="phone"] .hud-track { scrollbar-width: none; gap: 4px; }
-.hud[data-layout="phone"] .hud-track::-webkit-scrollbar { display: none; }
-.hud[data-layout="phone"] .hud-track .hud-dot { min-width: ${PHONE.chip}px; min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; padding: 0; }
-.hud-dot.start { border-radius: 14px; padding: 0 10px; }
-.hud[data-layout="phone"] .hud-track .hud-dot.start { padding: 0 12px; }
-.hud[data-layout="phone"] .hud-roundsel { min-height: ${PHONE.chip}px; }
+.hud[data-layout="phone"] .hud-track { gap: 4px; }
+.hud[data-layout="phone"] .hud-track .hud-dot { min-width: ${PHONE.chip}px; min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; padding: 0 3px; }
+.hud-dot.start { border-radius: 14px; padding: 0 9px; }
+.hud[data-layout="phone"] .hud-dot.start { min-width: 44px; min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; padding: 0 10px; }
+.hud[data-layout="phone"] .hud-track-pager { min-width: ${PHONE.chip}px; min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; }
+.hud[data-layout="phone"] .hud-track-label { min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; }
+.hud[data-layout="phone"] .hud-jump-box { margin-right: 8px; height: ${PHONE.chip}px; }
+.hud[data-layout="phone"] .hud-jump-box::after { right: -6px; }
+.hud[data-layout="phone"] .hud-jump-input { width: 42px; min-width: 40px; min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; }
+.hud[data-layout="phone"] .hud-jump-confirm { min-width: ${PHONE.chip}px; min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; padding: 0 8px; }
+.hud[data-layout="phone"] .hud-roundsel { min-height: ${PHONE.chip}px; gap: 4px; }
 .hud[data-layout="phone"] .hud-nav { display: flex; flex: none; flex-wrap: nowrap; gap: 4px; justify-content: stretch; }
 .hud[data-layout="phone"] .hud-nav .hud-btn { flex: 1 1 0; min-width: 44px; padding: 0 4px; }
 /* folded: the strip shrinks to the skip button alone, which floats above the tabs while a tour plays */
@@ -358,6 +374,9 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-overlay { position: absolute; left: 50%; top: 110px; transform: translateX(-50%); z-index: 4; padding: 10px 22px; font: 600 20px var(--hud-display, 'Cormorant SC', Georgia, serif); letter-spacing: 0.08em; color: var(--hud-gilt); pointer-events: none; text-align: center; }
 .hud-overlay[hidden] { display: none; }
 .hud[data-layout="phone"] .hud-overlay { top: 100px; left: 8px; transform: none; box-sizing: border-box; max-width: calc(100vw - 130px); font-size: 16px; }
+/* spec 032 FR-625: hover/tap full-name readout */
+.hud-maptip { position: fixed; z-index: 6; pointer-events: none; padding: 5px 10px; border-radius: 4px; background: var(--hud-panel); color: var(--hud-text); font: 500 13px/1.3 var(--hud-body, Spectral, Georgia, serif); box-shadow: inset 0 0 0 1px var(--hud-gilt-dim), 0 6px 18px rgba(0, 0, 0, 0.55); max-width: min(320px, calc(100vw - 24px)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud-maptip[hidden] { display: none; }
 @keyframes hud-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {

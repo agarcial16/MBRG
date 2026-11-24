@@ -220,3 +220,131 @@ Mirrors the hand-run checks of 2026-11-19/20 (with throwaway credentials):
 6. Stop the server (`systemctl stop mbrg-server`) and open the same viewer
    link: the page shows its own failure notice — no crash, no leaked detail.
    Start it again and the viewer recovers.
+
+## Adding a map
+
+Map packages (`map.json`, `presentation.json`, `ids.png`) are built offline on
+local files with the `import-map` command in `@mbrg/build-map`. It opens no
+network connection, and neither the server nor the viewer runs it or accepts
+uploads. Exit status is `0` on success, `1` on failure (one JSON error per line
+on stderr, nothing written in the output folder), and `2` on usage error.
+
+### Before you start: CRS, geometry and licences
+
+- **Reprojection and simplification**: the importer accepts only GeoJSON
+  `FeatureCollection` files of `Polygon` / `MultiPolygon` geometries in degrees
+  (`CRS84`, `EPSG:4326` or `EPSG:4258`) and never reprojects, simplifies or
+  repairs geometry (`projected-crs` at extraction, `coordinates-not-degrees` at
+  import). If a source is in a projected coordinate system (for example UTM
+  metres) or too dense for the 256 MiB / 20,000,000-position caps, reproject or
+  simplify it first with outside tools (such as `ogr2ogr -t_srs EPSG:4326` or
+  `mapshaper`) before importing.
+- **Licences**: a source dataset's licence travels with every map package built
+  from it. Keep any required attribution or share-alike terms with your
+  deployment, and do not commit licensed sources or large generated maps to the
+  repository.
+
+### Operator steps
+
+1. **Extract (only when the source is a shapefile)**: convert a `.shp` (with
+   its `.dbf` beside it, plus optional `.cpg` and `.prj`) into a GeoJSON source.
+   If neither `.cpg` nor `--encoding` names an encoding (`utf-8`,
+   `windows-1252` or `iso-8859-1`), extraction fails with
+   `unknown-dbf-encoding`.
+
+   ```sh
+   npm run import-map -w @mbrg/build-map -- extract --shp=<file.shp> --out=<file.geojson> [--keep=<name,...>] [--encoding=<utf-8|windows-1252|iso-8859-1>] [--round=<6..15>]
+   ```
+
+2. **Inspect the source and generate a draft curation**: print feature counts,
+   skipped null geometries, coordinate bounds, property types, uniqueness (key
+   candidates) and sample values. Pass `--draft` to write a starter curation
+   file (it refuses an existing file or a package folder holding `map.json`; an
+   unedited draft always fails import with `invalid-curation`).
+
+   ```sh
+   npm run import-map -w @mbrg/build-map -- inspect --source=<file.geojson> [--draft=<file.json>]
+   ```
+
+3. **Write the curation file**: edit the draft JSON to set `columns.key`,
+   `columns.name`, optional `context` sources (other land drawn as background),
+   `select` / `exclude`, `params` (`side`, `margin`, `minPieceSize`,
+   `projection`: `laea` or `equal-earth`, optional `gapFill`), per-unit
+   overrides (`units`), grouping (`territoryBy`, `territoryNames`, `factions`,
+   `factionBy`), `seas` seeds, and optional `insets`.
+
+   > **Date-ranged / multi-period sources**: units are formed by `columns.key`
+   > **before** `select` filters run. In a multi-period collection (one feature
+   > per entity and period), key by a **per-period** unique property (such as a
+   > feature id), not a country code shared across periods — otherwise features
+   > from different periods merge into one unit with differing date values and
+   > fail with `conflicting-unit-property` regardless of the `select` date
+   > filter.
+
+4. **Import with a preview**: build the package into a new or empty output
+   folder (`--out` fails with `output-not-empty` if it holds anything, so a
+   listed package is never overwritten while running matches depend on it; to
+   re-import a corrected map, use a new folder). `--preview` writes a PNG
+   outside the output folder (default `tools/build-map/out/import-preview.png`;
+   a path inside `--out` is a usage error). Even if an import fails at or after
+   the pixel steps, the last computed assignment is still written to the
+   preview image.
+
+   ```sh
+   npm run import-map -w @mbrg/build-map -- import --curation=<file.json> --out=<folder> [--preview[=<file>]]
+   ```
+
+5. **Review the report and preview**: check the preview PNG (borders, insets,
+   sea zones, narrow straits) and the report printed to stdout, especially the
+   `viewerLimits` section:
+   - `requiredTextureSize` (`max(W, H, entries + 1)`): a value above **2,048**
+     (`textureAbove2048`) exceeds the WebGL 2 guaranteed minimum and leaves out
+     devices with a smaller texture limit (those devices show the viewer's
+     capability message).
+   - `factionsAbove255` (more than **255** factions) or `entriesAbove65535`
+     (more than **65,535** entries): a package exceeding either limit is **not
+     drawable by today's viewer**. The viewer **refuses it at load with a
+     Spanish message naming the limit** (spec 029) and draws no map, instead of
+     the internal error of earlier versions; listing it still gives players an
+     unplayable map, so do not list it on the server until follow-up **V2**
+     (many factions) or **V3** (tiling) ships. A texture above the device's
+     maximum and a failed colour assignment also stop with a message (follow-up
+     **V1** is covered by these refusals).
+   - `contextGap`, `contextGapPixels`, `thinCoastFactions`: thin water (at most
+     `params.contextGap` pixels wide; the default is a strip of 3.5 km at the
+     map's pixel size, at most 16; 0 turns it off) between a land territory and
+     other land (a context source or an unselected unit) is turned into other
+     land, because two sources rarely fit along a shared border and the strip
+     would otherwise be a sea zone linking every territory on that border.
+     `thinCoastFactions` lists any faction whose every sea contact is thin
+     water: it should be empty (an inland province in it means a sliver or a
+     notch is still joined to a zone; raise `contextGap` or set `gapFill`). Set
+     `params.gapFill` above the largest inland reservoir (Spain by municipalities:
+     5000) so enclosed water inside the land is not a zone. A territory this leaves with no
+     neighbour (an exclave such as Llívia or Kaliningrad) is linked by thin
+     bridges to its (up to) 3 nearest territories within `params.exclaveReach`
+     pixels (default 64; the report lists them as `exclaveBridges`); with none in
+     reach the import fails as `unreachable-exclave`. An inset that holds a sea
+     seed is a sea of its own (no main-map zone flows into it); `insets[i].sea`
+     names the `seas` entry whose zone owns all the water of the rectangle, so
+     the Canary Islands can belong to the Atlantic zone.
+     Enclosed water (a lake or inland sea no zone reaches through water) joins the
+     nearest zone only within `params.enclosedReach` pixels (default 250 km at the
+     pixel size; 0 = no limit); farther sets become other land and are listed as
+     `enclosedLakes`, so the Caspian is never part of the Indian Ocean. Give an
+     inland sea a seed in `seas` to keep it as water of its own. Land with no owner
+     (a null `SUBJECTO`, say) is declared with `factionBy.noOwner` (a list of values,
+     `null` for an absent or empty one): it is other land, listed as `noOwnerUnits`;
+     factions left inside it are linked by the exclave rule, so raise
+     `exclaveReach` if the import fails with `unreachable-exclave`.
+   - `paletteExhaustedFaction`: the first faction for which the viewer's
+     12-colour assignment fails; supply explicit `color` values in `factions`
+     (or wait for **V2**) before listing.
+
+6. **List the package on the server**: copy the output folder (`map.json`,
+   `presentation.json`, `ids.png`) onto the VPS, add its map id and **absolute**
+   path to `MBRG_MAPS` (for example
+   `{"dev":"/opt/mbrg/maps/dev","spain":"/opt/mbrg/maps/spain"}`), and
+   optionally add the id to `MBRG_PUBLIC_MAPS` so Discord `/mbrg create` offers
+   it. Restart the server (`systemctl restart mbrg-server`) and check
+   `GET /config` if the map is public.
