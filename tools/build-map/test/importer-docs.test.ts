@@ -28,11 +28,11 @@ describe('FR-613 the deployment guide documents adding a map', () => {
     expect(section).toContain('conflicting-unit-property');
     expect(section).toMatch(/per-period/i);
 
-    // Viewer limits guidance (FR-607 / FR-613)
+    // Viewer limits guidance (FR-607 / FR-613, amended by spec 033 FR-646)
     expect(section).toContain('viewerLimits');
     expect(section).toContain('requiredTextureSize');
     expect(section).toContain('2,048');
-    expect(section).toContain('255');
+    expect(section).toContain('factionsAbove65535');
     expect(section).toContain('65,535');
     expect(section).toMatch(/refuses it at load/i);
     expect(section).toContain('V1');

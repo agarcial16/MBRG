@@ -50,42 +50,52 @@ describe('FR-607 the viewer limits', () => {
         { kind: 'entriesAbove65535', entries: 70000 },
       ],
     });
-    // a big side warns above the 2048 that WebGL 2 guarantees, and a faction count above the one-byte owner table
+    // a big side warns above the 2048 that WebGL 2 guarantees; 300 factions fit the 65,535-faction owner table
     const crowd: ReportFaction[] = Array.from({ length: 300 }, (_, i) => ({ id: i + 1, key: 'f' + (i + 1) }));
-    expect(viewerLimits(map, bare, 4096, 4096, 100, crowd).warnings).toStrictEqual([
-      { kind: 'textureAbove2048', size: 4096 },
-      { kind: 'factionsAbove255', factions: 300 },
-    ]);
-    // the faction boundary: 255 factions draw, 256 warn
-    const edge: ReportFaction[] = Array.from({ length: 256 }, (_, i) => ({ id: i + 1, key: 'e' + (i + 1) }));
+    expect(viewerLimits(map, bare, 4096, 4096, 100, crowd).warnings).toStrictEqual([{ kind: 'textureAbove2048', size: 4096 }]);
+    // the faction boundary (spec 033 FR-646): 255, 256 and 65,535 factions draw, 65,536 warn
+    const edge: ReportFaction[] = Array.from({ length: 65536 }, (_, i) => ({ id: i + 1, key: 'e' + (i + 1) }));
     expect(viewerLimits(map, bare, 96, 96, 100, edge.slice(0, 255)).warnings).toStrictEqual([]);
-    expect(viewerLimits(map, bare, 96, 96, 100, edge).warnings).toStrictEqual([{ kind: 'factionsAbove255', factions: 256 }]);
+    expect(viewerLimits(map, bare, 96, 96, 100, edge.slice(0, 256)).warnings).toStrictEqual([]);
+    expect(viewerLimits(map, bare, 96, 96, 100, edge.slice(0, 65535)).warnings).toStrictEqual([]);
+    expect(viewerLimits(map, bare, 96, 96, 100, edge).warnings).toStrictEqual([{ kind: 'factionsAbove65535', factions: 65536 }]);
     // the texture boundary: 2048 needs no warning, 2049 does
     expect(viewerLimits(map, bare, 2048, 2048, 100, factions).warnings).toStrictEqual([]);
     expect(viewerLimits(map, bare, 2049, 2049, 100, factions).warnings).toStrictEqual([{ kind: 'textureAbove2048', size: 2049 }]);
   });
 
-  it('FR-607 finds the first faction whose colour assignment fails, by the viewer rule and its 12 palette colours', () => {
-    // twelve factions around one sea zone: all twelve palette colours go around
+  /** `count` one-territory factions, each a land neighbour of all the others. */
+  function landClique(count: number): MapData {
+    const ids = Array.from({ length: count }, (_, i) => i + 1);
+    return mapOf(...ids.map((id): MapEntry => land(id, id, ids.filter((other) => other !== id))));
+  }
+
+  it('FR-607 / FR-646 colours maps without exhaustion: 20 curated palette colours plus the procedural last resort', () => {
+    // the shipped viewer theme enables the procedural last resort (FR-642), so colouring never fails
     expect(paletteExhaustedFaction(factionsAroundSea(12), bare)).toBeUndefined();
-    // the thirteenth has no colour left: every palette colour is on a coloured candidate of its
-    expect(paletteExhaustedFaction(factionsAroundSea(13), bare)).toBe(13);
-    // a preferred colour of its own saves it
-    const saved: BuiltPresentation = { factions: [{ id: 13, name: 'Thirteenth', color: '#010203' }], territories: [] };
-    expect(paletteExhaustedFaction(factionsAroundSea(13), saved)).toBeUndefined();
-    // factions that touch nothing take any palette colour: only candidates block a reuse
-    const apart = mapOf(...Array.from({ length: 13 }, (_, i): MapEntry => land(i + 1, i + 1, [])));
-    expect(paletteExhaustedFaction(apart, bare)).toBeUndefined();
+    expect(paletteExhaustedFaction(factionsAroundSea(13), bare)).toBeUndefined();
+    expect(paletteExhaustedFaction(factionsAroundSea(21), bare)).toBeUndefined();
+    expect(paletteExhaustedFaction(landClique(21), bare)).toBeUndefined();
   });
 
-  it('FR-607 never fails the import: the palette failure is only reported', () => {
-    // the paletteExhaustedFaction result flows into viewerLimits as a warning that names the faction by its key
-    const factions: ReportFaction[] = Array.from({ length: 13 }, (_, i) => ({ id: i + 1, key: 'F' + (i + 1) }));
-    const map = factionsAroundSea(13);
-    expect(viewerLimits(map, bare, 96, 96, 14, factions)).toStrictEqual({
-      requiredTextureSize: 96,
-      warnings: [{ kind: 'paletteExhaustedFaction', faction: 'F13' }],
-    });
+  it('FR-607 / FR-646 keeps the 20-colour guard for a custom finite theme without the procedural fallback', () => {
+    // twenty factions around one sea zone take the twenty curated colours; the soft sea-zone step colours a 21st
+    expect(paletteExhaustedFaction(factionsAroundSea(20), bare, { procedural: false })).toBeUndefined();
+    expect(paletteExhaustedFaction(factionsAroundSea(21), bare, { procedural: false })).toBeUndefined();
+    // a 21st land clique member has no curated colour left: every one is on a land neighbour
+    expect(paletteExhaustedFaction(landClique(21), bare, { procedural: false })).toBe(21);
+    // a preferred colour of its own saves it
+    const saved: BuiltPresentation = { factions: [{ id: 21, name: 'TwentyFirst', color: '#010203' }], territories: [] };
+    expect(paletteExhaustedFaction(landClique(21), saved, { procedural: false })).toBeUndefined();
+    // factions that touch nothing take any palette colour: only candidates block a reuse
+    const apart = mapOf(...Array.from({ length: 21 }, (_, i): MapEntry => land(i + 1, i + 1, [])));
+    expect(paletteExhaustedFaction(apart, bare, { procedural: false })).toBeUndefined();
+  });
+
+  it('FR-607 / FR-646 never fails the import and never warns for a map the viewer colours without exhaustion', () => {
+    const factions: ReportFaction[] = Array.from({ length: 21 }, (_, i) => ({ id: i + 1, key: 'F' + (i + 1) }));
+    const map = factionsAroundSea(21);
+    expect(viewerLimits(map, bare, 96, 96, 22, factions)).toStrictEqual({ requiredTextureSize: 96, warnings: [] });
   });
 });
 
@@ -244,10 +254,9 @@ describe('FR-609 the report of a successful import', () => {
     expect(first.stdout).toBe(second.stdout);
   });
 
-  it('FR-607 prints each viewer limit the package exceeds as a warning line, and never fails the import', () => {
-    // 300 one-territory factions with zero-padded keys, so the faction order is the file order: the first thirteen
-    // sit in a row under one shared sea unit (all candidates of each other, so the thirteenth finds no palette
-    // color), the rest fill a connected grid below; the land is one connected map the self-check accepts
+  it('FR-607 / FR-646 prints no faction-count or palette warning for 300 factions inside the viewer limits', () => {
+    // 300 one-territory factions with zero-padded keys: within the 65,535-faction owner table, and the viewer
+    // colours them without exhaustion (20 curated colours, soft sea preference, procedural last resort)
     const rect = (x0: number, y0: number, x1: number, y1: number): unknown => ({ type: 'Polygon', coordinates: [[[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]] });
     const features: unknown[] = [feat({ code: 'SEA', name: 'Shared Sea', adm: 'Z' }, rect(0, -1, 13, 0))];
     for (let i = 0; i < 300; i++) {
@@ -273,9 +282,9 @@ describe('FR-609 the report of a successful import', () => {
     expect(r.stdout).toContain('factions: 300');
     expect(r.stdout).toContain('landTerritories: 300');
     expect(r.stdout).toContain('seaZones: 1');
-    expect(r.stdout).toContain('  warnings: 2');
-    expect(r.stdout).toContain('    - factionsAbove255=300');
-    expect(r.stdout).toContain('    - paletteExhaustedFaction=f012');
+    expect(r.stdout).toContain('  warnings: 0');
+    expect(r.stdout).not.toContain('factionsAbove');
+    expect(r.stdout).not.toContain('paletteExhaustedFaction');
   });
 });
 

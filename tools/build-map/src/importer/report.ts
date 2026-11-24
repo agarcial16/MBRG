@@ -14,9 +14,17 @@ import type { TilingDetails } from './tiling-step';
 import type { ViewSet } from './views';
 
 /**
- * The 12 palette colors of the viewer's assignment (004 FR-141), in assignment order, as literals. PD5 retracted:
- * the viewer's own `PALETTE` stays untouched in `apps/web`; this is the importer-local copy FR-607 computes with,
- * pinned by importer fixtures, and the viewer's own tests still pin the viewer.
+ * The 16-bit owner table of the viewer holds a faction index in two bytes, so at most this many factions draw
+ * (`MAX_FACTIONS` in `apps/web/src/core/entries.ts`, spec 033 FR-640). Kept local: `tools/build-map` never
+ * depends on `apps/web`.
+ */
+const MAX_FACTIONS = 0xffff;
+
+/**
+ * The 20 curated base palette colors of the viewer's assignment (004 FR-141, spec 033 FR-641), in assignment
+ * order, as literals. Mirrors `PALETTE` in `apps/web/src/core/theme.ts` (the original 12 first, then the 8
+ * Spec 031-aligned colors); the procedural last resort of `apps/web/src/core/palette.ts` is modelled by
+ * `paletteExhaustedFaction`. Kept local: `tools/build-map` never depends on `apps/web`.
  */
 const PALETTE: readonly Rgb[] = [
   [0xc0, 0x50, 0x4d],
@@ -31,6 +39,15 @@ const PALETTE: readonly Rgb[] = [
   [0xf2, 0xd6, 0x5c],
   [0xc9, 0x8f, 0xd6],
   [0xd4, 0xa3, 0x73],
+  // Spec 033 FR-641: 8 additional curated cartographic colors
+  [0x2e, 0x85, 0x6e],
+  [0xe6, 0x7e, 0x88],
+  [0x4d, 0x60, 0xad],
+  [0x9e, 0x43, 0x6d],
+  [0x82, 0xc9, 0xa0],
+  [0x76, 0x85, 0x32],
+  [0xc4, 0x96, 0x2c],
+  [0x5f, 0x52, 0x96],
 ];
 
 const sameColor = (a: Rgb, b: Rgb): boolean => a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
@@ -83,20 +100,56 @@ function directCandidates(map: MapData): Map<FactionId, Set<FactionId>> {
   return result;
 }
 
+/** The land neighbours of every faction at round 0, strict in both directions (004 FR-75). */
+function landNeighbours(map: MapData): Map<FactionId, Set<FactionId>> {
+  const entryById = new Map<number, MapEntry>(map.territories.map((t) => [t.id, t]));
+  const result = new Map<FactionId, Set<FactionId>>();
+  for (const f of factionOrder(map)) result.set(f, new Set());
+  for (const t of map.territories) {
+    if (entryKind(t) !== 'land') continue;
+    const owner = (t as { owner: FactionId }).owner;
+    for (const n of t.neighbors) {
+      const m = entryById.get(n);
+      if (m === undefined || entryKind(m) !== 'land') continue;
+      if (!t.neighbors.includes(m.id) || !m.neighbors.includes(t.id)) continue;
+      const other = (m as { owner: FactionId }).owner;
+      if (other === owner) continue;
+      result.get(owner)?.add(other);
+      result.get(other)?.add(owner);
+    }
+  }
+  return result;
+}
+
 /**
- * FR-607: the first faction, in faction order, whose color assignment by the viewer's rule (004 FR-141, with the
- * palette above) fails, its id; undefined when every faction gets a color. The same two-step rule as the viewer:
- * step (1) the first palette color used by no colored faction and equal to no preferred color of the map, step
- * (2) the first palette color used by none of the faction's already colored direct candidates; else the faction
- * fails. Pure: the inputs are the map and the presentation data only.
+ * FR-607 / spec 033 FR-646: the first faction, in faction order, whose color assignment by the viewer's rule
+ * (004 FR-141, spec 033 FR-641 to FR-643) fails, its id; undefined when every faction gets a color.
+ *
+ * The shipped viewer theme enables the procedural last resort (`THEME.procedural` in
+ * `apps/web/src/core/theme.ts`), whose palette supplies at least 65,535 distinct colors
+ * (`apps/web/src/core/palette.ts`): every importable map is colored without exhaustion, so with `procedural`
+ * (the default) this returns undefined and the report emits no `paletteExhaustedFaction` warning. Only a custom
+ * finite theme without that fallback (`procedural: false`) can exhaust the 20 curated colors; steps (1) the
+ * first palette color used by no colored faction and equal to no preferred color, (2) the first palette color
+ * used by none of the faction's already colored direct candidates (land + sea), (3) the first palette color
+ * unused by any land neighbour and used by fewest direct candidates; else the faction fails.
+ * Pure: the inputs are the map and the presentation data only.
  */
-export function paletteExhaustedFaction(map: MapData, presentation: BuiltPresentation): FactionId | undefined {
+export function paletteExhaustedFaction(
+  map: MapData,
+  presentation: BuiltPresentation,
+  options: { procedural?: boolean } = {},
+): FactionId | undefined {
+  // The procedural last resort colors any valid map up to 65,535 factions (FR-642/FR-643).
+  if (options.procedural ?? true) return undefined;
+
   const order = factionOrder(map);
   const preferred = new Map<FactionId, Rgb>();
   for (const f of presentation.factions) {
     if (isValidColor(f.color)) preferred.set(f.id, parseColor(f.color));
   }
   const candidates = directCandidates(map);
+  const land = landNeighbours(map);
   const colors = new Map<FactionId, Rgb>();
   for (const f of order) {
     const own = preferred.get(f);
@@ -107,13 +160,27 @@ export function paletteExhaustedFaction(map: MapData, presentation: BuiltPresent
 
   for (const f of order) {
     if (preferred.has(f)) continue;
+    const nearColors = [...(candidates.get(f) ?? [])].flatMap((g) => {
+      const c = colors.get(g);
+      return c === undefined ? [] : [c];
+    });
     let pick = PALETTE.find((c) => !assigned.some((u) => sameColor(u, c)) && !preferredList.some((p) => sameColor(p, c)));
+    if (pick === undefined) pick = PALETTE.find((c) => !nearColors.some((u) => sameColor(u, c)));
     if (pick === undefined) {
-      const nearColors = [...(candidates.get(f) ?? [])].flatMap((g) => {
+      // Step 3: relax sea-only adjacency; land neighbours stay strict.
+      const landColors = [...(land.get(f) ?? [])].flatMap((g) => {
         const c = colors.get(g);
         return c === undefined ? [] : [c];
       });
-      pick = PALETTE.find((c) => !nearColors.some((u) => sameColor(u, c)));
+      let fewest = Number.POSITIVE_INFINITY;
+      for (const c of PALETTE) {
+        if (landColors.some((u) => sameColor(u, c))) continue;
+        const count = nearColors.filter((u) => sameColor(u, c)).length;
+        if (count < fewest) {
+          fewest = count;
+          pick = c;
+        }
+      }
     }
     if (pick === undefined) return f;
     colors.set(f, pick);
@@ -159,7 +226,7 @@ export function splitFactions(map: MapData): { id: FactionId; groups: number }[]
 export type ViewerWarning =
   | { kind: 'textureAbove2048'; size: number }
   | { kind: 'entriesAbove65535'; entries: number }
-  | { kind: 'factionsAbove255'; factions: number }
+  | { kind: 'factionsAbove65535'; factions: number }
   | { kind: 'paletteExhaustedFaction'; faction: string };
 
 /** The ids and keys of the factions, in faction order (the report names a faction by its key). */
@@ -169,10 +236,12 @@ export interface ReportFaction {
 }
 
 /**
- * FR-607: the viewer-limits section. `requiredTextureSize` is max(width, height, entries + 1), the texture size
- * today's viewer needs to draw the map (004 FR-135 as built); reported, never a gate. The warnings name each viewer
- * limit the package exceeds: a required size above the 2,048 WebGL 2 guarantees, more than 65,535 entries (two-byte
- * entry index), more than 255 factions (one-byte owner table), and the first faction whose color assignment fails.
+ * FR-607 / spec 033 FR-646: the viewer-limits section. `requiredTextureSize` is max(width, height, entries + 1),
+ * the texture size today's viewer needs to draw the map (004 FR-135 as built); reported, never a gate. The warnings
+ * name each viewer limit the package exceeds: a required size above the 2,048 WebGL 2 guarantees, more than 65,535
+ * entries (two-byte entry index), more than 65,535 factions (two-byte owner table), and the first faction whose
+ * color assignment fails (only a custom finite theme can fail it; the shipped theme's procedural last resort
+ * colors every valid map).
  */
 export function viewerLimits(
   map: MapData,
@@ -186,7 +255,7 @@ export function viewerLimits(
   const warnings: ViewerWarning[] = [];
   if (requiredTextureSize > 2048) warnings.push({ kind: 'textureAbove2048', size: requiredTextureSize });
   if (entries > 65535) warnings.push({ kind: 'entriesAbove65535', entries });
-  if (factions.length > 255) warnings.push({ kind: 'factionsAbove255', factions: factions.length });
+  if (factions.length > MAX_FACTIONS) warnings.push({ kind: 'factionsAbove65535', factions: factions.length });
   const exhausted = paletteExhaustedFaction(map, presentation);
   if (exhausted !== undefined) {
     const key = factions.find((f) => f.id === exhausted)?.key ?? String(exhausted);
@@ -277,8 +346,8 @@ export function formatImportReport(input: ImportReportInput): string {
         return `    - textureAbove2048=${w.size}`;
       case 'entriesAbove65535':
         return `    - entriesAbove65535=${w.entries}`;
-      case 'factionsAbove255':
-        return `    - factionsAbove255=${w.factions}`;
+      case 'factionsAbove65535':
+        return `    - factionsAbove65535=${w.factions}`;
       case 'paletteExhaustedFaction':
         return `    - paletteExhaustedFaction=${w.faction}`;
     }

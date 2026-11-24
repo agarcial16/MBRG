@@ -8,7 +8,7 @@ Live work, one row per task; the orchestrator updates it, the feature PR closes 
 | Spec 028: map importer (vector route) | Full SDD | strong review + medium impl | — | `feat/028-map-importer` | merged (#94) | done (archived in `specs/archive/028-map-importer`) |
 | Spec 035: ocean tiles (generic sea splitting in the importer) | Light SDD | strong review + medium impl | — | `feat/035-ocean-tiles` | merged (#101) | done (archived); V4 (viewer: sea-zone border weight, sea-name labels) only if hand runs show the need |
 | V1, viewer: graceful refusal of a map it cannot draw | Light SDD | — | — | — | done: counts by spec 029, texture size and palette already had messages | none; close the row |
-| Spec 033: many factions in the viewer (V2) | Light SDD | antigravity/gemini-4-neon | — | `feat/033-many-factions` | merged (#97) | done; FR-646 (importer viewerLimits 255 -> 65,535) follow-up now that #94 is in main |
+| Spec 033: many factions in the viewer (V2) | Light SDD | antigravity/gemini-4-neon | — | `feat/033-many-factions` | merged (#97) | done (FR-646 importer `viewerLimits` aligned in `fix/importer-viewer-limits`) |
 | V3, viewer: huge maps on weak devices (future option) | Full SDD | — | — | — | queued (future option from spec 028) | texture tiling of the id image and per-entry tables, or rendering territories as polygon meshes, so a map larger than a device's texture size can still be drawn |
 | Spec 034: windowed round timeline and jump-to-round | Light SDD | — | — | `feat/034-round-timeline` | merged (#100) | done (archived in `specs/archive/034-round-timeline`) |
 | Spec 032: readable map labels | Light SDD | — | — | `feat/032-readable-labels` | merged (#96) | done (archived in `specs/archive/032-readable-labels`) |
