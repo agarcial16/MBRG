@@ -12,7 +12,20 @@ import { DOCK_TABS, dockHeight, dockPaneHeight, layoutFor, type DockTab, type La
 import { cssVariables } from '../core/hud-tokens';
 import type { HudState, StateCard, TopBar } from '../core/live-hud';
 import { searchRows, sortRows, territoryShare, totalTerritories, visibleRows, type ChronicleEntry, type FactionRow, type SortKey } from '../core/live-stats';
-import { stripScroll, trackTarget, type ReplayBand, type RoundTrack } from '../core/live-track';
+import {
+  TRACK_METRICS,
+  resolveJump,
+  roundWindow,
+  sanitizeJumpInput,
+  shiftWindow,
+  swipeShift,
+  trackTarget,
+  windowCapacity,
+  windowPageStep,
+  type JumpTrigger,
+  type ReplayBand,
+  type RoundTrack,
+} from '../core/live-track';
 import { liveTitle, skipLabel } from '../core/live-text';
 import type { LivePanelView } from '../core/live-view';
 import type { UnitRect } from '../core/minimap';
@@ -340,13 +353,35 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const halt = el('div', 'hud-line hud-alert', command);
   const mismatch = el('div', 'hud-line hud-alert', command);
   // The round controls: the selector of rounds and the buttons. On the desk they are the bottom row of this panel; on the phone they
-  // are the strip of the dock, always visible with the dock open, on every tab (FR-441).
+  // are the strip of the dock, always visible with the dock open, on every tab (FR-441, spec 034 FR-660..FR-666).
   const controls = el('div', 'hud-controls', command);
   const roundSel = el('div', 'hud-roundsel', controls);
   roundSel.setAttribute('role', 'group');
   roundSel.setAttribute('aria-label', STRINGS.hudTrack);
-  const trackLabel = el('span', 'hud-track-label hud-num', roundSel);
+  let lastTrack: RoundTrack | undefined;
+  let lastWindowOffset: number | undefined;
+  let lastDisplayed: number | undefined;
+  let lastApplied: number | undefined;
+  let lastCapacity = 1;
+  let lastWindowCount = 0;
+  let lastMaxJump = 0;
+  let jumpEditing = false;
+
+  const trackLabel = button(roundSel, '', () => openJump(), 'hud-track-label hud-num');
+  const jumpBox = el('div', 'hud-jump-box', roundSel);
+  jumpBox.hidden = true;
+  const jumpInput = el('input', 'hud-jump-input hud-num', jumpBox) as HTMLInputElement;
+  jumpInput.type = 'text';
+  jumpInput.inputMode = 'numeric';
+  jumpInput.pattern = '[0-9]*';
+  const jumpConfirm = button(jumpBox, STRINGS.hudJumpConfirm, () => finishJump('submit', false), 'hud-jump-confirm');
+  jumpConfirm.setAttribute('aria-label', STRINGS.hudJumpConfirmLabel);
+  jumpConfirm.title = STRINGS.hudJumpConfirmLabel;
+  const startDot = button(roundSel, STRINGS.hudTrackStart, () => handlers.onNavigate({ to: 0 }), 'hud-dot start');
+  startDot.setAttribute('aria-label', STRINGS.hudTrackStart);
+  const pagerPrev = navButton(roundSel, STRINGS.hudTrackWindowPrev, STRINGS.hudTrackWindowPrevShort, () => shiftBy(-windowPageStep(lastCapacity)), 'hud-track-pager');
   const trackBox = el('div', 'hud-track', roundSel);
+  const pagerNext = navButton(roundSel, STRINGS.hudTrackWindowNext, STRINGS.hudTrackWindowNextShort, () => shiftBy(windowPageStep(lastCapacity)), 'hud-track-pager');
   const nav = el('div', 'hud-nav', controls);
   const first = navButton(nav, STRINGS.controlFirst, STRINGS.controlFirstShort, () => handlers.onNavigate('first'), 'hud-btn hud-secondary hud-nav-btn');
   const previous = navButton(nav, STRINGS.controlPrevious, STRINGS.controlPreviousShort, () => handlers.onNavigate('previous'), 'hud-btn hud-nav-btn');
@@ -355,6 +390,133 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   navButton(nav, STRINGS.controlReset, STRINGS.controlResetShort, handlers.onReset, 'hud-btn hud-secondary hud-nav-btn');
   const skip = button(nav, skipLabel(), handlers.onSkip, 'hud-btn primary hud-skip');
   skip.hidden = true;
+
+  function openJump(): void {
+    if (lastMaxJump < 1) return;
+    jumpEditing = true;
+    trackLabel.hidden = true;
+    jumpBox.hidden = false;
+    jumpInput.value = String(lastDisplayed ?? 0);
+    jumpInput.setAttribute('aria-label', fillTemplate(STRINGS.hudJumpInput, { round: lastMaxJump }));
+    if (lastTrack !== undefined) drawTrack(lastTrack, true);
+    jumpInput.focus();
+    jumpInput.select();
+  }
+
+  function closeJump(restoreFocus = false): void {
+    if (!jumpEditing) return;
+    jumpEditing = false;
+    jumpBox.hidden = true;
+    trackLabel.hidden = false;
+    if (lastTrack !== undefined) drawTrack(lastTrack, false);
+    if (restoreFocus) trackLabel.focus();
+  }
+
+  function finishJump(trigger: JumpTrigger, restoreFocusOnClose = false): void {
+    if (!jumpEditing) return;
+    const decision = resolveJump(trigger, jumpInput.value, lastMaxJump, lastDisplayed ?? 0);
+    closeJump(decision.outcome === 'close' && restoreFocusOnClose);
+    if (decision.outcome === 'jump') {
+      handlers.onNavigate({ to: decision.round });
+    }
+  }
+
+  jumpBox.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      finishJump('cancel', true);
+    }
+  });
+  jumpInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      finishJump('submit', true);
+    } else if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1 && !/^[0-9]$/.test(event.key)) {
+      event.preventDefault();
+    }
+  });
+  jumpInput.addEventListener('paste', (event) => {
+    event.preventDefault();
+    const pasted = sanitizeJumpInput(event.clipboardData?.getData('text') ?? '');
+    const start = jumpInput.selectionStart ?? jumpInput.value.length;
+    const end = jumpInput.selectionEnd ?? jumpInput.value.length;
+    jumpInput.setRangeText(pasted, start, end, 'end');
+  });
+  jumpInput.addEventListener('input', () => {
+    const clean = sanitizeJumpInput(jumpInput.value);
+    if (jumpInput.value !== clean) jumpInput.value = clean;
+  });
+  jumpBox.addEventListener('focusout', (event) => {
+    if (!jumpEditing) return;
+    const nextFocus = event.relatedTarget as Node | null;
+    if (nextFocus !== null && jumpBox.contains(nextFocus)) return;
+    finishJump('leave', false);
+  });
+  document.addEventListener(
+    'pointerdown',
+    (event) => {
+      if (!jumpEditing) return;
+      if (jumpBox.contains(event.target as Node | null)) return;
+      finishJump('leave', false);
+    },
+    true,
+  );
+
+  // FR-662: mouse wheel over the round buttons shifts the window without scrolling the page.
+  trackBox.addEventListener(
+    'wheel',
+    (event) => {
+      if (lastWindowCount <= lastCapacity) return;
+      event.preventDefault();
+      const raw = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      const steps = wheelSteps(raw, event.deltaMode);
+      if (steps !== 0) shiftBy(steps);
+    },
+    { passive: false },
+  );
+
+  // FR-662: horizontal touch swipe over the round strip shifts the window on phone without panning the map.
+  let touchOrigin: { x: number; y: number } | undefined;
+  let touchSwiping = false;
+  trackBox.addEventListener(
+    'touchstart',
+    (event) => {
+      if (event.touches.length !== 1 || lastWindowCount <= lastCapacity) {
+        touchOrigin = undefined;
+        touchSwiping = false;
+        return;
+      }
+      const touch = event.touches[0]!;
+      touchOrigin = { x: touch.clientX, y: touch.clientY };
+      touchSwiping = false;
+    },
+    { passive: true },
+  );
+  trackBox.addEventListener(
+    'touchmove',
+    (event) => {
+      if (touchOrigin === undefined || event.touches.length !== 1) return;
+      const touch = event.touches[0]!;
+      const dx = touch.clientX - touchOrigin.x;
+      const dy = touch.clientY - touchOrigin.y;
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) >= 8) {
+        touchSwiping = true;
+        event.preventDefault();
+      }
+    },
+    { passive: false },
+  );
+  trackBox.addEventListener('touchend', (event) => {
+    if (touchOrigin === undefined) return;
+    const touch = event.changedTouches[0];
+    const origin = touchOrigin;
+    touchOrigin = undefined;
+    if (!touchSwiping || touch === undefined) return;
+    touchSwiping = false;
+    const metrics = TRACK_METRICS[layout];
+    const delta = swipeShift(touch.clientX - origin.x, metrics.slotPx + metrics.gapPx);
+    if (delta !== 0) shiftBy(delta);
+  });
 
   // State card: the one polite live region of the screen.
   const card = zone('state-card', 'hud-card hud-frame', root);
@@ -392,11 +554,15 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const maptip = el('div', 'hud-maptip', root);
   maptip.hidden = true;
 
-  // FR-442: the selector is one strip that scrolls sideways; it keeps the current round in view (the strip is moved, never the page).
-  let currentDot: HTMLElement | undefined;
-  function centreTrack(): void {
-    if (currentDot === undefined) return;
-    trackBox.scrollLeft = stripScroll({ left: currentDot.offsetLeft, width: currentDot.offsetWidth, view: trackBox.clientWidth, content: trackBox.scrollWidth });
+  // Spec 034: dynamic sliding window over the round strip (recomputed on resize and dock open).
+  function shiftBy(delta: number): void {
+    if (lastTrack === undefined || lastWindowCount <= lastCapacity) return;
+    lastWindowOffset = shiftWindow(lastWindowOffset ?? 1, lastWindowCount, lastCapacity, delta);
+    drawTrack(lastTrack, false);
+  }
+
+  function refreshTrackOnResize(): void {
+    if (lastTrack !== undefined) drawTrack(lastTrack, true);
   }
 
   // Phone dock (FR-439, FR-440, FR-441): a handle, the tabs, the pane of the open tab and the strip of the round controls.
@@ -414,7 +580,7 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     handle.setAttribute('aria-expanded', String(!dockNow.folded));
     for (const [tab, node] of tabButtons) node.setAttribute('aria-selected', String(tab === dockNow.tab));
     for (const [tab, node] of panes) node.hidden = dockNow.folded || tab !== dockNow.tab;
-    if (!dockNow.folded) centreTrack();
+    if (!dockNow.folded) refreshTrackOnResize();
     handlers.onDock?.(dockNow.folded);
   };
   const dockSet = (next: DockState): void => {
@@ -455,10 +621,12 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   window.addEventListener('resize', () => {
     sizeDock();
     const now = layoutFor(window.innerWidth);
-    if (now === layout) return;
-    layout = now;
-    root.dataset.layout = now;
-    place();
+    if (now !== layout) {
+      layout = now;
+      root.dataset.layout = now;
+      place();
+    }
+    refreshTrackOnResize();
   });
 
   const write = (node: HTMLElement, text: string | undefined): void => {
@@ -639,26 +807,61 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     boardPanel.render(board);
   };
 
-  // The strip is rebuilt only when the rounds or the displayed round change (a rebuild every second would drop the keyboard focus).
+  // The strip is rebuilt only when the visible window or the displayed round changes (a rebuild every second would drop keyboard focus).
   let trackSig = '';
-  const renderTrack = (track: RoundTrack): void => {
-    const sig = JSON.stringify(track);
+  const drawTrack = (track: RoundTrack, followDisplayed: boolean): void => {
+    const displayed = track.items.find((d) => d.state === 'current')?.round ?? 0;
+    const applied = track.items.find((d) => d.live)?.round ?? 0;
+    const lastItem = track.items[track.items.length - 1];
+    const inPlay = lastItem?.state === 'future';
+    const lastRound = lastItem?.round ?? 0;
+    const previewLabel = applied < 1 ? '' : fillTemplate(STRINGS.roundNow, { round: displayed });
+    if (trackLabel.textContent !== previewLabel) trackLabel.textContent = previewLabel;
+    const metrics = TRACK_METRICS[layout];
+    const measured = trackBox.clientWidth;
+    const capacity = windowCapacity(measured > 0 ? measured : layout === 'desk' ? 310 : 200, metrics, lastRound);
+    const win = roundWindow(lastRound, displayed, applied, inPlay, capacity, lastWindowOffset, followDisplayed);
+
+    lastTrack = track;
+    lastWindowOffset = win.offset > 0 ? win.offset : undefined;
+    lastDisplayed = displayed;
+    lastApplied = applied;
+    lastCapacity = capacity;
+    lastWindowCount = win.count;
+    lastMaxJump = win.maxJump;
+
+    const sig = JSON.stringify([win.start, win.items, win.canShiftLeft, win.canShiftRight, win.label, win.canJump, win.maxJump]);
     if (sig === trackSig) return;
     trackSig = sig;
-    trackLabel.textContent = track.label;
+
+    trackLabel.textContent = win.label;
+    trackLabel.disabled = !win.canJump;
+    trackLabel.setAttribute('aria-label', win.canJump ? fillTemplate(STRINGS.hudJumpTrigger, { round: win.maxJump }) : win.label);
+    trackLabel.title = win.canJump ? fillTemplate(STRINGS.hudJumpTrigger, { round: win.maxJump }) : '';
+
+    startDot.className = `hud-dot ${win.start.state}${win.start.live ? ' live' : ''} start`;
+    if (win.start.state === 'current') startDot.setAttribute('aria-current', 'true');
+    else startDot.removeAttribute('aria-current');
+
+    pagerPrev.disabled = !win.canShiftLeft;
+    pagerNext.disabled = !win.canShiftRight;
+
     trackBox.replaceChildren();
-    currentDot = undefined;
-    for (const dot of track.items) {
+    for (const dot of win.items) {
       const target = trackTarget(dot);
-      const node = button(trackBox, dot.round === 0 ? STRINGS.hudTrackStart : String(dot.round), () => target !== undefined && handlers.onNavigate(target), `hud-dot ${dot.state}${dot.live ? ' live' : ''}${dot.round === 0 ? ' start' : ''}`);
-      node.setAttribute('aria-label', dot.round === 0 ? STRINGS.hudTrackStart : fillTemplate(target === undefined ? STRINGS.hudTrackInPlay : STRINGS.hudTrackRound, { round: dot.round }));
+      const node = button(trackBox, String(dot.round), () => target !== undefined && handlers.onNavigate(target), `hud-dot ${dot.state}${dot.live ? ' live' : ''}`);
+      node.setAttribute('aria-label', fillTemplate(target === undefined ? STRINGS.hudTrackInPlay : STRINGS.hudTrackRound, { round: dot.round }));
       node.disabled = target === undefined;
-      if (dot.state === 'current') {
-        node.setAttribute('aria-current', 'true');
-        currentDot = node;
-      }
+      if (dot.state === 'current') node.setAttribute('aria-current', 'true');
     }
-    centreTrack();
+  };
+
+  const renderTrack = (track: RoundTrack): void => {
+    const displayed = track.items.find((d) => d.state === 'current')?.round ?? 0;
+    const applied = track.items.find((d) => d.live)?.round ?? 0;
+    const wasFollowingLive = lastDisplayed === undefined || (lastApplied !== undefined && lastDisplayed === lastApplied);
+    const follow = displayed !== lastDisplayed || (applied !== lastApplied && wasFollowingLive);
+    drawTrack(track, follow);
   };
 
   return {

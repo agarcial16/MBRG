@@ -332,6 +332,15 @@ export const STRINGS = {
   landingMapDev: 'Europa Occidental',
   // Readable map labels (spec 032 FR-625): hover/tap full-name readout.
   mapTipLine: '{name} · {owner}',
+  // Windowed round timeline and jump-to-round (spec 034).
+  hudTrackWindowPrev: 'Mostrar rondas anteriores',
+  hudTrackWindowNext: 'Mostrar rondas siguientes',
+  hudTrackWindowPrevShort: '‹',
+  hudTrackWindowNextShort: '›',
+  hudJumpTrigger: 'Ir a una ronda (0 a {round})',
+  hudJumpInput: 'Número de ronda (0 a {round})',
+  hudJumpConfirm: 'Ir',
+  hudJumpConfirmLabel: 'Confirmar salto de ronda',
 } as const;
 
 /** Fills {name} placeholders; a placeholder without a value is left as written. */
