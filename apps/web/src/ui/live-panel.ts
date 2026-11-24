@@ -4,7 +4,8 @@
 // winner, the halt reason, the state card, the controls, the chronicle, the factions, the replay band, the track of rounds and the
 // minimap. No seed, no pointer readout, no timings, no results.
 import type { Rgb } from '@mbrg/shared';
-import { wheelSteps } from '../core/camera';
+import { wheelSteps, type ScreenPoint } from '../core/camera';
+import type { MapReadout } from '../core/map-readout';
 import { pinchDistance } from '../core/pinch';
 import { dockHandle, dockPress, dockStart, dockStep, dockTabs, type DockState } from '../core/dock';
 import { DOCK_TABS, dockHeight, dockPaneHeight, layoutFor, type DockTab, type Layout } from '../core/hud-layout';
@@ -123,6 +124,8 @@ export interface LivePanel {
   calloutRect(): ScreenRect | undefined;
   /** Spec 031: unobstructed map area inside the HUD chrome (relative to the viewport). */
   mapAreaRect(): ScreenRect;
+  /** Spec 032 FR-625: floating full-name readout on map hover/tap, or undefined to hide. */
+  showReadout(info: MapReadout | undefined, point?: ScreenPoint): void;
 }
 
 function el(tag: string, className = '', parent?: HTMLElement): HTMLElement {
@@ -520,6 +523,9 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   const overlayBox = zone('round-overlay', 'hud-overlay hud-frame', root);
   overlayBox.setAttribute('role', 'status');
   overlayBox.hidden = true;
+  // Spec 032 FR-625: floating hover/tap readout showing full territory and faction names.
+  const maptip = el('div', 'hud-maptip', root);
+  maptip.hidden = true;
 
   // Spec 034: dynamic sliding window over the round strip (recomputed on resize and dock open).
   function shiftBy(delta: number): void {
@@ -955,6 +961,18 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       const y0 = Math.max(0, topBottom);
       const y1 = Math.max(y0 + 1, cmdTop);
       return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    },
+    showReadout(info: MapReadout | undefined, point?: ScreenPoint): void {
+      if (info === undefined || point === undefined) {
+        maptip.hidden = true;
+        return;
+      }
+      maptip.textContent = fillTemplate(STRINGS.mapTipLine, { name: info.territory, owner: info.faction });
+      const leftPx = Math.max(8, Math.min(window.innerWidth - 220, Math.round(point.sx + 14)));
+      const topPx = Math.max(60, Math.min(window.innerHeight - 40, Math.round(point.sy - 34)));
+      maptip.style.left = `${leftPx}px`;
+      maptip.style.top = `${topPx}px`;
+      maptip.hidden = false;
     },
   };
 }

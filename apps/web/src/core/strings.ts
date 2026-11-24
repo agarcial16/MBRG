@@ -330,6 +330,8 @@ export const STRINGS = {
   landingAtlasTag: 'ATLAS · VISTA ESTÁTICA',
   landingAtlasCaption: '{name} · Ronda {round}',
   landingMapDev: 'Europa Occidental',
+  // Readable map labels (spec 032 FR-625): hover/tap full-name readout.
+  mapTipLine: '{name} · {owner}',
   // Windowed round timeline and jump-to-round (spec 034).
   hudTrackWindowPrev: 'Mostrar rondas anteriores',
   hudTrackWindowNext: 'Mostrar rondas siguientes',
