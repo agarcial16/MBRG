@@ -269,7 +269,7 @@ on stderr, nothing written in the output folder), and `2` on usage error.
 3. **Write the curation file**: edit the draft JSON to set `columns.key`,
    `columns.name`, optional `context` sources (other land drawn as background),
    `select` / `exclude`, `params` (`side`, `margin`, `minPieceSize`,
-   `projection`: `laea` or `equal-earth`, optional `gapFill`), per-unit
+   `projection`: `laea` or `equal-earth`, optional `gapFill`, optional `tiling`), per-unit
    overrides (`units`), grouping (`territoryBy`, `territoryNames`, `factions`,
    `factionBy`), `seas` seeds, and optional `insets`.
 
@@ -337,6 +337,34 @@ on stderr, nothing written in the output folder), and `2` on usage error.
      `null` for an absent or empty one): it is other land, listed as `noOwnerUnits`;
      factions left inside it are linked by the exclave rule, so raise
      `exclaveReach` if the import fails with `unreachable-exclave`.
+   - **Sea tiles** (spec 035): the importer splits every sea zone of the curation
+     into many small sea tiles, so factions on different continents stop being
+     neighbours through one giant zone. It is **on by default**; `"tiling": false`
+     in `params` turns it off (the package is then exactly the one of the importer
+     without tiling). `"tiling": {}` or no member means the defaults: about
+     `min(600, 2 x land territories)` tiles, small near a coast, twice as wide in
+     the open sea, four times as wide far from any land. Tune it with
+     `params.tiling.targetTiles` (the tile count asked for), `tileKm` (the coast
+     tile in km; it replaces the search), `openTileKm`, `farTileKm`, `coastBandKm`,
+     `reachKm`, `maxTiles` (a guard, default 10,000: `too-many-tiles`), and
+     `zones` (a sea's name to its own coast tile in km; `0` keeps that sea as one
+     entry). The report's `tiling` section prints the values in force, the tiles
+     per sea, the tile areas, `maxFactionsPerTile`, merged tiles and how many tiles
+     got a real name. More entries raise `requiredTextureSize` (entries + 1) and may
+     raise the viewer-limits warnings: read them before listing the map.
+   - **Tile names** (`params.tiling.names`): without it a tile is named after its
+     sea plus a number (`Mar Oeste 3`). With `{ "file": <path relative to the
+     curation>, "nameProperty": ["name_es", "name"] }` pointing at a GeoJSON of named
+     polygons (the committed Natural Earth marine areas,
+     `tools/build-map/data/marine-ne/ne_10m_geography_marine_polys.geojson`, public
+     domain; see its README for the licence and provenance), each tile takes the
+     name of the polygon that covers most of it (the smallest polygon wins a pixel,
+     so a bay never swallows its sea), such as "mar de Alborán" or "Golfo de León";
+     a tile outside every polygon keeps its sea's name, and a name used by several
+     tiles is numbered (`mar de Alborán 12`). A `laea` map ignores polygons with a
+     vertex beyond 90 degrees of arc from its centre (the great oceans). The names
+     file is read like a context source and its SHA-256 is in the report; its licence
+     travels with the map like any source's.
    - `paletteExhaustedFaction`: the first faction for which the viewer's
      12-colour assignment fails; supply explicit `color` values in `factions`
      (or wait for **V2**) before listing.
