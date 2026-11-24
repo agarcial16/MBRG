@@ -211,13 +211,17 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="phone"] .hud-playerchip::after { top: -13px; bottom: -13px; }
 .hud-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hud-chip-stats { flex: none; white-space: nowrap; }
-.hud-pop { position: absolute; right: 12px; top: 58px; width: min(340px, calc(100vw - 24px)); padding: 12px 16px; }
+.hud-pop { position: absolute; right: 12px; top: 58px; z-index: 10; box-sizing: border-box; width: min(360px, calc(100vw - 24px)); max-height: calc(100vh - 70px); overflow-y: auto; padding: 12px 16px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--hud-gilt), 0 14px 36px rgba(0, 0, 0, 0.7); }
+.hud[data-layout="desk"] .hud-pop { background: var(--hud-wood); backdrop-filter: none; }
+.hud-pop .hud-personal { margin-top: 0; }
+.hud[data-layout="desk"] .hud-pop .hud-link { flex-wrap: wrap; }
+.hud-pop .hud-link .hud-input { flex: 1 1 100%; }
 .hud-predict { padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 .hud-predict-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .hud-predict-count { color: var(--hud-gilt); font-size: 18px; }
-.hud-picks { display: flex; flex-wrap: wrap; gap: 6px; max-height: 18vh; overflow: auto; }
-.hud-pick { display: inline-flex; align-items: center; gap: 7px; }
-.hud-pick[aria-pressed="true"] { background: var(--hud-gilt); color: var(--hud-on-gilt); box-shadow: none; font-weight: 600; }
+.hud-picks { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 1px; max-height: 18vh; overflow: auto; }
+.hud-pick { display: inline-flex; align-items: center; gap: 7px; box-sizing: border-box; border: 1px solid var(--hud-gilt-dim); box-shadow: none; }
+.hud-pick[aria-pressed="true"] { background: var(--hud-gilt); color: var(--hud-on-gilt); border-color: var(--hud-gilt); box-shadow: none; font-weight: 600; }
 .hud-seal { align-self: flex-start; padding: 2px 12px; background: none; color: var(--hud-gilt); box-shadow: inset 0 0 0 1px var(--hud-gilt); font: 600 13px var(--hud-body, Spectral, Georgia, serif); }
 /* the rule above the result only separates it from a prediction block shown above it; at the top of the panel the frame already draws the two lines (spec 015 FR-430) */
 .hud-result { padding-top: 0; }
@@ -261,7 +265,7 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud[data-layout="desk"] .hud-result > .hud-title,
 .hud[data-layout="desk"] .hud-result > p:nth-of-type(3) { display: none; }
 .hud[data-layout="desk"] .hud-command:has(.hud-predict:not([hidden])) > .hud-title { display: none; }
-.hud[data-layout="desk"] .hud-picks { max-height: 72px; }
+.hud[data-layout="desk"] .hud-picks { max-height: 74px; }
 /* compact controls on the desk so the panel stays about 230 px tall even at 1024 px wide; the phase sentence is already in the top bar */
 .hud[data-layout="desk"] .hud-command .hud-btn { min-height: 30px; padding: 0 10px; }
 .hud[data-layout="desk"] .hud-command .hud-nav-btn { min-width: 32px; padding: 0 8px; }
@@ -292,7 +296,7 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-winners-list { margin: 2px 0 0; padding-left: 16px; }
 .hud-link-btn { min-height: 24px; padding: 0 4px; border: 0; background: none; color: var(--hud-gilt); font: 500 12px var(--hud-body, Spectral, Georgia, serif); text-decoration: underline; cursor: pointer; }
 .hud[data-layout="phone"] .hud-right { position: static; max-height: none; width: auto; }
-.hud[data-layout="phone"] .hud-pop { top: 52px; right: 8px; }
+.hud[data-layout="phone"] .hud-pop { top: 54px; right: 8px; width: min(360px, calc(100vw - 16px)); }
 /* phone dock (FR-445): handle + tabs (72 px), one pane that scrolls and the strip of the round controls (FR-439 to FR-441). Open it is at most 40 % of the screen (45 % on a short one); the shell sets --hud-pane-h and --hud-open-h from dockPaneHeight/dockHeight (core/hud-layout.ts) on every resize, these are the same figures as a fallback. --hud-dock-h is the height the dock has now (the camera inset reads it) */
 .hud[data-layout="phone"] { --hud-pane-h: max(${PHONE.paneMin}px, calc(100vh * ${PHONE.shareTall} - ${PHONE.dockFolded + PHONE.strip}px)); --hud-strip-h: ${PHONE.strip}px; --hud-open-h: calc(${PHONE.dockFolded}px + var(--hud-pane-h) + var(--hud-strip-h)); --hud-dock-h: ${PHONE.dockFolded}px; }
 .hud[data-layout="phone"][data-dock="open"] { --hud-dock-h: var(--hud-open-h); }

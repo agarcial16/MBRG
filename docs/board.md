@@ -7,3 +7,4 @@ Live work, one row per task; the orchestrator updates it, the feature PR closes 
 | Predefined map: Spain by its 52 provinces | content (no spec) | opencode-go/glm-5.3 implements | this thread | `feat/map-spain-provinces` | merged (#89) | done |
 | Predefined map: the world by countries | content (no spec) | opencode-go/glm-5.3 implements | this thread | `feat/map-world-countries` | in review | PR into `main`; user reviews the preview image and the PR |
 | Spec 034: windowed round timeline and jump-to-round | Light SDD | — | — | `feat/034-round-timeline` | merged (#100) | done (archived in `specs/archive/034-round-timeline`) |
+| Spec 032: readable map labels | Light SDD | — | — | `feat/032-readable-labels` | merged (#96) | done (archived in `specs/archive/032-readable-labels`) |
