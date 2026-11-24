@@ -94,3 +94,22 @@ export function numberMap(input: NumberingInput): ImportNumbering {
   };
   return { factions, land, sea, plan, pieceEntries, presentation };
 }
+
+/**
+ * Spec 035, FR-678: the numbering after tiling. Factions and land territories are unchanged; the sea zones are replaced
+ * by the tiles, numbered after the land territories in tile order, each a sea entry with the name it was given.
+ */
+export function tileNumbering(base: ImportNumbering, tiles: readonly { name: string }[]): ImportNumbering {
+  const first = base.land.length + 1;
+  const sea: NumberedSeaZone[] = tiles.map((t, i) => ({ id: first + i, name: t.name }));
+  return {
+    ...base,
+    sea,
+    plan: { ...base.plan, sea: sea.map((s) => ({ id: s.id, seed: -1, name: s.name ?? '' })) },
+    pieceEntries: [...base.land.map((l): PieceEntry => ({ id: l.id, kind: 'land', owner: l.owner })), ...sea.map((s): PieceEntry => ({ id: s.id, kind: 'sea' }))],
+    presentation: {
+      factions: base.presentation.factions,
+      territories: [...base.presentation.territories.slice(0, base.land.length), ...sea.map((s) => ({ id: s.id, name: s.name! }))],
+    },
+  };
+}

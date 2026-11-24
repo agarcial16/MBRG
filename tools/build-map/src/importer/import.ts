@@ -12,11 +12,12 @@ import { WATER } from '../core/rasterize';
 import { closeContextGaps, defaultContextGap } from './context-gap';
 import { bridgeExclaves, DEFAULT_EXCLAVE_REACH, EXCLAVE_LINKS, type Bridge, type UnreachableExclave } from './exclave';
 import { makeGapFill, type FilledSet } from './gap-fill';
-import { cleanPieces, type BelowMinSize, type TerritoryInfo } from './min-size';
+import { belowMinSize, cleanPieces, type BelowMinSize, type TerritoryInfo } from './min-size';
 import { withPreviewColors } from './preview-colors';
 import { numberMap, type ImportNumbering } from './numbering';
+import { checkSpacing, runTiling, tilingParams, unknownSeas, type TilingDetails, type TilingStepError } from './tiling-step';
 import { composePixels } from './pixels';
-import { readSources, type SourceInput } from './read-source';
+import { readSource, readSources, type SourceInput } from './read-source';
 import { assignSea, defaultEnclosedReach, type LakeSet, type SeaSeedError, type SeaZone } from './sea-sources';
 import type { ReadSource, SourceError } from './types';
 import { buildViews, type InsetError, type ViewError, type ViewItem, type ViewSet } from './views';
@@ -26,7 +27,7 @@ import type { PreviewEntry, PreviewSource } from '../core/types';
 export type ImportStage = 'sources' | 'curation' | 'projection' | 'pixels' | 'self-check';
 
 /** Every error an import can report after the files are read. */
-export type ImportError = SourceError | CurationStageError | ViewError | InsetError | SeaSeedError | BelowMinSize | CleanupError | UnreachableExclave | BuildError;
+export type ImportError = SourceError | CurationStageError | ViewError | InsetError | SeaSeedError | BelowMinSize | CleanupError | UnreachableExclave | BuildError | TilingStepError;
 
 /** What the import core takes: the parsed curation and the bytes of its sources, the PNG codec injected (NFR-134). */
 export interface ImportInput {
@@ -34,6 +35,8 @@ export interface ImportInput {
   /** The primary source, then the context sources in the curation's order; `file` is the label for errors. */
   primary: SourceInput;
   context: readonly SourceInput[];
+  /** FR-694: the names file of the tiling, when `params.tiling.names` is given. */
+  names?: SourceInput;
   codec: PngCodec;
 }
 
@@ -56,6 +59,8 @@ export interface ImportDetails {
   /** FR-603: the enclosed water sets with no zone within the reach, made other land. */
   lakes: LakeSet[];
   reassigned: Reassignment[];
+  /** Spec 035: the tiling facts for the report; absent when tiling is off (`params.tiling: false`) or the map has no sea. */
+  tiling?: TilingDetails;
 }
 
 /** FR-608: a failed import names the first stage with errors and lists every error of that stage. */
@@ -102,6 +107,12 @@ export function buildPackage(input: ImportInput): ImportOutcome {
   const stage = checkCuration(primary.features, curation);
   if (!stage.ok) return fail('curation', stage.errors);
   const plan = stage.value;
+  // FR-670: tiling is on unless the curation says `false`; its basin names and its names file are checked with the curation.
+  const tilingOn = tilingParams(params);
+  if (tilingOn !== undefined) {
+    const unknown = unknownSeas(tilingOn, [...curation.seas.map((s) => s.name), ...plan.territories.filter((t) => t.kind === 'sea').map((t) => t.name ?? '')]);
+    if (unknown.length > 0) return fail('curation', unknown);
+  }
 
   // Projection and insets: other land is every context feature and every excluded or unselected primary unit.
   const others: ViewItem[] = [
@@ -110,8 +121,22 @@ export function buildPackage(input: ImportInput): ImportOutcome {
   ];
   const views = buildViews({ selected: plan.selection.selected, others, params, insets: curation.insets });
   if (!views.ok) return fail('projection', views.errors);
+  if (tilingOn !== undefined) {
+    // FR-670: a spacing under 3 pixels or over the frame side is a curation error, known once the frame is
+    const frameKm = views.value.main.frame.side * 6371;
+    const bad = checkSpacing(tilingOn, frameKm / params.side, frameKm);
+    if (bad.length > 0) return fail('projection', bad);
+  }
 
-  const numbering = numberMap({ territories: plan.territories, factions: plan.factions, factionOf: plan.factionOf, seas: curation.seas });
+  let namesRead: ReadSource | undefined;
+  if (tilingOn?.names !== undefined) {
+    if (input.names === undefined) return fail('sources', [{ kind: 'invalid-curation', path: 'params.tiling.names' }]);
+    const names = readSource({ ...input.names, usedProperties: tilingOn.names.nameProperty }, { usedProperties: [] });
+    if (!names.ok) return fail('sources', names.errors);
+    namesRead = names.value;
+  }
+  const baseNumbering = numberMap({ territories: plan.territories, factions: plan.factions, factionOf: plan.factionOf, seas: curation.seas });
+  let numbering: ImportNumbering = baseNumbering;
   /** FR-610: the preview of the last assignment computed; the piece entries are in map order. */
   const previewOf = (pixels: Uint32Array): PreviewSource => ({
     width: params.side,
@@ -153,12 +178,33 @@ export function buildPackage(input: ImportInput): ImportOutcome {
   const water = assignSea({ views: views.value, pixels: raster.value, zones, enclosedReach, ...(fill === undefined ? {} : { between: fill.between }) });
   if (!water.ok) return { ok: false, stage: 'pixels', errors: water.errors, preview: previewOf(raster.value) };
 
-  const territories: TerritoryInfo[] = [
+  const basinTerritories: TerritoryInfo[] = [
     ...numbering.land.map((l) => ({ id: l.id, key: l.territory.key, name: l.territory.name ?? '' })),
     ...numbering.sea.flatMap((s) => (s.territory === undefined ? [] : [{ id: s.id, key: s.territory.key, name: s.territory.name ?? '' }])),
   ];
-  const cleaned = cleanPieces(params.side, water.value.pixels, numbering.pieceEntries, territories, params.minPieceSize);
-  if (!cleaned.ok) return { ok: false, stage: 'pixels', errors: cleaned.errors, preview: previewOf(water.value.pixels) };
+  let waterPixels = water.value.pixels;
+  let enclosed = water.value.enclosed;
+  let tilingDetails: TilingDetails | undefined;
+  // Spec 035, FR-673: tiling runs after the water pass and before the minimum-piece check and the cleanup; the check
+  // still runs on the basins first (a sea territory with no piece of S pixels fails as 028 FR-604 says).
+  if (tilingOn !== undefined && numbering.sea.length > 0) {
+    const below = belowMinSize(params.side, waterPixels, basinTerritories, params.minPieceSize);
+    if (below.length > 0) return { ok: false, stage: 'pixels', errors: below, preview: previewOf(waterPixels) };
+    const tiled = runTiling({ params, tiling: tilingOn, numbering, views: views.value, pixels: waterPixels, width: params.side, minPieceSize: params.minPieceSize, ...(namesRead === undefined ? {} : { names: namesRead }) });
+    if (!tiled.ok) return { ok: false, stage: 'pixels', errors: tiled.errors, preview: previewOf(waterPixels) };
+    const basinFirst = tiled.value.details.firstTile;
+    // the enclosed-water report names a zone by the first tile of the basin it joined
+    enclosed = enclosed.map((e) => ({ ...e, zone: basinFirst[e.zone - (landCount + 1)] ?? e.zone }));
+    waterPixels = tiled.value.pixels;
+    numbering = tiled.value.numbering;
+    tilingDetails = tiled.value.details;
+  }
+  const territories: TerritoryInfo[] =
+    tilingDetails === undefined
+      ? basinTerritories
+      : [...basinTerritories.slice(0, landCount), ...numbering.sea.map((s) => ({ id: s.id, key: s.name ?? '', name: s.name ?? '' }))];
+  const cleaned = cleanPieces(params.side, waterPixels, numbering.pieceEntries, territories, params.minPieceSize);
+  if (!cleaned.ok) return { ok: false, stage: 'pixels', errors: cleaned.errors, preview: previewOf(waterPixels) };
   let pixels = cleaned.value.pixels;
   let reassigned = cleaned.value.reassigned;
 
@@ -201,10 +247,11 @@ export function buildPackage(input: ImportInput): ImportOutcome {
       contextGap,
       contextGapPixels,
       bridges: bridged.bridges,
-      enclosed: water.value.enclosed,
+      enclosed,
       enclosedReach,
       lakes: water.value.lakes,
       reassigned,
+      ...(tilingDetails === undefined ? {} : { tiling: tilingDetails }),
     },
     preview: previewOf(pixels),
   };
