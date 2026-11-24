@@ -24,7 +24,7 @@ The map format allows up to 16,777,215 ids and any number of factions, but the v
 
 ## Non-functional requirements
 - NFR-132: The new messages are Spanish and live in the strings module with the rest; the error kinds stay English identifiers listed by the language scan. Every strings key is used by code.
-- NFR-133: Tests use synthetic packages that pass the map format checks and sit just above each limit and exactly at each border; the existing oversized-texture and palette refusals keep their tests and messages unchanged.
+- NFR-133: Tests use synthetic packages that pass the map format checks and sit just above each limit and exactly at each border; the existing oversized-texture and palette refusals keep their tests and messages unchanged. *(Note 2026-11-23, PR #98: the palette refusal's sea-clique case was later changed by the `FR-141` amendment in spec 004, which relaxed sea-only adjacency to a soft preference and kept `palette-exhausted` strict for land neighbours; the sea-clique tests in `apps/web/test/colors.test.ts` were updated accordingly.)*
 - NFR-134: No change in `packages/*`, `apps/server`, `apps/bot` or the map format; the drawing tables themselves do not change (only who reads their sizes).
 
 ## Edge cases

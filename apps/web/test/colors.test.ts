@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import { entryKind, factionOrder } from '@mbrg/shared';
 import type { MapData, PresentationData, Rgb } from '@mbrg/shared';
-import { assignFactionColors, directCandidates, paletteMessage } from '../src/core/colors';
+import { getState, ownerOf, totalRounds } from '@mbrg/sim';
+import { assignFactionColors, directCandidates, landNeighbors, paletteMessage } from '../src/core/colors';
 import { BACKGROUND, BORDER_COLORS, PALETTE, SEA, THEME, type BorderClass } from '../src/core/theme';
 import devMapRaw from '../../../maps/dev/map.json?raw';
 import devPresentationRaw from '../../../maps/dev/presentation.json?raw';
+
+const ALL_MAP_FILES = import.meta.glob('../../../maps/*/map.json', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const ALL_PRESENTATION_FILES = import.meta.glob('../../../maps/*/presentation.json', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 const DEV_MAP = JSON.parse(devMapRaw) as MapData;
 const DEV_PRESENTATION = JSON.parse(devPresentationRaw) as PresentationData;
@@ -186,19 +191,31 @@ describe('FR-141 step 2: colours reused by factions that cannot be direct candid
     expect(result).toStrictEqual({ ok: false, errors: [{ kind: 'palette-exhausted', faction: 13 }] });
   });
 
-  it('FR-141 palette-exhausted also happens when the neighbours are reached through one shared sea zone', () => {
-    const land = Array.from({ length: 13 }, (_, i): [number, number] => [i + 1, i + 1]);
-    const edges = Array.from({ length: 13 }, (_, i): [number, number] => [i + 1, 100]);
+  it('FR-141 sea-zone fallback avoids land neighbours and balances colours when one sea zone has more factions than the palette', () => {
+    // 14 factions all touching one sea zone, plus faction 13 shares a land border with faction 1.
+    const land = Array.from({ length: 14 }, (_, i): [number, number] => [i + 1, i + 1]);
+    const edges: [number, number][] = [
+      ...Array.from({ length: 14 }, (_, i): [number, number] => [i + 1, 100]),
+      [13, 1],
+    ];
     const map = mapFrom(land, [100], edges);
     const result = assignFactionColors(map, presentationFor(map), THEME);
-    expect(result).toStrictEqual({ ok: false, errors: [{ kind: 'palette-exhausted', faction: 13 }] });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Faction 13 cannot take palette 0 (land neighbour faction 1), so it takes the next least-used colour (palette 1).
+    expect(result.value.get(13)).toStrictEqual(rgb(PLAN_PALETTE[1]!));
+    // Faction 14 has no land neighbours: palette 0 has count 1 (lowest, tied with 2..11), so it takes palette 0.
+    expect(result.value.get(14)).toStrictEqual(rgb(PLAN_PALETTE[0]!));
   });
 
   it('FR-141 the first faction without a free colour is the one reported (faction order)', () => {
     const land = Array.from({ length: 14 }, (_, i): [number, number] => [i + 1, i + 1]);
-    // Everybody touches everybody through one sea zone: faction 13 is the first without a colour.
-    const edges = Array.from({ length: 14 }, (_, i): [number, number] => [i + 1, 100]);
-    const map = mapFrom(land, [100], edges);
+    // Both faction 13 and faction 14 border all 12 earlier factions on land: faction 13 is reported first.
+    const edges: [number, number][] = [
+      ...Array.from({ length: 12 }, (_, i): [number, number] => [13, i + 1]),
+      ...Array.from({ length: 12 }, (_, i): [number, number] => [14, i + 1]),
+    ];
+    const map = mapFrom(land, [], edges);
     const result = assignFactionColors(map, presentationFor(map), THEME);
     expect(result).toStrictEqual({ ok: false, errors: [{ kind: 'palette-exhausted', faction: 13 }] });
   });
@@ -343,4 +360,65 @@ describe('FR-143 sea, background and near-black colours', () => {
       'sea-zone': rgb('#7fa6c6'),
     });
   });
+});
+
+describe('FR-141 regression: every predefined map in maps/ colours cleanly at round 0 and across a match', () => {
+  const mapEntries = Object.entries(ALL_MAP_FILES)
+    .map(([path, raw]) => {
+      const name = path.split('/').slice(-2, -1)[0]!;
+      const presPath = path.replace(/map\.json$/, 'presentation.json');
+      return {
+        name,
+        map: JSON.parse(raw) as MapData,
+        presentation: JSON.parse(ALL_PRESENTATION_FILES[presPath]!) as PresentationData,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  it('discovers all shipped maps in maps/ (including world-countries, spain-provinces and dev)', () => {
+    const names = mapEntries.map((e) => e.name);
+    expect(names).toContain('dev');
+    expect(names).toContain('spain-provinces');
+    expect(names).toContain('world-countries');
+  });
+
+  for (const { name, map, presentation } of mapEntries) {
+    it(`colours ${name} deterministically with no land-neighbour collision and covers every round of a match`, () => {
+      const first = assignFactionColors(map, presentation, THEME);
+      expect(first.ok, `${name} failed: ${first.ok ? '' : JSON.stringify(first.errors)}`).toBe(true);
+      if (!first.ok) return;
+
+      const second = assignFactionColors(map, presentation, THEME);
+      expect(second).toStrictEqual(first);
+
+      const order = factionOrder(map);
+      expect([...first.value.keys()]).toStrictEqual(order);
+
+      // No two land-adjacent factions share the same colour at round 0.
+      const land = landNeighbors(map);
+      for (const [f, neighbors] of land) {
+        const own = key(first.value.get(f)!);
+        for (const n of neighbors) {
+          expect(key(first.value.get(n)!), `${name}: land neighbours ${f} and ${n}`).not.toBe(own);
+        }
+      }
+
+      // Colours are fixed from round 0 and cover every surviving owner across a full simulated match (rounds 0..T).
+      const rounds = totalRounds(map);
+      expect(rounds.ok).toBe(true);
+      if (!rounds.ok) return;
+      const sampleRounds = [0, 1, Math.floor(rounds.value / 2), rounds.value];
+      for (const r of sampleRounds) {
+        const state = getState(map, 1, r);
+        expect(state.ok).toBe(true);
+        if (!state.ok) return;
+        for (const t of map.territories) {
+          if (entryKind(t) !== 'land') continue;
+          const owner = ownerOf(state.value, t.id);
+          expect(owner, `${name} round ${r} territory ${t.id}`).toBeDefined();
+          expect(first.value.has(owner!), `${name} round ${r} owner ${owner}`).toBe(true);
+        }
+      }
+    });
+  }
 });

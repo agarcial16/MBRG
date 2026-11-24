@@ -7,6 +7,7 @@ import { pageCss } from '../src/core/table';
 import shell from '../src/ui/live-panel.ts?raw';
 import main from '../src/ui/live-main.ts?raw';
 import startShell from '../src/ui/live-start.ts?raw';
+import messageShell from '../src/ui/message.ts?raw';
 import terraShell from '../src/ui/live-terra.ts?raw';
 import entryShell from '../src/ui/entry.ts?raw';
 import { readFileSync } from 'node:fs';
@@ -175,14 +176,50 @@ describe('FR-359 to FR-364 the shell of the left column, the band, the track and
     expect(shell).toMatch(/hud\.live/);
   });
 
-  it('FR-364 FR-442 the selector is one scrolling strip of dots that jump to their round through the navigation of the runner, with no slider', () => {
+  it('FR-364 FR-442 spec 034 FR-660..FR-665 the selector is a dynamic sliding window with pinned Inicio, pager arrows, wheel/swipe shift, digits-only click-to-jump label, and no horizontal panel overflow', () => {
     expect(shell).toMatch(/trackTarget\(/);
+    expect(shell).toMatch(/roundWindow\(/);
+    expect(shell).toMatch(/windowCapacity\(/);
+    expect(shell).toMatch(/shiftWindow\(/);
+    expect(shell).toMatch(/resolveJump\(/);
+    expect(shell).toMatch(/sanitizeJumpInput\(/);
     expect(shell).toContain('STRINGS.hudTrackRound');
+    expect(shell).toContain('STRINGS.hudTrackStart');
+    expect(shell).toContain('STRINGS.hudTrackWindowPrev');
+    expect(shell).toContain('STRINGS.hudTrackWindowNext');
+    expect(shell).toContain('STRINGS.hudJumpTrigger');
+    expect(shell).toContain('STRINGS.hudJumpInput');
+    expect(shell).toContain('STRINGS.hudJumpConfirm');
+    expect(shell).toContain('STRINGS.hudJumpConfirmLabel');
+    expect(shell).toContain('hud-jump-box');
+    expect(shell).toContain('hud-jump-confirm');
+    expect(shell).toMatch(/addEventListener\(\s*'focusout'/);
+    expect(shell).toMatch(/addEventListener\(\s*'pointerdown'/);
+    expect(shell).not.toContain('hudJumpInvalid');
+    expect(shell).not.toContain('hud-jump-error');
+    expect(css).not.toContain('.hud-jump-error');
+    expect(css).toContain('.hud-jump-box');
+    expect(css).toContain('.hud-jump-confirm');
+    expect(rules('.hud-jump-box').join(';')).toMatch(/margin-right:/);
+    const phoneConfirm = rules('[data-layout="phone"] .hud-jump-confirm').join(';');
+    expect(phoneConfirm).toMatch(/min-width:\s*36px/);
+    expect(phoneConfirm).toMatch(/min-height:\s*36px/);
     expect(shell).not.toMatch(/type\s*=\s*'range'/);
+    expect(shell).toMatch(/inputMode\s*=\s*'numeric'/);
+    expect(shell).toMatch(/addEventListener\(\s*'input'/);
+    expect(shell).toMatch(/addEventListener\(\s*'paste'/);
     expect(shell).toMatch(/handlers\.onNavigate\(target\)/);
-    expect(shell).toMatch(/stripScroll\(/);
-    expect(rules('.hud-track').join(';')).toMatch(/overflow-x:\s*auto/);
+    expect(shell).toMatch(/addEventListener\(\s*'wheel'/);
+    expect(shell).toMatch(/addEventListener\(\s*'touchstart'/);
+    expect(shell).toMatch(/Enter/);
+    expect(shell).toMatch(/Escape/);
+    expect(rules('.hud-track').join(';')).toMatch(/overflow:\s*hidden/);
     expect(rules('.hud-track').join(';')).toMatch(/flex-wrap:\s*nowrap/);
+    expect(rules('[data-layout="desk"] .hud-command').join(';')).toMatch(/overflow-x:\s*hidden/);
+    expect(rules('.hud-controls').join(';')).toMatch(/min-width:\s*0/);
+    const phonePager = rules('[data-layout="phone"] .hud-track-pager').join(';');
+    expect(phonePager).toMatch(/min-width:\s*36px/);
+    expect(phonePager).toMatch(/min-height:\s*36px/);
   });
 
   it('FR-441 the round controls move between the command panel (desk) and the strip of the dock (phone) as one element, so they are on every tab', () => {
@@ -304,5 +341,63 @@ describe('FR-359 the minimap dims only itself', () => {
   it('FR-359 the box that holds the view rectangle clips its shadow: the 999 px shadow of the rectangle must not dim the screen', () => {
     expect(css).toMatch(/\.hud-minirect\s*\{[^}]*box-shadow:\s*0 0 0 999px/);
     expect(rules('.hud-minibox').join(';')).toMatch(/overflow:\s*hidden/);
+  });
+});
+
+describe('HUD polish: minimap alignment, factions overflow, brand logo and refusal exit', () => {
+  const px = (rule: string, property: string): number => {
+    const found = new RegExp(`(?:^|[;\\s])${property}:\\s*(\\d+)px`).exec(rule);
+    if (found === null) throw new Error(`${property} not found`);
+    return Number(found[1]);
+  };
+
+  it('the minimap aligns with the right leaderboard column on desktop (same right offset and width)', () => {
+    const mini = rules('.hud-mini').find((r) => /width:\s*\d+px/.test(r) && /right:\s*\d+px/.test(r));
+    const right = rules('.hud-right').find((r) => /width:\s*\d+px/.test(r) && /right:\s*\d+px/.test(r));
+    expect(mini).toBeDefined();
+    expect(right).toBeDefined();
+    expect(px(mini!, 'right')).toBe(px(right!, 'right'));
+    expect(px(mini!, 'width')).toBe(px(right!, 'width'));
+  });
+
+  it('the left column scrolls the factions list internally so the show-all button never clips or overlaps', () => {
+    const leftRule = rules('.hud-left').find((r) => /width:\s*280px/.test(r));
+    expect(leftRule).toMatch(/display:\s*flex/);
+    expect(leftRule).toMatch(/flex-direction:\s*column/);
+    expect(leftRule).toMatch(/overflow:\s*hidden/);
+    expect(rules('.hud-legend').join(';')).toMatch(/overflow-y:\s*auto/);
+    expect(rules('.hud-more').join(';')).toMatch(/flex:\s*none/);
+    expect(rules('[data-layout="phone"] .hud-legend').join(';')).toMatch(/overflow:\s*visible/);
+    expect(shell).toContain('hud-more');
+  });
+
+  it('the HUD top bar renders the brand logo SVG next to the FactionFall wordmark', () => {
+    expect(shell).toContain("buildBrandLogo('hud-brand-logo')");
+    expect(rules('.hud-brand-logo').join(';')).toMatch(/width:\s*\d+px/);
+    expect(rules('.hud-brand-logo').join(';')).toMatch(/height:\s*\d+px/);
+  });
+
+  it('the refusal screen includes a back-to-menu link to ?start using STRINGS.hudBackToMenu', () => {
+    expect(messageShell).toContain('STRINGS.hudBackToMenu');
+    expect(messageShell).toContain("'?start'");
+    expect(messageShell).toMatch(/hud-btn primary/);
+    expect(languageViolations(messageShell)).toStrictEqual([]);
+  });
+
+  it('the personal link popover stacks above leaderboard and minimap with border-box sizing and opaque background', () => {
+    const pop = rules('.hud-pop').find((r) => r.includes('z-index:'));
+    expect(pop).toBeDefined();
+    expect(pop).toMatch(/z-index:\s*10/);
+    expect(pop).toMatch(/box-sizing:\s*border-box/);
+    expect(rules('[data-layout="desk"] .hud-pop').join(';')).toMatch(/background:\s*var\(--hud-wood\)/);
+  });
+
+  it('prediction chips keep padding inside their scroll container and use a real border so sub-pixel positions never clip the top edge', () => {
+    const picks = rules('.hud-picks').find((r) => r.includes('overflow: auto'));
+    expect(picks).toBeDefined();
+    expect(picks).toMatch(/padding:\s*2px 1px/);
+    const pick = rules('.hud-pick').find((r) => r.includes('border:'));
+    expect(pick).toBeDefined();
+    expect(pick).toMatch(/border:\s*1px solid var\(--hud-gilt-dim\)/);
   });
 });
