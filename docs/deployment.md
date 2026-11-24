@@ -269,7 +269,7 @@ on stderr, nothing written in the output folder), and `2` on usage error.
 3. **Write the curation file**: edit the draft JSON to set `columns.key`,
    `columns.name`, optional `context` sources (other land drawn as background),
    `select` / `exclude`, `params` (`side`, `margin`, `minPieceSize`,
-   `projection`: `laea` or `equal-earth`, optional `gapFill`, optional `tiling`), per-unit
+   `projection`: `laea`, `equal-earth` or `robinson`, optional `gapFill`, optional `tiling`), per-unit
    overrides (`units`), grouping (`territoryBy`, `territoryNames`, `factions`,
    `factionBy`), `seas` seeds, and optional `insets`.
 

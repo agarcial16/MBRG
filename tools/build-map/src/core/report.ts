@@ -9,6 +9,8 @@ export interface ReportFacts {
   width: number;
   height: number;
   center: ProjectionCenter;
+  /** FR-699: named only when it is not the default Lambert projection. */
+  projection?: 'robinson';
   frame: Frame;
   factions: number;
   landTerritories: number;
@@ -16,6 +18,8 @@ export interface ReportFacts {
   /** Size of the smallest piece in the final id image (after FR-117). */
   smallestPiece: number;
   reassigned: readonly Reassignment[];
+  /** FR-705: the land units grown to the minimum footprint (the lines are written only when there are some). */
+  grown?: readonly { id: number; from: number; to: number }[];
   excluded: readonly string[];
   /** Every map entry with more than one piece, with its piece count. */
   multiPiece: readonly { entry: number; pieces: number }[];
@@ -35,6 +39,7 @@ export function formatReport(facts: ReportFacts): string {
     `width: ${facts.width}`,
     `height: ${facts.height}`,
     `projectionCenter: lon=${facts.center.lon0} lat=${facts.center.lat0}`,
+    ...(facts.projection === undefined ? [] : [`projection: ${facts.projection}`]),
     `frame: west=${facts.frame.west} north=${facts.frame.north} side=${facts.frame.side}`,
     `factions: ${facts.factions}`,
     `landTerritories: ${facts.landTerritories}`,
@@ -44,6 +49,9 @@ export function formatReport(facts: ReportFacts): string {
     ...facts.reassigned.map(
       (r) => `  - entry=${r.entry} pixels=${r.pixels} to=${r.to === 0 ? 'background' : String(r.to)}`,
     ),
+    ...((facts.grown ?? []).length === 0
+      ? []
+      : [`grownUnits: ${facts.grown!.length}`, ...facts.grown!.map((g) => `  - entry=${g.id} from=${g.from} to=${g.to}`)]),
     `excludedProvinces: ${excluded.length}`,
     ...excluded.map((code) => `  - ${code}`),
     `multiPieceEntries: ${facts.multiPiece.length}`,

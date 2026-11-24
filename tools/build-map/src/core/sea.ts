@@ -23,14 +23,16 @@ export function seedPixels(
   frame: Frame,
   width: number,
   pixels: Uint32Array,
+  plane: (lon: number, lat: number) => [number, number] = (lon, lat) => project(center, lon, lat),
 ): Result<SeedPixel[], SeedError> {
+  const height = pixels.length / width;
   if (seeds.length === 0) return { ok: false, errors: [{ kind: 'no-sea-seeds' }] };
   const errors: SeedError[] = [];
   const located: SeedPixel[] = [];
   const bySharedPixel = new Map<number, number[]>();
   seeds.forEach((seed, index) => {
-    const [px, py] = project(center, seed.lon, seed.lat);
-    const at = toPixel(frame, width, px, py);
+    const [px, py] = plane(seed.lon, seed.lat);
+    const at = toPixel(frame, width, px, py, height);
     located.push({ x: at.x, y: at.y });
     if (!at.inside) {
       errors.push({ kind: 'seed-outside-frame', seed: index, name: seed.name });
@@ -93,7 +95,8 @@ export function assignSeaZonesDetailed(
   seeds: readonly SeedPixel[],
   ids: readonly number[],
 ): { pixels: Uint32Array; enclosed: EnclosedSet[] } {
-  const total = width * width;
+  const total = pixels.length;
+  const height = total / width;
   const label = new Int32Array(total).fill(-1);
   const claim = new Int32Array(total).fill(-1);
   let frontier: number[] = [];
@@ -119,7 +122,7 @@ export function assignSeaZonesDetailed(
       const x = pixel % width;
       const y = (pixel - x) / width;
       if (y > 0) claimFrom(pixel, pixel - width, touched);
-      if (y < width - 1) claimFrom(pixel, pixel + width, touched);
+      if (y < height - 1) claimFrom(pixel, pixel + width, touched);
       if (x > 0) claimFrom(pixel, pixel - 1, touched);
       if (x < width - 1) claimFrom(pixel, pixel + 1, touched);
     }
@@ -149,7 +152,8 @@ function joinEnclosedWater(
   ids: readonly number[],
   out: Uint32Array,
 ): EnclosedSet[] {
-  const total = width * width;
+  const total = pixels.length;
+  const height = total / width;
   const seen = new Uint8Array(total);
   const enclosed: EnclosedSet[] = [];
   for (let start = 0; start < total; start++) {
@@ -184,16 +188,16 @@ function joinEnclosedWater(
     for (const p of set) {
       const px = p % width;
       const py = (p - px) / width;
-      for (let r = 1; r * r <= bestD2 && r < width; r++) {
+      for (let r = 1; r * r <= bestD2 && r < Math.max(width, height); r++) {
         const y0 = py - r;
         const y1 = py + r;
         const x0 = px - r;
         const x1 = px + r;
         for (let x = Math.max(x0, 0); x <= Math.min(x1, width - 1); x++) {
           if (y0 >= 0) consider(y0 * width + x, (x - px) ** 2 + r * r);
-          if (y1 < width) consider(y1 * width + x, (x - px) ** 2 + r * r);
+          if (y1 < height) consider(y1 * width + x, (x - px) ** 2 + r * r);
         }
-        for (let y = Math.max(y0 + 1, 0); y <= Math.min(y1 - 1, width - 1); y++) {
+        for (let y = Math.max(y0 + 1, 0); y <= Math.min(y1 - 1, height - 1); y++) {
           if (x0 >= 0) consider(y * width + x0, r * r + (y - py) ** 2);
           if (x1 < width) consider(y * width + x1, r * r + (y - py) ** 2);
         }

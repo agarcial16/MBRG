@@ -8,7 +8,7 @@ import type { NumberedPlan } from './types';
  * ascending) and each neighbour list is ascending. Pure (NFR-14).
  */
 export function buildMapData(width: number, pixels: Uint32Array, plan: NumberedPlan): MapData {
-  const pairs = contactPairs(width, width, pixels);
+  const pairs = contactPairs(width, pixels.length / width, pixels);
   if (!pairs.ok) throw new Error('the id image is not a valid image: ' + pairs.errors[0]!.kind);
   const neighbors = new Map<number, number[]>();
   const entries: MapEntry[] = [];

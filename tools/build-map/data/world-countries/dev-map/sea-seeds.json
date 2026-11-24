@@ -33,5 +33,10 @@
     "name": "Mar Mediterráneo",
     "lon": 16,
     "lat": 34
+  },
+  {
+    "name": "Océano Pacífico Occidental",
+    "lon": 160,
+    "lat": 10
   }
 ]

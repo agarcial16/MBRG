@@ -16,6 +16,7 @@ export function selfCheck(
   pixels: Uint32Array,
   png: Uint8Array,
   codec: PngCodec,
+  height: number = width,
 ): BuildError[] {
   const mapResult = validateMap(map);
   if (!mapResult.ok) return [...mapResult.errors];
@@ -23,7 +24,7 @@ export function selfCheck(
   const errors: BuildError[] = [];
   const named = checkPresentation(map, presentation);
   if (!named.ok) errors.push(...named.errors);
-  const image = checkIdImage(map, width, width, pixels);
+  const image = checkIdImage(map, width, height, pixels);
   if (!image.ok) errors.push(...image.errors);
 
   const decoded = codec.decode(png);
@@ -31,7 +32,7 @@ export function selfCheck(
     errors.push(...decoded.errors);
   } else if (
     decoded.value.width !== width ||
-    decoded.value.height !== width ||
+    decoded.value.height !== height ||
     decoded.value.rgb.length !== 3 * pixels.length ||
     !sameValues(fromRgb(decoded.value.rgb), pixels)
   ) {
