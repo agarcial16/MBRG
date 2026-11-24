@@ -76,7 +76,7 @@ async function start(): Promise<void> {
   const refusals = checkCounts(map);
   if (refusals.length > 0) return showError(capabilityMessage(refusals[0]!));
 
-  const problems = checkCapabilities(probeCapabilities(), pkg.width, pkg.height, entryCount + 1);
+  const problems = checkCapabilities(probeCapabilities(), pkg.width, pkg.height, entryCount + 1, presentation.factions.length + 1);
   if (problems.length > 0) return showError(capabilityMessage(problems[0]!));
 
   await font;

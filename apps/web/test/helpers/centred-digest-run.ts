@@ -29,7 +29,7 @@ export interface BaseRun {
   /** Number of rounds T (rounds 0..T exist). */
   rounds: number;
   /** Owner table (faction index per entry) of each round 0..T of seed 1. */
-  tables: Uint8Array[];
+  tables: Uint16Array[];
   /** The retained 006 placement (the "before"). */
   territories: TerritoryLayout;
   factions: FactionLayout[];

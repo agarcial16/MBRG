@@ -32,7 +32,7 @@ export interface DevRun {
   /** Number of rounds T of the dev map (rounds 0..T exist). */
   rounds: number;
   /** Owner table (faction index per entry) of each round 0..T of seed 1. */
-  tables: Uint8Array[];
+  tables: Uint16Array[];
   territories: TerritoryLayout;
   /** Each round placed from that state alone. */
   factions: FactionLayout[];
@@ -52,7 +52,7 @@ export async function devRun(): Promise<DevRun> {
   for (let e = 0; e < index.fills.length; e++) territoryAspects.push(index.fills[e] === 'land' ? DEV_TERRITORY_ASPECT : 0);
   const total = totalRounds(DEV_MAP);
   if (!total.ok) throw new Error('rounds');
-  const tables: Uint8Array[] = [];
+  const tables: Uint16Array[] = [];
   for (let round = 0; round <= total.value; round++) {
     const scene = sceneAt(DEV_MAP, DEV_PRESENTATION, DEV_SEED, round, REAL);
     if (!scene.ok) throw new Error('scene');

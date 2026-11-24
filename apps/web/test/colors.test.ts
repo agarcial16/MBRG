@@ -132,92 +132,95 @@ describe('FR-141 preferred colours', () => {
 });
 
 describe('FR-141 step 2: colours reused by factions that cannot be direct candidates', () => {
-  it('FR-141 the 13th faction reuses the first colour when only a far faction has it', () => {
-    const result = colors(chainMap(13));
-    for (let i = 1; i <= 12; i++) expect(result.get(i), `faction ${i}`).toStrictEqual(rgb(PLAN_PALETTE[i - 1]!));
-    // Its only direct candidate is faction 12 (last palette colour): the first colour is free.
-    expect(result.get(13)).toStrictEqual(rgb(PLAN_PALETTE[0]!));
+  const P = PALETTE.length;
+  const FINITE_THEME = { ...THEME, procedural: false };
+
+  it('FR-141 the (P+1)th faction reuses the first colour when only a far faction has it', () => {
+    const result = colors(chainMap(P + 1));
+    for (let i = 1; i <= P; i++) expect(result.get(i), `faction ${i}`).toStrictEqual(PALETTE[i - 1]!);
+    // Its only direct candidate is faction P (last palette colour): the first colour is free.
+    expect(result.get(P + 1)).toStrictEqual(PALETTE[0]!);
   });
 
   it('FR-141 step 2 skips the preferred colour of a direct candidate but not of a far faction', () => {
-    // Faction 1 prefers palette colour 0: factions 2..13 compete for the 11 remaining colours.
+    // Faction 1 prefers palette colour 0: factions 2..P+1 compete for the P-1 remaining colours.
     const preferred = { 1: PLAN_PALETTE[0]! };
-    const far = colors(chainMap(13), preferred);
-    expect(far.get(13)).toStrictEqual(rgb(PLAN_PALETTE[0]!));
+    const far = colors(chainMap(P + 1), preferred);
+    expect(far.get(P + 1)).toStrictEqual(rgb(PLAN_PALETTE[0]!));
 
-    // Now faction 13 also touches faction 1: that preferred colour is out, the next free one is used.
+    // Now faction P+1 also touches faction 1: that preferred colour is out, the next free one is used.
     const map = mapFrom(
-      Array.from({ length: 13 }, (_, i): [number, number] => [i + 1, i + 1]),
+      Array.from({ length: P + 1 }, (_, i): [number, number] => [i + 1, i + 1]),
       [],
-      [...Array.from({ length: 12 }, (_, i): [number, number] => [i + 1, i + 2]), [13, 1]],
+      [...Array.from({ length: P }, (_, i): [number, number] => [i + 1, i + 2]), [P + 1, 1]],
     );
     const near = colors(map, preferred);
-    expect(near.get(13)).toStrictEqual(rgb(PLAN_PALETTE[1]!));
+    expect(near.get(P + 1)).toStrictEqual(rgb(PLAN_PALETTE[1]!));
   });
 
   it('FR-141 step 2 also respects a candidate reached through a shared sea zone', () => {
-    // Faction 13 touches only the sea zone 100; faction 12 and faction 11 touch it too.
-    const land = Array.from({ length: 13 }, (_, i): [number, number] => [i + 1, i + 1]);
+    // Faction P+1 touches only the sea zone 100; faction P and faction P-1 touch it too.
+    const land = Array.from({ length: P + 1 }, (_, i): [number, number] => [i + 1, i + 1]);
     const edges: [number, number][] = [
-      [13, 100],
-      [12, 100],
-      [11, 100],
+      [P + 1, 100],
+      [P, 100],
+      [P - 1, 100],
     ];
     const result = colors(mapFrom(land, [100], edges));
-    // Colours of 11 and 12 are palette 10 and 11; the first free colour is palette 0.
-    expect(result.get(13)).toStrictEqual(rgb(PLAN_PALETTE[0]!));
-    // Faction 1 is not a candidate of 13, so touching 1 as well removes palette 0.
+    // Colours of P-1 and P are the last two palette colours; the first free colour is palette 0.
+    expect(result.get(P + 1)).toStrictEqual(rgb(PLAN_PALETTE[0]!));
+    // Faction 1 is not a candidate of P+1, so touching 1 as well removes palette 0.
     const withOne = colors(mapFrom(land, [100], [...edges, [1, 100]]));
-    expect(withOne.get(13)).toStrictEqual(rgb(PLAN_PALETTE[1]!));
+    expect(withOne.get(P + 1)).toStrictEqual(rgb(PLAN_PALETTE[1]!));
   });
 
   it('FR-141 a faction two sea hops away is not a direct candidate, so its colour may be reused', () => {
-    const land = Array.from({ length: 13 }, (_, i): [number, number] => [i + 1, i + 1]);
-    // 13 -- 100 -- 101 -- 1: faction 1 is reached by widening only.
+    const land = Array.from({ length: P + 1 }, (_, i): [number, number] => [i + 1, i + 1]);
+    // (P+1) -- 100 -- 101 -- 1: faction 1 is reached by widening only.
     const edges: [number, number][] = [
-      [13, 100],
+      [P + 1, 100],
       [100, 101],
       [101, 1],
     ];
     const result = colors(mapFrom(land, [100, 101], edges));
-    expect(result.get(13)).toStrictEqual(rgb(PLAN_PALETTE[0]!));
+    expect(result.get(P + 1)).toStrictEqual(rgb(PLAN_PALETTE[0]!));
   });
 
-  it('FR-141 palette-exhausted names the faction whose land neighbours use every palette colour', () => {
-    const land = Array.from({ length: 13 }, (_, i): [number, number] => [i + 1, i + 1]);
-    const edges = Array.from({ length: 12 }, (_, i): [number, number] => [13, i + 1]);
+  it('FR-141 palette-exhausted names the faction whose land neighbours use every colour of a finite palette', () => {
+    const land = Array.from({ length: P + 1 }, (_, i): [number, number] => [i + 1, i + 1]);
+    const edges = Array.from({ length: P }, (_, i): [number, number] => [P + 1, i + 1]);
     const map = mapFrom(land, [], edges);
-    const result = assignFactionColors(map, presentationFor(map), THEME);
-    expect(result).toStrictEqual({ ok: false, errors: [{ kind: 'palette-exhausted', faction: 13 }] });
+    const result = assignFactionColors(map, presentationFor(map), FINITE_THEME);
+    expect(result).toStrictEqual({ ok: false, errors: [{ kind: 'palette-exhausted', faction: P + 1 }] });
   });
 
   it('FR-141 sea-zone fallback avoids land neighbours and balances colours when one sea zone has more factions than the palette', () => {
-    // 14 factions all touching one sea zone, plus faction 13 shares a land border with faction 1.
-    const land = Array.from({ length: 14 }, (_, i): [number, number] => [i + 1, i + 1]);
+    // P+2 factions all touching one sea zone, plus faction P+1 shares a land border with faction 1.
+    const land = Array.from({ length: P + 2 }, (_, i): [number, number] => [i + 1, i + 1]);
     const edges: [number, number][] = [
-      ...Array.from({ length: 14 }, (_, i): [number, number] => [i + 1, 100]),
-      [13, 1],
+      ...Array.from({ length: P + 2 }, (_, i): [number, number] => [i + 1, 100]),
+      [P + 1, 1],
     ];
     const map = mapFrom(land, [100], edges);
     const result = assignFactionColors(map, presentationFor(map), THEME);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // Faction 13 cannot take palette 0 (land neighbour faction 1), so it takes the next least-used colour (palette 1).
-    expect(result.value.get(13)).toStrictEqual(rgb(PLAN_PALETTE[1]!));
-    // Faction 14 has no land neighbours: palette 0 has count 1 (lowest, tied with 2..11), so it takes palette 0.
-    expect(result.value.get(14)).toStrictEqual(rgb(PLAN_PALETTE[0]!));
+    // Faction P+1 cannot take palette 0 (land neighbour faction 1), so it takes the next least-used colour (palette 1).
+    expect(result.value.get(P + 1)).toStrictEqual(rgb(PLAN_PALETTE[1]!));
+    // Faction P+2 has no land neighbours: palette 0 has count 1 (lowest, tied with 2..P-1), so it takes palette 0.
+    expect(result.value.get(P + 2)).toStrictEqual(rgb(PLAN_PALETTE[0]!));
   });
 
-  it('FR-141 the first faction without a free colour is the one reported (faction order)', () => {
-    const land = Array.from({ length: 14 }, (_, i): [number, number] => [i + 1, i + 1]);
-    // Both faction 13 and faction 14 border all 12 earlier factions on land: faction 13 is reported first.
+  it('FR-141 the first faction without a free colour is the one reported on a finite palette (faction order)', () => {
+    const land = Array.from({ length: P + 2 }, (_, i): [number, number] => [i + 1, i + 1]);
+    // Both faction P+1 and faction P+2 border all P earlier factions on land: faction P+1 is reported first.
     const edges: [number, number][] = [
-      ...Array.from({ length: 12 }, (_, i): [number, number] => [13, i + 1]),
-      ...Array.from({ length: 12 }, (_, i): [number, number] => [14, i + 1]),
+      ...Array.from({ length: P }, (_, i): [number, number] => [P + 1, i + 1]),
+      ...Array.from({ length: P }, (_, i): [number, number] => [P + 2, i + 1]),
     ];
     const map = mapFrom(land, [], edges);
-    const result = assignFactionColors(map, presentationFor(map), THEME);
-    expect(result).toStrictEqual({ ok: false, errors: [{ kind: 'palette-exhausted', faction: 13 }] });
+    const result = assignFactionColors(map, presentationFor(map), FINITE_THEME);
+    expect(result).toStrictEqual({ ok: false, errors: [{ kind: 'palette-exhausted', faction: P + 1 }] });
   });
 });
 

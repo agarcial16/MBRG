@@ -12,7 +12,7 @@ import { SHAPE_PARAMS } from '../../src/core/shape-params';
 export type BoxSource = { readonly aspect: number } | { readonly centred: number };
 
 /** `{ aspect }`: factionBoxes; `{ centred }`: placeCentredFactions, both with that label aspect for every living faction. */
-export function framePinsAspects(index: EntryIndex, table: Uint8Array, factions: ReadonlyMap<number, number>, source: BoxSource): FactionBoxes {
+export function framePinsAspects(index: EntryIndex, table: ArrayLike<number>, factions: ReadonlyMap<number, number>, source: BoxSource): FactionBoxes {
   const pieces = buildPieceIndex(index);
   const value = 'aspect' in source ? source.aspect : source.centred;
   const aspects = new Map([...factions.values()].map((f) => [f, value] as [number, number]));

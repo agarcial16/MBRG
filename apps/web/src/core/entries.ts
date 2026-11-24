@@ -1,14 +1,14 @@
-// Dense entry index and owner table (FR-134, NFR-24; plan decisions P5 and P6). Pure.
+// Dense entry index and owner table (FR-134, NFR-24, spec 033 FR-640/FR-645). Pure.
 // Entry index 0 is outside the map; map entries are 1..E in map order. The index image is built once
-// per load; a round change only rebuilds the owner table (one byte per entry, never pixel data).
+// per load; a round change only rebuilds the owner table (two bytes per entry, never pixel data).
 import { entryKind, factionOrder } from '@mbrg/shared';
 import type { FactionId, MapData, Rgb, TerritoryId } from '@mbrg/shared';
 import type { FillClass } from './theme';
 
 /** The two index bytes per pixel hold at most this many entries (plus outside). */
 export const MAX_ENTRIES = 0xffff;
-/** The owner table holds a faction index in one byte (0 = none). */
-export const MAX_FACTIONS = 255;
+/** The owner table holds a faction index in two bytes (0 = none, aligned with MAX_ENTRIES). */
+export const MAX_FACTIONS = 0xffff;
 
 /**
  * Views of the id image by dense entry index. It is also the `IndexGrid` that `renderReference` reads:
@@ -86,19 +86,28 @@ export function factionColorList(map: MapData, colors: ReadonlyMap<FactionId, Rg
 
 /**
  * Owner table: for every entry index, the faction index of its owner in the displayed state, or 0
- * (sea, outside, or a land entry the state gives no owner). Per-entry data only: E + 1 bytes.
+ * (sea, outside, or a land entry the state gives no owner). Per-entry data only: E + 1 16-bit slots.
  */
 export function ownerTable(
   index: EntryIndex,
   owners: ReadonlyMap<TerritoryId, FactionId>,
   factionIndex: ReadonlyMap<FactionId, number>,
-): Uint8Array {
+): Uint16Array {
   if (factionIndex.size > MAX_FACTIONS) throw new RangeError(`too many factions: ${factionIndex.size}`);
-  const table = new Uint8Array(index.ids.length);
+  const table = new Uint16Array(index.ids.length);
   for (let i = 1; i < index.ids.length; i++) {
     if (index.fills[i] !== 'land') continue;
     const owner = owners.get(index.ids[i]!);
     table[i] = owner === undefined ? 0 : (factionIndex.get(owner) ?? 0);
   }
   return table;
+}
+
+/** Packs a 16-bit owner table into RG8 bytes (low byte in R, high byte in G), two bytes per entry. */
+export function packOwnerTable(table: ArrayLike<number>, out: Uint8Array): void {
+  for (let i = 0; i < table.length; i++) {
+    const v = table[i]!;
+    out[i * 2] = v & 255;
+    out[i * 2 + 1] = v >> 8;
+  }
 }

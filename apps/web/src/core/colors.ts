@@ -1,7 +1,9 @@
-// Faction colour assignment (FR-141). Pure: the inputs are the map and the presentation data only,
-// so the colours never depend on seed, round, time or camera.
+// Faction colour assignment (FR-141, spec 033 FR-641 to FR-644, NFR-160, NFR-161). Pure: the
+// inputs are the map and the presentation data only, so the colours never depend on seed, round,
+// time or camera.
 import { entryKind, factionOrder, isValidColor } from '@mbrg/shared';
 import type { FactionId, MapData, MapEntry, PresentationData, Result, Rgb } from '@mbrg/shared';
+import { colorDistance, createProceduralPalette, MIN_LAND_SEPARATION, PRIMARY_PROCEDURAL_LIMIT, rgbKey } from './palette';
 import { fillTemplate, STRINGS } from './strings';
 import type { Theme } from './theme';
 
@@ -11,10 +13,27 @@ export interface PaletteExhausted {
   faction: FactionId;
 }
 
-const sameColor = (a: Rgb, b: Rgb): boolean => a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
-
 function parseColor(text: string): Rgb {
   return [parseInt(text.slice(1, 3), 16), parseInt(text.slice(3, 5), 16), parseInt(text.slice(5, 7), 16)];
+}
+
+/** Mutual-link adjacency lookup over map entries: uses Array.includes for small lists, Set for large ones. */
+function buildNeighborLookup(map: MapData): {
+  entryById: Map<number, MapEntry>;
+  linked: (a: MapEntry, b: MapEntry) => boolean;
+} {
+  const entryById = new Map<number, MapEntry>();
+  const largeSets = new Map<number, Set<number>>();
+  for (const t of map.territories) {
+    entryById.set(t.id, t);
+    if (t.neighbors.length > 16) largeSets.set(t.id, new Set(t.neighbors));
+  }
+  const hasLink = (from: MapEntry, toId: number): boolean => {
+    const s = largeSets.get(from.id);
+    return s !== undefined ? s.has(toId) : from.neighbors.includes(toId);
+  };
+  const linked = (a: MapEntry, b: MapEntry): boolean => a.id !== b.id && hasLink(a, b.id) && hasLink(b, a.id);
+  return { entryById, linked };
 }
 
 /**
@@ -22,10 +41,8 @@ function parseColor(text: string): Rgb {
  * border to one of its land territories. A faction is never its own neighbour.
  */
 export function landNeighbors(map: MapData): Map<FactionId, Set<FactionId>> {
-  const entryById = new Map<number, MapEntry>(map.territories.map((t) => [t.id, t]));
+  const { entryById, linked } = buildNeighborLookup(map);
   const isSea = (e: MapEntry): boolean => entryKind(e) === 'sea';
-  const linked = (a: MapEntry, b: MapEntry): boolean =>
-    a.id !== b.id && a.neighbors.includes(b.id) && b.neighbors.includes(a.id);
   const ownerOfEntry = (e: MapEntry): FactionId | undefined => (isSea(e) ? undefined : (e as { owner: FactionId }).owner);
 
   const result = new Map<FactionId, Set<FactionId>>();
@@ -55,10 +72,8 @@ export function landNeighbors(map: MapData): Map<FactionId, Set<FactionId>> {
  * both ends. A faction is never its own candidate.
  */
 export function directCandidates(map: MapData): Map<FactionId, Set<FactionId>> {
-  const entryById = new Map<number, MapEntry>(map.territories.map((t) => [t.id, t]));
+  const { entryById, linked } = buildNeighborLookup(map);
   const isSea = (e: MapEntry): boolean => entryKind(e) === 'sea';
-  const linked = (a: MapEntry, b: MapEntry): boolean =>
-    a.id !== b.id && a.neighbors.includes(b.id) && b.neighbors.includes(a.id);
   const ownerOfEntry = (e: MapEntry): FactionId | undefined => (isSea(e) ? undefined : (e as { owner: FactionId }).owner);
 
   const result = landNeighbors(map);
@@ -84,13 +99,17 @@ export function directCandidates(map: MapData): Map<FactionId, Set<FactionId>> {
 }
 
 /**
- * FR-141: one colour per faction, in faction order. A preferred colour is used as given. Otherwise
- * step (1) takes the first palette colour used by no coloured faction and equal to no preferred colour
- * of the map; step (2) the first palette colour used by none of the faction's already coloured direct
- * candidates and equal to no preferred colour of its direct candidates; step (3) when a large sea zone
- * exhausts the palette across sea-only candidates, the palette colour used by no land neighbour (and
- * equal to no preferred colour of a land neighbour) that appears fewest times among the faction's
- * direct candidates (ties broken by palette order); else `palette-exhausted`.
+ * FR-141 & Spec 033 (FR-641 to FR-644): one colour per faction, in faction order.
+ * Preferred colours are used verbatim. Otherwise:
+ * (1) first curated base colour unused by any faction and unequal to any preferred colour of the map;
+ * (2) first curated base colour unused by any already-coloured or preferred direct candidate (land + sea);
+ * (3) soft sea-zone fallback (building on fix/world-palette-exhausted): curated base colour unused by
+ *     any land neighbour (already coloured or preferred) appearing fewest times among direct candidates
+ *     (ties broken by palette order);
+ * (4) procedural last resort (only when theme.procedural is true and all curated colours are blocked by
+ *     land neighbours): deterministic procedural colour unused by direct candidates and separated from
+ *     land neighbours, relaxing sea-only distinctness first and then separation distance if needed;
+ * else `palette-exhausted` (defensive guard for custom finite palettes).
  */
 export function assignFactionColors(
   map: MapData,
@@ -102,51 +121,228 @@ export function assignFactionColors(
   for (const f of presentation.factions) {
     if (isValidColor(f.color)) preferred.set(f.id, parseColor(f.color));
   }
-  const land = landNeighbors(map);
-  const candidates = directCandidates(map);
+
+  // Build land adjacency and per-sea-zone membership in one linear pass (avoids O(K^2) sea-clique blow-up).
+  const { entryById, linked } = buildNeighborLookup(map);
+  const isSea = (e: MapEntry): boolean => entryKind(e) === 'sea';
+  const ownerOfEntry = (e: MapEntry): FactionId | undefined => (isSea(e) ? undefined : (e as { owner: FactionId }).owner);
+
+  const land = new Map<FactionId, Set<FactionId>>();
+  const factionSeaZones = new Map<FactionId, number[]>();
+  for (const f of order) {
+    land.set(f, new Set());
+    factionSeaZones.set(f, []);
+  }
+
+  for (const t of map.territories) {
+    const owner = ownerOfEntry(t);
+    if (owner === undefined) continue;
+    const ownLand = land.get(owner)!;
+    for (const n of t.neighbors) {
+      const m = entryById.get(n);
+      if (m === undefined || !linked(t, m)) continue;
+      const other = ownerOfEntry(m);
+      if (other !== undefined && other !== owner) {
+        ownLand.add(other);
+        land.get(other)!.add(owner);
+      }
+    }
+  }
+
+  const seaZoneFactions: Set<FactionId>[] = [];
+  const seaZoneColorCounts: Map<number, number>[] = [];
+  for (const z of map.territories) {
+    if (!isSea(z)) continue;
+    const around = new Set<FactionId>();
+    for (const n of z.neighbors) {
+      const m = entryById.get(n);
+      if (m === undefined || !linked(z, m)) continue;
+      const owner = ownerOfEntry(m);
+      if (owner !== undefined) around.add(owner);
+    }
+    if (around.size < 2) continue;
+    const zoneIndex = seaZoneFactions.length;
+    seaZoneFactions.push(around);
+    seaZoneColorCounts.push(new Map());
+    for (const f of around) factionSeaZones.get(f)!.push(zoneIndex);
+  }
+
   const colors = new Map<FactionId, Rgb>();
+  const colorKeys = new Map<FactionId, number>();
+  const usedGlobal = new Set<number>();
+
+  const recordSeaColor = (f: FactionId, k: number): void => {
+    for (const z of factionSeaZones.get(f)!) {
+      const counts = seaZoneColorCounts[z]!;
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+  };
+
   // Preferred colours count as coloured from the start: a faction can see them whatever the order.
   for (const f of order) {
     const own = preferred.get(f);
-    if (own !== undefined) colors.set(f, own);
+    if (own !== undefined) {
+      const k = rgbKey(own);
+      colors.set(f, own);
+      colorKeys.set(f, k);
+      usedGlobal.add(k);
+      recordSeaColor(f, k);
+    }
   }
-  const preferredList = [...preferred.values()];
-  const assigned: Rgb[] = [];
+
+  const palette = theme.palette;
+  const paletteKeys = palette.map(rgbKey);
+  let nextUniquePaletteIndex = 0;
+
+  // Lazily created procedural pool (only touched if land neighbours exhaust the entire curated palette).
+  let procGen: ReturnType<typeof createProceduralPalette> | undefined;
+  const procPool: Rgb[] = [];
+  const procPoolKeys: number[] = [];
+  const ensureProcedural = (count: number): void => {
+    if (procGen === undefined) {
+      const excluded = new Set<number>(paletteKeys);
+      excluded.add(rgbKey(theme.sea));
+      excluded.add(rgbKey(theme.background));
+      for (const b of Object.values(theme.border)) excluded.add(rgbKey(b));
+      procGen = createProceduralPalette(excluded);
+    }
+    while (procPool.length < count) {
+      const c = procGen.next();
+      procPool.push(c);
+      procPoolKeys.push(rgbKey(c));
+    }
+  };
+
+  const landKeySet = new Set<number>();
 
   for (const f of order) {
     if (preferred.has(f)) continue;
-    let pick = theme.palette.find(
-      (c) => !assigned.some((u) => sameColor(u, c)) && !preferredList.some((p) => sameColor(p, c)),
-    );
+
+    // Step 1: first curated colour unused by any faction and unequal to any preferred colour of the map.
+    let pick: Rgb | undefined;
+    let pickKey = -1;
+    while (nextUniquePaletteIndex < palette.length) {
+      const idx = nextUniquePaletteIndex++;
+      const k = paletteKeys[idx]!;
+      if (!usedGlobal.has(k)) {
+        pick = palette[idx]!;
+        pickKey = k;
+        break;
+      }
+    }
+
     if (pick === undefined) {
-      const near = [...(candidates.get(f) ?? [])];
-      const nearColors = near.flatMap((g) => {
-        const c = colors.get(g);
-        return c === undefined ? [] : [c];
-      });
-      pick = theme.palette.find((c) => !nearColors.some((u) => sameColor(u, c)));
+      const landNbs = land.get(f)!;
+      landKeySet.clear();
+      for (const g of landNbs) {
+        const k = colorKeys.get(g);
+        if (k !== undefined) landKeySet.add(k);
+      }
+      const zones = factionSeaZones.get(f)!;
+      const isSeaFree = (k: number): boolean => {
+        for (let i = 0; i < zones.length; i++) {
+          if ((seaZoneColorCounts[zones[i]!]!.get(k) ?? 0) > 0) return false;
+        }
+        return true;
+      };
+
+      // Step 2: first curated colour unused by any already-coloured or preferred direct candidate (land + sea).
+      for (let i = 0; i < palette.length; i++) {
+        const k = paletteKeys[i]!;
+        if (!landKeySet.has(k) && isSeaFree(k)) {
+          pick = palette[i]!;
+          pickKey = k;
+          break;
+        }
+      }
+
+      // Step 3: soft sea-zone fallback (land neighbours strict; least-used colour among direct candidates).
       if (pick === undefined) {
-        // Sea-zone fallback: strictly avoid land neighbours and pick the least-used colour among direct candidates.
-        const landNear = [...(land.get(f) ?? [])];
-        const landColors = landNear.flatMap((g) => {
-          const c = colors.get(g);
-          return c === undefined ? [] : [c];
-        });
+        let multiSeaCounts: Map<number, number> | undefined;
+        if (zones.length > 1) {
+          const seenSea = new Set<FactionId>();
+          multiSeaCounts = new Map();
+          for (const z of zones) {
+            for (const g of seaZoneFactions[z]!) {
+              if (g === f || landNbs.has(g) || seenSea.has(g)) continue;
+              seenSea.add(g);
+              const k = colorKeys.get(g);
+              if (k !== undefined) multiSeaCounts.set(k, (multiSeaCounts.get(k) ?? 0) + 1);
+            }
+          }
+        }
         let bestCount = Infinity;
-        for (const c of theme.palette) {
-          if (landColors.some((u) => sameColor(u, c))) continue;
-          let count = 0;
-          for (const u of nearColors) if (sameColor(u, c)) count++;
+        for (let i = 0; i < palette.length; i++) {
+          const k = paletteKeys[i]!;
+          if (landKeySet.has(k)) continue;
+          const count =
+            zones.length === 0
+              ? 0
+              : zones.length === 1
+                ? (seaZoneColorCounts[zones[0]!]!.get(k) ?? 0)
+                : (multiSeaCounts!.get(k) ?? 0);
           if (count < bestCount) {
             bestCount = count;
+            pick = palette[i]!;
+            pickKey = k;
+          }
+        }
+      }
+
+      // Step 4: procedural last resort (only when enabled and all curated colours are blocked by land neighbours).
+      if (pick === undefined && theme.procedural === true) {
+        const landRgbs: Rgb[] = [];
+        for (const g of landNbs) {
+          const c = colors.get(g);
+          if (c !== undefined) landRgbs.push(c);
+        }
+        const isSeparated = (c: Rgb): boolean => {
+          for (let i = 0; i < landRgbs.length; i++) {
+            if (colorDistance(c, landRgbs[i]!) < MIN_LAND_SEPARATION) return false;
+          }
+          return true;
+        };
+
+        // 4a: unused by direct candidates AND perceptually separated from all land neighbours.
+        let bestRelaxedSeaIdx = -1;
+        for (let idx = 0; idx < PRIMARY_PROCEDURAL_LIMIT; idx++) {
+          ensureProcedural(idx + 1);
+          const k = procPoolKeys[idx]!;
+          if (landKeySet.has(k)) continue;
+          const c = procPool[idx]!;
+          if (!isSeparated(c)) continue;
+          if (isSeaFree(k)) {
             pick = c;
+            pickKey = k;
+            break;
+          }
+          if (bestRelaxedSeaIdx === -1) bestRelaxedSeaIdx = idx;
+        }
+        // 4b: relax sea-only distinctness while keeping land separation.
+        if (pick === undefined && bestRelaxedSeaIdx !== -1) {
+          pick = procPool[bestRelaxedSeaIdx]!;
+          pickKey = procPoolKeys[bestRelaxedSeaIdx]!;
+        }
+        // 4c: pathological land graph fallback: pick first procedural colour unused by any land neighbour.
+        if (pick === undefined) {
+          for (let idx = 0; ; idx++) {
+            ensureProcedural(idx + 1);
+            const k = procPoolKeys[idx]!;
+            if (!landKeySet.has(k)) {
+              pick = procPool[idx]!;
+              pickKey = k;
+              break;
+            }
           }
         }
       }
     }
+
     if (pick === undefined) return { ok: false, errors: [{ kind: 'palette-exhausted', faction: f }] };
     colors.set(f, pick);
-    assigned.push(pick);
+    colorKeys.set(f, pickKey);
+    usedGlobal.add(pickKey);
+    recordSeaColor(f, pickKey);
   }
 
   // Result in faction order.

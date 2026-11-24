@@ -78,7 +78,7 @@ describe('FR-326 unitLit: a unit is lit when it is land owned by a lit faction',
 
 describe('FR-326 FR-355 shadeTour over the dev map at 1920 x 1080', () => {
   let index: EntryIndex;
-  let owners: Uint8Array;
+  let owners: Uint16Array;
   let colors: Rgb[];
   let cam: Camera;
   let plain: Uint8Array;
@@ -218,7 +218,7 @@ describe('FR-326 FR-355 the shader is a port of shadeTour', () => {
   });
 
   it('FR-326 the unit owner the shader tests is the entry owner of the pixel unit, read from the drawn table', () => {
-    expect(FRAGMENT_SHADER).toContain('int unitOwner = byteAt(uOwners, a);');
+    expect(FRAGMENT_SHADER).toContain('int unitOwner = u16At(uOwners, a);');
   });
 });
 
@@ -261,7 +261,7 @@ describe('FR-326 FR-355 setTour sets uniforms only', () => {
     const scene = make();
     for (const dim of [-0.01, 1.01, Number.NaN]) expect(() => scene.setTour({ lit: [1], dim })).toThrow(RangeError);
     expect(() => scene.setTour({ lit: [1, 2, 3], dim: 0.5 })).toThrow(RangeError);
-    for (const bad of [-1, 1.5, 256, Number.NaN]) expect(() => scene.setTour({ lit: [bad], dim: 0.5 }), String(bad)).toThrow(RangeError);
+    for (const bad of [-1, 1.5, 65536, Number.NaN]) expect(() => scene.setTour({ lit: [bad], dim: 0.5 }), String(bad)).toThrow(RangeError);
   });
 
   it('FR-353 FR-355 setTour uploads nothing: every texture version stays the same', () => {
