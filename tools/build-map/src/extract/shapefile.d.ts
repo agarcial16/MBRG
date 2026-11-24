@@ -16,4 +16,8 @@ declare module 'shapefile' {
     dbf: ArrayBuffer,
     options: { encoding: string },
   ): Promise<ShapefileSource>;
+  export interface ShpSource {
+    read(): Promise<{ done: boolean; value: { type: string; coordinates: unknown } | null | undefined }>;
+  }
+  export function openShp(shp: ArrayBuffer): Promise<ShpSource>;
 }
