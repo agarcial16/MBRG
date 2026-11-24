@@ -1,0 +1,73 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Mar Grande",
+    "name_es": "Mar Grande"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -40,
+       -30
+      ],
+      [
+       40,
+       -30
+      ],
+      [
+       40,
+       30
+      ],
+      [
+       -40,
+       30
+      ],
+      [
+       -40,
+       -30
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Chica Bay",
+    "name_es": "Bahía Chica"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -9,
+       -5
+      ],
+      [
+       -1,
+       -5
+      ],
+      [
+       -1,
+       5
+      ],
+      [
+       -9,
+       5
+      ],
+      [
+       -9,
+       -5
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

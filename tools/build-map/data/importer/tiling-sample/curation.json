@@ -1,0 +1,82 @@
+{
+  "primary": "primary.json",
+  "context": [
+    "context.json"
+  ],
+  "columns": {
+    "key": "code",
+    "name": [
+      "name"
+    ]
+  },
+  "params": {
+    "side": 160,
+    "margin": 0.05,
+    "minPieceSize": 4,
+    "projection": "laea",
+    "enclosedReach": 0,
+    "tiling": {
+      "tileKm": 600,
+      "zones": {
+        "Golfo Quieto": 0
+      },
+      "names": {
+        "file": "names.json",
+        "nameProperty": [
+          "name_es",
+          "name"
+        ]
+      }
+    }
+  },
+  "factions": [
+    {
+      "key": "A",
+      "name": "Faccion A"
+    },
+    {
+      "key": "B",
+      "name": "Faccion B"
+    }
+  ],
+  "factionBy": {
+    "property": "country"
+  },
+  "seas": [
+    {
+      "name": "Mar Oeste",
+      "lon": -5,
+      "lat": 0
+    },
+    {
+      "name": "Mar Este",
+      "lon": 5,
+      "lat": 0
+    },
+    {
+      "name": "Golfo Quieto",
+      "lon": 0,
+      "lat": 22
+    },
+    {
+      "name": "Mar Isla",
+      "lon": 61,
+      "lat": -0.5
+    }
+  ],
+  "insets": [
+    {
+      "select": [
+        {
+          "property": "region",
+          "eq": "ISLE"
+        }
+      ],
+      "at": [
+        130,
+        130
+      ],
+      "sea": "Mar Isla"
+    }
+  ]
+}

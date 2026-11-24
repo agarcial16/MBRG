@@ -91,7 +91,7 @@ describe('the scale fixture generator (the full 8,132-unit fixture runs in the o
     const fixture = generateScaleFixture(SMALL);
     const curation = parseCuration(fixture.curationBytes, 'curation.json');
     if (!curation.ok) throw new Error(`the curation should parse: ${JSON.stringify(curation.errors)}`);
-    expect(curation.value.params).toStrictEqual({ side: 256, margin: 0.02, minPieceSize: 2, projection: 'laea' });
+    expect(curation.value.params).toStrictEqual({ side: 256, margin: 0.02, minPieceSize: 2, projection: 'laea', tiling: false });
     expect(curation.value.seas).toHaveLength(SMALL.seas);
     expect(curation.value.context).toStrictEqual(['context.geojson']);
     expect(curation.value.insets).toHaveLength(1);

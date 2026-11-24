@@ -119,7 +119,7 @@ function world() {
     primary: 'primary.geojson',
     context: ['context.geojson'],
     columns: { key: 'code', name: ['name'] },
-    params: { side: 96, margin: 0.02, minPieceSize: 4, projection: 'laea' },
+    params: { side: 96, margin: 0.02, minPieceSize: 4, projection: 'laea', tiling: false },
     factionBy: { property: 'adm' },
     factions: [{ key: 'X', name: 'Xland' }, { key: 'Y', name: 'Yland' }],
     units: { D: { kind: 'sea' } },
@@ -261,7 +261,7 @@ describe('FR-609 the report of a successful import', () => {
       curation: {
         primary: 'primary.geojson',
         columns: { key: 'code', name: ['name'] },
-        params: { side: 64, margin: 0.02, minPieceSize: 1, projection: 'laea' },
+        params: { side: 64, margin: 0.02, minPieceSize: 1, projection: 'laea', tiling: false },
         factionBy: { property: 'f', nameProperty: 'fn' },
         units: { SEA: { kind: 'sea' } },
       },

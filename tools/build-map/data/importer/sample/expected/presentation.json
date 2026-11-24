@@ -40,11 +40,47 @@
     },
     {
       "id": 7,
-      "name": "Mar Interior"
+      "name": "Mar Interior 1"
     },
     {
       "id": 8,
-      "name": "Mar Abierto"
+      "name": "Mar Interior 2"
+    },
+    {
+      "id": 9,
+      "name": "Mar Interior 3"
+    },
+    {
+      "id": 10,
+      "name": "Mar Interior 4"
+    },
+    {
+      "id": 11,
+      "name": "Mar Interior 5"
+    },
+    {
+      "id": 12,
+      "name": "Mar Interior 6"
+    },
+    {
+      "id": 13,
+      "name": "Mar Abierto 1"
+    },
+    {
+      "id": 14,
+      "name": "Mar Abierto 2"
+    },
+    {
+      "id": 15,
+      "name": "Mar Abierto 3"
+    },
+    {
+      "id": 16,
+      "name": "Mar Abierto 4"
+    },
+    {
+      "id": 17,
+      "name": "Mar Abierto 5"
     }
   ]
 }
