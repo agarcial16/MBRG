@@ -347,4 +347,21 @@ describe('HUD polish: minimap alignment, factions overflow, brand logo and refus
     expect(messageShell).toMatch(/hud-btn primary/);
     expect(languageViolations(messageShell)).toStrictEqual([]);
   });
+
+  it('the personal link popover stacks above leaderboard and minimap with border-box sizing and opaque background', () => {
+    const pop = rules('.hud-pop').find((r) => r.includes('z-index:'));
+    expect(pop).toBeDefined();
+    expect(pop).toMatch(/z-index:\s*10/);
+    expect(pop).toMatch(/box-sizing:\s*border-box/);
+    expect(rules('[data-layout="desk"] .hud-pop').join(';')).toMatch(/background:\s*var\(--hud-wood\)/);
+  });
+
+  it('prediction chips keep padding inside their scroll container and use a real border so sub-pixel positions never clip the top edge', () => {
+    const picks = rules('.hud-picks').find((r) => r.includes('overflow: auto'));
+    expect(picks).toBeDefined();
+    expect(picks).toMatch(/padding:\s*2px 1px/);
+    const pick = rules('.hud-pick').find((r) => r.includes('border:'));
+    expect(pick).toBeDefined();
+    expect(pick).toMatch(/border:\s*1px solid var\(--hud-gilt-dim\)/);
+  });
 });
