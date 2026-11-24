@@ -93,7 +93,7 @@ export interface ScaleImportResult {
   /** The stress package loads and passes the viewer's checks. */
   serverLoadOk: boolean;
   viewerChecksOk: boolean;
-  /** The viewer-limits warnings of the stress report (factions above 255, palette-exhausted when it fires). */
+  /** The viewer-limits warnings of the stress report (factions above 65,535 or palette-exhausted when either fires). */
   stressWarnings: string[];
   /** Peak resident memory after the NFR-136 import and inspect, megabytes. */
   importMaxRssMb: number;
@@ -168,7 +168,7 @@ export function runScaleImport(options: ScaleOptions, now: () => number, rss: ()
   }
   const stressWarnings = stress.report
     .split('\n')
-    .filter((line) => line.includes('Above255') || line.includes('paletteExhausted'))
+    .filter((line) => line.includes('factionsAbove65535') || line.includes('paletteExhausted'))
     .map((line) => line.trim());
 
   return {
@@ -226,7 +226,7 @@ export function scaleRunOk(result: ScaleImportResult): boolean {
     result.stressStatus === 0 &&
     result.serverLoadOk &&
     result.viewerChecksOk &&
-    result.stressWarnings.some((w) => w.includes('factionsAbove255'))
+    result.stressWarnings.length === 0
   );
 }
 

@@ -83,7 +83,7 @@ describe('the suite scale tests (NFR-136, FR-607, FR-614, NFR-135)', () => {
   );
 
   it(
-    'FR-614 FR-607 imports 300 single-unit factions with the over-255 warning, loads as server and passes viewer checks',
+    'FR-614 FR-607 FR-646 imports 300 single-unit factions with no faction or palette warning, loads as server and passes viewer checks',
     () => {
       const options: ScaleOptions = {
         units: 300,
@@ -103,8 +103,8 @@ describe('the suite scale tests (NFR-136, FR-607, FR-614, NFR-135)', () => {
       expect(r.status).toBe(0);
       expect(r.report).toContain('factions: 300');
       expect(r.report).toContain('landTerritories: 300');
-      expect(r.report).toContain('    - factionsAbove255=300');
-      expect(r.report).toContain('    - paletteExhaustedFaction=');
+      expect(r.report).not.toContain('factionsAbove');
+      expect(r.report).not.toContain('paletteExhaustedFaction');
       const loaded = loadAsServer(r.folder);
       expect(loaded.mapOk).toBe(true);
       expect(loaded.digest).toMatch(/^[0-9a-f]{64}$/);
@@ -171,8 +171,7 @@ describe('the suite scale tests (NFR-136, FR-607, FR-614, NFR-135)', () => {
       expect(scaleRunOk(result)).toBe(true);
       expect(result.serverLoadOk).toBe(true);
       expect(result.viewerChecksOk).toBe(true);
-      expect(result.stressWarnings.some((w) => w.includes('factionsAbove255=300'))).toBe(true);
-      expect(result.stressWarnings.some((w) => w.includes('paletteExhaustedFaction='))).toBe(true);
+      expect(result.stressWarnings).toStrictEqual([]);
       const text = describeScaleRun(result);
       expect(text).toContain('importMaxRssMb: 256');
       expect(text).toContain('stressServerLoad: ok');
@@ -182,7 +181,7 @@ describe('the suite scale tests (NFR-136, FR-607, FR-614, NFR-135)', () => {
       expect(scaleRunOk({ ...result, inspectMs: INSPECT_BOUND_MS + 1 })).toBe(false);
       expect(scaleRunOk({ ...result, serverLoadOk: false })).toBe(false);
       expect(scaleRunOk({ ...result, viewerChecksOk: false })).toBe(false);
-      expect(scaleRunOk({ ...result, stressWarnings: [] })).toBe(false);
+      expect(scaleRunOk({ ...result, stressWarnings: ['factionsAbove65535=70000'] })).toBe(false);
       // an import breach stops before the stress proof
       let slow = 0;
       const breached = runScaleImport(options, () => (slow += SCALE_BOUND_MS), () => 128);
