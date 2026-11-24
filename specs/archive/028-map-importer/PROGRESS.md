@@ -301,3 +301,10 @@ Consequence: removing the unclaimed land isolates 9 groups of inland African fac
 Result: Khanates/BEIC and Zulu/Russian Empire share no zone and no land contact. The remaining long coasts on one zone are ocean-sized seeds (Índico, Mar de la China Meridional from Russia's Pacific coast to north Australia, Atlántico Sur), strait-closed seas (Black Sea, Red Sea) and bridge-cut pieces of Índico.
 Tests: importer-sea (+6), importer-curation (+2), importer-select (+4), import-command (+2), report/language label lists. Untested: nothing of this task.
 Next: user reviews `world-1815-5` (report, `world-1815-5-seazones.png`) and the decisions in the PR comment.
+
+## 2026-11-24 — Hand run 3, round 2: own seas for the Caspian, Aral, Black Sea and Baltic
+Branch: `feat/028-map-importer` (PR #94). State: no importer change; local curation only; `world-1815-6` imported (`-4`, `-5` kept).
+User answers: keep the exclave bridges (`exclaveReach` 160); Caspian and Aral as their own seas; the `enclosedReach` rule stays; Black Sea separate from the Mediterranean.
+Curation (local): four seeds appended to `seas` (list order keeps the earlier zone ids): Mar Negro (34, 43), Mar Caspio (51, 41.5), Mar de Aral (59.5, 45), Mar Báltico (19, 58). A seed puts a source in the sea, so the water is reached and no enclosed set is left to judge: the importer needs no change (test: "keeps a map with a seed in the inland sea"; spec FR-603 already says to seed an inland sea). The Black Sea stays apart from the Mediterranean because the Bosporus is closed at 8.6 km a pixel; the Sea of Marmara (157 px, only the Ottoman Empire) joins the Black Sea as the nearer zone.
+Result: Mar Negro touches Ottoman Empire and Russian Empire; Mar Caspio Persia, Russian Empire, Turan; Mar de Aral Turan and the central Asian khanates; Mar Báltico nine factions incl. Russia and Prussia; Mar del Norte no longer touches Russia or Prussia; Mar Mediterráneo no longer touches Russia. Khanates/BEIC and Zulu/Russia share no zone. Russia and Spain still share Pacífico Norte Este (Alaska, California): wider ocean splitting is spec 035.
+Next: user reviews `world-1815-6`.
