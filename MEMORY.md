@@ -18,6 +18,7 @@ Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random
 - Per-server history (024): the bot sends only a SHA-256 community key (never the guild id), in request bodies; a finished match is listed once settled (> `TOLERANCE_MS` after its finish) so a paging walk keeps one snapshot.
 - Ranking windows (027): rolling 7/30 days; the server fixes the floor at the first page and the cursor carries it; wire member `period` (absent = all time).
 - Viewer count refusal (029): a package beyond the viewer's tables (over 65,535 territories or 255 factions) is refused at load naming the limit; `checkCounts` reads the sizes from `core/entries.ts` so widening the tables (V2/V3) widens the refusal with them.
+- Readable labels (032): in-land precomputed abbreviation tiers (full -> prefix + `.` -> plain acronym), screen-space height bounds (`minPx` 9, `maxPx` 48 faction / 28 territory), per-role screen overlap resolution (`minGapPx` 4), no off-land/leader lines, and always-on map hover/tap full-name readout.
 - Sea is an explicit entry kind (no owner); enclosed water joins the nearest sea zone; lakes stay background.
 
 ## Limits

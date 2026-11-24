@@ -330,6 +330,8 @@ export const STRINGS = {
   landingAtlasTag: 'ATLAS · VISTA ESTÁTICA',
   landingAtlasCaption: '{name} · Ronda {round}',
   landingMapDev: 'Europa Occidental',
+  // Readable map labels (spec 032 FR-625): hover/tap full-name readout.
+  mapTipLine: '{name} · {owner}',
 } as const;
 
 /** Fills {name} placeholders; a placeholder without a value is left as written. */

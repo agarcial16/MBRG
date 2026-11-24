@@ -4,7 +4,8 @@
 import type { PublicMatch } from '@mbrg/protocol';
 import type { MapData, PresentationData, Rgb } from '@mbrg/shared';
 import { initialCamera, screenToMap, withInset } from '../core/camera';
-import type { Camera, Viewport } from '../core/camera';
+import type { Camera, ScreenPoint, Viewport } from '../core/camera';
+import { mapReadout } from '../core/map-readout';
 import { mapInset } from '../core/hud-layout';
 import { capabilityMessage, checkCapabilities, checkCounts } from '../core/capabilities';
 import { assignFactionColors, paletteMessage } from '../core/colors';
@@ -282,13 +283,25 @@ export function startLiveScene(matchId: string, player?: PlayerCredentials, spec
         view = created;
         terra = createTerra(canvas, { w: pkg.width, h: pkg.height });
         terra.place(created.camera(), created.viewport());
+        const updateReadout = (point: ScreenPoint | undefined): void => {
+          if (point === undefined || built === undefined) {
+            built?.panel.showReadout(undefined);
+            return;
+          }
+          const live = runner?.model();
+          const ownersAt = live === undefined || live.displayed === undefined ? undefined : live.held.get(live.displayed);
+          const at = screenToMap(created.camera(), point, created.viewport());
+          const info = mapReadout(created.index, ownersAt, built.presentation, at, tour !== undefined);
+          built.panel.showReadout(info, point);
+        };
         attachInput(canvas, {
           image: { w: pkg.width, h: pkg.height },
           viewport: created.viewport,
           camera: created.camera,
           setCamera: (next) => userMoved(next),
-          pointerMoved: () => undefined,
+          pointerMoved: updateReadout,
           onTap: (point) => {
+            updateReadout(point);
             const live = runner?.model();
             if (live === undefined || live.displayed === undefined) return;
             const at = screenToMap(created.camera(), point, created.viewport());
