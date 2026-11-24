@@ -8,6 +8,7 @@ import {
   liveMark,
   parseJumpRound,
   replayBand,
+  resolveJump,
   roundTrack,
   roundWindow,
   sanitizeJumpInput,
@@ -234,6 +235,27 @@ describe('spec 034 FR-660..FR-666 NFR-170 windowed round timeline and jump-to-ro
     for (const empty of ['', '   ', 'abc']) {
       expect(parseJumpRound(empty, 51), empty).toStrictEqual({ outcome: 'close' });
     }
+  });
+
+  it('FR-663 resolveJump applies typed number on submit and leave (blur/outside click), closes on empty or unchanged, and cancels on Escape', () => {
+    // Submit (Enter / Ir button) with a new number -> jump (clamped)
+    expect(resolveJump('submit', '12', 51, 51)).toStrictEqual({ outcome: 'jump', round: 12 });
+    expect(resolveJump('submit', '0', 51, 10)).toStrictEqual({ outcome: 'jump', round: 0 });
+    expect(resolveJump('submit', '999', 51, 10)).toStrictEqual({ outcome: 'jump', round: 51 });
+    expect(resolveJump('submit', '', 51, 10)).toStrictEqual({ outcome: 'close' });
+    expect(resolveJump('submit', '10', 51, 10)).toStrictEqual({ outcome: 'close' });
+
+    // Leave (blur / click or tap outside) applies just like Enter
+    expect(resolveJump('leave', '12', 51, 51)).toStrictEqual({ outcome: 'jump', round: 12 });
+    expect(resolveJump('leave', '0', 51, 10)).toStrictEqual({ outcome: 'jump', round: 0 });
+    expect(resolveJump('leave', '200', 51, 10)).toStrictEqual({ outcome: 'jump', round: 51 });
+    expect(resolveJump('leave', '', 51, 10)).toStrictEqual({ outcome: 'close' });
+    expect(resolveJump('leave', '   ', 51, 10)).toStrictEqual({ outcome: 'close' });
+    expect(resolveJump('leave', '10', 51, 10)).toStrictEqual({ outcome: 'close' });
+
+    // Cancel (Escape) never jumps even when a different number is typed
+    expect(resolveJump('cancel', '12', 51, 51)).toStrictEqual({ outcome: 'close' });
+    expect(resolveJump('cancel', '0', 51, 10)).toStrictEqual({ outcome: 'close' });
   });
 
   it('FR-666 anti-spoiler: window never lists beyond applied+1 or exposes totalRounds', () => {

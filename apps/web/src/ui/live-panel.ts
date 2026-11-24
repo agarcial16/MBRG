@@ -14,7 +14,7 @@ import type { HudState, StateCard, TopBar } from '../core/live-hud';
 import { searchRows, sortRows, territoryShare, totalTerritories, visibleRows, type ChronicleEntry, type FactionRow, type SortKey } from '../core/live-stats';
 import {
   TRACK_METRICS,
-  parseJumpRound,
+  resolveJump,
   roundWindow,
   sanitizeJumpInput,
   shiftWindow,
@@ -22,6 +22,7 @@ import {
   trackTarget,
   windowCapacity,
   windowPageStep,
+  type JumpTrigger,
   type ReplayBand,
   type RoundTrack,
 } from '../core/live-track';
@@ -367,11 +368,15 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   let jumpEditing = false;
 
   const trackLabel = button(roundSel, '', () => openJump(), 'hud-track-label hud-num');
-  const jumpInput = el('input', 'hud-jump-input hud-num', roundSel) as HTMLInputElement;
+  const jumpBox = el('div', 'hud-jump-box', roundSel);
+  jumpBox.hidden = true;
+  const jumpInput = el('input', 'hud-jump-input hud-num', jumpBox) as HTMLInputElement;
   jumpInput.type = 'text';
   jumpInput.inputMode = 'numeric';
   jumpInput.pattern = '[0-9]*';
-  jumpInput.hidden = true;
+  const jumpConfirm = button(jumpBox, STRINGS.hudJumpConfirm, () => finishJump('submit', false), 'hud-jump-confirm');
+  jumpConfirm.setAttribute('aria-label', STRINGS.hudJumpConfirmLabel);
+  jumpConfirm.title = STRINGS.hudJumpConfirmLabel;
   const startDot = button(roundSel, STRINGS.hudTrackStart, () => handlers.onNavigate({ to: 0 }), 'hud-dot start');
   startDot.setAttribute('aria-label', STRINGS.hudTrackStart);
   const pagerPrev = navButton(roundSel, STRINGS.hudTrackWindowPrev, STRINGS.hudTrackWindowPrevShort, () => shiftBy(-windowPageStep(lastCapacity)), 'hud-track-pager');
@@ -390,9 +395,10 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     if (lastMaxJump < 1) return;
     jumpEditing = true;
     trackLabel.hidden = true;
-    jumpInput.hidden = false;
+    jumpBox.hidden = false;
     jumpInput.value = String(lastDisplayed ?? 0);
     jumpInput.setAttribute('aria-label', fillTemplate(STRINGS.hudJumpInput, { round: lastMaxJump }));
+    if (lastTrack !== undefined) drawTrack(lastTrack, true);
     jumpInput.focus();
     jumpInput.select();
   }
@@ -400,24 +406,31 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   function closeJump(restoreFocus = false): void {
     if (!jumpEditing) return;
     jumpEditing = false;
-    jumpInput.hidden = true;
+    jumpBox.hidden = true;
     trackLabel.hidden = false;
+    if (lastTrack !== undefined) drawTrack(lastTrack, false);
     if (restoreFocus) trackLabel.focus();
   }
 
+  function finishJump(trigger: JumpTrigger, restoreFocusOnClose = false): void {
+    if (!jumpEditing) return;
+    const decision = resolveJump(trigger, jumpInput.value, lastMaxJump, lastDisplayed ?? 0);
+    closeJump(decision.outcome === 'close' && restoreFocusOnClose);
+    if (decision.outcome === 'jump') {
+      handlers.onNavigate({ to: decision.round });
+    }
+  }
+
+  jumpBox.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      finishJump('cancel', true);
+    }
+  });
   jumpInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
       event.preventDefault();
-      const res = parseJumpRound(jumpInput.value, lastMaxJump);
-      if (res.outcome === 'ok') {
-        closeJump(false);
-        handlers.onNavigate({ to: res.round });
-      } else {
-        closeJump(true);
-      }
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      closeJump(true);
+      finishJump('submit', true);
     } else if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1 && !/^[0-9]$/.test(event.key)) {
       event.preventDefault();
     }
@@ -433,7 +446,21 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     const clean = sanitizeJumpInput(jumpInput.value);
     if (jumpInput.value !== clean) jumpInput.value = clean;
   });
-  jumpInput.addEventListener('blur', () => closeJump(false));
+  jumpBox.addEventListener('focusout', (event) => {
+    if (!jumpEditing) return;
+    const nextFocus = event.relatedTarget as Node | null;
+    if (nextFocus !== null && jumpBox.contains(nextFocus)) return;
+    finishJump('leave', false);
+  });
+  document.addEventListener(
+    'pointerdown',
+    (event) => {
+      if (!jumpEditing) return;
+      if (jumpBox.contains(event.target as Node | null)) return;
+      finishJump('leave', false);
+    },
+    true,
+  );
 
   // FR-662: mouse wheel over the round buttons shifts the window without scrolling the page.
   trackBox.addEventListener(

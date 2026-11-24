@@ -205,3 +205,26 @@ export function parseJumpRound(raw: string, applied: number): JumpResult {
   const round = value <= 0 ? 0 : value >= max ? max : Math.floor(value);
   return { outcome: 'ok', round };
 }
+
+export type JumpTrigger = 'submit' | 'leave' | 'cancel';
+
+export type JumpDecision =
+  | { readonly outcome: 'jump'; readonly round: number }
+  | { readonly outcome: 'close' };
+
+/**
+ * Decides what the jump box does on Enter / Ir ('submit'), blur / click outside ('leave'),
+ * or Escape ('cancel') (FR-663, FR-666).
+ */
+export function resolveJump(
+  trigger: JumpTrigger,
+  raw: string,
+  applied: number,
+  displayed: number,
+): JumpDecision {
+  if (trigger === 'cancel') return { outcome: 'close' };
+  const parsed = parseJumpRound(raw, applied);
+  if (parsed.outcome !== 'ok') return { outcome: 'close' };
+  if (parsed.round === displayed) return { outcome: 'close' };
+  return { outcome: 'jump', round: parsed.round };
+}

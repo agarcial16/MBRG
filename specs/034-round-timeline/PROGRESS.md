@@ -49,3 +49,14 @@
   - Branch: `feat/034-round-timeline`
   - State: hand-test jump box changes implemented, tested, pushed to PR #100.
   - Next step: review and squash merge PR #100 into `main`.
+
+## Step 7 — Second hand-test polish: blur-to-apply, explicit «Ir» confirm button, separation from «Inicio», and merge `origin/main` (#96)
+- Merged `origin/main` (`f73f8e3`, spec 032 readable labels #96) into `feat/034-round-timeline` and resolved the conflict in `apps/web/src/core/strings.ts` (preserving both spec 032's `mapTipLine` and spec 034's block; `MEMORY.md` auto-merged cleanly).
+- Amended `specs/034-round-timeline/spec.md` (`FR-663 (amended after hand test)` and edge cases): leaving the jump box (blur / click or tap outside) with a number typed applies the jump just like `Enter` or clicking `Ir`; empty input or `Escape` closes without jumping; added explicit `Ir` confirm button inside a framed jump box separated visually from `Inicio`.
+- Tests first (seen red, then green): added `resolveJump` tests in `apps/web/test/live-track.test.ts` and shell/CSS pins (`hud-jump-box`, `hud-jump-confirm`, `hudJumpConfirm`, `hudJumpConfirmLabel`, `focusout`/`pointerdown`, separation `margin-right`, phone 36 px target) in `apps/web/test/live-hud-shell.test.ts`.
+- Implemented `resolveJump` in `apps/web/src/core/live-track.ts`, added `hudJumpConfirm` (`'Ir'`) and `hudJumpConfirmLabel` in `apps/web/src/core/strings.ts`, wrapped the jump input + `Ir` button in `.hud-jump-box` with `focusout` + capture-phase `pointerdown` outside-click commit and `Escape` cancel in `apps/web/src/ui/live-panel.ts`, and styled the framed brass-gold box + vertical divider before `Inicio` for desktop and 390 px phone in `apps/web/src/ui/live-panel-style.ts`.
+- Verified live browser interactions (outside click jumps, `Escape` cancels, empty outside click closes without jumping, `Ir` button jumps) and captured desktop (1280×720) and mobile (390×844) screenshots under `.claude/review/034-jump2/` (`jump-desk.png`, `jump-phone.png`).
+- Handover:
+  - Branch: `feat/034-round-timeline`
+  - State: implemented, full `npm test` + `npm run typecheck` verified, pushed to PR #100.
+  - Next step: review and squash merge PR #100 into `main`.

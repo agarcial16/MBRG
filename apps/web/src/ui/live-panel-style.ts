@@ -102,7 +102,10 @@ export const PANEL_CSS = `${pageCss()}
 .hud-track-label:empty { display: none; }
 .hud-track-label { flex: none; padding: 2px 5px; border: 0; border-radius: 3px; background: none; color: var(--hud-gilt); font: 600 13px var(--hud-display, 'Cormorant SC', Georgia, serif); white-space: nowrap; cursor: pointer; text-decoration: underline dotted var(--hud-gilt-dim); text-underline-offset: 3px; }
 .hud-track-label:disabled { cursor: default; text-decoration: none; }
-.hud-jump-input { flex: none; width: 58px; min-width: 52px; min-height: 26px; padding: 0 6px; box-sizing: border-box; text-align: center; background: var(--hud-umber); color: var(--hud-text); border: 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--hud-gilt); font: 600 13px var(--hud-display, 'Cormorant SC', Georgia, serif); }
+.hud-jump-box { position: relative; display: inline-flex; align-items: stretch; flex: none; margin-right: 12px; border-radius: 4px; background: var(--hud-umber); box-shadow: 0 0 0 1px var(--hud-gilt); }
+.hud-jump-box::after { content: ''; position: absolute; right: -8px; top: 3px; bottom: 3px; width: 1px; background: var(--hud-gilt-dim); opacity: 0.7; pointer-events: none; }
+.hud-jump-input { flex: none; width: 46px; min-width: 42px; min-height: 26px; padding: 0 4px; box-sizing: border-box; text-align: center; background: transparent; color: var(--hud-text); border: 0; border-radius: 4px 0 0 4px; font: 600 13px var(--hud-display, 'Cormorant SC', Georgia, serif); }
+.hud-jump-confirm { flex: none; min-width: 30px; min-height: 26px; padding: 0 9px; border: 0; border-radius: 0 4px 4px 0; background: var(--hud-gilt); color: var(--hud-on-gilt); font: 700 12px var(--hud-display, 'Cormorant SC', Georgia, serif); letter-spacing: 0.04em; cursor: pointer; white-space: nowrap; }
 .hud-track-pager { flex: none; min-width: 24px; min-height: 26px; padding: 0 4px; border: 0; border-radius: 3px; background: var(--hud-umber); color: var(--hud-gilt); box-shadow: inset 0 0 0 1px var(--hud-gilt-dim); cursor: pointer; font: 600 14px/1 var(--hud-body, Spectral, Georgia, serif); }
 .hud-track-pager:disabled { opacity: 0.35; cursor: default; }
 /* FR-660 FR-664: dynamic sliding window confined to available width, no horizontal overflow */
@@ -304,8 +307,11 @@ a.hud-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hud-dot.start { border-radius: 14px; padding: 0 9px; }
 .hud[data-layout="phone"] .hud-dot.start { min-width: 44px; min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; padding: 0 10px; }
 .hud[data-layout="phone"] .hud-track-pager { min-width: ${PHONE.chip}px; min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; }
-.hud[data-layout="phone"] .hud-track-label,
-.hud[data-layout="phone"] .hud-jump-input { min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; }
+.hud[data-layout="phone"] .hud-track-label { min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; }
+.hud[data-layout="phone"] .hud-jump-box { margin-right: 8px; height: ${PHONE.chip}px; }
+.hud[data-layout="phone"] .hud-jump-box::after { right: -6px; }
+.hud[data-layout="phone"] .hud-jump-input { width: 42px; min-width: 40px; min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; }
+.hud[data-layout="phone"] .hud-jump-confirm { min-width: ${PHONE.chip}px; min-height: ${PHONE.chip}px; height: ${PHONE.chip}px; padding: 0 8px; }
 .hud[data-layout="phone"] .hud-roundsel { min-height: ${PHONE.chip}px; gap: 4px; }
 .hud[data-layout="phone"] .hud-nav { display: flex; flex: none; flex-wrap: nowrap; gap: 4px; justify-content: stretch; }
 .hud[data-layout="phone"] .hud-nav .hud-btn { flex: 1 1 0; min-width: 44px; padding: 0 4px; }
