@@ -31,7 +31,7 @@ export interface PixelInput {
  * own side, so a ring split at the antimeridian rasterizes as the band it covers, never a stripe around the globe).
  * A hand-made view without the ring seam maps point by point through `toUV`, exactly as `toPixelPolygons` does.
  */
-function polygonsOf(view: View, polygons: readonly SourcePolygon[]): SourcePolygon[] {
+export function polygonsOf(view: View, polygons: readonly SourcePolygon[]): SourcePolygon[] {
   const ringUV: (coords: readonly (readonly [number, number])[]) => [number, number][] =
     view.ringToUV ?? ((coords) => coords.map(([lon, lat]) => view.toUV(lon, lat)));
   const out: SourcePolygon[] = [];

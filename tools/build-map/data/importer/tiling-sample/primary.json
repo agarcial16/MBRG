@@ -1,0 +1,207 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "code": "WEST",
+    "name": "Oeste",
+    "country": "A",
+    "region": "MAIN"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -20,
+       -10
+      ],
+      [
+       -10,
+       -10
+      ],
+      [
+       -10,
+       10
+      ],
+      [
+       -20,
+       10
+      ],
+      [
+       -20,
+       -10
+      ]
+     ],
+     [
+      [
+       -16,
+       -2
+      ],
+      [
+       -16,
+       2
+      ],
+      [
+       -14,
+       2
+      ],
+      [
+       -14,
+       -2
+      ],
+      [
+       -16,
+       -2
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "code": "EAST",
+    "name": "Este",
+    "country": "B",
+    "region": "MAIN"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       10,
+       -10
+      ],
+      [
+       20,
+       -10
+      ],
+      [
+       20,
+       10
+      ],
+      [
+       10,
+       10
+      ],
+      [
+       10,
+       -10
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "code": "NORTE",
+    "name": "Norte",
+    "country": "A",
+    "region": "MAIN"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -2,
+       14
+      ],
+      [
+       2,
+       14
+      ],
+      [
+       2,
+       16
+      ],
+      [
+       -2,
+       16
+      ],
+      [
+       -2,
+       14
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "code": "ISLA",
+    "name": "Isla",
+    "country": "B",
+    "region": "ISLE"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       60,
+       0
+      ],
+      [
+       62,
+       0
+      ],
+      [
+       62,
+       2
+      ],
+      [
+       60,
+       2
+      ],
+      [
+       60,
+       0
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "code": "ENCL",
+    "name": "Enclave",
+    "country": "B",
+    "region": "MAIN"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       30,
+       0
+      ],
+      [
+       32,
+       0
+      ],
+      [
+       32,
+       2
+      ],
+      [
+       30,
+       2
+      ],
+      [
+       30,
+       0
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

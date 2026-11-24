@@ -10,6 +10,7 @@ import type { FilledSet } from './gap-fill';
 import type { Bridge } from './exclave';
 import type { ImportNumbering } from './numbering';
 import type { LakeSet } from './sea-sources';
+import type { TilingDetails } from './tiling-step';
 import type { ViewSet } from './views';
 
 /**
@@ -215,6 +216,8 @@ export interface ImportReportDetails {
   enclosed: readonly EnclosedSet[];
   enclosedReach: number;
   lakes: readonly LakeSet[];
+  /** Spec 035, FR-686: present when tiling ran. */
+  tiling?: TilingDetails;
 }
 
 /** What the import report takes: the digests (the CLI holds the bytes), the import facts and the final map. */
@@ -226,6 +229,8 @@ export interface ImportReportInput {
   presentation: BuiltPresentation;
   width: number;
   pixels: Uint32Array;
+  /** FR-686: the names file of the tiling, when one was read. */
+  names?: { file: string; sha256: string };
 }
 
 /**
@@ -322,5 +327,49 @@ export function formatImportReport(input: ImportReportInput): string {
   const split = splitFactions(input.map);
   lines.push(`splitFactions: ${split.length}`);
   lines.push(...split.map((s) => `  - faction=${numbering.factions.find((f) => f.id === s.id)?.key ?? String(s.id)} groups=${s.groups}`));
+  if (details.tiling !== undefined) lines.push(...tilingLines(details.tiling, input));
   return lines.join('\n') + '\n';
+}
+
+/** FR-686: the most factions that touch one sea entry through a link (a tile, or a zone of a map without tiling). */
+export function maxFactionsPerSea(map: MapData): number {
+  const owner = new Map(map.territories.flatMap((t): [number, number][] => ('owner' in t ? [[t.id, t.owner]] : [])));
+  let most = 0;
+  for (const t of map.territories) {
+    if (!('kind' in t) || t.kind !== 'sea') continue;
+    const around = new Set<number>();
+    for (const n of t.neighbors) {
+      const o = owner.get(n);
+      if (o !== undefined) around.add(o);
+    }
+    if (around.size > most) most = around.size;
+  }
+  return most;
+}
+
+/** FR-686, FR-687: the tiling section of the report. */
+function tilingLines(tiling: TilingDetails, input: ImportReportInput): string[] {
+  const px = (km: number): string => String(Math.round((km / tiling.pixelKm) * 100) / 100);
+  const config = tiling.config;
+  return [
+    'tiling: on',
+    `  tileKm: ${config.tileKm} (pixels=${px(config.tileKm)})`,
+    `  openTileKm: ${config.openKm} (pixels=${px(config.openKm)})`,
+    `  farTileKm: ${config.farKm} (pixels=${px(config.farKm)})`,
+    `  coastBandKm: ${config.bandKm} (pixels=${px(config.bandKm)})`,
+    `  reachKm: ${config.reachKm} (pixels=${px(config.reachKm)})`,
+    ...(tiling.targetTiles === undefined ? [] : [`  targetTiles: ${tiling.targetTiles}`]),
+    `  seeds: ${tiling.seeds}`,
+    `  tiles: ${tiling.tiles}`,
+    `  basins: ${tiling.basins.length}`,
+    ...tiling.basins.map((b) => `    - name=${b.name} pixels=${b.pixels} km2=${Math.round(b.km2)} pieces=${b.pieces} tiles=${b.tiles}`),
+    `  tileAreaKm2: min=${Math.round(tiling.area.min)} median=${Math.round(tiling.area.median)} max=${Math.round(tiling.area.max)}`,
+    `  maxFactionsPerTile: ${maxFactionsPerSea(input.map)}`,
+    `  mergedTiles: ${tiling.merged.length}`,
+    ...tiling.merged.map((m) => `    - basin=${m.basin} pixels=${m.pixels}`),
+    `  namedFromFile: ${tiling.named}`,
+    `  namedFromBasin: ${tiling.fallback}`,
+    `  skippedNamePolygons: ${tiling.skippedNamePolygons.length}`,
+    ...(input.names === undefined ? [] : [`  namesFile: file=${input.names.file} sha256=${input.names.sha256}`]),
+  ];
 }

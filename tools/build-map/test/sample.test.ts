@@ -80,7 +80,7 @@ describe('FR-612 the synthetic sample', () => {
       // the factions of factionBy plus the per-unit exception (C3 owns the south)
       expect(r.stdout).toContain('factions: 3');
       // a sea unit (Mar Interior) and a seed (Mar Abierto)
-      expect(r.stdout).toContain('seaZones: 2');
+      expect(r.stdout).toContain('seaZones: 11');
       // the lake: enclosed water that joins a zone instead of the sea
       expect(r.stdout).toContain('enclosedWaterSets: 1');
       expect(r.stdout).toContain('enclosedWaterPixels: 132');

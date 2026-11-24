@@ -55,9 +55,10 @@ const TRACED_HERE = [...tracedIds({ 'x/own.test.ts': OWN_DECLARATIONS })];
 // 520..529 and 105..111 belong to other specs and are not ledgered here) and spec 024 (per-server history; FR-545..FR-562, FR-573,
 // NFR-117..NFR-122) and spec 025 (per-server ranking; FR-563..FR-572, NFR-123..NFR-126) and spec 027 (ranking by time window;
 // FR-575..FR-585, NFR-127..NFR-131) and spec 028 (vector map importer; FR-586..FR-614, NFR-132..NFR-138; 540..544 belong to other
-// specs and are not ledgered here, and FR-574 stays free).
-const FR_RANGES: readonly (readonly [number, number])[] = [[1, 392], [413, 421], [490, 506], [530, 539], [545, 562], [563, 572], [573, 573], [575, 585], [586, 614]];
-const NFR_RANGES: readonly (readonly [number, number])[] = [[1, 76], [81, 83], [100, 104], [112, 116], [117, 122], [123, 126], [127, 131], [132, 138]];
+// specs and are not ledgered here, and FR-574 stays free) and spec 035 (ocean tiles; FR-670..FR-696, NFR-175..NFR-179; 640..669 belong
+// to other specs and are not ledgered here).
+const FR_RANGES: readonly (readonly [number, number])[] = [[1, 392], [413, 421], [490, 506], [530, 539], [545, 562], [563, 572], [573, 573], [575, 585], [586, 614], [670, 696]];
+const NFR_RANGES: readonly (readonly [number, number])[] = [[1, 76], [81, 83], [100, 104], [112, 116], [117, 122], [123, 126], [127, 131], [132, 138], [175, 179]];
 const idsOf = (prefix: string, ranges: readonly (readonly [number, number])[]): string[] =>
   ranges.flatMap(([from, to]) => Array.from({ length: to - from + 1 }, (_, i) => `${prefix}-${from + i}`));
 
@@ -212,13 +213,13 @@ describe('traceability', () => {
   });
 
   it('NFR-13 NFR-19 the expected list ends at the last spec ids and excludes retired ids', () => {
-    expect(FR_RANGES).toStrictEqual([[1, 392], [413, 421], [490, 506], [530, 539], [545, 562], [563, 572], [573, 573], [575, 585], [586, 614]]);
-    expect(NFR_RANGES).toStrictEqual([[1, 76], [81, 83], [100, 104], [112, 116], [117, 122], [123, 126], [127, 131], [132, 138]]);
+    expect(FR_RANGES).toStrictEqual([[1, 392], [413, 421], [490, 506], [530, 539], [545, 562], [563, 572], [573, 573], [575, 585], [586, 614], [670, 696]]);
+    expect(NFR_RANGES).toStrictEqual([[1, 76], [81, 83], [100, 104], [112, 116], [117, 122], [123, 126], [127, 131], [132, 138], [175, 179]]);
     const everything = new Set([...expected, ...RETIRED]);
     expect([...everything].sort()).toStrictEqual([...specIds].sort());
-    expect(everything.size).toBe(608);
-    expect(specIds.length - RETIRED.length).toBe(606);
-    expect(expected.length).toBe(606);
+    expect(everything.size).toBe(640);
+    expect(specIds.length - RETIRED.length).toBe(638);
+    expect(expected.length).toBe(638);
     expect(expected).toContain('NFR-31');
     for (const id of ['FR-110', 'NFR-22', 'FR-104']) expect(expected).toContain(id);
     for (const id of ['FR-105', 'FR-126', 'NFR-14', 'NFR-23', 'FR-131', 'NFR-21']) {
@@ -285,10 +286,12 @@ describe('traceability', () => {
       ...Array.from({ length: 5 }, (_, i) => `NFR-${127 + i}`),
       ...Array.from({ length: 29 }, (_, i) => `FR-${586 + i}`),
       ...Array.from({ length: 7 }, (_, i) => `NFR-${132 + i}`),
+      ...Array.from({ length: 27 }, (_, i) => `FR-${670 + i}`),
+      ...Array.from({ length: 5 }, (_, i) => `NFR-${175 + i}`),
     ];
     expect(RETIRED).toStrictEqual(['FR-6', 'FR-25']);
-    expect(all.filter((id) => !RETIRED.includes(id))).toHaveLength(606);
-    expect(expected).toHaveLength(606);
+    expect(all.filter((id) => !RETIRED.includes(id))).toHaveLength(638);
+    expect(expected).toHaveLength(638);
     expect([...expected].sort()).toStrictEqual(all.filter((id) => id !== 'FR-6' && id !== 'FR-25').sort());
     for (const id of ['FR-127', 'FR-131', 'NFR-16', 'NFR-17', 'NFR-21']) {
       expect(expected).toContain(id);

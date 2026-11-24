@@ -54,7 +54,7 @@ function world() {
     primary: 'primary.geojson',
     context: ['context.geojson'],
     columns: { key: 'code', name: ['name'] },
-    params: { side: 96, margin: 0.02, minPieceSize: 4, projection: 'laea' },
+    params: { side: 96, margin: 0.02, minPieceSize: 4, projection: 'laea', tiling: false },
     factionBy: { property: 'adm' },
     factions: [{ key: 'X', name: 'Xland' }, { key: 'Y', name: 'Yland' }],
     units: { D: { kind: 'sea' } },
@@ -411,7 +411,7 @@ describe('NFR-135 every size cap is checked before the work it bounds', () => {
     expect(encoded()).toBe(0);
     w.curation.params.side = 100000;
     expect(errorsOf(run([`--curation=${write(w, 'in2')}`, `--out=${out('o2')}`]))).toStrictEqual([{ kind: 'invalid-curation', path: 'params.side' }]);
-    const ok = parseCuration(textBytes(JSON.stringify({ ...world().curation, params: { side: 16384, margin: 0.02, minPieceSize: 4, projection: 'laea' } })), 'c.json');
+    const ok = parseCuration(textBytes(JSON.stringify({ ...world().curation, params: { side: 16384, margin: 0.02, minPieceSize: 4, projection: 'laea', tiling: false } })), 'c.json');
     expect(ok.ok).toBe(true);
   });
 
@@ -422,7 +422,7 @@ describe('NFR-135 every size cap is checked before the work it bounds', () => {
     w.curation = {
       primary: 'primary.geojson',
       columns: { key: 'code', name: ['name'] },
-      params: { side: 128, margin: 0.02, minPieceSize: 1, projection: 'laea' },
+      params: { side: 128, margin: 0.02, minPieceSize: 1, projection: 'laea', tiling: false },
       factionBy: { property: 'adm', nameProperty: 'adm' },
     };
     const { codec, encoded } = spyCodec();

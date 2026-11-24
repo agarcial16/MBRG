@@ -2,7 +2,7 @@
 Durable decisions, limits and lessons; no per-task diary (that is `specs/<id>/PROGRESS.md`; live work is `docs/board.md`). Area lessons: `docs/lessons/{web,bot,server,map}.md`. Keep <= ~4 KB.
 
 ## State
-Specs 001-029 implemented (028, the vector map importer, in PR #94 awaiting merge; hand run 1 on Spain by municipalities passed review). Branch from `main`, PR into `main`.
+Specs 001-029 implemented (028, the vector map importer, in PR #94 awaiting merge; hand run 1 on Spain by municipalities passed review) and 035 (ocean tiles, PR #101 stacked on #94). Branch from `main`, PR into `main`.
 Predefined maps: `maps/spain-provinces` (52 provinces), `maps/world-countries` (193 countries, 7 sea zones; data in `tools/build-map/data/world-countries/`). Next: viewer follow-ups V1-V3 (`docs/board.md`), painted-image importer (route A), replay of finished matches.
 
 ## Game
@@ -13,14 +13,14 @@ Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random
 - TypeScript everywhere: one deterministic engine for browser, server, bot and tests. Tag `legacy-v0.1` keeps the old code.
 - Three.js/WebGL, EU4 technique (id texture + owner palette + shader borders): 3D later = camera/material change.
 - Map package = `map.json` + `ids.png` + `presentation.json`, built offline by `tools/build-map`; adjacency = 4-connected pixel contact, no hand-written links; importers only convert to it.
-- Predefined maps are data-only (builder source never changes): each has its own `tools/build-map/data/<map>/` dir (inner `natural-earth/` + `dev-map/` names are fixed by the CLI). One faction per admin unit via an `adm1_code := adm0_a3` (or the reverse) rewrite in the committed subset; the world map uses the 1:50m admin-0 dataset provided under the extract CLI's fixed 1:10m file names (documented in its README).
+- Predefined maps are data-only (builder source never changes): each has its own `tools/build-map/data/<map>/` dir (README holds provenance, rules and the file-name quirks).
 - State stores owner per territory, so modes are rule changes, not model changes. Ids 1..16,777,215 (24-bit texture). Round k uses `roundRng(seed, k)`: any round is computable alone.
-- Per-server history (024): the bot sends only a SHA-256 community key (never the guild id), in request bodies; a finished match is listed once settled (> `TOLERANCE_MS` after its finish) so a paging walk keeps one snapshot.
-- Ranking windows (027): rolling 7/30 days; the server fixes the floor at the first page and the cursor carries it; wire member `period` (absent = all time).
+- Per-server history (024): the bot sends only a SHA-256 community key (never the guild id), in request bodies. Ranking windows (027): rolling 7/30 days, the floor fixed at the first page.
 - Viewer count refusal (029): a package beyond the viewer's tables (over 65,535 territories or 255 factions) is refused at load naming the limit; `checkCounts` reads the sizes from `core/entries.ts` so widening the tables (V2/V3) widens the refusal with them.
-- Vector map importer (028): offline `import-map` (`extract`/`inspect`/`import`) in `@mbrg/build-map`, GeoJSON + curation JSON, up to 9,999 factions & 2^28 pixel guard; viewer limits (>2,048 texture, >65,535 entries, >255 factions, 12-colour palette) warn only (enforced by viewer V1-V2); no new third-party deps (Equal Earth, SHA-256, DBF reader are own code; `@mbrg/shared` and `apps/web` untouched per NFR-22).
+- Vector map importer (028): offline `import-map` (`extract`/`inspect`/`import`) in `@mbrg/build-map`, GeoJSON + curation JSON, up to 9,999 factions; viewer limits warn only; no new third-party deps; `@mbrg/shared` and `apps/web` untouched.
 - Readable labels (032): in-land precomputed abbreviation tiers (full -> prefix + `.` -> plain acronym), screen-space height bounds (`minPx` 9, `maxPx` 48 faction / 28 territory), per-role screen overlap resolution (`minGapPx` 4), no off-land/leader lines, and always-on map hover/tap full-name readout.
 - Sea is an explicit entry kind (no owner); enclosed water joins the nearest sea zone; lakes stay background.
+- Ocean tiles (035): the importer splits every curated sea (basin) into ownerless sea tiles, on by default (`params.tiling: false` turns it off; the dev-map equivalence curation does). Two tiers plus a far tier (coast tile, 2x open sea, 4x far), count by `targetTiles` (default min(600, 2 x land territories)); borders are Voronoi-like and links stay pixel contact; names come from an operator-given marine-areas GeoJSON (`tiling.names`; Natural Earth under `tools/build-map/data/marine-ne/`, public domain), else `<sea> <n>`. No sim, format or viewer change.
 
 ## Limits
 - Anti-spoiler: future rounds never reach the client. Determinism: same seed, same match.

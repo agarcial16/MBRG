@@ -23,6 +23,21 @@ export type Filter =
   | { property: string; lte: Usable }
   | { bbox: [number, number, number, number]; mode: 'within' | 'intersects' };
 
+/** FR-670, FR-694: the tiling parameters (spec 035); absent members take the defaults of FR-671. */
+export interface TilingParams {
+  targetTiles?: number;
+  tileKm?: number;
+  openTileKm?: number;
+  farTileKm?: number;
+  coastBandKm?: number;
+  reachKm?: number;
+  maxTiles?: number;
+  /** FR-670: a basin name to its own coast tile in km; 0 keeps the basin as one entry. */
+  zones: Map<string, number>;
+  /** FR-694: the names file: a path relative to the curation file and the property names that give a feature's name. */
+  names?: { file: string; nameProperty: string[] };
+}
+
 /** FR-600: the parameters. */
 export interface Params {
   side: number;
@@ -36,6 +51,8 @@ export interface Params {
   exclaveReach?: number;
   /** FR-603: how far (pixels) an enclosed water set looks for a zone to join; farther sets become lakes (0: no limit; absent: 250 km). */
   enclosedReach?: number;
+  /** FR-670: `false` turns tiling off; absent means on with every default. */
+  tiling?: false | TilingParams;
 }
 
 /** FR-595: one entry of the per-unit layer. */
@@ -242,12 +259,62 @@ function readRange(params: Record<string, unknown>, member: string, min: number,
   return value as number;
 }
 
+/** FR-670: a `params.tiling` object; every problem is recorded under its member path. */
+function readTiling(value: unknown, problems: Problems): false | TilingParams | undefined {
+  const path = 'params.tiling';
+  if (value === false) return false;
+  if (!isObject(value)) {
+    problems.add(path);
+    return undefined;
+  }
+  const before = problems.paths.length;
+  noUnknown(value, ['targetTiles', 'tileKm', 'openTileKm', 'farTileKm', 'coastBandKm', 'reachKm', 'maxTiles', 'zones', 'names'], path, problems);
+  const out: TilingParams = { zones: new Map() };
+  const positive = (member: 'tileKm' | 'openTileKm' | 'farTileKm' | 'coastBandKm' | 'reachKm'): void => {
+    if (!Object.hasOwn(value, member)) return;
+    const n = own(value, member);
+    if (isFinite_(n) && n > 0) out[member] = n;
+    else problems.add(at(path, member));
+  };
+  (['tileKm', 'openTileKm', 'farTileKm', 'coastBandKm', 'reachKm'] as const).forEach(positive);
+  for (const member of ['targetTiles', 'maxTiles'] as const) {
+    if (!Object.hasOwn(value, member)) continue;
+    const n = own(value, member);
+    if (isInteger(n) && n >= 1 && n <= 100_000) out[member] = n;
+    else problems.add(at(path, member));
+  }
+  if (Object.hasOwn(value, 'zones')) {
+    const raw = own(value, 'zones');
+    if (!isObject(raw)) problems.add(at(path, 'zones'));
+    else {
+      for (const name of Object.keys(raw)) {
+        const n = raw[name];
+        if (isFinite_(n) && n >= 0) out.zones.set(name, n);
+        else problems.add(at(at(path, 'zones'), name));
+      }
+    }
+  }
+  if (Object.hasOwn(value, 'names')) {
+    const raw = own(value, 'names');
+    const namesPath = at(path, 'names');
+    if (!isObject(raw)) problems.add(namesPath);
+    else {
+      noUnknown(raw, ['file', 'nameProperty'], namesPath, problems);
+      const file = text(raw, 'file', namesPath, problems);
+      const list = textList(own(raw, 'nameProperty'), at(namesPath, 'nameProperty'), problems, 1, 3);
+      if (file === '') problems.add(at(namesPath, 'file'));
+      if (file !== undefined && file !== '' && list !== undefined) out.names = { file, nameProperty: list };
+    }
+  }
+  return problems.paths.length === before ? out : undefined;
+}
+
 function readParams(value: unknown, problems: Problems): Params | undefined {
   if (!isObject(value)) {
     problems.add('params');
     return undefined;
   }
-  noUnknown(value, ['side', 'margin', 'minPieceSize', 'projection', 'gapFill', 'contextGap', 'exclaveReach', 'enclosedReach'], 'params', problems);
+  noUnknown(value, ['side', 'margin', 'minPieceSize', 'projection', 'gapFill', 'contextGap', 'exclaveReach', 'enclosedReach', 'tiling'], 'params', problems);
   const side = readRange(value, 'side', 64, 16384, true, problems);
   const margin = readRange(value, 'margin', 0, 0.5, false, problems);
   const minPieceSize = readRange(value, 'minPieceSize', 1, 10000, true, problems);
@@ -263,6 +330,8 @@ function readParams(value: unknown, problems: Problems): Params | undefined {
   if (Object.hasOwn(value, 'exclaveReach') && exclaveReach === undefined) return undefined;
   const enclosedReach = Object.hasOwn(value, 'enclosedReach') ? readRange(value, 'enclosedReach', 0, 16384, true, problems) : undefined;
   if (Object.hasOwn(value, 'enclosedReach') && enclosedReach === undefined) return undefined;
+  const tiling = Object.hasOwn(value, 'tiling') ? readTiling(own(value, 'tiling'), problems) : undefined;
+  if (Object.hasOwn(value, 'tiling') && tiling === undefined) return undefined;
   return {
     side,
     margin,
@@ -272,6 +341,7 @@ function readParams(value: unknown, problems: Problems): Params | undefined {
     ...(contextGap === undefined ? {} : { contextGap }),
     ...(exclaveReach === undefined ? {} : { exclaveReach }),
     ...(enclosedReach === undefined ? {} : { enclosedReach }),
+    ...(tiling === undefined ? {} : { tiling }),
   };
 }
 
