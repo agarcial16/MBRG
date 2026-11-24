@@ -1,0 +1,242 @@
+{
+  "factions": [
+    {
+      "id": 1,
+      "name": "Faccion A"
+    },
+    {
+      "id": 2,
+      "name": "Faccion B"
+    }
+  ],
+  "territories": [
+    {
+      "id": 1,
+      "name": "Norte"
+    },
+    {
+      "id": 2,
+      "name": "Oeste"
+    },
+    {
+      "id": 3,
+      "name": "Este"
+    },
+    {
+      "id": 4,
+      "name": "Enclave"
+    },
+    {
+      "id": 5,
+      "name": "Isla"
+    },
+    {
+      "id": 6,
+      "name": "Mar Grande 1"
+    },
+    {
+      "id": 7,
+      "name": "Mar Grande 2"
+    },
+    {
+      "id": 8,
+      "name": "Mar Grande 3"
+    },
+    {
+      "id": 9,
+      "name": "Mar Grande 4"
+    },
+    {
+      "id": 10,
+      "name": "Mar Grande 5"
+    },
+    {
+      "id": 11,
+      "name": "Mar Grande 6"
+    },
+    {
+      "id": 12,
+      "name": "Bahía Chica 1"
+    },
+    {
+      "id": 13,
+      "name": "Mar Grande 7"
+    },
+    {
+      "id": 14,
+      "name": "Bahía Chica 2"
+    },
+    {
+      "id": 15,
+      "name": "Mar Grande 8"
+    },
+    {
+      "id": 16,
+      "name": "Bahía Chica 3"
+    },
+    {
+      "id": 17,
+      "name": "Mar Grande 9"
+    },
+    {
+      "id": 18,
+      "name": "Mar Grande 10"
+    },
+    {
+      "id": 19,
+      "name": "Mar Grande 11"
+    },
+    {
+      "id": 20,
+      "name": "Mar Grande 12"
+    },
+    {
+      "id": 21,
+      "name": "Mar Grande 13"
+    },
+    {
+      "id": 22,
+      "name": "Mar Grande 14"
+    },
+    {
+      "id": 23,
+      "name": "Mar Grande 15"
+    },
+    {
+      "id": 24,
+      "name": "Mar Grande 16"
+    },
+    {
+      "id": 25,
+      "name": "Mar Grande 17"
+    },
+    {
+      "id": 26,
+      "name": "Mar Grande 18"
+    },
+    {
+      "id": 27,
+      "name": "Mar Grande 19"
+    },
+    {
+      "id": 28,
+      "name": "Mar Grande 20"
+    },
+    {
+      "id": 29,
+      "name": "Mar Grande 21"
+    },
+    {
+      "id": 30,
+      "name": "Mar Grande 22"
+    },
+    {
+      "id": 31,
+      "name": "Mar Grande 23"
+    },
+    {
+      "id": 32,
+      "name": "Mar Grande 24"
+    },
+    {
+      "id": 33,
+      "name": "Mar Grande 25"
+    },
+    {
+      "id": 34,
+      "name": "Mar Grande 26"
+    },
+    {
+      "id": 35,
+      "name": "Mar Grande 27"
+    },
+    {
+      "id": 36,
+      "name": "Mar Grande 28"
+    },
+    {
+      "id": 37,
+      "name": "Mar Grande 29"
+    },
+    {
+      "id": 38,
+      "name": "Mar Grande 30"
+    },
+    {
+      "id": 39,
+      "name": "Mar Grande 31"
+    },
+    {
+      "id": 40,
+      "name": "Mar Grande 32"
+    },
+    {
+      "id": 41,
+      "name": "Mar Grande 33"
+    },
+    {
+      "id": 42,
+      "name": "Mar Grande 34"
+    },
+    {
+      "id": 43,
+      "name": "Mar Grande 35"
+    },
+    {
+      "id": 44,
+      "name": "Mar Grande 36"
+    },
+    {
+      "id": 45,
+      "name": "Mar Grande 37"
+    },
+    {
+      "id": 46,
+      "name": "Mar Grande 38"
+    },
+    {
+      "id": 47,
+      "name": "Mar Grande 39"
+    },
+    {
+      "id": 48,
+      "name": "Mar Grande 40"
+    },
+    {
+      "id": 49,
+      "name": "Mar Grande 41"
+    },
+    {
+      "id": 50,
+      "name": "Mar Grande 42"
+    },
+    {
+      "id": 51,
+      "name": "Mar Grande 43"
+    },
+    {
+      "id": 52,
+      "name": "Mar Grande 44"
+    },
+    {
+      "id": 53,
+      "name": "Mar Grande 45"
+    },
+    {
+      "id": 54,
+      "name": "Golfo Quieto"
+    },
+    {
+      "id": 55,
+      "name": "Mar Isla 1"
+    },
+    {
+      "id": 56,
+      "name": "Mar Isla 2"
+    },
+    {
+      "id": 57,
+      "name": "Mar Isla 3"
+    }
+  ]
+}

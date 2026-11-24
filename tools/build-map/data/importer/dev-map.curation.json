@@ -29,7 +29,8 @@
     "margin": 0.02,
     "minPieceSize": 40,
     "contextGap": 0,
-    "projection": "laea"
+    "projection": "laea",
+    "tiling": false
   },
   "units": {
     "DEU-1573": {

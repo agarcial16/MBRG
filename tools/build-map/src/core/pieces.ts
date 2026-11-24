@@ -38,32 +38,41 @@ export interface PieceLabels {
 
 /** Labels the 4-connected pieces of non-zero values. */
 export function labelPieces(width: number, pixels: Uint32Array): PieceLabels {
-  const label = new Int32Array(pixels.length).fill(-1);
+  const total = pixels.length;
+  const label = new Int32Array(total).fill(-1);
   const pieces: PieceLabels['pieces'] = [];
-  const stack: number[] = [];
-  for (let start = 0; start < pixels.length; start++) {
+  // an explicit stack of pixel indexes (a pixel is pushed once, when it is labelled), no closure in the pixel loop
+  const stack = new Int32Array(total);
+  for (let start = 0; start < total; start++) {
     const value = pixels[start]!;
     if (value === 0 || label[start]! >= 0) continue;
     const index = pieces.length;
     let size = 0;
+    let top = 0;
     label[start] = index;
-    stack.push(start);
-    while (stack.length > 0) {
-      const i = stack.pop()!;
+    stack[top++] = start;
+    while (top > 0) {
+      const i = stack[--top]!;
       size++;
       const x = i % width;
-      if (x > 0) visit(i - 1);
-      if (x < width - 1) visit(i + 1);
-      if (i >= width) visit(i - width);
-      if (i + width < pixels.length) visit(i + width);
+      if (x > 0 && pixels[i - 1] === value && label[i - 1]! < 0) {
+        label[i - 1] = index;
+        stack[top++] = i - 1;
+      }
+      if (x < width - 1 && pixels[i + 1] === value && label[i + 1]! < 0) {
+        label[i + 1] = index;
+        stack[top++] = i + 1;
+      }
+      if (i >= width && pixels[i - width] === value && label[i - width]! < 0) {
+        label[i - width] = index;
+        stack[top++] = i - width;
+      }
+      if (i + width < total && pixels[i + width] === value && label[i + width]! < 0) {
+        label[i + width] = index;
+        stack[top++] = i + width;
+      }
     }
     pieces.push({ value, size, first: start });
-
-    function visit(j: number): void {
-      if (pixels[j] !== value || label[j]! >= 0) return;
-      label[j] = index;
-      stack.push(j);
-    }
   }
   return { label, pieces };
 }

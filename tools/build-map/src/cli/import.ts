@@ -409,13 +409,18 @@ export function runImportMode(args: string[], deps: ImportDeps): number {
 
   // Sources: paths are relative to the curation file; every file is size-checked before it is read, all named at once.
   const folder = dirname(curationPath);
-  const labels = [curation.value.primary, ...curation.value.context];
+  // Spec 035, FR-694: the names file of the tiling is read like a context source, last.
+  const tilingParam = curation.value.params.tiling;
+  const namesLabel = tilingParam !== undefined && tilingParam !== false ? tilingParam.names?.file : undefined;
+  const labels = [curation.value.primary, ...curation.value.context, ...(namesLabel === undefined ? [] : [namesLabel])];
   const reads = labels.map((label) => readBounded(deps.fs, resolve(folder, label), label, SOURCE_CAPS.bytes));
   const failed = reads.flatMap((r) => (r.ok ? [] : r.errors));
   if (failed.length > 0) return printErrors(failed);
-  const inputs = reads.map((r, i) => ({ file: labels[i]!, bytes: (r as { ok: true; value: Uint8Array }).value }));
+  const all = reads.map((r, i) => ({ file: labels[i]!, bytes: (r as { ok: true; value: Uint8Array }).value }));
+  const inputs = namesLabel === undefined ? all : all.slice(0, -1);
+  const namesInput = namesLabel === undefined ? undefined : all[all.length - 1]!;
 
-  const outcome = buildPackage({ curation: curation.value, primary: inputs[0]!, context: inputs.slice(1), codec: deps.codec ?? pngCodec });
+  const outcome = buildPackage({ curation: curation.value, primary: inputs[0]!, context: inputs.slice(1), ...(namesInput === undefined ? {} : { names: namesInput }), codec: deps.codec ?? pngCodec });
   if (!outcome.ok) {
     printErrors(outcome.errors);
     // FR-610: a failure at or after the pixel steps still previews the last assignment it computed
@@ -445,6 +450,7 @@ export function runImportMode(args: string[], deps: ImportDeps): number {
       presentation: outcome.presentation,
       width: outcome.width,
       pixels: outcome.pixels,
+      ...(namesInput === undefined ? {} : { names: { file: namesInput.file, sha256: sha256Hex(namesInput.bytes) } }),
     }),
   );
   return 0;

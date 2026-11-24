@@ -21,6 +21,8 @@ export interface ScaleOptions {
   /** The image side of the curation. */
   side: number;
   minPieceSize: number;
+  /** Spec 035: whether the curation leaves tiling on (its default); the fixtures of 028 turn it off. */
+  tiling?: boolean;
   /** Where the inset's top-left pixel goes (over the water south of the mainland). */
   insetAt: [number, number];
 }
@@ -207,7 +209,7 @@ export function generateScaleFixture(options: ScaleOptions = NFR_136): ScaleFixt
     primary: 'primary.geojson',
     context: ['context.geojson'],
     columns: { key: 'code', name: ['name'] },
-    params: { side: options.side, margin: 0.02, minPieceSize: options.minPieceSize, projection: 'laea' },
+    params: { side: options.side, margin: 0.02, minPieceSize: options.minPieceSize, projection: 'laea', ...(options.tiling === true ? {} : { tiling: false }) },
     factionBy: { property: 'prov' },
     seas: seeds,
     insets: [{ select: [{ property: 'region', eq: 'IC' }], at: options.insetAt }],
