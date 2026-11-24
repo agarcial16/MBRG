@@ -17,15 +17,15 @@ import type { ShapeParams } from './shape-params';
 export interface ReadableParams {
   /** Minimum drawn height in CSS pixels (labels below this are hidden). */
   readonly minPx: number;
-  /** Maximum drawn height in CSS pixels, per role (FR-621). */
-  readonly maxPx: { readonly faction: number; readonly territory: number };
+  /** Maximum drawn height as a fraction of viewport height (FR-621 amended). */
+  readonly maxViewportFraction: number;
   /** Minimum clear gap in CSS pixels between adjacent drawn labels of the same role (FR-620). */
   readonly minGapPx: number;
 }
 
 export const READABLE_PARAMS: ReadableParams = {
   minPx: 9,
-  maxPx: { faction: 48, territory: 28 },
+  maxViewportFraction: 0.25,
   minGapPx: 4,
 };
 
@@ -43,10 +43,18 @@ export type ReadableDraw = AnyLabelDraw & {
   readonly tiers?: readonly LabelTier[];
 };
 
-/** Clamps a raw on-screen height (h * scale) to [minPx, maxPx[role]], or 0 when below minPx. */
-export function clampScreenHeight(rawPx: number, role: LabelRole, params: ReadableParams = READABLE_PARAMS): number {
+/** Clamps a raw on-screen height (h * scale) to [minPx, max(minPx, viewportHeight * maxViewportFraction)], or 0 below minPx. */
+export function clampScreenHeight(
+  rawPx: number,
+  viewportHeight: number,
+  params: ReadableParams = READABLE_PARAMS,
+): number {
   if (!(rawPx >= params.minPx)) return 0;
-  return Math.min(rawPx, params.maxPx[role]);
+  const ceiling =
+    Number.isFinite(viewportHeight) && viewportHeight > 0
+      ? Math.max(params.minPx, viewportHeight * params.maxViewportFraction)
+      : params.minPx;
+  return Math.min(rawPx, ceiling);
 }
 
 /** Picks the first (fullest) tier whose on-screen height reaches minPx, or undefined if none fits. */
@@ -85,64 +93,81 @@ interface ScreenRect {
   readonly minY: number;
   readonly maxX: number;
   readonly maxY: number;
+  readonly sx: number;
+  readonly sy: number;
+  readonly ux: number;
+  readonly uy: number;
+  readonly hw: number;
+  readonly hh: number;
 }
 
 const DEG = Math.PI / 180;
 
-/** Padded screen-space AABB of raw geometry (cx, cy, w, h, angle) after clamping height to maxPx[role]. */
+/** Padded screen-space OBB + AABB of raw geometry (cx, cy, w, h, angle) after clamping height to the viewport ceiling. */
 function screenRectOfGeom(
   cx: number,
   cy: number,
   w: number,
   h: number,
   angle: number,
-  role: LabelRole,
   cam: Camera,
   vp: Viewport,
   params: ReadableParams,
 ): ScreenRect | undefined {
   const rawH = h * cam.scale;
-  const drawnH = clampScreenHeight(rawH, role, params);
+  const drawnH = clampScreenHeight(rawH, vp.height, params);
   if (drawnH <= 0) return undefined;
   const k = drawnH / rawH;
   const drawnW = w * cam.scale * k;
   const sx = (cx - cam.x) * cam.scale + vp.width / 2;
   const sy = (cy - cam.y) * cam.scale + vp.height / 2;
-  const rad = Math.abs(angle) * DEG;
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
-  const halfW = (drawnW * cos + drawnH * sin) / 2 + params.minGapPx / 2;
-  const halfH = (drawnW * sin + drawnH * cos) / 2 + params.minGapPx / 2;
-  return { minX: sx - halfW, minY: sy - halfH, maxX: sx + halfW, maxY: sy + halfH };
+  const rad = angle * DEG;
+  const ux = Math.cos(rad);
+  const uy = -Math.sin(rad);
+  const hw = drawnW / 2 + params.minGapPx / 2;
+  const hh = drawnH / 2 + params.minGapPx / 2;
+  const aabbW = hw * Math.abs(ux) + hh * Math.abs(uy);
+  const aabbH = hw * Math.abs(uy) + hh * Math.abs(ux);
+  return { minX: sx - aabbW, minY: sy - aabbH, maxX: sx + aabbW, maxY: sy + aabbH, sx, sy, ux, uy, hw, hh };
 }
 
 /** Padded screen-space AABB of a tier without allocating a draw or FrameData. */
 function tierScreenRect(
   tier: LabelTier,
-  role: LabelRole,
   cam: Camera,
   vp: Viewport,
   params: ReadableParams,
 ): ScreenRect | undefined {
   if (tier.frame !== undefined) {
     const f = tier.frame;
-    return screenRectOfGeom(f.cx, f.cy, f.w, f.h, f.angle, role, cam, vp, params);
+    return screenRectOfGeom(f.cx, f.cy, f.w, f.h, f.angle, cam, vp, params);
   }
   if (tier.box !== undefined) {
     const b = tier.box;
-    return screenRectOfGeom(b.x0 + b.w / 2, b.y0 + b.h / 2, b.w, b.h, 0, role, cam, vp, params);
+    return screenRectOfGeom(b.x0 + b.w / 2, b.y0 + b.h / 2, b.w, b.h, 0, cam, vp, params);
   }
   return undefined;
 }
 
-/** Padded screen-space AABB of a draw after clamping its height to maxPx[role]. */
+/** Padded screen-space AABB of a draw after clamping its height to the viewport ceiling. */
 function screenRectOf(draw: AnyLabelDraw, cam: Camera, vp: Viewport, params: ReadableParams): ScreenRect | undefined {
   const f = frameOf(draw);
-  return screenRectOfGeom(f.cx, f.cy, f.w, f.h, f.angle, draw.role, cam, vp, params);
+  return screenRectOfGeom(f.cx, f.cy, f.w, f.h, f.angle, cam, vp, params);
 }
 
-const overlaps = (a: ScreenRect, b: ScreenRect): boolean =>
-  a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY;
+const overlaps = (a: ScreenRect, b: ScreenRect): boolean => {
+  if (!(a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY)) return false;
+  if (a.uy === 0 && b.uy === 0) return true;
+  const dx = b.sx - a.sx;
+  const dy = b.sy - a.sy;
+  const dotUU = Math.abs(a.ux * b.ux + a.uy * b.uy);
+  const dotUV = Math.abs(a.ux * b.uy - a.uy * b.ux);
+  if (Math.abs(dx * a.ux + dy * a.uy) >= a.hw + b.hw * dotUU + b.hh * dotUV) return false;
+  if (Math.abs(-dx * a.uy + dy * a.ux) >= a.hh + b.hw * dotUV + b.hh * dotUU) return false;
+  if (Math.abs(dx * b.ux + dy * b.uy) >= b.hw + a.hw * dotUU + a.hh * dotUV) return false;
+  if (Math.abs(-dx * b.uy + dy * b.ux) >= b.hh + a.hw * dotUV + a.hh * dotUU) return false;
+  return true;
+};
 
 const GRID_CELL = 64;
 const GRID_BIAS = 32768;
@@ -217,7 +242,7 @@ export function resolveFrameLabels(
         if (d.tiers[d.tiers.length - 1]!.height * scale < params.minPx) continue;
         for (const tier of d.tiers) {
           if (tier.height * scale < params.minPx) continue;
-          const rect = tierScreenRect(tier, role, camera, viewport, params);
+          const rect = tierScreenRect(tier, camera, viewport, params);
           if (rect === undefined) continue;
           if (rect.maxX < 0 || rect.minX > vpW || rect.maxY < 0 || rect.minY > vpH) continue;
           const td = drawFromTier(tier, role, d.factor);
@@ -232,7 +257,7 @@ export function resolveFrameLabels(
       }
       if (candidates.length === 0) continue;
       const top = candidates[0]!;
-      const topH = clampScreenHeight(frameOf(top.draw).h * scale, role, params);
+      const topH = clampScreenHeight(frameOf(top.draw).h * scale, vpH, params);
       entries.push({ idx, priority: topH, candidates });
     }
     // Taller / more prominent labels win; ties keep deterministic input order.

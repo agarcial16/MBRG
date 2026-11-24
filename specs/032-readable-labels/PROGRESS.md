@@ -48,3 +48,12 @@
 - Screenshots saved under `.claude/review/032-zoom/` (desktop + mobile on `spain-municipios-4`).
 - Branch: `feat/032-readable-labels`; State: fixes tested, typechecked, screenshots verified, pushed to PR #96.
 - Next step: user hand-test / review on PR #96.
+
+## 2026-11-24 — Anchored zoom scaling & OBB overlap (FR-621 amended after hand test)
+- **Measurement (step 1)**: logged on-screen heights across every wheel step from fit scale to `MAX_SCALE=32` on `spain-provinces` (`Guadalajara` faction & territory) and `spain-municipios-4` (`Alegría-Dulantzi` territory). Zero same-tier decreases in CSS px; the perceived shrinking in place came from FR-621's fixed `48 px` (faction) / `28 px` (territory) cap holding labels constant while their territory grew on screen (`relToFullMapH` fell to `0.17` / `0.056`). Also checked the 2nd user screenshot of "Ciudad Real": the dark cut over `"Real"` was the FR-625 hover tooltip (`Pozuelo de Calatrava · Ciudad Real`) over the pointer, not an atlas clipping glitch.
+- **FR-621 amendment & implementation (step 2)**: replaced fixed `maxPx` (`48 / 28`) with anchored 1:1 map scaling once a label fits (`>= minPx = 9 px`) up to a sane viewport-relative ceiling of `25%` of viewport height (`maxViewportFraction = 0.25`, `max(minPx, 0.25 * viewport.height)`: 180 px at 720p, 270 px at 1080p, 211 px at 844px phone) for both faction and territory labels (`apps/web/src/core/label-readable.ts`, `apps/web/src/render/labels-layer.ts`, `specs/032-readable-labels/spec.md`).
+- **Atlas & OBB overlap**: extended `SPRITE_BUCKETS` to `[12, 16, 22, 30, 44, 64, 96]` (falling back to crisp direct vector text above 96 px where only a handful of labels fit on screen, preserving FR-175 and avoiding atlas thrash), and upgraded `resolveFrameLabels` from rotated AABB to 4-axis SAT OBB overlap after the 64 px grid broad phase so diagonal anchored labels (e.g. `Daimiel`) do not falsely hide adjacent municipalities (`Torralba de Calatrava`, `Miguelturra`).
+- **Perf (`spain-municipios-4`, 1280×720 desktop zoom oscillation 1.6x..14.2x)**: before `16.7 ms` med / `16.8 ms` p95 / `16.9 ms` max -> after `16.7 ms` med / `16.8 ms` p95 / `16.8 ms` max (zero hitch regressions).
+- **Screenshots**: before/after at 3 zoom levels of Ciudad Real (desktop + mobile) saved under `.claude/review/032-anchor/` with before/after slider widgets posted in chat.
+- Branch: `feat/032-readable-labels`; State: tests + typecheck green, pushed to PR #96.
+- Next step: user review / merge of PR #96.

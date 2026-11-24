@@ -23,13 +23,13 @@ Goal: make map labels legible, uncluttered and well-proportioned across all zoom
 
 ## Definitions
 - **Display form**: the string rendered on the map for a label — either its full name from presentation data or a shorter deterministic abbreviation derived from it.
-- **Readable size**: an on-screen label height within `[minPx, maxPx]` CSS pixels for its role (`minPx` = 9 px; `maxPx` = 48 px for faction labels, 28 px for territory labels).
+- **Readable size**: an on-screen label height within `[minPx, ceiling]` CSS pixels (`minPx` = 9 px; `ceiling` = `max(minPx, 0.25 * viewport.height)`, amended after hand test).
 - **Label role**: `faction` or `territory` (unchanged from spec 005).
 - **Fit scale**: the initial overview scale where the whole map fits the visible area.
 
 ## Functional requirements
 - FR-620: WHILE the map is rendered at any scale from the fit scale to the maximum scale outside a round transition, THE SYSTEM SHALL draw no two labels of the same role whose on-screen footprints overlap, and SHALL maintain a minimum clear visual gap between adjacent drawn labels of the same role, including at the initial whole-map zoom on dense maps.
-- FR-621: THE SYSTEM SHALL bound the drawn on-screen height of every label (horizontal, straight and arc) per role: `minPx` = 9 CSS px (labels below `minPx` SHALL NOT be drawn) and `maxPx` = 48 CSS px for faction labels and 28 CSS px for territory labels; labels whose scaled height would exceed their role's `maxPx` SHALL be capped at `maxPx` while keeping their centre, reading angle and curvature centred within their region.
+- FR-621 (amended after hand test): THE SYSTEM SHALL hide any label (horizontal, straight or arc) whose scaled on-screen height is below `minPx` = 9 CSS px; once a label fits (`>= minPx`), it SHALL scale 1:1 with the map (anchored, keeping its size relative to its territory/region) as the user zooms in, up to a viewport-relative ceiling of `max(minPx, 0.25 * viewport.height)` CSS px (25% of viewport height) to avoid absurd sizes at extreme zoom; labels whose scaled height would exceed that ceiling SHALL be capped there while keeping their centre, reading angle and curvature centred within their region. (Previously capped at 48 px faction / 28 px territory, which made full names shrink relative to their territory when zooming in.)
 - FR-622: WHEN a label's full name does not fit inside its region at a readable size, THE SYSTEM SHALL derive a deterministic, ordered list of shorter display forms from the full name alone (no per-map or per-name exceptions, no randomness, preserving diacritics and casing):
   1. **Full name**.
   2. **Prefix with `"."` first**: for multi-word names, abbreviate leading significant words to dotted initials while keeping the trailing significant word (e.g. `Santa Cruz de Tenerife` → `S. C. Tenerife`), followed by shorter prefix truncations ending with `"."` (e.g. `Valencia` → `Val.`).
@@ -51,7 +51,7 @@ Goal: make map labels legible, uncluttered and well-proportioned across all zoom
 - Multi-word names with articles/prepositions (`Santa Cruz de Tenerife`, `Casas de San Galindo`, `La Rioja`, `Ciudad Real`, `Islas Baleares`): connector words (`de`, `del`, `la`, `las`, `los`, `el`, `y`, `of`, `the`, etc.) skipped cleanly when forming initials/acronyms.
 - Hyphenated names (`Castilla-La Mancha`, `Friuli-Venecia Julia`) and diacritics (`Álava`, `Cádiz`, `Guipúzcoa`, `Masegoso de Tajuña`): split and truncated on Unicode code-point/grapheme boundaries without breaking accents.
 - Duplicate abbreviations between two nearby regions (e.g. `Valderrebollo` and `Valdemoro` both yielding `Val.`): accepted because hover/tap always displays the full territory and faction names (FR-625).
-- Round T (single remaining faction) and close zoom on large regions: capped cleanly by `maxPx` (48 px faction / 28 px territory) so names never overflow the screen.
+- Round T (single remaining faction) and extreme close zoom on large regions: capped cleanly at 25% of viewport height (`max(minPx, 0.25 * viewport.height)`) so names stay anchored while the territory fits on screen and never become absurdly large past it.
 - Reduced motion preference: round changes and display-form swaps apply immediately without animation.
 
 ## Out of scope

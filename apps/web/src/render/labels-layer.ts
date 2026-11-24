@@ -51,7 +51,7 @@ const toScreen = (cam: Camera, vp: Viewport, x: number, y: number): [number, num
 ];
 
 /** Quantized sprite heights in CSS pixels (always >= drawnH so no sprite is ever enlarged, FR-175). */
-const SPRITE_BUCKETS = [12, 16, 22, 30, 40, 48] as const;
+const SPRITE_BUCKETS = [12, 16, 22, 30, 44, 64, 96] as const;
 const ATLAS_SIZE = 2048;
 const SPRITE_PAD = Math.ceil(HALO_WIDTH + 4);
 
@@ -66,9 +66,9 @@ interface TextSprite {
   readonly bucket: number;
 }
 
-const bucketFor = (drawnH: number): number => {
+const bucketFor = (drawnH: number): number | undefined => {
   for (const b of SPRITE_BUCKETS) if (drawnH <= b) return b;
-  return SPRITE_BUCKETS[SPRITE_BUCKETS.length - 1]!;
+  return undefined;
 };
 
 /** Attaches the layer to its canvas. Throws when the browser gives no 2D context. */
@@ -174,15 +174,16 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
   const drawBox = (d: LabelDraw, view: MapView): void => {
     const { camera, viewport, dpr } = view;
     const box = screenBox(d.box, camera, viewport);
-    const drawnH = clampScreenHeight(box.h, d.role);
+    const drawnH = clampScreenHeight(box.h, viewport.height);
     if (drawnH <= 0) return;
     const k = drawnH / box.h;
     const drawnW = box.w * k;
     const cx = box.x + box.w / 2;
     const cy = box.y + box.h / 2;
     if (cx + drawnW / 2 < 0 || cy + drawnH / 2 < 0 || cx - drawnW / 2 > viewport.width || cy - drawnH / 2 > viewport.height) return;
-    if (canSprite) {
-      const sprite = getSprite(d.text, bucketFor(drawnH), d, dpr);
+    const bucket = canSprite ? bucketFor(drawnH) : undefined;
+    if (bucket !== undefined) {
+      const sprite = getSprite(d.text, bucket, d, dpr);
       if (sprite !== undefined && atlasCanvas !== undefined) {
         ctx.save();
         ctx.translate(cx, cy);
@@ -210,17 +211,18 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
     const f = frameOf(d);
     const [sx, sy] = toScreen(camera, viewport, f.cx, f.cy);
     const rawH = f.h * camera.scale;
-    const drawnH = clampScreenHeight(rawH, d.role);
+    const drawnH = clampScreenHeight(rawH, viewport.height);
     if (drawnH <= 0) return;
     const k = drawnH / rawH;
     // Bounding circle of the capped frame: half its length plus its height, on screen.
     const reach = (f.w * camera.scale * k) / 2 + drawnH;
     if (sx + reach < 0 || sy + reach < 0 || sx - reach > viewport.width || sy - reach > viewport.height) return;
     const alpha = labelAlpha(d, camera.scale, params);
+    const bucket = canSprite ? bucketFor(drawnH) : undefined;
     if (d.frame.shape === 'straight') {
       const w = f.w * camera.scale * k;
-      if (canSprite) {
-        const sprite = getSprite(d.text, bucketFor(drawnH), d, dpr);
+      if (bucket !== undefined) {
+        const sprite = getSprite(d.text, bucket, d, dpr);
         if (sprite !== undefined && atlasCanvas !== undefined) {
           const m = straightMatrix({ cx: sx, cy: sy, angle: f.angle }, w, sprite.textW);
           ctx.save();
@@ -247,8 +249,7 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
     const arcW = d.frame.w * k;
     const arcFrame = k === 1 ? d.frame : { ...d.frame, w: arcW };
     const places = arcGlyphs(arcFrame, glyphOffsets(advancesOf(d.text), arcW));
-    if (canSprite) {
-      const bucket = bucketFor(drawnH);
+    if (bucket !== undefined) {
       const scale = drawnH / bucket;
       ctx.globalAlpha = alpha;
       glyphs.forEach((g, i) => {

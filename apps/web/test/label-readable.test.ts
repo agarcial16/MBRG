@@ -54,21 +54,20 @@ const straightLabel = (text: string, cx: number, cy: number, h: number, w: numbe
   halo: LABEL_HALO,
 });
 
-describe('spec 032 FR-621 screen-space size bounds per role', () => {
-  it('FR-621 clamps faction height to 48 px and territory height to 28 px, and returns 0 below minPx (9 px)', () => {
+describe('spec 032 FR-621 (amended) anchored zoom scaling and viewport-relative ceiling', () => {
+  it('FR-621 hides below minPx (9 px), scales 1:1 past 48/28 px, and caps at 25% of viewport height', () => {
     expect(READABLE_PARAMS.minPx).toBe(9);
-    expect(READABLE_PARAMS.maxPx.faction).toBe(48);
-    expect(READABLE_PARAMS.maxPx.territory).toBe(28);
+    expect(READABLE_PARAMS.maxViewportFraction).toBe(0.25);
 
-    expect(clampScreenHeight(8.9, 'faction')).toBe(0);
-    expect(clampScreenHeight(9, 'faction')).toBe(9);
-    expect(clampScreenHeight(32, 'faction')).toBe(32);
-    expect(clampScreenHeight(120, 'faction')).toBe(48);
-
-    expect(clampScreenHeight(8.9, 'territory')).toBe(0);
-    expect(clampScreenHeight(9, 'territory')).toBe(9);
-    expect(clampScreenHeight(20, 'territory')).toBe(20);
-    expect(clampScreenHeight(80, 'territory')).toBe(28);
+    expect(clampScreenHeight(8.9, 720)).toBe(0);
+    expect(clampScreenHeight(9, 720)).toBe(9);
+    expect(clampScreenHeight(32, 720)).toBe(32);
+    expect(clampScreenHeight(64, 720)).toBe(64);
+    expect(clampScreenHeight(120, 720)).toBe(120);
+    expect(clampScreenHeight(240, 720)).toBe(180);
+    expect(clampScreenHeight(300, 1080)).toBe(270);
+    // Tiny viewport floors ceiling at minPx so readable labels are never suppressed.
+    expect(clampScreenHeight(15, 20)).toBe(9);
   });
 });
 
@@ -132,13 +131,22 @@ describe('spec 032 FR-620 no overlapping on-screen footprints within the same ro
     expect(resolved2.map((d) => d.text)).toStrictEqual(['Uno', 'Dos']);
   });
 
-  it('FR-620 FR-621 accounts for maxPx capping when testing screen overlap on rotated frames', () => {
-    // At scale 4, raw h = 25 -> 100 px, but capped to 48 px (0.48x). Two labels 100 px apart vertically overlap uncapped, clear once capped!
-    const top = straightLabel('Norte', 500, 480, 25, 60, 15, 'faction');
-    const bot = straightLabel('Sur', 500, 505, 25, 60, 15, 'faction');
-    // Distance between centres at scale 4 is 80 px; capped heights are 48 px each (half = 24, sum = 48 < 80 - gap)
+  it('FR-620 FR-621 accounts for viewport-ceiling capping when testing screen overlap on rotated frames', () => {
+    // At scale 4 on 720p (ceiling 180 px), raw h = 80 -> 320 px, capped to 180 px (k=0.5625).
+    // Two labels 220 px apart vertically (55 map units at scale 4) overlap uncapped (320 > 220), clear once capped (180 + gap < 220)!
+    const top = straightLabel('Norte', 500, 472, 80, 120, 0, 'faction');
+    const bot = straightLabel('Sur', 500, 528, 80, 120, 0, 'faction');
     const resolved = resolveFrameLabels([top, bot], cam(4), VP, READABLE_PARAMS);
     expect(resolved.map((d) => d.text)).toStrictEqual(['Norte', 'Sur']);
+  });
+
+  it('FR-620 uses oriented bounding boxes so parallel diagonal labels do not falsely collide in empty AABB corners', () => {
+    // Two parallel 45° labels separated by 60 px perpendicular to their reading axis: their AABBs overlap heavily,
+    // but their actual rotated text footprints are well separated.
+    const a = straightLabel('Daimiel', 500, 500, 24, 140, 45, 'territory');
+    const b = straightLabel('Torralba', 545, 545, 16, 100, 45, 'territory');
+    const resolved = resolveFrameLabels([a, b], cam(1), VP, READABLE_PARAMS);
+    expect(resolved.map((d) => d.text)).toStrictEqual(['Daimiel', 'Torralba']);
   });
 
   it('FR-620 tries a shorter tier of a colliding label before hiding it', () => {
@@ -197,51 +205,61 @@ describe('spec 032 FR-621 label layer enforces maxPx cap on screen for horizonta
     return out;
   }
 
-  it('FR-621 caps faction labels at 48 px and territory labels at 28 px when zoomed in', () => {
-    // Faction horizontal box: h=50 at scale 1.4 -> raw 70 px, capped to 48 px (scale 1.4 < fadeStart 1.5 so faction visible)
-    const facBox = boxLabel('España', 450, 475, 50, 150, 'faction');
-    const facStraight = straightLabel('Aragón', 500, 500, 50, 150, 15, 'faction');
+  it('FR-621 scales faction and territory labels 1:1 past 48/28 px and caps at 25% of viewport height (180 px on 720p)', () => {
+    // Faction labels at scale 1.4: h=50 -> 70 px (anchored, NOT capped at 48 px); h=160 -> 224 px capped to 180 px.
+    const facAnchored = boxLabel('Ciudad Real', 450, 475, 50, 150, 'faction');
+    const facAnchoredDraws = recordFonts([facAnchored], 1.4);
+    expect(facAnchoredDraws).toHaveLength(1);
+    expect(facAnchoredDraws[0]!.fontPx).toBeCloseTo(70, 6);
+
+    const facBox = boxLabel('España', 450, 475, 160, 480, 'faction');
+    const facStraight = straightLabel('Aragón', 500, 500, 160, 480, 15, 'faction');
     const facArc: ShapedDraw = {
       text: 'Italia',
       role: 'faction',
-      frame: { shape: 'arc', cx: 500, cy: 500, angle: 0, h: 50, w: 150, bend: 30, radius: 300 },
+      frame: { shape: 'arc', cx: 500, cy: 500, angle: 0, h: 160, w: 480, bend: 30, radius: 600 },
       factor: 1,
       ink: LABEL_INK,
       halo: LABEL_HALO,
     };
     const facDraws = recordFonts([facBox, facStraight, facArc], 1.4);
     expect(facDraws.length).toBeGreaterThan(0);
-    for (const d of facDraws) expect(d.fontPx).toBeLessThanOrEqual(48);
-    expect(facDraws[0]!.fontPx).toBeCloseTo(48, 6);
+    for (const d of facDraws) expect(d.fontPx).toBeCloseTo(180, 6);
 
-    // Territory labels at scale 4 (> fadeFull 2): h=20 -> raw 80 px, capped to 28 px
+    // Territory labels at scale 4 (> fadeFull 2): h=20 -> 80 px (anchored, NOT capped at 28 px); h=60 -> 240 px capped to 180 px.
     const terBox = boxLabel('Zuera', 480, 490, 20, 60, 'territory');
-    const terStraight = straightLabel('Huesca', 500, 500, 20, 60, 30, 'territory');
+    const terStraight = straightLabel('Huesca', 500, 500, 60, 180, 30, 'territory');
     const terDraws = recordFonts([terBox, terStraight], 4);
     expect(terDraws).toHaveLength(2);
-    for (const d of terDraws) expect(d.fontPx).toBeCloseTo(28, 6);
+    expect(terDraws[0]!.fontPx).toBeCloseTo(80, 6);
+    expect(terDraws[1]!.fontPx).toBeCloseTo(180, 6);
   });
 
-  it('FR-621 FR-623 scales labels linearly with zoom within a tier until maxPx and keeps capped arc labels centred', () => {
-    // Territory with tiers: full (h=6) and abbrev (h=10). Between scale 2.0 and 4.0, full tier grows 12 -> 24 px linearly.
-    const terBox = boxLabel('Amurrio', 480, 490, 6, 36, 'territory');
-    const terStraight = straightLabel('Aramaio', 500, 500, 6, 36, 15, 'territory');
+  it('FR-621 FR-623 scales labels monotonically 1:1 with zoom up to the viewport ceiling and keeps capped arc labels centred', () => {
+    // Territory with h=16: across scales 2.0, 4.0, 8.0, 16.0 -> 32, 64, 128, 180 px (never decreases, anchored until 180 px ceiling).
+    const terBox = boxLabel('Amurrio', 480, 490, 16, 96, 'territory');
+    const terStraight = straightLabel('Aramaio', 500, 500, 16, 96, 15, 'territory');
     const terArc: ShapedDraw = {
       text: 'Bernedo',
       role: 'territory',
-      frame: { shape: 'arc', cx: 500, cy: 500, angle: 0, h: 6, w: 42, bend: 20, radius: 200 },
+      frame: { shape: 'arc', cx: 500, cy: 500, angle: 0, h: 16, w: 112, bend: 20, radius: 400 },
       factor: 1,
       ink: LABEL_INK,
       halo: LABEL_HALO,
     };
-    for (const s of [2.0, 2.5, 3.5, 4.5]) {
+    let prev = 0;
+    for (const s of [2.0, 4.0, 8.0, 16.0]) {
       const drawn = recordFonts([terBox, terStraight, terArc], s);
-      const expected = Math.min(6 * s, READABLE_PARAMS.maxPx.territory);
+      const expected = Math.min(16 * s, VP.height * READABLE_PARAMS.maxViewportFraction);
       expect(drawn.length).toBeGreaterThan(2);
-      for (const d of drawn) expect(d.fontPx).toBeCloseTo(expected, 6);
+      for (const d of drawn) {
+        expect(d.fontPx).toBeCloseTo(expected, 6);
+        expect(d.fontPx).toBeGreaterThanOrEqual(prev);
+      }
+      prev = expected;
     }
 
-    // Capped arc label (h=20 at scale 4 -> raw 80 px, capped to 28 px, k=0.35) must remain centred around sx=640!
+    // Capped arc label (h=60 at scale 4 -> raw 240 px, capped to 180 px, k=0.75) must remain centred around sx=640!
     const xs: number[] = [];
     let curX = 0;
     const ctx = {
@@ -279,7 +297,7 @@ describe('spec 032 FR-621 label layer enforces maxPx cap on screen for horizonta
     const cappedArc: ShapedDraw = {
       text: 'ABBA',
       role: 'territory',
-      frame: { shape: 'arc', cx: 500, cy: 500, angle: 0, h: 20, w: 100, bend: 20, radius: 400 },
+      frame: { shape: 'arc', cx: 500, cy: 500, angle: 0, h: 60, w: 300, bend: 20, radius: 600 },
       factor: 1,
       ink: LABEL_INK,
       halo: LABEL_HALO,
@@ -408,17 +426,30 @@ describe('spec 032 FR-620 FR-626 real maps in maps/ (zero overlaps at fit scale,
   const syntheticAspects = (names: readonly string[]): Map<string, number> =>
     new Map(names.map((n) => [n, Math.max(0.6, Array.from(n).length * 0.58)]));
 
-  const screenBoxOf = (d: AnyLabelDraw, c: Camera, vp: Viewport) => {
+  const screenObbOf = (d: AnyLabelDraw, c: Camera, vp: Viewport) => {
     const f = frameOf(d);
     const rawH = f.h * c.scale;
-    const h = clampScreenHeight(rawH, d.role, READABLE_PARAMS);
+    const h = clampScreenHeight(rawH, vp.height, READABLE_PARAMS);
     const w = f.w * c.scale * (h / rawH);
     const sx = (f.cx - c.x) * c.scale + vp.width / 2;
     const sy = (f.cy - c.y) * c.scale + vp.height / 2;
-    const rad = (Math.abs(f.angle) * Math.PI) / 180;
-    const hw = (w * Math.cos(rad) + h * Math.sin(rad)) / 2;
-    const hh = (w * Math.sin(rad) + h * Math.cos(rad)) / 2;
-    return { minX: sx - hw, minY: sy - hh, maxX: sx + hw, maxY: sy + hh };
+    const rad = (f.angle * Math.PI) / 180;
+    return { sx, sy, ux: Math.cos(rad), uy: -Math.sin(rad), hw: w / 2, hh: h / 2 };
+  };
+
+  const obbOverlap = (
+    a: ReturnType<typeof screenObbOf>,
+    b: ReturnType<typeof screenObbOf>,
+  ): boolean => {
+    const dx = b.sx - a.sx;
+    const dy = b.sy - a.sy;
+    const dotUU = Math.abs(a.ux * b.ux + a.uy * b.uy);
+    const dotUV = Math.abs(a.ux * b.uy - a.uy * b.ux);
+    if (Math.abs(dx * a.ux + dy * a.uy) >= a.hw + b.hw * dotUU + b.hh * dotUV) return false;
+    if (Math.abs(-dx * a.uy + dy * a.ux) >= a.hh + b.hw * dotUV + b.hh * dotUU) return false;
+    if (Math.abs(dx * b.ux + dy * b.uy) >= b.hw + a.hw * dotUU + a.hh * dotUV) return false;
+    if (Math.abs(-dx * b.uy + dy * b.ux) >= b.hh + a.hw * dotUV + a.hh * dotUU) return false;
+    return true;
   };
 
   it('FR-620 maps/spain-provinces at fit scale (1920x1080) draws multiple factions with zero screen-space overlaps', async () => {
@@ -453,13 +484,10 @@ describe('spec 032 FR-620 FR-626 real maps in maps/ (zero overlaps at fit scale,
     const fit = initialCamera({ w: pkg.width, h: pkg.height }, vp);
     const resolved = resolveFrameLabels(draws, fit, vp, READABLE_PARAMS);
     expect(resolved.length).toBeGreaterThan(20);
-    const rects = resolved.map((d) => screenBoxOf(d, fit, vp));
-    for (let i = 0; i < rects.length; i++) {
-      for (let j = i + 1; j < rects.length; j++) {
-        const a = rects[i]!;
-        const b = rects[j]!;
-        const overlap = a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY;
-        expect(overlap, `${resolved[i]!.text} vs ${resolved[j]!.text}`).toBe(false);
+    const obbs = resolved.map((d) => screenObbOf(d, fit, vp));
+    for (let i = 0; i < obbs.length; i++) {
+      for (let j = i + 1; j < obbs.length; j++) {
+        expect(obbOverlap(obbs[i]!, obbs[j]!), `${resolved[i]!.text} vs ${resolved[j]!.text}`).toBe(false);
       }
     }
   }, 15000);
