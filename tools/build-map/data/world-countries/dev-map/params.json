@@ -1,5 +1,6 @@
 {
-  "width": 4096,
+  "width": 4352,
   "margin": 0.02,
-  "minPieceSize": 1
+  "minPieceSize": 1,
+  "projection": "robinson"
 }

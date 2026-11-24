@@ -43,7 +43,7 @@ export interface Params {
   side: number;
   margin: number;
   minPieceSize: number;
-  projection: 'laea' | 'equal-earth';
+  projection: 'laea' | 'equal-earth' | 'robinson';
   gapFill?: number;
   /** FR-602: the widest strip of water between a land territory and other land that becomes other land (0 to 16). */
   contextGap?: number;
@@ -309,6 +309,11 @@ function readTiling(value: unknown, problems: Problems): false | TilingParams | 
   return problems.paths.length === before ? out : undefined;
 }
 
+/** FR-600, FR-698: the projections a curation can name. */
+function isProjection(value: unknown): value is Params['projection'] {
+  return value === 'laea' || value === 'equal-earth' || value === 'robinson';
+}
+
 function readParams(value: unknown, problems: Problems): Params | undefined {
   if (!isObject(value)) {
     problems.add('params');
@@ -319,11 +324,11 @@ function readParams(value: unknown, problems: Problems): Params | undefined {
   const margin = readRange(value, 'margin', 0, 0.5, false, problems);
   const minPieceSize = readRange(value, 'minPieceSize', 1, 10000, true, problems);
   const projection = own(value, 'projection');
-  if (projection !== 'laea' && projection !== 'equal-earth') problems.add('params.projection');
+  if (!isProjection(projection)) problems.add('params.projection');
   const gapFill = Object.hasOwn(value, 'gapFill') ? readRange(value, 'gapFill', 1, 10000, true, problems) : undefined;
   const contextGap = Object.hasOwn(value, 'contextGap') ? readRange(value, 'contextGap', 0, 16, true, problems) : undefined;
   if (side === undefined || margin === undefined || minPieceSize === undefined) return undefined;
-  if (projection !== 'laea' && projection !== 'equal-earth') return undefined;
+  if (!isProjection(projection)) return undefined;
   if (Object.hasOwn(value, 'gapFill') && gapFill === undefined) return undefined;
   const exclaveReach = Object.hasOwn(value, 'exclaveReach') ? readRange(value, 'exclaveReach', 0, 1024, true, problems) : undefined;
   if (Object.hasOwn(value, 'contextGap') && contextGap === undefined) return undefined;

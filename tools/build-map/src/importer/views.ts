@@ -2,6 +2,7 @@ import type { Result } from '@mbrg/shared';
 import { frameFor, project, projectionCenter, toPixel, type Frame, type ProjectionCenter } from '../core/projection';
 import type { SourcePolygon } from '../core/types';
 import type { Filter, Params } from './curation';
+import { robinson } from '../core/robinson';
 import { equalEarth } from './equal-earth';
 import { ErrorCollector } from './errors';
 import { matchesFilter } from './select';
@@ -85,7 +86,13 @@ export function planeOf(projection: Params['projection'], lon0: number, lat0: nu
     const center: ProjectionCenter = { lon0, lat0 };
     return (lon, lat) => project(center, lon, lat);
   }
-  return (lon, lat) => equalEarth(wrapLon(lon, lon0) * RAD, lat * RAD);
+  const flat = flatProjection(projection);
+  return (lon, lat) => flat(wrapLon(lon, lon0) * RAD, lat * RAD);
+}
+
+/** FR-600, FR-698: the flat world projections, longitude and latitude in radians. */
+function flatProjection(projection: Params['projection']): (lon: number, lat: number) => [number, number] {
+  return projection === 'robinson' ? robinson : equalEarth;
 }
 
 /**
@@ -95,14 +102,15 @@ export function planeOf(projection: Params['projection'], lon0: number, lat0: nu
  * longitudes of the ring go straight to the projection, never wrapped a second time.
  */
 export function ringProjector(projection: Params['projection'], lon0: number, lat0: number): (coords: readonly (readonly [number, number])[]) => [number, number][] {
-  if (projection !== 'equal-earth') {
+  if (projection === 'laea') {
     const plane = planeOf(projection, lon0, lat0);
     return (coords) => coords.map(([lon, lat]) => plane(lon, lat));
   }
+  const flat = flatProjection(projection);
   return (coords) => {
     const wrapped = ringWrappedLons(coords, lon0);
     // the wrapped value of a non-adjusted vertex is what `plane` computes; -180 is the ring's own side
-    return coords.map(([, lat], i) => equalEarth(wrapped[i]! * RAD, lat * RAD));
+    return coords.map(([, lat], i) => flat(wrapped[i]! * RAD, lat * RAD));
   };
 }
 
@@ -239,7 +247,7 @@ function crossesAntimeridian(a: number, b: number, lon0: number): boolean {
  * one error per item). The Lambert projection is periodic in longitude and has no such rule.
  */
 export function antimeridianErrors(view: Pick<View, 'projection' | 'lon0'>, items: readonly ViewItem[]): ViewError[] {
-  if (view.projection !== 'equal-earth') return [];
+  if (view.projection === 'laea') return [];
   const errors: ViewError[] = [];
   for (const item of items) {
     const rings = item.polygons.flatMap((p) => [p.outer, ...p.holes]);

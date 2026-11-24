@@ -7,7 +7,6 @@ import type { MapData } from '@mbrg/shared';
 import { afterAll, describe, expect, it } from 'vitest';
 import { runBuild } from '../src/cli/build';
 import { fromRgb } from '../src/core/png-check';
-import { frameFor, pixelSide, project, projectionCenter, unproject } from '../src/core/projection';
 import { parseBuildInputs } from '../src/core/parse-inputs';
 import { realFs } from '../src/io/fs-ops';
 import { pngCodec } from '../src/io/png-codec';
@@ -81,12 +80,12 @@ function factionCodes(): string[] {
 }
 
 describe('the committed world map package: contents', () => {
-  it('holds exactly 193 land territories, one per faction, and 7 sea zones', () => {
+  it('holds exactly 193 land territories, one per faction, and 8 sea zones', () => {
     const m = map();
     const land = m.territories.filter((e) => !isSea(e));
     const sea = m.territories.filter(isSea);
     expect(land.length).toBe(193);
-    expect(sea.length).toBe(7);
+    expect(sea.length).toBe(8);
     const owners = land.map((e) => (e as { owner: number }).owner);
     expect([...new Set(owners)].sort((a, b) => a - b)).toStrictEqual(
       Array.from({ length: 193 }, (_, i) => i + 1),
@@ -95,7 +94,7 @@ describe('the committed world map package: contents', () => {
     expect(land.every((t) => t.neighbors.length > 0)).toBe(true);
   });
 
-  it('has the 193 factions with Spanish names and the 7 world sea zones', () => {
+  it('has the 193 factions with Spanish names and the 8 world sea zones (the Pacific appears at both edges of a flat map)', () => {
     const p = presentation() as { factions: { id: number; name: string }[]; territories: { id: number; name: string }[] };
     expect(p.factions.map((f) => f.id)).toStrictEqual(Array.from({ length: 193 }, (_, i) => i + 1));
     expect(p.factions.every((f) => f.name.length > 0)).toBe(true);
@@ -114,13 +113,14 @@ describe('the committed world map package: contents', () => {
       'Océano Ártico',
       'Océano Antártico',
       'Mar Mediterráneo',
+      'Océano Pacífico Occidental',
     ]);
   });
 
-  it('is 4096 x 4096 with width 4096, margin 2% and S = 1 (no piece is ever removed)', { timeout: 60_000 }, () => {
+  it('is 4352 x 4352 with width 4352, margin 2%, S = 1 and the Robinson projection (no piece is ever removed)', { timeout: 60_000 }, () => {
     const image = decode(join(committed, 'ids.png'));
-    expect([image.width, image.height]).toStrictEqual([4096, 4096]);
-    expect(loadInputs().params).toStrictEqual({ width: 4096, margin: 0.02, minPieceSize: 1 });
+    expect([image.width, image.height]).toStrictEqual([4352, 4352]);
+    expect(loadInputs().params).toStrictEqual({ width: 4352, margin: 0.02, minPieceSize: 1, projection: 'robinson' });
   });
 
   it('is authored from one admin-0 feature per sovereign country, with documented exceptions', () => {
@@ -208,7 +208,7 @@ describe('the committed world map package: planet shape', () => {
   const landNeighbors = (id: number): number[] => byId.get(id)!.neighbors.filter((n) => !isSea(byId.get(n)!));
   const seaNeighbors = (id: number): number[] => byId.get(id)!.neighbors.filter((n) => isSea(byId.get(n)!));
 
-  it('has the square corners and edge midpoints as sea (the whole planet disk fits the frame)', { timeout: 60_000 }, () => {
+  it('has the square corners and edge midpoints as sea (the Robinson world is about twice as wide as tall, the rest of the square is sea)', { timeout: 60_000 }, () => {
     const width = image.width;
     const seaIds = new Set(sea.map((s) => s.id));
     const points: [number, number][] = [
@@ -232,7 +232,7 @@ describe('the committed world map package: planet shape', () => {
   it('has sea zones linked to other sea zones and touched by many countries', () => {
     expect(sea.some((s) => seaNeighbors(s.id).length >= 1)).toBe(true);
     const touching = sea.filter((s) => land.some((t) => t.neighbors.includes(s.id)));
-    expect(touching.length).toBe(7);
+    expect(touching.length).toBe(8);
   });
 });
 
@@ -289,60 +289,35 @@ describe('the world map rebuild is deterministic', () => {
   );
 });
 
-describe('the frame covers the whole planet', () => {
-  it('every outermost pixel centre is either outside the sphere or inside the world box', () => {
-    const inputs = loadInputs();
-    const box = JSON.parse(readFileSync(join(data, 'dev-map', 'extraction-box.json'), 'utf8')) as {
-      west: number;
-      south: number;
-      east: number;
-      north: number;
-    };
-    expect(box).toStrictEqual({ west: -180, south: -90, east: 180, north: 90 });
-
-    const byCode = new Map(inputs.provinces.map((f) => [String(f.props['adm1_code']), f]));
-    const vertices: [number, number][] = [];
-    for (const t of inputs.grouping.territories) {
-      for (const province of t.provinces) {
-        const feature = byCode.get(province)!;
-        for (const polygon of feature.polygons) {
-          vertices.push(...polygon.outer.coords);
-          for (const hole of polygon.holes) vertices.push(...hole.coords);
-        }
-      }
+describe('the Robinson frame covers the whole world', () => {
+  it('lays the land across the full width inside the 2% margin and in a band of rows around the middle', { timeout: 60_000 }, () => {
+    const image = decode(join(committed, 'ids.png'));
+    const m = map();
+    const land = new Set(m.territories.filter((e) => !isSea(e)).map((e) => e.id));
+    const w = image.width;
+    let minCol = w;
+    let maxCol = -1;
+    let minRow = w;
+    let maxRow = -1;
+    for (let i = 0; i < image.pixels.length; i++) {
+      if (!land.has(image.pixels[i]!)) continue;
+      const col = i % w;
+      const row = Math.floor(i / w);
+      if (col < minCol) minCol = col;
+      if (col > maxCol) maxCol = col;
+      if (row < minRow) minRow = row;
+      if (row > maxRow) maxRow = row;
     }
-    const { width, margin } = inputs.params;
-    const center = projectionCenter(vertices);
-    const frame = frameFor(
-      vertices.map(([lon, lat]) => project(center, lon, lat)),
-      margin,
-    );
-    const pixel = pixelSide(frame, width);
-    let insideDisk = 0;
-    for (let i = 0; i < width; i++) {
-      for (const [x, y] of [
-        [i, 0],
-        [i, width - 1],
-        [0, i],
-        [width - 1, i],
-      ] as const) {
-        const px = frame.west + (x + 0.5) * pixel;
-        const py = frame.north - (y + 0.5) * pixel;
-        if (Math.hypot(px, py) > 2) continue; // outside the projected sphere: sea background
-        insideDisk++;
-        const [lon, lat] = unproject(center, px, py);
-        expect(Number.isFinite(lon)).toBe(true);
-        expect(Number.isFinite(lat)).toBe(true);
-        expect(lon).toBeGreaterThanOrEqual(box.west);
-        expect(lon).toBeLessThanOrEqual(box.east);
-        expect(lat).toBeGreaterThanOrEqual(box.south);
-        expect(lat).toBeLessThanOrEqual(box.north);
-      }
-    }
-    // The frame border is nearly all outside the sphere (sea background); only the central
-    // segment of the north edge stays on the planet, and those centres sit inside the box.
-    expect(insideDisk).toBeGreaterThan(0);
-    expect(insideDisk).toBeLessThan(width / 2);
+    // the frame is the bounding box of the countries plus a 2% margin on each side: the land touches that margin
+    const margin = 0.02 * w;
+    expect(minCol).toBeGreaterThanOrEqual(0);
+    expect(minCol).toBeLessThan(margin * 1.5);
+    expect(maxCol).toBeGreaterThan(w - 1 - margin * 1.5);
+    expect(maxCol).toBeLessThanOrEqual(w - 1);
+    // a Robinson world is about 1.97 : 1: the countries use well under 60% of the square's height
+    expect(maxRow - minRow).toBeLessThan(0.6 * w);
+    expect(minRow).toBeGreaterThan(0.15 * w);
+    expect(maxRow).toBeLessThan(0.85 * w);
   });
 });
 

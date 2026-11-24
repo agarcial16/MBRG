@@ -3,7 +3,7 @@ Durable decisions, limits and lessons; no per-task diary (that is `specs/<id>/PR
 
 ## State
 Specs 001-029 implemented (028, the vector map importer, in PR #94 awaiting merge; hand run 1 on Spain by municipalities passed review) and 035 (ocean tiles, PR #101 stacked on #94). Branch from `main`, PR into `main`.
-Predefined maps: `maps/spain-provinces` (52 provinces), `maps/world-countries` (193 countries, 7 sea zones; data in `tools/build-map/data/world-countries/`). Next: viewer follow-ups V1-V3 (`docs/board.md`), painted-image importer (route A), replay of finished matches.
+Predefined maps: `maps/spain-provinces` (52 provinces), `maps/world-countries` (193 countries, 8 sea zones, Robinson; data in `tools/build-map/data/world-countries/`). Next: viewer follow-ups V1-V3 (`docs/board.md`), painted-image importer (route A), replay of finished matches.
 
 ## Game
 Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random alive faction dies; a random neighbor takes all its territories; repeat until one remains. Players predict; they never control.
@@ -17,6 +17,7 @@ Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random
 - State stores owner per territory, so modes are rule changes, not model changes. Ids 1..16,777,215 (24-bit texture). Round k uses `roundRng(seed, k)`: any round is computable alone.
 - Per-server history (024): the bot sends only a SHA-256 community key (never the guild id), in request bodies. Ranking windows (027): rolling 7/30 days, the floor fixed at the first page.
 - Viewer count refusal (029) & many factions (033): a package beyond the viewer's tables (over 65,535 territories or 65,535 factions) is refused at load naming the limit; `checkCounts` reads `MAX_ENTRIES`/`MAX_FACTIONS` from `core/entries.ts`. Owner tables are 16-bit (`Uint16Array` / RG8 GPU texture, 2 bytes/entry, matching the 16-bit entry index). Faction colouring uses a 20-colour curated base palette (original 12 first + 8 Spec 031-aligned colours rotating in steps 1-2), soft-sea relaxation (PR #98), and a deterministic procedural last resort (`core/palette.ts`, >= 65,535 distinct colours) only when land neighbours exhaust curated colours; `palette-exhausted` stays as a defensive guard for custom finite themes.
+- Robinson (036): `params.projection: "robinson"` in the builder and the importer (own code, default unchanged); the world map uses it at width 4352 (4096 loses the Maldives) with a second Pacific seed (a flat map cuts the Pacific at 180).
 - Vector map importer (028): offline `import-map` (`extract`/`inspect`/`import`) in `@mbrg/build-map`, GeoJSON + curation JSON, up to 9,999 factions; viewer limits warn only; no new third-party deps; `@mbrg/shared` and `apps/web` untouched.
 - Readable labels (032): in-land precomputed abbreviation tiers (full -> prefix + `.` -> plain acronym), screen-space height bounds (`minPx` 9, `maxPx` 48 faction / 28 territory), per-role screen overlap resolution (`minGapPx` 4), no off-land/leader lines, and always-on map hover/tap full-name readout.
 - Sea is an explicit entry kind (no owner); enclosed water joins the nearest sea zone; lakes stay background.

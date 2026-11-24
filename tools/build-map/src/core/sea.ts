@@ -23,13 +23,14 @@ export function seedPixels(
   frame: Frame,
   width: number,
   pixels: Uint32Array,
+  plane: (lon: number, lat: number) => [number, number] = (lon, lat) => project(center, lon, lat),
 ): Result<SeedPixel[], SeedError> {
   if (seeds.length === 0) return { ok: false, errors: [{ kind: 'no-sea-seeds' }] };
   const errors: SeedError[] = [];
   const located: SeedPixel[] = [];
   const bySharedPixel = new Map<number, number[]>();
   seeds.forEach((seed, index) => {
-    const [px, py] = project(center, seed.lon, seed.lat);
+    const [px, py] = plane(seed.lon, seed.lat);
     const at = toPixel(frame, width, px, py);
     located.push({ x: at.x, y: at.y });
     if (!at.inside) {

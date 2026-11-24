@@ -170,7 +170,10 @@ function parseParams(root: unknown): BuildParams {
   if (typeof minPieceSize !== 'number' || !Number.isInteger(minPieceSize) || minPieceSize < 1) {
     return problem('minPieceSize must be an integer of at least 1');
   }
-  return { width, margin, minPieceSize };
+  if (!Object.hasOwn(root, 'projection')) return { width, margin, minPieceSize };
+  const projection = own(root, 'projection');
+  if (projection !== 'laea' && projection !== 'robinson') return problem('projection must be laea or robinson');
+  return { width, margin, minPieceSize, projection };
 }
 
 const PARSERS: { [K in InputName]: (root: unknown) => BuildInputs[K] } = {

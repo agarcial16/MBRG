@@ -63,11 +63,15 @@ export interface SeaSeed {
   lat: number;
 }
 
-/** FR-112 build parameters: side W (H = W), margin, minimum piece size S. */
+/** FR-699: the builder's projections: Lambert azimuthal equal-area (FR-114, the default) or Robinson (FR-697). */
+export type BuildProjection = 'laea' | 'robinson';
+
+/** FR-112 build parameters: side W (H = W), margin, minimum piece size S, and FR-699 the optional projection. */
 export interface BuildParams {
   width: number;
   margin: number;
   minPieceSize: number;
+  projection?: BuildProjection;
 }
 
 /** FR-112: exactly these inputs fully determine the output; no seed, round or match state. */

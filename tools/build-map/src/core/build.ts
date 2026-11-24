@@ -7,7 +7,7 @@ import { numberEntries } from './numbering';
 import { cleanupPieces, labelPieces } from './pieces';
 import { toRgb } from './png-check';
 import { buildPresentation } from './presentation';
-import { frameFor, project, projectionCenter, toPixel } from './projection';
+import { frameFor, planeFor, projectionCenter, toPixel } from './projection';
 import { rasterize, type RasterLayer } from './rasterize';
 import { toPixelPolygons } from './rings';
 import { formatReport, summariseEnclosed } from './report';
@@ -59,13 +59,16 @@ export function buildInMemory(inputs: BuildInputs, codec: PngCodec): BuildOutcom
       }
     }
   }
-  const center = projectionCenter(vertices);
+  // FR-699: Robinson keeps the central meridian 0 (a whole-planet map); the Lambert centre is the midpoint rule.
+  const robinson = inputs.params.projection === 'robinson';
+  const center = robinson ? { lon0: 0, lat0: 0 } : projectionCenter(vertices);
+  const plane = planeFor(inputs.params.projection, center);
   const frame = frameFor(
-    vertices.map(([lon, lat]) => project(center, lon, lat)),
+    vertices.map(([lon, lat]) => plane(lon, lat)),
     margin,
   );
   const toUV = (lon: number, lat: number): [number, number] => {
-    const [px, py] = project(center, lon, lat);
+    const [px, py] = plane(lon, lat);
     const at = toPixel(frame, width, px, py);
     return [at.u, at.v];
   };
@@ -93,7 +96,7 @@ export function buildInMemory(inputs: BuildInputs, codec: PngCodec): BuildOutcom
   });
 
   // FR-116: sea zones.
-  const seeds = seedPixels(inputs.seeds, center, frame, width, rasterized);
+  const seeds = seedPixels(inputs.seeds, center, frame, width, rasterized, plane);
   if (!seeds.ok) return { ok: false, errors: seeds.errors, preview: previewOf(rasterized) };
   const { pixels: assigned, enclosed } = assignSeaZonesDetailed(width, rasterized, seeds.value, plan.sea.map((s) => s.id));
 
@@ -122,6 +125,7 @@ export function buildInMemory(inputs: BuildInputs, codec: PngCodec): BuildOutcom
     width,
     height: width,
     center,
+    ...(robinson ? { projection: 'robinson' as const } : {}),
     frame,
     factions: plan.factions.length,
     landTerritories: plan.land.length,

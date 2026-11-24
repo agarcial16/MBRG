@@ -9,6 +9,8 @@ export interface ReportFacts {
   width: number;
   height: number;
   center: ProjectionCenter;
+  /** FR-699: named only when it is not the default Lambert projection. */
+  projection?: 'robinson';
   frame: Frame;
   factions: number;
   landTerritories: number;
@@ -35,6 +37,7 @@ export function formatReport(facts: ReportFacts): string {
     `width: ${facts.width}`,
     `height: ${facts.height}`,
     `projectionCenter: lon=${facts.center.lon0} lat=${facts.center.lat0}`,
+    ...(facts.projection === undefined ? [] : [`projection: ${facts.projection}`]),
     `frame: west=${facts.frame.west} north=${facts.frame.north} side=${facts.frame.side}`,
     `factions: ${facts.factions}`,
     `landTerritories: ${facts.landTerritories}`,

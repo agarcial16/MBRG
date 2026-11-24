@@ -4,6 +4,9 @@
  * The radius is 1: the scale cancels in the frame, which is measured in the same units.
  */
 
+import { robinson } from './robinson';
+import type { BuildProjection } from './types';
+
 const RAD = Math.PI / 180;
 
 /** Centre of the projection, degrees. */
@@ -55,6 +58,18 @@ export function project(center: ProjectionCenter, lon: number, lat: number): [nu
   const cosDl = Math.cos(dl);
   const k = Math.sqrt(2 / (1 + sinF0 * sinF + cosF0 * cosF * cosDl));
   return [k * cosF * Math.sin(dl), k * (cosF0 * sinF - sinF0 * cosF * cosDl)];
+}
+
+/**
+ * FR-699: the projection the builder applies, as a function of degrees to (X, Y). `laea` is `project` about the centre;
+ * `robinson` is FR-697 about the central meridian 0 with no longitude wrapping (the source longitudes lie in -180..180).
+ */
+export function planeFor(
+  projection: BuildProjection | undefined,
+  center: ProjectionCenter,
+): (lon: number, lat: number) => [number, number] {
+  if (projection === 'robinson') return (lon, lat) => robinson(lon * RAD, lat * RAD);
+  return (lon, lat) => project(center, lon, lat);
 }
 
 /** Inverse of `project`, degrees. Used only to check that the extraction box covers the frame. */
