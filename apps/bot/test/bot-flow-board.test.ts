@@ -57,12 +57,12 @@ describe('FR-477 /mbrg board', () => {
     const m = only(await bot.run({ type: 'board' }, ASKER));
     expect(m.embed?.title).toBe(STRINGS.boardTitle);
     expect(lineCount(m)).toBe(10);
-    expect(m.embed?.description).toContain('1. <@800> - 100 pts');
+    expect(m.embed?.description).toContain('1. <@800> · 100 pts');
     expect(m.embed?.footer).toBe('Página 1/3');
     expect(m.buttons.map((b) => b.type === 'custom' && [b.label, b.disabled === true])).toEqual([['Anterior', true], ['Siguiente', false]]);
     expect(leaderboardReads(fake)).toBe(3);
     // FR-479: the asker (outside this page) still sees their own rank and points.
-    expect(m.embed?.fields).toEqual([{ name: 'Tu puesto', value: '23. <@822> - 78 pts' }]);
+    expect(m.embed?.fields).toEqual([{ name: 'Tu puesto', value: '23. <@822> · 78 pts' }]);
     // FR-482: no link to the viewer any more.
     expect(JSON.stringify(m)).not.toContain('http');
     expect(JSON.stringify(m)).not.toContain('completa');
@@ -97,7 +97,7 @@ describe('FR-480 only the asker pages', () => {
     const second = only(await bot.press('board-msg', buttonId(first, 'Siguiente'), ASKER));
     expect(leaderboardReads(fake)).toBe(reads + 1);
     expect(second.embed?.footer).toBe('Página 2/3');
-    expect(second.embed?.description).toContain('11. <@810> - 90 pts');
+    expect(second.embed?.description).toContain('11. <@810> · 90 pts');
     expect(second.embed?.fields).toEqual(first.embed?.fields);
     expect(second.buttons.map((b) => b.type === 'custom' && b.disabled === true)).toEqual([false, false]);
     const third = only(await bot.press('board-msg', buttonId(second, 'Siguiente'), ASKER));
@@ -215,9 +215,9 @@ describe('FR-478 and FR-480 the final post', () => {
     const editsBefore = bot.edits.length;
     const mine = only(await bot.press(messageId, buttonId(board, 'Siguiente'), ASKER));
     expect(mine.embed?.footer).toBe('Página 2/3');
-    expect(mine.embed?.fields).toEqual([{ name: 'Tu puesto', value: '23. <@822> - 78 pts' }]);
+    expect(mine.embed?.fields).toEqual([{ name: 'Tu puesto', value: '23. <@822> · 78 pts' }]);
     const theirs = only(await bot.press(messageId, buttonId(board, 'Siguiente'), OTHER));
-    expect(theirs.embed?.fields).toEqual([{ name: 'Tu puesto', value: '4. <@803> - 97 pts' }]);
+    expect(theirs.embed?.fields).toEqual([{ name: 'Tu puesto', value: '4. <@803> · 97 pts' }]);
     expect(JSON.stringify(bot.posts)).toBe(before);
     expect(bot.edits).toHaveLength(editsBefore);
     // The private page pages by itself: its ids carry the match, and it shows its presser's line on every page.

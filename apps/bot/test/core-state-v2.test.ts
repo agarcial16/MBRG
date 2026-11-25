@@ -114,8 +114,8 @@ describe('FR-478 final leaderboard embed', () => {
     expect(out).toHaveLength(2);
     expect(out[0]?.text).toContain('Francia');
     const board = out[1];
-    expect(board?.embed?.description).toContain('1. <@701> - 39 pts');
-    expect(board?.embed?.description).toContain('10. <@710> - 30 pts');
+    expect(board?.embed?.description).toContain('1. <@701> · 39 pts');
+    expect(board?.embed?.description).toContain('10. <@710> · 30 pts');
     expect(board?.embed?.description).not.toContain('<@711>');
     expect(board?.embed?.footer).toBe('Página 1/2');
     expect(board?.buttons).toHaveLength(2);

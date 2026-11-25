@@ -208,7 +208,7 @@ describe('FR-466 last match', () => {
     expect(readFileSync(statePath, 'utf8')).not.toContain(HOST_TOKEN);
     fake.leaderboard = [{ rank: 1, playerId: 'discord:801', total: 7 }];
     const reply = await bot.run({ type: 'board' }, MEMBER);
-    expect(reply.type === 'channel' && reply.messages.map((m) => m.text).join('\n')).toContain('1. <@801> - 7 pts');
+    expect(reply.type === 'channel' && reply.messages.map((m) => m.text).join('\n')).toContain('1. <@801> · 7 pts');
     expect(fake.requests.filter((r) => r.path.includes('/leaderboard')).at(-1)?.path).toContain(`/matches/${MATCH_ID}/`);
     // A restart opens no stream for a last match.
     const before = fake.requests.filter((r) => r.path.endsWith('/events')).length;
@@ -264,8 +264,8 @@ describe('FR-467 final leaderboard', () => {
     expect(all.slice(0, FULL_JOURNEY.length)).toEqual(FULL_JOURNEY);
     expect(all).toHaveLength(FULL_JOURNEY.length + 1);
     const board = all[FULL_JOURNEY.length] ?? '';
-    expect(board).toContain('1. <@800> - 50 pts');
-    expect(board).toContain('10. <@809> - 41 pts');
+    expect(board).toContain('1. <@800> · 50 pts');
+    expect(board).toContain('10. <@809> · 41 pts');
     expect(board).not.toContain('<@810>');
     // No viewer address set: no link.
     expect(board).not.toContain('http');

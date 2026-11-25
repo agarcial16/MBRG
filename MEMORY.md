@@ -18,7 +18,7 @@ Spectator battle royale on EU4/RISK-style maps ("Clásico"): each round a random
 - Per-server history (024): the bot sends only a SHA-256 community key (never the guild id), in request bodies. Ranking windows (027): rolling 7/30 days, the floor fixed at the first page.
 - Viewer limits (029/033): a package beyond 65,535 territories or 65,535 factions is refused at load naming the limit; owner tables are 16-bit (2 bytes/entry). Faction colouring: 20-colour curated palette (`core/theme.ts`), soft-sea relaxation, deterministic procedural last resort (`core/palette.ts`).
 - Map building: 028 offline vector importer (GeoJSON + curation), 035 ocean tiles (on by default), 036 Robinson for the world map (`params.projection`; square stays the importer default) with `minFootprint`.
-- Readable labels (032): in-land abbreviation tiers, screen-space height bounds, per-role overlap resolution, hover/tap full name.
+- Readable labels (032): in-land abbreviation tiers, screen-space height bounds, per-role overlap resolution, hover/tap full name. 037: at close zoom (scale >= 1, crossfade 0.85..1) faction labels follow the province placement rules (one label centred on a multi-territory union).
 
 ## Limits
 - Anti-spoiler: future rounds never reach the client. Determinism: same seed, same match.

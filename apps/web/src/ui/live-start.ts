@@ -75,11 +75,6 @@ export function showStart(): void {
 
   const shell = el('div', 'landing-shell', stage);
 
-  // Top kicker line.
-  const kicker = el('div', 'landing-kicker', shell);
-  el('span', 'landing-dot', kicker).setAttribute('aria-hidden', 'true');
-  el('span', '', kicker).textContent = STRINGS.landingKicker;
-
   // Anchored left console: brand lockup, pitch, match/spectator entry, create disclosure.
   const consoleBox = el('section', 'landing-console', shell);
 
@@ -96,7 +91,9 @@ export function showStart(): void {
   const entry = el('div', 'landing-entry', consoleBox);
   const entryHead = el('div', 'landing-entry-head', entry);
   el('div', 'landing-entry-title', entryHead).textContent = STRINGS.startTitle;
-  el('div', 'landing-entry-hint', entryHead).textContent = STRINGS.landingInputHint;
+  const entryLabel = el('label', 'landing-entry-hint', entryHead) as HTMLLabelElement;
+  entryLabel.htmlFor = 'landing-match';
+  entryLabel.textContent = STRINGS.landingInputHint;
 
   const form = document.createElement('form');
   form.className = 'hud-form';
@@ -105,11 +102,10 @@ export function showStart(): void {
   form.action = window.location.pathname;
 
   const input = document.createElement('input');
+  input.id = 'landing-match';
   input.type = 'text';
   input.name = 'match';
   input.className = 'hud-input';
-  input.placeholder = STRINGS.landingInputPlaceholder;
-  input.setAttribute('aria-label', STRINGS.startCode);
   input.autocomplete = 'off';
 
   const spectateInput = document.createElement('input');
@@ -128,9 +124,7 @@ export function showStart(): void {
   problem.setAttribute('role', 'alert');
 
   form.append(input, spectateInput, enter);
-  entry.append(form);
-  el('p', 'landing-helper', entry).textContent = STRINGS.startText;
-  entry.append(problem);
+  entry.append(form, problem);
 
   form.addEventListener('submit', (event) => {
     const address = matchAddress(input.value);
@@ -184,8 +178,5 @@ export function showStart(): void {
   }
 
   const badge = el('div', 'landing-badge', footer);
-  el('span', 'landing-dot', badge).setAttribute('aria-hidden', 'true');
-  const badgeText = el('div', 'landing-badge-text', badge);
-  el('span', 'landing-badge-tag', badgeText).textContent = STRINGS.landingAtlasTag;
-  el('span', 'landing-badge-caption', badgeText).textContent = atlasCaption(plate);
+  el('span', 'landing-badge-caption', badge).textContent = atlasCaption(plate);
 }

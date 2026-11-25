@@ -240,7 +240,7 @@ describe('FR-513 NFR-106 search by name', () => {
   it('loads the remaining pages in order and lists every match with its rank', async () => {
     const { server, state } = await opened(3000);
     const searching = boardQuery(state, 'zoe perez 29');
-    expect(boardView(searching).note).toContain('buscando');
+    expect(boardView(searching).note).toContain('Buscando');
     const done = await drive(searching, server);
     const view = boardView(done.state);
     expect(done.reads.map((r) => r.split('?')[0])).toContain('players');

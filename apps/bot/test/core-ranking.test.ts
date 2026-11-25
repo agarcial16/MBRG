@@ -23,22 +23,22 @@ describe('FR-569 a row of the ranking', () => {
   it('FR-569 a row shows the rank, the mention and the statistics with the ordering statistic first, one fixed order for the others', () => {
     const r = row('111');
     const expected: Record<RankingOrder, string> = {
-      points: '1. <@111> - 120 pts · aciertos 15/20 · victorias 2 · partidas 4 · precisión 75 %',
-      correct: '1. <@111> - aciertos 15/20 · 120 pts · victorias 2 · partidas 4 · precisión 75 %',
-      wins: '1. <@111> - victorias 2 · 120 pts · aciertos 15/20 · partidas 4 · precisión 75 %',
-      accuracy: '1. <@111> - precisión 75 % · 120 pts · aciertos 15/20 · victorias 2 · partidas 4',
+      points: '1. <@111> · 120 pts · aciertos 15/20 · victorias 2 · partidas 4 · precisión 75 %',
+      correct: '1. <@111> · aciertos 15/20 · 120 pts · victorias 2 · partidas 4 · precisión 75 %',
+      wins: '1. <@111> · victorias 2 · 120 pts · aciertos 15/20 · partidas 4 · precisión 75 %',
+      accuracy: '1. <@111> · precisión 75 % · 120 pts · aciertos 15/20 · victorias 2 · partidas 4',
     };
     for (const order of Object.keys(expected) as RankingOrder[]) expect(linesOf(embedOf(page([r]), order)), order).toEqual([expected[order]]);
   });
 
   it('FR-569 rows keep the order the server sent and every rank as given (ties share it)', () => {
     const items = [row('111', { rank: 1 }), row('222', { rank: 2, points: 90 }), row('333', { rank: 2, points: 90 }), row('444', { rank: 4, points: 5 })];
-    expect(linesOf(embedOf(page(items))).map((l) => l.slice(0, 11))).toEqual(['1. <@111> -', '2. <@222> -', '2. <@333> -', '4. <@444> -']);
+    expect(linesOf(embedOf(page(items))).map((l) => l.slice(0, 11))).toEqual(['1. <@111> ·', '2. <@222> ·', '2. <@333> ·', '4. <@444> ·']);
   });
 
   it('FR-569 a member who is not on Discord shows the name the server stored, else "Jugador"', () => {
     const items = [row('111', { playerId: 'web:abc', name: 'Ana Web' }), row('222', { playerId: 'web:def' })];
-    expect(linesOf(embedOf(page(items))).map((l) => l.split(' - ')[0])).toEqual(['1. Ana Web', '1. Jugador']);
+    expect(linesOf(embedOf(page(items))).map((l) => l.split(' · ')[0])).toEqual(['1. Ana Web', '1. Jugador']);
   });
 
   it('FR-569 a row never shows the stored name of a Discord member: the mention always resolves', () => {
@@ -76,14 +76,14 @@ describe('FR-569 precision, the whole percent rounded down', () => {
   it('FR-569 a player with no scored prediction shows no precision', () => {
     expect(floorPercent(0, 0)).toBeUndefined();
     const line = linesOf(embedOf(page([row('111', { points: 0, correct: 0, scored: 0, played: 0, won: 0 })])))[0];
-    expect(line).toBe('1. <@111> - 0 pts · aciertos 0/0 · victorias 0 · partidas 0');
+    expect(line).toBe('1. <@111> · 0 pts · aciertos 0/0 · victorias 0 · partidas 0');
     expect(line).not.toContain('precisión');
     // In the accuracy order the ordering statistic is missing too: the others follow.
-    expect(linesOf(embedOf(page([row('111', { points: 0, correct: 0, scored: 0, played: 0, won: 0 })]), 'accuracy'))[0]).toBe('1. <@111> - 0 pts · aciertos 0/0 · victorias 0 · partidas 0');
+    expect(linesOf(embedOf(page([row('111', { points: 0, correct: 0, scored: 0, played: 0, won: 0 })]), 'accuracy'))[0]).toBe('1. <@111> · 0 pts · aciertos 0/0 · victorias 0 · partidas 0');
   });
 
   it('FR-569 a row shows the percent of its own statistics: 199/200 reads 99 %', () => {
-    expect(linesOf(embedOf(page([row('111', { correct: 199, scored: 200, points: 500 })])))[0]).toBe('1. <@111> - 500 pts · aciertos 199/200 · victorias 2 · partidas 4 · precisión 99 %');
+    expect(linesOf(embedOf(page([row('111', { correct: 199, scored: 200, points: 500 })])))[0]).toBe('1. <@111> · 500 pts · aciertos 199/200 · victorias 2 · partidas 4 · precisión 99 %');
   });
 });
 
@@ -94,7 +94,7 @@ describe('FR-566 FR-569 the accuracy order with players who have no rank', () =>
   it('FR-569 a row without a rank shows a dash in place of the rank, and only in the unranked tail', () => {
     const lines = linesOf(embedOf(page([...ranked(1), ...tail(1)], { total: 2 }), 'accuracy'));
     expect(lines.filter((l) => l.startsWith('1.'))).toHaveLength(1);
-    expect(lines.find((l) => l.includes('<@200>'))?.startsWith('— <@200> - precisión 75 %')).toBe(true);
+    expect(lines.find((l) => l.includes('<@200>'))?.startsWith('— <@200> · precisión 75 %')).toBe(true);
   });
 
   it('FR-569 the line "Menos de 10 predicciones: sin puesto en precisión" precedes the first unranked row, in the middle of a page', () => {
@@ -163,7 +163,7 @@ describe('FR-569 the asker line "Tu puesto"', () => {
     const message = rankingEmbed(page([row('111')], { asker: { points: 80, correct: 9, scored: 12, played: 3, won: 1, rank: 7 } }), 'points', ctx());
     expect(message.text.split('\n')).toEqual([
       'Ranking del servidor',
-      '1. <@111> - 120 pts · aciertos 15/20 · victorias 2 · partidas 4 · precisión 75 %',
+      '1. <@111> · 120 pts · aciertos 15/20 · victorias 2 · partidas 4 · precisión 75 %',
       'Página 1/1',
       'Tu puesto: Puesto 7 · 80 pts · aciertos 9/12 · victorias 1 · partidas 3 · precisión 75 %',
     ]);

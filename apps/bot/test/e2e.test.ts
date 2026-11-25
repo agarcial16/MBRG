@@ -201,8 +201,8 @@ describe('spec 023 e2e: real server + real bot core, Discord faked', () => {
     const message = messageOfReply(r.ranking.unqualified);
     const lines = message.embed!.description!.split('\n');
     expect(lines).toEqual(rankingDescription('accuracy'));
-    expect(lines.slice(-2)).toEqual(['Menos de 10 predicciones: sin puesto en precisión', '— <@444444444444444444> - precisión 44 % · 15 pts · aciertos 4/9 · victorias 0 · partidas 2']);
-    expect(lines[1]).toContain('<@333333333333333333> - precisión 50 % · 16 pts · aciertos 5/10');
+    expect(lines.slice(-2)).toEqual(['Menos de 10 predicciones: sin puesto en precisión', '— <@444444444444444444> · precisión 44 % · 15 pts · aciertos 4/9 · victorias 0 · partidas 2']);
+    expect(lines[1]).toContain('<@333333333333333333> · precisión 50 % · 16 pts · aciertos 5/10');
     // Floor, not rounding: 4 of 14 is 28 %, 9 of 13 is 69 %.
     expect(lines[0]).toContain('precisión 69 %');
     expect(lines[2]).toContain('precisión 28 %');

@@ -16,3 +16,5 @@ Live work, one row per task; the orchestrator updates it, the feature PR closes 
 | Discord bot round images: snapshot after an elimination/absorption animation ends, current map every N rounds, and/or an ephemeral `/ff` command that shows the map only to the caller | — | — | — | — | idea | no spec yet; needs a Light SDD spec when picked up |
 | In-page map importer: import a map from the web UI, on top of the spec 028 importer | — | — | — | — | idea | no spec yet; needs a spec (viewer upload + server validation) when picked up |
 | Re-register Discord slash commands on deploy (`/ff` replaces `/mbrg`) | — | — | — | — | idea | no spec yet; check for a deploy hook before writing one |
+| Spec 037: province-style faction labels at close zoom | Light SDD | antigravity/gemini-4-neon | own thread | `feat/037-faction-labels-zoom` | merged (#107) | done (archived in `specs/archive/037-faction-labels-zoom`) |
+| unslop-ui skill + web/bot UI copy pass | Small | antigravity/gemini-4-neon | own thread | `chore/unslop-ui-skill` | merged (#106) | done; use the skill as a final pass on new UI |

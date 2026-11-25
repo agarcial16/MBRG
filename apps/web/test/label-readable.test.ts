@@ -16,6 +16,7 @@ import {
   READABLE_PARAMS,
   allCandidateTexts,
   clampScreenHeight,
+  factionCloseBlend,
   placeReadableFactions,
   placeReadableTerritories,
   readableRoundLabels,
@@ -27,7 +28,7 @@ import {
 } from '../src/core/label-readable';
 import type { LabelTier, ReadableDraw } from '../src/core/label-readable';
 import { parsePackage } from '../src/core/package';
-import { buildPieceIndex } from '../src/core/regions';
+import { buildPieceIndex, mainPieces } from '../src/core/regions';
 import { sceneAt } from '../src/core/scene';
 import { SHAPE_PARAMS } from '../src/core/shape-params';
 import { attachLabelLayer } from '../src/render/labels-layer';
@@ -528,5 +529,158 @@ describe('spec 032 FR-620 FR-626 real maps in maps/ (zero overlaps at fit scale,
       expect(resolved.length, name).toBeGreaterThan(0);
       for (const d of resolved) expect('leader' in d, `${name}:${d.text}`).toBe(false);
     }
+  }, 30000);
+});
+
+describe('spec 037 FR-707..FR-712 province-style faction labels at close zoom', () => {
+  it('FR-708 factionCloseBlend returns 0 below closeStart, 1 at/above closeFull, smoothstep between, and scales by detailFactor', () => {
+    expect(factionCloseBlend(0.5, 1)).toBe(0);
+    expect(factionCloseBlend(0.85, 1)).toBe(0);
+    const mid = factionCloseBlend(0.925, 1);
+    expect(mid).toBeCloseTo(0.5, 6);
+    expect(factionCloseBlend(1.0, 1)).toBe(1);
+    expect(factionCloseBlend(1.4, 1)).toBe(1);
+
+    // Mobile detailFactor = 0.3 -> closeStart = 0.255, closeFull = 0.30
+    expect(factionCloseBlend(0.25, 0.3)).toBe(0);
+    expect(factionCloseBlend(0.2775, 0.3)).toBeCloseTo(0.5, 6);
+    expect(factionCloseBlend(0.3, 0.3)).toBe(1);
+    expect(factionCloseBlend(0.38, 0.3)).toBe(1);
+  });
+
+  it('FR-708 resolveFrameLabels selects far tiers <= closeStart, close tiers >= closeFull, crossfades between, and deduplicates identical tiers', () => {
+    const farTier: LabelTier = { text: 'Argelia', box: { x0: 460, y0: 490, h: 18, w: 80 }, height: 18 };
+    const closeTier: LabelTier = {
+      text: 'Argelia',
+      frame: { shape: 'straight', cx: 500, cy: 500, angle: 30, h: 36, w: 160 },
+      height: 36,
+    };
+    const sameTier: LabelTier = { text: 'Chad', box: { x0: 660, y0: 490, h: 20, w: 60 }, height: 20 };
+    const draws: ReadableDraw[] = [
+      { ...boxLabel('Argelia', 460, 490, 18, 80, 'faction'), id: 1, tiers: [farTier], closeTiers: [closeTier] },
+      { ...boxLabel('Chad', 660, 490, 20, 60, 'faction'), id: 2, tiers: [sameTier], closeTiers: [sameTier] },
+    ];
+
+    // Far zoom (scale 0.8 <= 0.85): far style only
+    const far = resolveFrameLabels(draws, cam(0.8), VP, READABLE_PARAMS, 1);
+    expect(far).toHaveLength(2);
+    expect(frameOf(far[0]!).shape).toBe('horizontal');
+    expect(far[0]!.factor).toBe(1);
+
+    // Close zoom (scale 1.2 >= 1.0): close style only
+    const close = resolveFrameLabels(draws, cam(1.2), VP, READABLE_PARAMS, 1);
+    expect(close).toHaveLength(2);
+    expect(frameOf(close[0]!).shape).toBe('straight');
+    expect(frameOf(close[0]!).angle).toBe(30);
+    expect(close[0]!.factor).toBe(1);
+
+    // Mid-transition (scale 0.925 -> closeT = 0.5): Argelia crossfades (2 draws at 0.5 each), Chad deduplicated (1 draw at factor 1)
+    const blend = resolveFrameLabels(draws, cam(0.925), VP, READABLE_PARAMS, 1);
+    const argelia = blend.filter((d) => d.text === 'Argelia');
+    const chad = blend.filter((d) => d.text === 'Chad');
+    expect(argelia).toHaveLength(2);
+    expect(argelia.map((d) => [frameOf(d).shape, Number(d.factor.toFixed(2))])).toStrictEqual([
+      ['horizontal', 0.5],
+      ['straight', 0.5],
+    ]);
+    expect(chad).toHaveLength(1);
+    expect(chad[0]!.factor).toBe(1);
+
+    // Mobile detailFactor = 0.3 at scale 0.38 (>= 0.30): uses close style!
+    const mobileClose = resolveFrameLabels(draws, cam(0.38), VP, READABLE_PARAMS, 0.3);
+    const mobArg = mobileClose.find((d) => d.text === 'Argelia');
+    expect(mobArg).toBeDefined();
+    expect(frameOf(mobArg!).shape).toBe('straight');
+  });
+
+  it('FR-711 stepReadableLabels and upgradeTourDraws use close tiers at close zoom and far tiers at far zoom', () => {
+    const farTiers: LabelTier[] = [{ text: 'Serbia', box: { x0: 100, y0: 100, h: 16, w: 64 }, height: 16 }];
+    const closeTiers: LabelTier[] = [
+      { text: 'Serbia', frame: { shape: 'straight', cx: 132, cy: 120, angle: -45, h: 28, w: 112 }, height: 28 },
+    ];
+    const earlier = { tiers: new Map([[1, farTiers]]), closeTiers: new Map([[1, closeTiers]]), piecesByFaction: new Map([[1, [0]]]) };
+    const later = { tiers: new Map([[1, farTiers]]), closeTiers: new Map([[1, closeTiers]]), piecesByFaction: new Map([[1, [0]]]) };
+    const territories = { tiers: [undefined] };
+    const table = new Uint8Array([0, 1]);
+    const aspects = new Map([['Serbia', 4]]);
+
+    const stepFar = stepReadableLabels(earlier, later, territories, table, { eliminated: 2, absorber: 3 }, aspects, 0.7, 0.5, READABLE_PARAMS.minPx, 1);
+    expect(stepFar).toHaveLength(1);
+    expect(frameOf(stepFar[0]!).shape).toBe('horizontal');
+
+    const stepClose = stepReadableLabels(earlier, later, territories, table, { eliminated: 2, absorber: 3 }, aspects, 1.2, 0.5, READABLE_PARAMS.minPx, 1);
+    expect(stepClose).toHaveLength(1);
+    expect(frameOf(stepClose[0]!).shape).toBe('straight');
+
+    const tourDraw = boxLabel('Serbia', 100, 100, 16, 64, 'faction', 0.4);
+    const currentDraws: ReadableDraw[] = [{ ...tourDraw, id: 1, factor: 1, tiers: farTiers, closeTiers }];
+    const tourFar = upgradeTourDraws([tourDraw], currentDraws, 0.7, READABLE_PARAMS.minPx, undefined, 1);
+    expect(frameOf(tourFar[0]!).shape).toBe('horizontal');
+    const tourClose = upgradeTourDraws([tourDraw], currentDraws, 1.2, READABLE_PARAMS.minPx, undefined, 1);
+    expect(frameOf(tourClose[0]!).shape).toBe('straight');
+    expect(tourClose[0]!.factor).toBeCloseTo(0.4, 6);
+  });
+
+  it('FR-707 FR-709 FR-710 single-territory factions reuse territory tiers identically and multi-territory unions compute close tiers on maps/world-countries', async () => {
+    const dir = fileURLToPath(new URL('../../../maps/world-countries', import.meta.url));
+    const parsed = await parsePackage(
+      {
+        map: readFileSync(join(dir, 'map.json'), 'utf8'),
+        presentation: readFileSync(join(dir, 'presentation.json'), 'utf8'),
+        image: new Uint8Array(readFileSync(join(dir, 'ids.png'))),
+      },
+      inflateStream,
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const pkg = parsed.value;
+    const map = pkg.map as MapData;
+    const presentation = pkg.presentation as PresentationData;
+    const index = buildEntryIndex(map, pkg.width, pkg.height, pkg.values);
+    const pieces = buildPieceIndex(index);
+    const mainPieceOf = mainPieces(pieces);
+    const owners = factionIndexOf(map);
+    const sim = { totalRounds, getState, getRounds, ownerOf };
+    const sc = sceneAt(map, presentation, 10, 46, sim);
+    expect(sc.ok).toBe(true);
+    if (!sc.ok) return;
+    const table = ownerTable(index, sc.value.owners, owners);
+    const texts = labelTexts(map, presentation, owners);
+    const aspects = new Map(
+      allCandidateTexts([...texts.factions.values(), ...texts.territories.filter((t): t is string => t !== undefined)]).map((n) => [
+        n,
+        Math.max(0.6, Array.from(n).length * 0.58),
+      ]),
+    );
+    const ter = placeReadableTerritories(pieces, texts.territories, aspects, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS);
+    const fac = placeReadableFactions(
+      pieces,
+      table,
+      texts.factions,
+      aspects,
+      LABEL_PARAMS,
+      SHAPE_PARAMS,
+      CENTRE_PARAMS,
+      undefined,
+      { territories: ter, names: texts.territories, mainPieceOf },
+    );
+
+    // Single-territory country (Algeria = id 50): closeTiers is the exact same array reference as territory tiers (FR-709).
+    const algEntry = index.indexOf.get(50)!;
+    const algFaction = table[algEntry]!;
+    expect(fac.piecesByFaction.get(algFaction)).toHaveLength(1);
+    expect(fac.closeTiers?.get(algFaction)).toBe(ter.tiers[algEntry]);
+
+    // Multi-territory union (Serbia = id 159 absorbed Hungary = id 76 on seed 10 round 46):
+    // has multiple pieces, single closeTiers entry computed on the union (FR-710).
+    const srbEntry = index.indexOf.get(159)!;
+    const hunEntry = index.indexOf.get(76)!;
+    const srbFaction = table[srbEntry]!;
+    expect(table[hunEntry]).toBe(srbFaction);
+    expect(fac.piecesByFaction.get(srbFaction)!.length).toBeGreaterThanOrEqual(2);
+    const srbClose = fac.closeTiers?.get(srbFaction);
+    expect(srbClose).toBeDefined();
+    expect(srbClose!.length).toBeGreaterThan(0);
+    expect(srbClose).not.toBe(ter.tiers[srbEntry]);
   }, 30000);
 });
