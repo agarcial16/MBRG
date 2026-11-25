@@ -152,15 +152,12 @@ describe('FR-611 Logo 1 inline SVG geometry', () => {
 describe('FR-611 FR-613 FR-616 NFR-140 NFR-141 landing strings, stylesheet and shell', () => {
   it('NFR-140 every spec 030 landing string is non-empty Spanish copy in STRINGS', () => {
     const keys = [
-      'landingKicker',
       'landingBrand',
       'landingSubtitle',
       'landingPitch',
-      'landingInputPlaceholder',
       'landingInputHint',
       'landingCreateToggle',
       'landingCreateClose',
-      'landingAtlasTag',
       'landingAtlasCaption',
       'landingMapDev',
     ] as const;
@@ -169,7 +166,7 @@ describe('FR-611 FR-613 FR-616 NFR-140 NFR-141 landing strings, stylesheet and s
     }
     expect(STRINGS.landingBrand).toBe('FactionFall');
     expect(STRINGS.landingSubtitle).toBe('MAP BATTLE ROYALE');
-    expect(STRINGS.landingInputPlaceholder.toLowerCase()).toContain('espectador');
+    expect(STRINGS.landingInputHint.toLowerCase()).toContain('espectador');
   });
 
   it('NFR-141 FR-616 the landing stylesheet uses only --hud-* tokens, data-layout (no width media queries), 44 px phone targets and reduced motion', () => {
@@ -192,9 +189,9 @@ describe('FR-611 FR-613 FR-616 NFR-140 NFR-141 landing strings, stylesheet and s
     expect(startShell).toContain('nextVisitIndex(');
     expect(startShell).toContain('spectate');
     expect(startShell).toContain('STRINGS.landingPitch');
-    expect(startShell).toContain('STRINGS.landingInputPlaceholder');
+    expect(startShell).toContain('STRINGS.landingInputHint');
     expect(startShell).toContain('STRINGS.landingCreateToggle');
-    expect(startShell).toContain('STRINGS.landingAtlasTag');
+    expect(startShell).toContain('atlasCaption(plate)');
     expect(startShell).toContain('mountCreate(');
     expect(codeOnly(startShell)).not.toMatch(/\bMath\s*\.\s*random\b/);
     expect(languageViolations(startShell)).toStrictEqual([]);

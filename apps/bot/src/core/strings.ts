@@ -3,14 +3,14 @@
 
 export const STRINGS = {
   // Lobby, rounds and results announced in the channel (FR-451, FR-453, FR-456).
-  lobby: 'Nueva partida **{match}** en el mapa **{map}**. Solo quien la creó puede iniciarla con el botón.',
+  lobby: 'Nueva partida **{match}** en el mapa **{map}**. Solo quien la creó puede iniciarla.',
   startButton: 'Iniciar',
   predictButton: 'Predecir',
   predictCountdown: 'Predecir · {n} s',
   predictClosed: 'Predecir · cerrado',
   viewerButton: 'Ver en el visor',
-  roundOpened: 'Ronda {round} abierta. ¿Qué facción será eliminada? Pulsa Predecir.',
-  victimRevealed: 'Ronda {round}: la víctima es **{victim}**. ¿Quién la absorberá? Pulsa Predecir.',
+  roundOpened: 'Ronda {round} abierta. ¿Qué facción será eliminada?',
+  victimRevealed: 'Ronda {round}: la víctima es **{victim}**. ¿Quién la absorberá?',
   victimForced: 'Ronda {round}: la víctima es **{victim}** y solo puede absorberla **{absorber}** (absorbente forzado).',
   roundApplied: 'Ronda {round} aplicada: **{victim}** cae y **{absorber}** absorbe sus territorios. {left}',
   factionsLeftOne: 'Queda 1 facción.',
@@ -26,7 +26,7 @@ export const STRINGS = {
 
   // Leaderboard (FR-457).
   boardTitle: 'Clasificación',
-  boardRow: '{rank}. {who} - {points} pts',
+  boardRow: '{rank}. {who} · {points} pts',
   boardEmpty: 'Todavía no hay puntos.',
   boardPage: 'Página {page}/{pages}',
   boardOwnField: 'Tu puesto',
@@ -75,7 +75,7 @@ export const STRINGS = {
   rankingExpired: 'Este ranking caducó. Usa /ff ranking para verlo de nuevo.',
   rankingEmpty: 'Este servidor todavía no tiene ranking.',
   rankingTitle: 'Ranking del servidor',
-  rankingRow: '{rank} {who} - {stats}',
+  rankingRow: '{rank} {who} · {stats}',
   rankingRank: '{n}.',
   rankingNoRank: '—',
   rankingSep: ' · ',
@@ -90,11 +90,11 @@ export const STRINGS = {
 
   // Embeds of the announcements (spec 017 FR-472, FR-473).
   embedOpenedTitle: 'Ronda {round} abierta',
-  embedOpenedText: '¿Qué facción será eliminada? Pulsa Predecir.',
+  embedOpenedText: '¿Qué facción será eliminada?',
   embedVictimTitle: 'Ronda {round}: víctima revelada',
-  embedVictimText: '¿Quién la absorberá? Pulsa Predecir.',
+  embedVictimText: '¿Quién la absorberá?',
   embedForcedTitle: 'Ronda {round}: absorbente forzado',
-  embedForcedText: 'Solo hay un absorbente posible: no hay nada que predecir.',
+  embedForcedText: 'Solo hay un absorbente posible. No hay nada que predecir.',
   embedAppliedTitle: 'Ronda {round} aplicada',
   embedScoredVictimTitle: 'Ronda {round}: aciertos de la víctima',
   embedScoredAbsorberTitle: 'Ronda {round}: aciertos del absorbente',
@@ -133,7 +133,7 @@ export const STRINGS = {
   phaseClosed: 'Ahora no hay ninguna fase abierta.',
   expired: 'La partida expiró sin empezar.',
   errClosed: 'La fase está cerrada. No se cambió nada.',
-  errForced: 'Esta ronda tiene absorbente forzado: no hay nada que predecir.',
+  errForced: 'Esta ronda tiene absorbente forzado. No hay nada que predecir.',
   errRate: 'Vas demasiado rápido. Espera {n} s.',
   errFinished: 'La partida ya terminó.',
   errHalted: 'La partida está detenida.',

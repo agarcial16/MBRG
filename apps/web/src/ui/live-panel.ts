@@ -532,9 +532,6 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
   bannerBox.hidden = true;
   const bannerButton = button(bannerBox, '', handlers.onBannerDismiss, 'hud-banner-card hud-duel hud-frame');
   bannerButton.setAttribute('aria-label', STRINGS.bannerClose);
-  const duelBar = el('span', 'hud-duel-bar', bannerButton);
-  const duelBarLeft = el('span', 'hud-duel-bar-v', duelBar);
-  const duelBarRight = el('span', 'hud-duel-bar-a', duelBar);
   const bannerTitle = el('span', 'hud-title hud-duel-eyebrow', bannerButton);
   const duelSides = el('span', 'hud-duel-sides', bannerButton);
   const duelLeft = el('span', 'hud-duel-side hud-duel-fallen', duelSides);
@@ -679,7 +676,7 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
     const total = rows.length;
     const alive = rows.filter((r) => r.alive).length;
     const aliveText = fillTemplate(alive === 1 ? STRINGS.hudAliveOfOne : STRINGS.hudAliveOf, { alive, total });
-    factionsHead.textContent = [STRINGS.legendTitle, aliveText].join(' - ');
+    factionsHead.textContent = [STRINGS.legendTitle, aliveText].join(': ');
     for (const [key, chip] of sortButtons) chip.setAttribute('aria-pressed', String(key === sortKey));
     const matched = sortRows(searchRows(rows, query), sortKey);
     const { shown, hidden } = visibleRows(matched, LIST_LIMIT, showAll);
@@ -906,14 +903,10 @@ export function createLivePanel(container: HTMLElement, colors: ReadonlyMap<numb
       const vRgb = duel === undefined ? undefined : colors.get(duel.victimId);
       const aRgb = duel === undefined ? undefined : colors.get(duel.absorberId);
       if (vRgb !== undefined) {
-        const cssRgb = `rgb(${vRgb[0]},${vRgb[1]},${vRgb[2]})`;
-        duelLeftSwatch.style.background = cssRgb;
-        duelBarLeft.style.background = cssRgb;
+        duelLeftSwatch.style.background = `rgb(${vRgb[0]},${vRgb[1]},${vRgb[2]})`;
       }
       if (aRgb !== undefined) {
-        const cssRgb = `rgb(${aRgb[0]},${aRgb[1]},${aRgb[2]})`;
-        duelRightSwatch.style.background = cssRgb;
-        duelBarRight.style.background = cssRgb;
+        duelRightSwatch.style.background = `rgb(${aRgb[0]},${aRgb[1]},${aRgb[2]})`;
       }
       bannerLine.textContent = duel?.detail ?? hud.banner?.line ?? '';
       overlayBox.hidden = hud.overlay === undefined;

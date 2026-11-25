@@ -45,25 +45,7 @@ export const LANDING_CSS = `
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 28px 48px 32px;
-}
-
-.landing-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  max-width: 100%;
-  font: 600 11px/1.3 var(--hud-display, 'Cormorant SC', Georgia, serif);
-  letter-spacing: 0.2em;
-  color: var(--hud-muted);
-}
-.landing-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--hud-verdigris);
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.45);
-  flex: none;
+  padding: 24px 48px 32px;
 }
 
 .landing-console {
@@ -73,13 +55,13 @@ export const LANDING_CSS = `
   padding: 24px 0;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 24px;
 }
 
 .landing-brand {
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: 20px;
 }
 .landing-logo {
   width: 62px;
@@ -119,10 +101,9 @@ export const LANDING_CSS = `
 /* Primary entry box: match link, spectator link or 16-char code. */
 .landing-entry {
   position: relative;
-  padding: 18px 20px 16px 22px;
+  padding: 16px 20px;
   background: var(--hud-panel);
   border: 1px solid var(--hud-gilt-dim);
-  border-left: 3px solid var(--hud-gilt);
   backdrop-filter: blur(6px);
 }
 .landing-entry-head {
@@ -141,6 +122,7 @@ export const LANDING_CSS = `
 .landing-entry-hint {
   font: italic 12px/1.2 var(--hud-body, Spectral, Georgia, serif);
   color: var(--hud-muted);
+  cursor: pointer;
 }
 .landing-entry .hud-form {
   margin-top: 0;
@@ -154,14 +136,9 @@ export const LANDING_CSS = `
 }
 .landing-entry .hud-btn.primary {
   min-height: 44px;
-  padding: 0 22px;
+  padding: 0 20px;
   font: 600 13px/1 var(--hud-display, 'Cormorant SC', Georgia, serif);
   letter-spacing: 0.14em;
-}
-.landing-helper {
-  margin: 10px 0 0;
-  font-size: 12px;
-  color: var(--hud-muted);
 }
 .landing-entry .hud-messages:not(:empty) {
   margin-top: 10px;
@@ -176,7 +153,7 @@ export const LANDING_CSS = `
 }
 .landing-toggle {
   min-height: 42px;
-  padding: 0 18px;
+  padding: 0 16px;
   font: 600 13px/1 var(--hud-display, 'Cormorant SC', Georgia, serif);
   letter-spacing: 0.12em;
   background: var(--hud-wood);
@@ -191,7 +168,7 @@ export const LANDING_CSS = `
   box-shadow: inset 0 0 0 1px var(--hud-gilt);
 }
 .landing-drawer {
-  padding: 16px 20px 18px;
+  padding: 16px 20px;
   background: var(--hud-panel);
   border: 1px solid var(--hud-gilt-dim);
   backdrop-filter: blur(6px);
@@ -217,21 +194,10 @@ export const LANDING_CSS = `
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
+  padding: 8px 16px;
   background: var(--hud-panel);
   border: 1px solid var(--hud-gilt-dim);
   backdrop-filter: blur(6px);
-}
-.landing-badge-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.landing-badge-tag {
-  font: 600 10px/1.2 var(--hud-display, 'Cormorant SC', Georgia, serif);
-  letter-spacing: 0.18em;
-  color: var(--hud-gilt);
 }
 .landing-badge-caption {
   font: 500 13px/1.25 var(--hud-body, Spectral, Georgia, serif);
@@ -257,7 +223,7 @@ export const LANDING_CSS = `
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.14) 38%, var(--hud-umber) 100%);
 }
 .hud[data-layout="phone"] .landing-shell {
-  padding: 18px 18px 28px;
+  padding: 16px 16px 24px;
   gap: 16px;
 }
 .hud[data-layout="phone"] .landing-console {
@@ -285,14 +251,10 @@ export const LANDING_CSS = `
   font-size: 16px;
 }
 .hud[data-layout="phone"] .landing-entry {
-  padding: 14px 14px 14px 16px;
+  padding: 16px;
 }
 .hud[data-layout="phone"] .landing-entry .hud-form {
   flex-direction: column;
-}
-.hud[data-layout="phone"] .landing-kicker {
-  font-size: 10px;
-  letter-spacing: 0.12em;
 }
 .hud[data-layout="phone"] .landing-entry .hud-input,
 .hud[data-layout="phone"] .landing-entry .hud-btn.primary,

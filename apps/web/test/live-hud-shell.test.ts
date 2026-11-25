@@ -285,7 +285,7 @@ describe('FR-366 the single entry page', () => {
     expect(startShell).toMatch(/input\.name\s*=\s*'match'/);
     expect(startShell).toMatch(/input\.value\s*=\s*address\.id/);
     expect(startShell).toContain('STRINGS.startTitle');
-    expect(startShell).toContain('STRINGS.startCode');
+    expect(startShell).toContain('STRINGS.landingInputHint');
     expect(startShell).toContain('STRINGS.startEnter');
     expect(startShell).toContain('STRINGS.startInvalid');
   });

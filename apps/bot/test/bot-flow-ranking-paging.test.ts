@@ -62,7 +62,7 @@ describe('FR-569 the first page and the walk', () => {
     expect(page.embed?.description?.split('\n')).toHaveLength(10);
     expect(page.embed?.footer).toBe('Página 1/3');
     expect(page.embed?.fields).toEqual([{ name: 'Tu puesto', value: 'Puesto 24 · victorias 0 · 7 pts · aciertos 3/4 · partidas 1 · precisión 75 %' }]);
-    expect(page.embed?.description?.split('\n')[0]).toBe('1. <@1000> - victorias 1 · 500 pts · aciertos 5/10 · partidas 2 · precisión 50 %');
+    expect(page.embed?.description?.split('\n')[0]).toBe('1. <@1000> · victorias 1 · 500 pts · aciertos 5/10 · partidas 2 · precisión 50 %');
     expect(buttonsOf(page)).toEqual([['mbrg:rk:p:1', true], ['mbrg:rk:n:2', false]]);
     expect(reads(fake)).toHaveLength(1);
     expect(bot.boards.lookupRanking('msg-1')).toMatchObject({ askerId: ASKER.userId, community: KEY_A, order: 'wins', pages: [expect.anything()] });

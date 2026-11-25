@@ -169,7 +169,7 @@ export const RANKING_PINS: readonly Pin[] = [
 ];
 
 /** After the first match alone (the second not settled yet): Ana's row, 4 right of 7 is 57 %. */
-export const ANA_AFTER_FIRST = '1. <@111111111111111111> - 13 pts · aciertos 4/7 · victorias 1 · partidas 1 · precisión 57 %';
+export const ANA_AFTER_FIRST = '1. <@111111111111111111> · 13 pts · aciertos 4/7 · victorias 1 · partidas 1 · precisión 57 %';
 
 export type RankOrder = 'points' | 'correct' | 'wins' | 'accuracy';
 
@@ -208,7 +208,7 @@ export function rankingDescription(order: RankOrder): string[] {
   const lines: string[] = [];
   for (const [userId, rank] of RANKING_ORDER[order]) {
     if (rank === undefined && !lines.some((l) => l.startsWith('Menos de'))) lines.push('Menos de 10 predicciones: sin puesto en precisión');
-    lines.push(`${rank === undefined ? '—' : `${rank}.`} <@${userId}> - ${statsLine(order, pinOf(userId))}`);
+    lines.push(`${rank === undefined ? '—' : `${rank}.`} <@${userId}> · ${statsLine(order, pinOf(userId))}`);
   }
   return lines;
 }
@@ -222,6 +222,6 @@ export function askerLine(order: RankOrder, userId: string): string | undefined 
 /** The final public leaderboard of the second match: rank, mention and points, the page of four rows. */
 export const boardTextB: string = [
   'Clasificación',
-  ...BOARD_B.map(([userId, rank, points]) => `${rank}. <@${userId}> - ${points} pts`),
+  ...BOARD_B.map(([userId, rank, points]) => `${rank}. <@${userId}> · ${points} pts`),
   'Página 1/1',
 ].join('\n');
