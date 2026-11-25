@@ -13,3 +13,4 @@ Live work, one row per task; the orchestrator updates it, the feature PR closes 
 | Spec 034: windowed round timeline and jump-to-round | Light SDD | — | — | `feat/034-round-timeline` | merged (#100) | done (archived in `specs/archive/034-round-timeline`) |
 | Spec 032: readable map labels | Light SDD | — | — | `feat/032-readable-labels` | merged (#96) | done (archived in `specs/archive/032-readable-labels`) |
 | Spec 036: Robinson projection for the world map | Light SDD | claude-sonnet-5-5 | this thread | `feat/036-robinson-projection` | PR open | user reviews the PR and before/after previews (`.claude/review/036-robinson/`); archived in `specs/archive/036-robinson-projection` |
+| Spec 037: province-style faction labels at close zoom | Light SDD | antigravity/gemini-4-neon | this thread | `feat/037-faction-labels-zoom` | PR open | user reviews PR and before/after slider (`.claude/review/037/`); archived in `specs/archive/037-faction-labels-zoom` |
