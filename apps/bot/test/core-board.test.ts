@@ -18,18 +18,18 @@ describe('FR-477 paged leaderboard', () => {
     expect(PAGE_SIZE).toBe(10);
     expect(v.pages).toBe(3);
     expect(lines(v.message.embed?.description)).toHaveLength(10);
-    expect(lines(v.message.embed?.description)[0]).toBe('1. <@800> - 100 pts');
-    expect(lines(v.message.embed?.description)[9]).toBe('10. <@809> - 91 pts');
+    expect(lines(v.message.embed?.description)[0]).toBe('1. <@800> · 100 pts');
+    expect(lines(v.message.embed?.description)[9]).toBe('10. <@809> · 91 pts');
     expect(v.message.embed?.footer).toBe('Página 1/3');
     const last = boardView(rows(25), 3, { matchId: 'm1', kind: 'asker', viewerId: '999' });
-    expect(lines(last.message.embed?.description)).toEqual(['21. <@820> - 80 pts', '22. <@821> - 79 pts', '23. <@822> - 78 pts', '24. <@823> - 77 pts', '25. <@824> - 76 pts']);
+    expect(lines(last.message.embed?.description)).toEqual(['21. <@820> · 80 pts', '22. <@821> · 79 pts', '23. <@822> · 78 pts', '24. <@823> · 77 pts', '25. <@824> · 76 pts']);
     expect(last.message.embed?.footer).toBe('Página 3/3');
   });
 
   it('FR-477 ranked by points, ties share the rank the server gave', () => {
     const tied = [row(1, 'discord:1', 9), row(3, 'discord:3', 5), row(1, 'discord:2', 9), row(3, 'discord:4', 5)];
     const out = lines(boardView(tied, 1, { matchId: 'm1', kind: 'asker' }).message.embed?.description);
-    expect(out).toEqual(['1. <@1> - 9 pts', '1. <@2> - 9 pts', '3. <@3> - 5 pts', '3. <@4> - 5 pts']);
+    expect(out).toEqual(['1. <@1> · 9 pts', '1. <@2> · 9 pts', '3. <@3> · 5 pts', '3. <@4> · 5 pts']);
   });
 
   it('FR-477 Previous and Next buttons; Previous is disabled on page 1 and Next on the last page (FR-481)', () => {
@@ -67,7 +67,7 @@ describe('FR-477 paged leaderboard', () => {
 
   it('FR-477 the plain-text fallback carries the same page', () => {
     const v = boardView(rows(12), 2, { matchId: 'm1', kind: 'asker', viewerId: '801' });
-    expect(v.message.text).toContain('11. <@810> - 90 pts');
+    expect(v.message.text).toContain('11. <@810> · 90 pts');
     expect(v.message.text).toContain('Página 2/2');
     expect(v.message.text).toContain('Tu puesto');
   });
@@ -77,7 +77,7 @@ describe('FR-479 Tu puesto', () => {
   it('FR-479 the asker sees their rank and points on every page, also when they are on the current page', () => {
     for (const page of [1, 2, 3]) {
       const v = boardView(rows(25), page, { matchId: 'm1', kind: 'asker', viewerId: '803' });
-      expect(v.message.embed?.fields).toEqual([{ name: 'Tu puesto', value: '4. <@803> - 97 pts' }]);
+      expect(v.message.embed?.fields).toEqual([{ name: 'Tu puesto', value: '4. <@803> · 97 pts' }]);
     }
   });
 
@@ -91,14 +91,14 @@ describe('FR-479 Tu puesto', () => {
     expect(pub.message.embed?.fields).toEqual([]);
     expect(pub.message.text).not.toContain('Tu puesto');
     const mine = boardView(rows(25), 2, { matchId: 'm1', kind: 'private', viewerId: '812' });
-    expect(mine.message.embed?.fields).toEqual([{ name: 'Tu puesto', value: '13. <@812> - 88 pts' }]);
+    expect(mine.message.embed?.fields).toEqual([{ name: 'Tu puesto', value: '13. <@812> · 88 pts' }]);
   });
 });
 
 describe('FR-483 names', () => {
   it('FR-483 a Discord row is a mention; another namespace shows the server name, else "Jugador"', () => {
     const v = boardView([row(1, 'discord:7', 9), row(2, 'player:abc', 5, 'Eva'), row(3, 'player:def', 1)], 1, { matchId: 'm1', kind: 'asker' });
-    expect(lines(v.message.embed?.description)).toEqual(['1. <@7> - 9 pts', '2. Eva - 5 pts', '3. Jugador - 1 pts']);
+    expect(lines(v.message.embed?.description)).toEqual(['1. <@7> · 9 pts', '2. Eva · 5 pts', '3. Jugador · 1 pts']);
   });
 
   it('FR-483 the Tu puesto line of a row of another namespace is never offered: the asker is always a Discord member', () => {

@@ -6,6 +6,12 @@
       "sourceType": "github",
       "skillPath": "skills/frontend-design/SKILL.md",
       "computedHash": "106acf230014cbb43ca34e6410371321b56ca742f9ee0442e8ec05bf02eb0384"
+    },
+    "unslop-ui": {
+      "source": "felipebasurto/unslop-ui",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "commit": "78cf65d311da128c7f0a9ea25f62731056834251"
     }
   }
 }

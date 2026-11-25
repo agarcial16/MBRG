@@ -280,8 +280,8 @@ describe('FR-457 and FR-458', () => {
     const reply = await bot.run({ type: 'board' }, MEMBER);
     expect(reply.type).toBe('channel');
     const text = reply.type === 'channel' ? (reply.messages[0]?.embed?.description ?? '') : '';
-    expect(text).toContain('1. <@800> - 50 pts');
-    expect(text).toContain('10. <@809> - 41 pts');
+    expect(text).toContain('1. <@800> · 50 pts');
+    expect(text).toContain('10. <@809> · 41 pts');
     expect(text).not.toContain('<@810>');
     expect(fake.requests.find((r) => r.path.includes('/leaderboard'))).toBeDefined();
   });
