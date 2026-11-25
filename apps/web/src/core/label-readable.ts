@@ -10,6 +10,7 @@ import type { LabelTexts } from './label-input';
 import type { FactionBoxes, FactionLabel, LabelBox, LayoutParams } from './label-layout';
 import type { InLandFrame, ShapedFrame } from './label-shape';
 import { abbreviateName } from './label-abbreviate';
+import { smoothstep } from './lines';
 import { mainPieces, mainRegions, regionsOf } from './regions';
 import type { PieceIndex } from './regions';
 import type { ShapeParams } from './shape-params';
@@ -21,13 +22,30 @@ export interface ReadableParams {
   readonly maxViewportFraction: number;
   /** Minimum clear gap in CSS pixels between adjacent drawn labels of the same role (FR-620). */
   readonly minGapPx: number;
+  /** Scale where faction labels begin transitioning from far (faction) style to close (territory) style (spec 037 FR-708). */
+  readonly closeStart?: number;
+  /** Scale where faction labels use close (territory) style exclusively (spec 037 FR-708). */
+  readonly closeFull?: number;
 }
 
 export const READABLE_PARAMS: ReadableParams = {
   minPx: 9,
   maxViewportFraction: 0.25,
   minGapPx: 4,
+  closeStart: 0.85,
+  closeFull: 1.0,
 };
+
+/** Blend factor in [0, 1] from far faction style (0) to close territory-style (1) at `scale` (spec 037 FR-708). */
+export function factionCloseBlend(
+  scale: number,
+  detail = 1,
+  params: ReadableParams = READABLE_PARAMS,
+): number {
+  const start = (params.closeStart ?? 0.85) * detail;
+  const full = (params.closeFull ?? 1.0) * detail;
+  return smoothstep(start, full, scale);
+}
 
 /** One precomputed in-land display tier for a label (ordered fullest -> shortest). */
 export interface LabelTier {
@@ -41,6 +59,8 @@ export interface LabelTier {
 export type ReadableDraw = AnyLabelDraw & {
   readonly id?: number;
   readonly tiers?: readonly LabelTier[];
+  /** Close-zoom (territory-rule) tiers for faction labels (spec 037 FR-707). */
+  readonly closeTiers?: readonly LabelTier[];
 };
 
 /** Clamps a raw on-screen height (h * scale) to [minPx, max(minPx, viewportHeight * maxViewportFraction)], or 0 below minPx. */
@@ -210,73 +230,127 @@ function gridInsert(grid: Map<number, ScreenRect[]>, rect: ScreenRect): void {
   }
 }
 
+function sameTierDraw(a: AnyLabelDraw, b: AnyLabelDraw): boolean {
+  if (a.text !== b.text || a.role !== b.role) return false;
+  const fa = frameOf(a);
+  const fb = frameOf(b);
+  return (
+    fa.shape === fb.shape &&
+    fa.cx === fb.cx &&
+    fa.cy === fb.cy &&
+    fa.h === fb.h &&
+    fa.w === fb.w &&
+    fa.angle === fb.angle &&
+    fa.curvature === fb.curvature
+  );
+}
+
+function resolveRoleGroup(
+  draws: readonly ReadableDraw[],
+  role: LabelRole,
+  camera: Camera,
+  viewport: Viewport,
+  params: ReadableParams,
+  pickTiers: (d: ReadableDraw) => readonly LabelTier[] | undefined,
+  factorScale: number,
+): Map<number, AnyLabelDraw> {
+  const vpW = viewport.width;
+  const vpH = viewport.height;
+  const scale = camera.scale;
+  interface Entry {
+    readonly idx: number;
+    readonly priority: number;
+    readonly candidates: readonly { readonly draw: AnyLabelDraw; readonly rect: ScreenRect }[];
+  }
+  const entries: Entry[] = [];
+  for (let idx = 0; idx < draws.length; idx++) {
+    const d = draws[idx]!;
+    if (d.role !== role) continue;
+    const factor = d.factor * factorScale;
+    if (!(factor > 0)) continue;
+    const tiers = pickTiers(d);
+    const candidates: { draw: AnyLabelDraw; rect: ScreenRect }[] = [];
+    if (tiers !== undefined && tiers.length > 0) {
+      // Tiers are strictly increasing in height; if the shortest tier fails minPx, skip in O(1).
+      if (tiers[tiers.length - 1]!.height * scale < params.minPx) continue;
+      for (const tier of tiers) {
+        if (tier.height * scale < params.minPx) continue;
+        const rect = tierScreenRect(tier, camera, viewport, params);
+        if (rect === undefined) continue;
+        if (rect.maxX < 0 || rect.minX > vpW || rect.maxY < 0 || rect.minY > vpH) continue;
+        const td = drawFromTier(tier, role, factor);
+        if (td === undefined) continue;
+        candidates.push({ draw: td, rect });
+      }
+    } else {
+      const rect = screenRectOf(d, camera, viewport, params);
+      if (rect !== undefined && rect.maxX >= 0 && rect.minX <= vpW && rect.maxY >= 0 && rect.minY <= vpH) {
+        candidates.push({ draw: factorScale === 1 ? d : { ...d, factor }, rect });
+      }
+    }
+    if (candidates.length === 0) continue;
+    const top = candidates[0]!;
+    const topH = clampScreenHeight(frameOf(top.draw).h * scale, vpH, params);
+    entries.push({ idx, priority: topH, candidates });
+  }
+  // Taller / more prominent labels win; ties keep deterministic input order.
+  entries.sort((a, b) => (b.priority !== a.priority ? b.priority - a.priority : a.idx - b.idx));
+
+  const grid = new Map<number, ScreenRect[]>();
+  const accepted = new Map<number, AnyLabelDraw>();
+  for (const entry of entries) {
+    for (const cand of entry.candidates) {
+      if (!gridHits(grid, cand.rect)) {
+        gridInsert(grid, cand.rect);
+        accepted.set(entry.idx, cand.draw);
+        break;
+      }
+    }
+  }
+  return accepted;
+}
+
 /**
  * Resolves screen-space overlaps among labels of the same role (FR-620), picking the fullest non-overlapping tier
  * per label (FR-623) and hiding labels that still collide or fall below minPx (FR-624). Culls to the viewport
  * and uses a 64 px spatial hash grid for O(1) overlap queries (NFR-151). Different roles remain independent.
+ * At close zoom (spec 037 FR-708), faction labels smoothly transition from far `tiers` to close `closeTiers`.
  */
 export function resolveFrameLabels(
   draws: readonly ReadableDraw[],
   camera: Camera,
   viewport: Viewport,
   params: ReadableParams = READABLE_PARAMS,
+  detail = 1,
 ): AnyLabelDraw[] {
-  const accepted: (AnyLabelDraw | undefined)[] = new Array<AnyLabelDraw | undefined>(draws.length).fill(undefined);
-  const vpW = viewport.width;
-  const vpH = viewport.height;
-  const scale = camera.scale;
-
-  for (const role of ['faction', 'territory'] as const) {
-    interface Entry {
-      readonly idx: number;
-      readonly priority: number;
-      readonly candidates: readonly { readonly draw: AnyLabelDraw; readonly rect: ScreenRect }[];
-    }
-    const entries: Entry[] = [];
-    for (let idx = 0; idx < draws.length; idx++) {
-      const d = draws[idx]!;
-      if (d.role !== role) continue;
-      const candidates: { draw: AnyLabelDraw; rect: ScreenRect }[] = [];
-      if (d.tiers !== undefined && d.tiers.length > 0) {
-        // Tiers are strictly increasing in height; if the shortest tier fails minPx, skip in O(1).
-        if (d.tiers[d.tiers.length - 1]!.height * scale < params.minPx) continue;
-        for (const tier of d.tiers) {
-          if (tier.height * scale < params.minPx) continue;
-          const rect = tierScreenRect(tier, camera, viewport, params);
-          if (rect === undefined) continue;
-          if (rect.maxX < 0 || rect.minX > vpW || rect.maxY < 0 || rect.minY > vpH) continue;
-          const td = drawFromTier(tier, role, d.factor);
-          if (td === undefined) continue;
-          candidates.push({ draw: td, rect });
-        }
-      } else {
-        const rect = screenRectOf(d, camera, viewport, params);
-        if (rect !== undefined && rect.maxX >= 0 && rect.minX <= vpW && rect.maxY >= 0 && rect.minY <= vpH) {
-          candidates.push({ draw: d, rect });
-        }
-      }
-      if (candidates.length === 0) continue;
-      const top = candidates[0]!;
-      const topH = clampScreenHeight(frameOf(top.draw).h * scale, vpH, params);
-      entries.push({ idx, priority: topH, candidates });
-    }
-    // Taller / more prominent labels win; ties keep deterministic input order.
-    entries.sort((a, b) => (b.priority !== a.priority ? b.priority - a.priority : a.idx - b.idx));
-
-    const grid = new Map<number, ScreenRect[]>();
-    for (const entry of entries) {
-      for (const cand of entry.candidates) {
-        if (!gridHits(grid, cand.rect)) {
-          gridInsert(grid, cand.rect);
-          accepted[entry.idx] = cand.draw;
-          break;
-        }
-      }
-    }
-  }
+  const closeT = factionCloseBlend(camera.scale, detail, params);
+  const farFactions =
+    closeT < 1
+      ? resolveRoleGroup(draws, 'faction', camera, viewport, params, (d) => d.tiers, 1 - closeT)
+      : undefined;
+  const closeFactions =
+    closeT > 0
+      ? resolveRoleGroup(draws, 'faction', camera, viewport, params, (d) => d.closeTiers ?? d.tiers, closeT)
+      : undefined;
+  const territories = resolveRoleGroup(draws, 'territory', camera, viewport, params, (d) => d.tiers, 1);
 
   const out: AnyLabelDraw[] = [];
-  for (const d of accepted) if (d !== undefined) out.push(d);
+  for (let idx = 0; idx < draws.length; idx++) {
+    const d = draws[idx]!;
+    if (d.role === 'faction') {
+      const f = farFactions?.get(idx);
+      const c = closeFactions?.get(idx);
+      if (f !== undefined && c !== undefined && sameTierDraw(f, c)) {
+        out.push({ ...c, factor: d.factor });
+      } else {
+        if (f !== undefined) out.push(f);
+        if (c !== undefined) out.push(c);
+      }
+    } else {
+      const t = territories.get(idx);
+      if (t !== undefined) out.push(t);
+    }
+  }
   return out;
 }
 
@@ -346,7 +420,16 @@ export interface ReadableTerritoryTiers {
 
 export interface ReadableFactionTiers {
   readonly tiers: ReadonlyMap<number, readonly LabelTier[]>;
+  /** Close-zoom (territory-rule) tiers per faction (spec 037 FR-707, FR-709, FR-710). */
+  readonly closeTiers?: ReadonlyMap<number, readonly LabelTier[]>;
   readonly piecesByFaction: ReadonlyMap<number, readonly number[]>;
+}
+
+/** Optional territory data for O(1) close-tier reuse on single-territory factions (spec 037 FR-709). */
+export interface TerritoryTierReuse {
+  readonly territories: ReadableTerritoryTiers;
+  readonly names: readonly (string | undefined)[];
+  readonly mainPieceOf: Int32Array;
 }
 
 const samePieces = (a: readonly number[], b: readonly number[]): boolean =>
@@ -372,7 +455,7 @@ export function placeReadableTerritories(
   return { tiers };
 }
 
-/** Computes faction tiers for one state, reusing unchanged factions from `previous` (FR-623, NFR-151). */
+/** Computes far and close faction tiers for one state, reusing unchanged factions and single-territory tiers (FR-623, FR-707, FR-709, NFR-184). */
 export function placeReadableFactions(
   p: PieceIndex,
   owners: ArrayLike<number>,
@@ -382,9 +465,11 @@ export function placeReadableFactions(
   sp: ShapeParams,
   cp: CentreParams,
   previous?: ReadableFactionTiers,
+  territoryReuse?: TerritoryTierReuse,
 ): ReadableFactionTiers {
   const main = mainRegions(regionsOf(p, owners));
   const tiers = new Map<number, readonly LabelTier[]>();
+  const closeTiers = new Map<number, readonly LabelTier[]>();
   const piecesByFaction = new Map<number, readonly number[]>();
   for (const faction of Array.from(main.keys()).sort((a, b) => a - b)) {
     const name = names.get(faction);
@@ -393,13 +478,27 @@ export function placeReadableFactions(
     piecesByFaction.set(faction, region.pieces);
     const prevPieces = previous?.piecesByFaction.get(faction);
     const prevTiers = previous?.tiers.get(faction);
-    if (prevPieces !== undefined && prevTiers !== undefined && samePieces(prevPieces, region.pieces)) {
+    const prevClose = previous?.closeTiers?.get(faction);
+    if (prevPieces !== undefined && prevTiers !== undefined && prevClose !== undefined && samePieces(prevPieces, region.pieces)) {
       tiers.set(faction, prevTiers);
+      closeTiers.set(faction, prevClose);
     } else {
       tiers.set(faction, computeRegionTiers(p, region.pieces, name, aspectOf, 'faction', params, sp, cp));
+      let reusedClose: readonly LabelTier[] | undefined;
+      if (territoryReuse !== undefined && region.pieces.length === 1) {
+        const piece = region.pieces[0]!;
+        const entry = p.entryOf[piece]!;
+        if (entry > 0 && territoryReuse.mainPieceOf[entry] === piece && territoryReuse.names[entry] === name) {
+          reusedClose = territoryReuse.territories.tiers[entry];
+        }
+      }
+      closeTiers.set(
+        faction,
+        reusedClose ?? computeRegionTiers(p, region.pieces, name, aspectOf, 'territory', params, sp, cp),
+      );
     }
   }
-  return { tiers, piecesByFaction };
+  return { tiers, closeTiers, piecesByFaction };
 }
 
 /** Builds FactionBoxes from readable faction tiers so reveal-tour framing (`framingBoxOf`) stays intact. */
@@ -421,7 +520,7 @@ export function factionBoxesOf(
   return { index: p, params: { margin: params.margin, maxHeight: params.maxHeight }, labels, recomputed: [] };
 }
 
-/** Builds RoundLabels and ReadableDraw[] (with tiers attached, zero off-land boxes or leader lines). */
+/** Builds RoundLabels and ReadableDraw[] (with far and close tiers attached, zero off-land boxes or leader lines). */
 export function readableRoundLabels(
   texts: LabelTexts,
   table: ArrayLike<number>,
@@ -431,10 +530,12 @@ export function readableRoundLabels(
 ): { readonly labels: RoundLabels; readonly draws: ReadableDraw[] } {
   const factions: FactionLabelInput[] = [];
   const draws: ReadableDraw[] = [];
-  for (const faction of Array.from(factionsLayout.tiers.keys()).sort((a, b) => a - b)) {
+  const factionIds = [...new Set([...factionsLayout.tiers.keys(), ...(factionsLayout.closeTiers?.keys() ?? [])])].sort((a, b) => a - b);
+  for (const faction of factionIds) {
     const tiers = factionsLayout.tiers.get(faction);
-    if (tiers === undefined || tiers.length === 0) continue;
-    const primary = tiers[0]!;
+    const closeTiers = factionsLayout.closeTiers?.get(faction);
+    const primary = tiers?.[0] ?? closeTiers?.[0];
+    if (primary === undefined) continue;
     const aspect = aspectOf.get(primary.text) ?? 1;
     factions.push({
       faction,
@@ -444,7 +545,14 @@ export function readableRoundLabels(
       aspect,
     });
     const base = drawFromTier(primary, 'faction', 1);
-    if (base !== undefined) draws.push({ ...base, id: faction, tiers });
+    if (base !== undefined) {
+      draws.push({
+        ...base,
+        id: faction,
+        ...(tiers !== undefined ? { tiers } : {}),
+        ...(closeTiers !== undefined ? { closeTiers } : {}),
+      });
+    }
   }
   const territories: TerritoryLabelInput[] = [];
   for (let entry = 1; entry < table.length; entry++) {
@@ -493,8 +601,9 @@ export function readableCounts(
 }
 
 /**
- * Builds step labels at `scale` using each label's active tier (FR-627): keeps abbreviated labels visible
- * mid-step instead of blinking out on tiers[0], and crossfades smoothly when display forms change.
+ * Builds step labels at `scale` using each label's active tier (FR-627, spec 037 FR-711): keeps abbreviated labels
+ * visible mid-step instead of blinking out on tiers[0], uses close faction tiers at close zoom, and crossfades
+ * smoothly when display forms change.
  */
 export function stepReadableLabels(
   earlier: ReadableFactionTiers,
@@ -506,13 +615,17 @@ export function stepReadableLabels(
   scale: number,
   forward: number,
   minPx: number = READABLE_PARAMS.minPx,
+  detail = 1,
 ): AnyLabelDraw[] {
   const out: AnyLabelDraw[] = [];
-  const factionIds = [...new Set([...earlier.tiers.keys(), ...later.tiers.keys()])].sort((a, b) => a - b);
+  const useClose = factionCloseBlend(scale, detail) >= 0.5;
+  const earlierMap = useClose && earlier.closeTiers !== undefined ? earlier.closeTiers : earlier.tiers;
+  const laterMap = useClose && later.closeTiers !== undefined ? later.closeTiers : later.tiers;
+  const factionIds = [...new Set([...earlierMap.keys(), ...laterMap.keys()])].sort((a, b) => a - b);
 
   for (const id of factionIds) {
-    const bList = earlier.tiers.get(id);
-    const aList = later.tiers.get(id);
+    const bList = earlierMap.get(id);
+    const aList = laterMap.get(id);
     const b = bList === undefined ? undefined : selectTier(bList, scale, minPx);
     const a = aList === undefined ? undefined : selectTier(aList, scale, minPx);
 
@@ -570,9 +683,8 @@ export function stepReadableLabels(
 }
 
 /**
- * Upgrades tour label draws to their active tier at `scale` while preserving each draw's tour opacity factor (FR-627).
- * Keys tiers by faction/territory id (from `roundLabels` matching `tourLabelDraws` order, or `draw.id`) so duplicate
- * names or abbreviations never mispair during tours.
+ * Upgrades tour label draws to their active tier at `scale` while preserving each draw's tour opacity factor
+ * (FR-627, spec 037 FR-711). Keys tiers by faction/territory id so duplicate names never mispair during tours.
  */
 export function upgradeTourDraws(
   tourDraws: readonly ReadableDraw[],
@@ -580,13 +692,16 @@ export function upgradeTourDraws(
   scale: number,
   minPx: number = READABLE_PARAMS.minPx,
   roundLabels?: RoundLabels,
+  detail = 1,
 ): AnyLabelDraw[] {
+  const useClose = factionCloseBlend(scale, detail) >= 0.5;
   const byId = new Map<string, readonly LabelTier[]>();
   const byText = new Map<string, readonly LabelTier[]>();
   for (const d of currentDraws) {
-    if (d.tiers === undefined || d.tiers.length === 0) continue;
-    if (d.id !== undefined) byId.set(`${d.role}:${d.id}`, d.tiers);
-    byText.set(`${d.role}:${d.text}`, d.tiers);
+    const picked = d.role === 'faction' && useClose && d.closeTiers !== undefined ? d.closeTiers : d.tiers;
+    if (picked === undefined || picked.length === 0) continue;
+    if (d.id !== undefined) byId.set(`${d.role}:${d.id}`, picked);
+    byText.set(`${d.role}:${d.text}`, picked);
   }
   let orderKeys: string[] | undefined;
   if (roundLabels !== undefined) {

@@ -35,7 +35,7 @@ import {
 import type { ReadableDraw, ReadableFactionTiers } from '../core/label-readable';
 import { completeRunning, frame, motionChanged, request, startPlayback } from '../core/playback';
 import type { PlaybackState, RequestOutcome } from '../core/playback';
-import { buildPieceIndex } from '../core/regions';
+import { buildPieceIndex, mainPieces } from '../core/regions';
 import type { StepData } from '../core/step';
 import { SHAPE_PARAMS } from '../core/shape-params';
 import { THEME, toMapTheme } from '../core/theme';
@@ -182,16 +182,28 @@ export function createMapView(input: MapViewInput): MapView {
 
   // Labels: the piece index and the territory tiers are computed once per page load (FR-171, NFR-32, spec 032).
   const pieces = buildPieceIndex(index);
+  const mainPieceOf = mainPieces(pieces);
   const texts = labelTexts(map, presentation, owners);
   const aspectOf = measureAspects(allCandidateTexts([...texts.factions.values(), ...texts.territories.filter((t): t is string => t !== undefined)]));
   const territoryTiers = placeReadableTerritories(pieces, texts.territories, aspectOf, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS);
+  const territoryReuse = { territories: territoryTiers, names: texts.territories, mainPieceOf };
 
   // Layouts computed while a tour is on screen (the debug panel shows it: 0 for a victim tour, 1 for an absorber tour).
   let counting = false;
   let tourLayouts = 0;
   const viewOf = (table: Uint16Array, previous?: RoundView): RoundView => {
     if (counting) tourLayouts++;
-    const readable = placeReadableFactions(pieces, table, texts.factions, aspectOf, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS, previous?.layout.readable);
+    const readable = placeReadableFactions(
+      pieces,
+      table,
+      texts.factions,
+      aspectOf,
+      LABEL_PARAMS,
+      SHAPE_PARAMS,
+      CENTRE_PARAMS,
+      previous?.layout.readable,
+      territoryReuse,
+    );
     const boxes = factionBoxesOf(pieces, readable, texts.factions, aspectOf, LABEL_PARAMS);
     const { labels, draws } = readableRoundLabels(texts, table, readable, territoryTiers, aspectOf);
     return { table, layout: { readable, boxes }, labels, draws, counts: readableCounts(table, readable, territoryTiers) };
@@ -274,10 +286,14 @@ export function createMapView(input: MapViewInput): MapView {
       renderer.resize(viewport, ratio);
       labelLayer.resize(viewport, ratio);
     }
-    const view = { camera, viewport, dpr: ratio, detail: detailFactor(image, viewport), fonts: fontEpoch() };
+    const detail = detailFactor(image, viewport);
+    const view = { camera, viewport, dpr: ratio, detail, fonts: fontEpoch() };
     mapScene.setView(view);
     renderer.draw();
-    const shown = overlay !== undefined ? upgradeTourDraws(drawn, current.draws, camera.scale, READABLE_PARAMS.minPx, current.labels) : drawn;
+    const shown =
+      overlay !== undefined
+        ? upgradeTourDraws(drawn, current.draws, camera.scale, READABLE_PARAMS.minPx, current.labels, detail)
+        : drawn;
     labelLayer.draw(shown, view, overlay);
   };
 
@@ -350,6 +366,7 @@ export function createMapView(input: MapViewInput): MapView {
     if (out.finished) stepView = undefined;
     let drawn: readonly AnyLabelDraw[];
     const shown = out.drawing;
+    const detail = detailFactor(image, viewport);
     if (shown.shape === 'step' && stepView !== undefined) {
       if (shownTable !== stepView.later.table) mapScene.setOwners(stepView.later.table);
       shownTable = stepView.later.table;
@@ -363,12 +380,14 @@ export function createMapView(input: MapViewInput): MapView {
         aspectOf,
         camera.scale,
         shown.forward,
+        READABLE_PARAMS.minPx,
+        detail,
       );
     } else {
       if (shownTable !== current.table) mapScene.setOwners(current.table);
       shownTable = current.table;
       mapScene.setFront(undefined);
-      drawn = resolveFrameLabels(current.draws, camera, viewport, READABLE_PARAMS);
+      drawn = resolveFrameLabels(current.draws, camera, viewport, READABLE_PARAMS, detail);
     }
     mapScene.setTour(undefined);
     lastFrame = undefined;
