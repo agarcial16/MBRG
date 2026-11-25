@@ -20,7 +20,9 @@ Read before touching the viewer, labels, the live model or the interface.
 - Regexes written through a bash heredoc lose their backslashes: use `toContain` or the Write tool.
 - The MCP browser pane throttles rAF while hidden: frame stats are valid only with the pane visible (16.7 ms). A browser pass with a hidden pane gives no valid timing.
 - A squash-merged base branch conflicts a stacked PR: merge the base with `-X ours`, then check the diff is only the PR's own work.
-- Faction colouring (`core/colors.ts`): large ocean sea zones (e.g. 54 countries on `world-countries`) form cliques larger than the 12-colour palette, so `assignFactionColors` keeps land neighbours strict and relaxes sea-only candidates to a least-used fallback (`FR-141` amendment 2026-11-23).
+- Faction colouring (`core/colors.ts`): large ocean sea zones (e.g. 54 countries on `world-countries`) form cliques larger than the viewer's palette (20 colours since spec 033; it was 12), so `assignFactionColors` keeps land neighbours strict and relaxes sea-only candidates to a least-used fallback (`FR-141` amendment 2026-11-23). A deterministic procedural last resort (`core/palette.ts`) only covers land neighbours that exhaust the curated colours.
+- E2E screenshots without a desktop browser: headless Chrome `--screenshot --window-size=W,H` (a `file://` URL is fine), but measure the page first — the window height is a guess otherwise.
+- Kill browsers and dev servers by PID only (never `Stop-Process msedge`); check :5173 before starting a dev server.
 
 ## Open
 - No connecting-state timeout, no live-net read timeouts, no SSE parser line cap (user's order, spec 008).
