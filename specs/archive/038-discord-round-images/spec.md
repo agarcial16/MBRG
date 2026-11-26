@@ -42,8 +42,8 @@ Image, cache, resources
 
 ## Non-functional requirements
 - NFR-187: Anti-spoiler: a capture can only show rounds the server already published; capture mode adds no way to read a later round (checked by a test that asks for round k+1 and gets the "error" signal).
-- NFR-188: Idle cost: with no capture in the last 10 s, no browser process runs (0 MB). Peak resident memory of the browser during a capture of `maps/world-countries` ≤ 200 MB (measured once, recorded in PROGRESS).
-- NFR-189: A capture of `maps/world-countries` (cold start included) takes ≤ 5 s on the dev machine (measured, recorded).
+- NFR-188: Idle cost: with no capture in the last 10 s, no browser process runs (0 MB). Peak memory of the browser during a capture of `maps/world-countries` ≤ 1 GB, as the sum of the working sets of its processes (measured once, recorded in PROGRESS). Relaxed from 200 MB on 2026-11-26 by the user: a blank Chrome page alone is 227 MB, so 200 MB is not reachable with Chrome.
+- NFR-189: A capture of `maps/world-countries` (cold start included) takes ≤ 15 s on the dev machine, full-map image included (measured, recorded). Relaxed from 5 s on 2026-11-26 by the user; getting to 5 s is the performance follow-up on the board.
 - NFR-190: Determinism: the same (match, round, frame kind) gives the same framing and the same labels (the image may differ in antialiasing only).
 - NFR-191: No Discord user id, guild id or community key appears in a capture URL, log line or cache key.
 

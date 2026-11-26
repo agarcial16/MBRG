@@ -29,4 +29,4 @@
 - User review of the sample images (2026-11-26), not changed in this PR (spec 038 is approved as written); candidates for a follow-up spec "capture framing and labels":
   1. Province labels of the dimmed territories (e.g. Uzbekistan next to Kazakhstan, round 2) stay visible in the round image and can read as who conquered whom: hide or de-emphasize labels of non-absorber territories in capture mode.
   2. Very small territories (Pacific islands of the absorber) are almost invisible: mark them with a ring in the faction color, or inset borders like Pacific-country maps, and/or frame by main pieces instead of the whole bounding box.
-
+- User decisions (2026-11-26): NFR-188 relaxed to <= 1 GB peak (200 MB not reachable: blank Chrome page is 227 MB; measured 650-920 MB, within the new figure). NFR-189 relaxed to <= 15 s (measured 5.5-11.6 s, within); the 5 s goal moves to a performance task (label layout inside createMapView ~3.3 s, software WebGL first frame ~1.6 s). Next step: review and merge this PR.
