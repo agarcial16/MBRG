@@ -9,6 +9,8 @@ import { RANKING_PAGE_SIZE } from '../core/ranking';
 import { livingCount, readCorrectPage, readCreated } from '../core/decode-results';
 import type { Created } from '../core/decode-results';
 import type { TimePeriod } from '../core/model';
+import { pngSize } from '../core/capture';
+import type { Size } from '../core/capture';
 import { readFactionNames } from '../core/names';
 import type { Named } from '../core/text';
 
@@ -40,6 +42,8 @@ export interface ServerClient {
   /** The number of factions alive in the state at an applied round. */
   livingAt(matchId: string, round: number): Promise<Result<number>>;
   factions(mapId: string): Promise<Result<Named[]>>;
+  /** The pixel size of a map, from the header of its public id image (spec 038 FR-723); none when it cannot be read. */
+  mapSize(mapId: string): Promise<Size | undefined>;
   submit(matchId: string, submission: Submission): Promise<Result<PredictionReply>>;
   /** The ids of every player who guessed a scored phase right (all pages). */
   correctPlayers(matchId: string, round: number, phase: 1 | 2): Promise<Result<string[]>>;
@@ -105,6 +109,14 @@ export function createServerClient(options: ClientOptions): ServerClient {
     async livingAt(matchId, round) {
       const state = await call('GET', `/matches/${enc(matchId)}/states/${round}`, decoded(readStateReply));
       return state.ok ? { ok: true, value: livingCount(state.value.owners) } : state;
+    },
+    async mapSize(mapId) {
+      try {
+        const response = await doFetch(`${options.baseUrl}/maps/${enc(mapId)}/ids.png`, { signal: AbortSignal.timeout(Math.max(timeoutMs, 10_000)) });
+        return response.status === 200 ? pngSize(new Uint8Array(await response.arrayBuffer())) : undefined;
+      } catch {
+        return undefined;
+      }
     },
     factions: (mapId) => call('GET', `/maps/${enc(mapId)}/presentation.json`, (json) => readFactionNames(json)),
     submit: (matchId, s) =>

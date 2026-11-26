@@ -6,6 +6,8 @@ export interface BotConfig {
   readonly serverUrl: string;
   readonly credential: string;
   readonly viewerUrl: string | undefined;
+  /** Spec 038 FR-726: the headless browser of the map images; with the viewer address, images are on. */
+  readonly chromePath: string | undefined;
   readonly stateFile: string;
 }
 
@@ -25,6 +27,7 @@ export function readConfig(env: Readonly<Record<string, string | undefined>>): C
       serverUrl: (env.MBRG_SERVER_URL as string).trim().replace(/\/+$/, ''),
       credential: (env.MBRG_DISCORD_CREDENTIAL as string).trim(),
       viewerUrl: viewer,
+      chromePath: has('MBRG_CHROME_PATH') ? (env.MBRG_CHROME_PATH as string).trim() : undefined,
       stateFile: (env.MBRG_BOT_STATE_FILE as string).trim(),
     },
   };

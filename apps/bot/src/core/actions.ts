@@ -39,6 +39,8 @@ export type Interaction =
   | { readonly type: 'start'; readonly canManage: boolean; readonly userId: string }
   | { readonly type: 'stop'; readonly canManage: boolean }
   | { readonly type: 'board' }
+  /** Spec 038 FR-720: the current map of the followed match, as an image only the member sees. */
+  | { readonly type: 'map' }
   | { readonly type: 'predict'; readonly faction: string | undefined }
   /** The history of the finished matches of this server (spec 024 FR-554); `community` as in `create` (none: no server, FR-557). */
   | { readonly type: 'history'; readonly community: string | undefined }
@@ -55,7 +57,7 @@ export type Interaction =
 export type Action =
   | { readonly do: 'say'; readonly text: string }
   | { readonly do: 'create'; readonly mapId: string; readonly pace: Pace; readonly community: string }
-  | { readonly do: 'start' | 'stop' | 'board' | 'predict-open' }
+  | { readonly do: 'start' | 'stop' | 'board' | 'predict-open' | 'map' }
   | { readonly do: 'predict-text'; readonly text: string }
   | { readonly do: 'choose'; readonly kind: PhaseKind; readonly round: number; readonly faction: number }
   | { readonly do: 'find'; readonly kind: PhaseKind; readonly round: number; readonly text: string }
@@ -105,6 +107,8 @@ export function decide(interaction: Interaction, following: boolean, info: Chann
       return following ? { do: 'stop' } : say(STRINGS.notFollowing);
     case 'board':
       return following || info.hasLast === true ? { do: 'board' } : say(STRINGS.notFollowing);
+    case 'map':
+      return following ? { do: 'map' } : say(STRINGS.notFollowing);
     case 'history':
       return interaction.community === undefined ? say(STRINGS.noServer) : { do: 'history', community: interaction.community };
     case 'ranking': {
@@ -199,6 +203,7 @@ export function deliveryOf(action: Action): Delivery {
     case 'board-page':
       return action.mode === 'new-private' ? 'private' : 'update';
     case 'start':
+    case 'map':
     case 'predict-text':
     case 'choose':
     case 'find':

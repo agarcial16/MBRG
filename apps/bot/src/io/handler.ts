@@ -16,6 +16,7 @@ import { chosenText, closedSentence, errorSentence, offerFor, openPhaseOf, resol
 import { STRINGS } from '../core/strings';
 import type { Followed } from '../core/state';
 import type { NameBook } from '../core/names';
+import type { CaptureService } from './capture';
 import type { NamesProvider, Follower } from './follower';
 import type { Failure, ServerClient } from './server-client';
 import type { StateStore } from './state-file';
@@ -29,6 +30,8 @@ export interface HandlerOptions {
   readonly newRequestId: () => string;
   /** The viewer's base address for the lobby link (spec 021); none: no link. */
   readonly viewerUrl?: string | undefined;
+  /** Spec 038: the map images; none: images are off and the map command says so (FR-726). */
+  readonly capture?: Pick<CaptureService, 'reveal' | 'request'> | undefined;
 }
 
 export interface Who {
@@ -103,6 +106,14 @@ export function createHandler(options: HandlerOptions): (action: Action, who: Wh
       case 'stop':
         follower.unfollow(who.channelId);
         return { type: 'channel', messages: [{ text: STRINGS.stopped, buttons: [] }] };
+      case 'map': {
+        // FR-720: the last revealed round of the followed match, the whole map; round 0 (the starting map) when none is revealed yet (FR-721).
+        if (entry === undefined) return text(STRINGS.notFollowing);
+        if (options.capture === undefined) return text(STRINGS.mapUnavailable);
+        options.capture.reveal(entry.matchId, entry.appliedRounds);
+        const png = await options.capture.request({ matchId: entry.matchId, mapId: entry.mapId, round: entry.appliedRounds, frame: 'full' });
+        return png === undefined ? text(STRINGS.mapUnavailable) : { type: 'image', image: { name: `map-${entry.appliedRounds}.png`, data: png } };
+      }
       case 'board': {
         // The followed match, or else the last one the channel had (FR-466).
         const shown = entry ?? store.last(who.channelId);

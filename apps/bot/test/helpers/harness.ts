@@ -9,6 +9,7 @@ import { parseCustomId } from '../../src/core/custom-ids';
 import type { OutMessage, Reply } from '../../src/core/model';
 import { createBoards, registerSent, updateSent } from '../../src/io/boards';
 import type { Boards } from '../../src/io/boards';
+import type { CaptureService } from '../../src/io/capture';
 import { createFollower, createNames } from '../../src/io/follower';
 import type { Follower, Poster } from '../../src/io/follower';
 import { createHandler } from '../../src/io/handler';
@@ -105,7 +106,7 @@ export const tempState = (): { path: string; remove: () => void } => {
  * Boots a bot on a state file; booting again on the same file is a restart. `posts` may be shared across boots. The server is
  * only its base address: the fake server of the unit tests or the real server of the e2e harness (spec 023).
  */
-export function boot(server: { readonly url: string }, statePath: string, options: { posts?: Posted[]; viewerUrl?: string } = {}): Bot {
+export function boot(server: { readonly url: string }, statePath: string, options: { posts?: Posted[]; viewerUrl?: string; capture?: Pick<CaptureService, 'reveal' | 'request'> } = {}): Bot {
   const loaded = loadState(statePath);
   if (!loaded.ok) throw new Error('state unreadable');
   const store = createStateStore(statePath, loaded.state);
@@ -199,9 +200,9 @@ export function boot(server: { readonly url: string }, statePath: string, option
     periods.push(ms);
     return () => timers.delete(tick);
   };
-  const follower = createFollower({ baseUrl: server.url, client, store, poster, boards, names, viewerUrl: options.viewerUrl, log: (code) => logs.push(code), sleep: () => new Promise((resolve) => setTimeout(resolve, 10)), every });
+  const follower = createFollower({ baseUrl: server.url, client, store, poster, boards, names, viewerUrl: options.viewerUrl, capture: options.capture, log: (code) => logs.push(code), sleep: () => new Promise((resolve) => setTimeout(resolve, 10)), every });
   let n = 0;
-  const handler = createHandler({ client, store, follower, names, newRequestId: () => `request-${(n += 1)}`, viewerUrl: options.viewerUrl });
+  const handler = createHandler({ client, store, follower, names, newRequestId: () => `request-${(n += 1)}`, viewerUrl: options.viewerUrl, capture: options.capture });
   Object.assign(bot, {
     follower,
     run: (interaction: Interaction, who: Who = MANAGER) => {

@@ -22,6 +22,12 @@ export interface EmbedSpec {
   readonly footer?: string;
 }
 
+/** A PNG attached to a message (spec 038 FR-717, FR-720): the file name and its bytes. */
+export interface ImageFile {
+  readonly name: string;
+  readonly data: Uint8Array;
+}
+
 /** What the shell registers for a leaderboard message it posted: its match and, for a public board, who asked (none: the final post). */
 export interface BoardTag {
   readonly matchId: string;
@@ -65,6 +71,8 @@ export interface OutMessage {
   readonly history?: HistoryTag;
   /** Set on a ranking message whose buttons page it: the shell registers it by message id (spec 025 FR-569). */
   readonly ranking?: RankingTag;
+  /** Spec 038 FR-717: the round image, added to the announcement by an edit; the embed shows it, a plain message carries it as a file. */
+  readonly image?: ImageFile;
 }
 
 export interface SelectOption {
@@ -76,6 +84,8 @@ export interface SelectOption {
 export type Reply =
   | { readonly type: 'text'; readonly text: string }
   | { readonly type: 'channel'; readonly messages: readonly OutMessage[] }
+  /** Spec 038 FR-720: the image of the current map, seen only by the member. */
+  | { readonly type: 'image'; readonly image: ImageFile }
   | { readonly type: 'select'; readonly text: string; readonly customId: string; readonly placeholder: string; readonly options: readonly SelectOption[] }
   | { readonly type: 'modal'; readonly customId: string; readonly title: string; readonly label: string }
   | { readonly type: 'suggest'; readonly choices: readonly { readonly name: string; readonly value: string }[] };

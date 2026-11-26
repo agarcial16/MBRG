@@ -1,6 +1,8 @@
 // The page address of the live viewer (FR-306, D31). Pure: the build kind, the applied round N, the image and the
 // viewport are parameters. The live scene never reads, shows or writes anything that chooses a match's rounds.
 import { clampCamera, type Camera, type ImageSize, type Viewport } from './camera';
+import { readCaptureAddress } from './capture';
+import type { CaptureRequest } from './capture';
 import { STRINGS, fillTemplate } from './strings';
 
 /** The reason the page shows one Spanish message and no scene (FR-306 (a), (c), (d); a malformed match id). */
@@ -13,6 +15,8 @@ export type SceneChoice =
   | { kind: 'live'; matchId: string; spectate?: true }
   /** The start screen (spec 010 FR-366): no match and no seed in a production build, or the start parameter. */
   | { kind: 'start' }
+  /** Spec 038: the screenshot mode of the bot; `request` is absent when the address is not a valid capture address. */
+  | { kind: 'capture'; request: CaptureRequest | undefined }
   | { kind: 'message'; error: SceneMessage };
 
 /** A match id is 16 base64url characters (FR-236): anything else is refused before any request. */
@@ -25,6 +29,11 @@ const MATCH_ID = /^[A-Za-z0-9_-]{16}$/;
  */
 export function chooseScene(search: string, dev: boolean): SceneChoice {
   const params = new URLSearchParams(search);
+  // Spec 038: the capture mode wins in every build; a malformed capture address has no request (the page signals an error).
+  if (params.has('capture')) {
+    const read = readCaptureAddress(search);
+    return { kind: 'capture', request: read.ok ? read.request : undefined };
+  }
   const matches = params.getAll('match');
   if (params.has('seed') && matches.length > 0) return { kind: 'message', error: 'both' };
   if (matches.length > 0) {

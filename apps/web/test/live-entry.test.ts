@@ -19,6 +19,7 @@ function actions(debug: boolean): EnterActions & { calls: string[] } {
     live: (id, spectate) => void calls.push(spectate === true ? `live:${id}:spectate` : `live:${id}`),
     message: (text) => void calls.push(`message:${text}`),
     start: () => void calls.push('start'),
+    capture: () => void calls.push('capture'),
   };
 }
 

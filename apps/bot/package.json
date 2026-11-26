@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "@mbrg/protocol": "*",
-    "discord.js": "14.28.1"
+    "discord.js": "14.28.1",
+    "puppeteer-core": "25.19.0"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
