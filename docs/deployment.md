@@ -307,9 +307,11 @@ on stderr, nothing written in the output folder), and `2` on usage error.
      viewer **refuses it at load with a Spanish message naming the limit**
      (spec 029 / spec 033) and draws no map, instead of the internal error of
      earlier versions; listing it still gives players an unplayable map, so do
-     not list it on the server until follow-up **V3** (tiling) ships. A texture
-     above the device's maximum also stops with a message (follow-up **V1** is
-     covered by these refusals).
+     not list it on the server. A texture above the device's maximum also stops
+     with a message (follow-up **V1**, graceful refusal, is what these messages
+     deliver). Follow-up **V3** (texture tiling or polygon meshes so a map larger
+     than a device's texture size can still be drawn) is a queued future option,
+     not a planned release (`docs/board.md`).
    - `contextGap`, `contextGapPixels`, `thinCoastFactions`: thin water (at most
      `params.contextGap` pixels wide; the default is a strip of 3.5 km at the
      map's pixel size, at most 16; 0 turns it off) between a land territory and

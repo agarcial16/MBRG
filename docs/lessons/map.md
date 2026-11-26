@@ -2,6 +2,7 @@
 Read before touching `packages/shared`, `packages/sim` or `tools/build-map`.
 
 - Read `kind`/`owner` from `unknown` input with the own-property rule everywhere (validation and sim).
+- Region = 4-connected piece, not a colour.
 - Sea is explicit; never infer "dark = border". Spec the label layout before coding it.
 - Avoid the word "transition" as a whole word in core files (a scan forbids it): use "step".
 - Test fixtures must mimic real file quirks (NUL-padded DBF); run real data early. Tiny ASCII tests hid real bugs: test at real scale.
