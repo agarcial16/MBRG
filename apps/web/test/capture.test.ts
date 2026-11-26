@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { annexationBox, captureCamera, captureMarks, readCaptureAddress } from '../src/core/capture';
+import { annexationBox, captureCamera, captureMarks, mainAnnexationBox, readCaptureAddress } from '../src/core/capture';
+import { buildPieceIndex } from '../src/core/regions';
 import { chooseScene } from '../src/core/live-address';
 import { enter } from '../src/ui/enter';
 import { TOUR_PARAMS } from '../src/core/tour-params';
@@ -122,5 +123,52 @@ describe('spec 038 marks (FR-714)', () => {
     expect(captureMarks(0, 4)).toBeUndefined();
     expect(captureMarks(3, undefined)).toBeUndefined();
     expect(captureMarks(3, 4)).toStrictEqual({ lit: [4], dim: TOUR_PARAMS.dimMax });
+  });
+});
+
+describe('spec 039 main-piece annexation framing (FR-732, FR-733, NFR-192)', () => {
+  // 1000 x 400 map:
+  // Entry 1: large mainland piece (100x80 = 8000 px) at x=500..599, y=150..229
+  // Entry 2: adjacent mainland conquest (40x40 = 1600 px) at x=600..639, y=160..199
+  // Entry 3: tiny distant Pacific island (4x4 = 16 px) at x=20..23, y=180..183 (< 2% area and very far)
+  // Entry 4: tiny nearby island (4x4 = 16 px) at x=480..483, y=180..183 (close to mainland)
+  // Entry 5: another tiny Pacific island (4x4 = 16 px) at x=80..83, y=180..183 (for island-only fallback)
+  const width = 1000;
+  const height = 400;
+  const cells = new Uint16Array(width * height);
+  const paint = (x0: number, y0: number, x1: number, y1: number, entry: number): void => {
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) cells[y * width + x] = entry;
+  };
+  paint(500, 150, 599, 229, 1);
+  paint(600, 160, 639, 199, 2);
+  paint(20, 180, 23, 183, 3);
+  paint(480, 180, 483, 183, 4);
+  paint(80, 180, 83, 183, 5);
+  const pieces = buildPieceIndex({ width, height, cells, fills: ['sea', 'land', 'land', 'land', 'land', 'land'] });
+
+  it('FR-732 excludes tiny distant outlier islands while keeping mainland and significant conquered pieces', () => {
+    // Absorber owns mainland (1), adjacent conquest (2), and distant tiny island (3).
+    const box = mainAnnexationBox(pieces, new Set([1, 2, 3]));
+    expect(box).toStrictEqual({ x0: 500, y0: 150, x1: 640, y1: 230 });
+  });
+
+  it('FR-732 excludes tiny distant outlier even when it is the only transferred territory (Peru + Samoa case)', () => {
+    const box = mainAnnexationBox(pieces, new Set([1, 3]));
+    expect(box).toStrictEqual({ x0: 500, y0: 150, x1: 600, y1: 230 });
+  });
+
+  it('FR-732 keeps tiny islands that lie close to the main landmass', () => {
+    const box = mainAnnexationBox(pieces, new Set([1, 4]));
+    expect(box).toStrictEqual({ x0: 480, y0: 150, x1: 600, y1: 230 });
+  });
+
+  it('FR-733 fallback: when all pieces of the absorber are small islands of comparable size, keeps both', () => {
+    const box = mainAnnexationBox(pieces, new Set([3, 5]));
+    expect(box).toStrictEqual({ x0: 20, y0: 180, x1: 84, y1: 184 });
+  });
+
+  it('FR-733 returns undefined when no wanted entries have land pieces', () => {
+    expect(mainAnnexationBox(pieces, new Set())).toBeUndefined();
+    expect(mainAnnexationBox(pieces, new Set([99]))).toBeUndefined();
   });
 });

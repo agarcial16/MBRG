@@ -14,6 +14,8 @@ import { factionColorList, buildEntryIndex, factionIndexOf, ownerTable } from '.
 import type { EntryIndex } from '../core/entries';
 import { frontField } from '../core/front';
 import type { FrontField } from '../core/front';
+import { buildIslandClusters, resolveIslandMarkers } from '../core/island-markers';
+import { applyLabelContext } from '../core/label-context';
 import type { AnyLabelDraw, RoundLabels, StepLabels } from '../core/label-frame';
 import { labelTexts } from '../core/label-input';
 import type { Counts } from '../core/label-counts';
@@ -36,6 +38,7 @@ import type { ReadableDraw, ReadableFactionTiers } from '../core/label-readable'
 import { completeRunning, frame, motionChanged, request, startPlayback } from '../core/playback';
 import type { PlaybackState, RequestOutcome } from '../core/playback';
 import { buildPieceIndex, mainPieces } from '../core/regions';
+import type { PieceIndex } from '../core/regions';
 import type { StepData } from '../core/step';
 import { SHAPE_PARAMS } from '../core/shape-params';
 import { THEME, toMapTheme } from '../core/theme';
@@ -114,8 +117,8 @@ export interface MapViewInput {
     owners: ReadonlyMap<TerritoryId, FactionId>;
     frozen?: { data: StepData; progress: number };
     camera?: Camera;
-    /** Spec 038: the first camera, from the entry index the view builds (a capture frames the annexation by the pixels of its territories); `camera` wins. */
-    cameraFor?: (index: EntryIndex) => Camera;
+    /** Spec 038 / 039: the first camera, from the entry index and piece index the view builds; `camera` wins. */
+    cameraFor?: (index: EntryIndex, pieces: PieceIndex) => Camera;
     /** Spec 038: a capture lights these factions and dims the rest of the whole round (as the reveal tours end); none is the plain drawing. */
     marks?: { lit: readonly number[]; dim: number };
   };
@@ -184,8 +187,9 @@ export function createMapView(input: MapViewInput): MapView {
   const renderer = attachRenderer(canvas, mapScene);
   const labelLayer = attachLabelLayer(labelCanvas);
 
-  // Labels: the piece index and the territory tiers are computed once per page load (FR-171, NFR-32, spec 032).
+  // Labels: the piece index, island clusters and the territory tiers are computed once per page load (FR-171, NFR-32, spec 032, spec 039).
   const pieces = buildPieceIndex(index);
+  const islandClusters = buildIslandClusters(pieces);
   const mainPieceOf = mainPieces(pieces);
   const texts = labelTexts(map, presentation, owners);
   const aspectOf = measureAspects(allCandidateTexts([...texts.factions.values(), ...texts.territories.filter((t): t is string => t !== undefined)]));
@@ -259,7 +263,7 @@ export function createMapView(input: MapViewInput): MapView {
     loop.request();
   });
 
-  let camera: Camera = start.camera ?? start.cameraFor?.(index) ?? initialCamera(image, viewport);
+  let camera: Camera = start.camera ?? start.cameraFor?.(index, pieces) ?? initialCamera(image, viewport);
   // FR-443: the margins now drawn, and a glide to new ones (`startedMs` is the reading of the first frame of the glide).
   let inset: Inset = { top: viewport.top ?? 0, bottom: viewport.bottom ?? 0 };
   let glide: { from: Inset; to: Inset; follow: boolean; startedMs: number | undefined } | undefined;
@@ -282,6 +286,8 @@ export function createMapView(input: MapViewInput): MapView {
   };
   const sessionView = (): SessionView => ({ area: viewport, image, current: camera });
 
+  let activeTourDim: { readonly lit: readonly number[]; readonly dim: number } | undefined;
+
   const present = (drawn: readonly AnyLabelDraw[], overlay?: TourOverlay): void => {
     const ratio = dpr();
     const key = `${viewport.width}x${viewport.height}@${ratio}`;
@@ -294,12 +300,15 @@ export function createMapView(input: MapViewInput): MapView {
     const view = { camera, viewport, dpr: ratio, detail, fonts: fontEpoch() };
     mapScene.setView(view);
     // Spec 038: a capture holds its marks over the whole-round drawing (tour frames and steps never carry them).
+    const activeDim = overlay !== undefined ? activeTourDim : start.marks;
     if (start.marks !== undefined && overlay === undefined) mapScene.setTour(start.marks);
     renderer.draw();
     const shown =
       overlay !== undefined
         ? upgradeTourDraws(drawn, current.draws, camera.scale, READABLE_PARAMS.minPx, current.labels, detail)
         : drawn;
+    const islands = resolveIslandMarkers(islandClusters, shownTable ?? current.table, colorList, camera, viewport, activeDim);
+    labelLayer.setIslands?.(islands);
     labelLayer.draw(shown, view, overlay);
   };
 
@@ -332,6 +341,7 @@ export function createMapView(input: MapViewInput): MapView {
     if (shownTable !== current.table) mapScene.setOwners(current.table);
     shownTable = current.table;
     mapScene.setFront(undefined);
+    activeTourDim = { lit: out.frame.lit, dim: out.frame.dim };
     mapScene.setTour({ lit: out.frame.lit, dim: out.frame.dim });
     const overlay: TourOverlay = {
       ...(out.frame.marker === undefined ? {} : { marker: out.frame.marker }),
@@ -377,7 +387,7 @@ export function createMapView(input: MapViewInput): MapView {
       if (shownTable !== stepView.later.table) mapScene.setOwners(stepView.later.table);
       shownTable = stepView.later.table;
       mapScene.setFront({ before: stepView.earlier.table, field: stepView.field, forward: shown.forward });
-      drawn = stepReadableLabels(
+      const stepDrawn = stepReadableLabels(
         stepView.earlier.layout.readable,
         stepView.later.layout.readable,
         territoryTiers,
@@ -389,11 +399,24 @@ export function createMapView(input: MapViewInput): MapView {
         READABLE_PARAMS.minPx,
         detail,
       );
+      drawn = applyLabelContext(stepDrawn, {
+        table: shown.forward < 0.5 ? stepView.earlier.table : stepView.later.table,
+        texts,
+        scale: camera.scale,
+        detail,
+      });
     } else {
       if (shownTable !== current.table) mapScene.setOwners(current.table);
       shownTable = current.table;
       mapScene.setFront(undefined);
-      drawn = resolveFrameLabels(current.draws, camera, viewport, READABLE_PARAMS, detail);
+      const contextual = applyLabelContext(current.draws, {
+        table: current.table,
+        texts,
+        scale: camera.scale,
+        detail,
+        ...(start.marks !== undefined ? { captureLit: new Set(start.marks.lit) } : {}),
+      });
+      drawn = resolveFrameLabels(contextual, camera, viewport, READABLE_PARAMS, detail);
     }
     mapScene.setTour(undefined);
     lastFrame = undefined;
