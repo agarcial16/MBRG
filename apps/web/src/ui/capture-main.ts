@@ -3,7 +3,7 @@
 // draws the state after round k and then tells the page's state to the capturing browser: `data-capture` on the document element is
 // "ready" once the frame is complete (map, labels, marks) or "error" when the match or the round cannot be shown.
 import type { MapData, PresentationData } from '@mbrg/shared';
-import { annexationBox, captureCamera, captureMarks } from '../core/capture';
+import { captureCamera, captureMarks, mainAnnexationBox } from '../core/capture';
 import type { CaptureRequest } from '../core/capture';
 import { checkCapabilities, checkCounts } from '../core/capabilities';
 import type { Camera } from '../core/camera';
@@ -12,6 +12,7 @@ import { factionIndexOf } from '../core/entries';
 import type { EntryIndex } from '../core/entries';
 import { ownersOf } from '../core/live-rounds';
 import { checkPackage, parsePackage } from '../core/package';
+import type { PieceIndex } from '../core/regions';
 import { THEME } from '../core/theme';
 import { probeCapabilities } from '../render/renderer';
 import { loadCapture } from './capture-load';
@@ -62,8 +63,8 @@ async function draw(request: CaptureRequest): Promise<boolean> {
   const absorber = data.record === undefined ? undefined : factionIndexOf(map).get(data.record.absorber);
   const marks = captureMarks(request.round, absorber);
   const area = { width: canvas.clientWidth, height: canvas.clientHeight };
-  // The annexation frame holds every territory the absorber owns after round k, the victim's former ones included (FR-716).
-  const cameraFor = (index: EntryIndex): Camera => {
+  // The annexation frame holds the main pieces of the absorber after round k, excluding tiny distant outlier islands (FR-716, FR-732).
+  const cameraFor = (index: EntryIndex, pieces: PieceIndex): Camera => {
     let box;
     if (request.frame === 'round' && data.record !== undefined) {
       const wanted = new Set<number>();
@@ -71,7 +72,7 @@ async function draw(request: CaptureRequest): Promise<boolean> {
         const entry = index.indexOf.get(territory);
         if (faction === data.record.absorber && entry !== undefined) wanted.add(entry);
       }
-      box = annexationBox(index.cells, pkg.width, pkg.height, wanted);
+      box = mainAnnexationBox(pieces, wanted);
     }
     return captureCamera(request.frame, box, { w: pkg.width, h: pkg.height }, area);
   };

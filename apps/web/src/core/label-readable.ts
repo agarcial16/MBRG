@@ -61,6 +61,8 @@ export type ReadableDraw = AnyLabelDraw & {
   readonly tiers?: readonly LabelTier[];
   /** Close-zoom (territory-rule) tiers for faction labels (spec 037 FR-707). */
   readonly closeTiers?: readonly LabelTier[];
+  /** When true, bypasses the role's scale fade (spec 039 FR-728). */
+  readonly pinned?: true;
 };
 
 /** Clamps a raw on-screen height (h * scale) to [minPx, max(minPx, viewportHeight * maxViewportFraction)], or 0 below minPx. */
@@ -280,7 +282,8 @@ function resolveRoleGroup(
         if (rect.maxX < 0 || rect.minX > vpW || rect.maxY < 0 || rect.minY > vpH) continue;
         const td = drawFromTier(tier, role, factor);
         if (td === undefined) continue;
-        candidates.push({ draw: td, rect });
+        const draw: ReadableDraw = d.pinned === true ? { ...td, pinned: true } : td;
+        candidates.push({ draw, rect });
       }
     } else {
       const rect = screenRectOf(d, camera, viewport, params);
@@ -341,7 +344,8 @@ export function resolveFrameLabels(
       const f = farFactions?.get(idx);
       const c = closeFactions?.get(idx);
       if (f !== undefined && c !== undefined && sameTierDraw(f, c)) {
-        out.push({ ...c, factor: d.factor });
+        const merged: ReadableDraw = d.pinned === true ? { ...c, factor: d.factor, pinned: true } : { ...c, factor: d.factor };
+        out.push(merged);
       } else {
         if (f !== undefined) out.push(f);
         if (c !== undefined) out.push(c);
@@ -677,7 +681,7 @@ export function stepReadableLabels(
     const chosen = selectTier(tList, scale, minPx);
     if (chosen === undefined) continue;
     const d = drawFromTier(chosen, 'territory', 1);
-    if (d !== undefined) out.push(d);
+    if (d !== undefined) out.push({ ...d, id: entry } as ReadableDraw);
   }
   return out;
 }
