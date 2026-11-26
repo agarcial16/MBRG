@@ -26,3 +26,7 @@
 - Observation: the annexation frame holds EVERY territory of the absorber (spec). On world-countries an absorber with distant islands (round 3: Peru, which owns Pacific island territories) gives a wide frame mostly of ocean. Not changed; an option for a follow-up is to frame the main pieces only.
 - Untested: real Discord (never automated); Linux; the 10 MB retry with real files (fake driver only); more than 3 rounds of a real match.
 - Branch `feat/038-round-images-impl`. State: implemented, PR open, spec `Status: implemented` and moved to `specs/archive/`. Next step: review; the user decides whether to relax NFR-188/189 or open a perf follow-up (cache/optimize label layout for capture, or frame by main pieces).
+- User review of the sample images (2026-11-26), not changed in this PR (spec 038 is approved as written); candidates for a follow-up spec "capture framing and labels":
+  1. Province labels of the dimmed territories (e.g. Uzbekistan next to Kazakhstan, round 2) stay visible in the round image and can read as who conquered whom: hide or de-emphasize labels of non-absorber territories in capture mode.
+  2. Very small territories (Pacific islands of the absorber) are almost invisible: mark them with a ring in the faction color, or inset borders like Pacific-country maps, and/or frame by main pieces instead of the whole bounding box.
+
