@@ -94,8 +94,9 @@ export function labelOpacity(role: LabelRole, scale: number, params: OpacityPara
   return role === 'territory' ? t : 1 - t;
 }
 
-/** Opacity of the scale times the opacity factor of the label. */
-export function labelAlpha(label: Pick<AnyLabelDraw, 'role' | 'factor'>, scale: number, params: OpacityParams): number {
+/** Opacity of the scale times the opacity factor of the label (or `factor` directly when `pinned` is set, FR-728). */
+export function labelAlpha(label: Pick<AnyLabelDraw, 'role' | 'factor'> & { readonly pinned?: true }, scale: number, params: OpacityParams): number {
+  if (label.pinned === true) return label.factor;
   return labelOpacity(label.role, scale, params) * label.factor;
 }
 

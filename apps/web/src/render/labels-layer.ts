@@ -7,6 +7,7 @@
 import type { Camera, Viewport } from '../core/camera';
 import { GLYPH_REFERENCE_PX, arcGlyphs, glyphOffsets, straightMatrix } from '../core/glyph-layout';
 import { scaledFade } from '../core/detail-scale';
+import type { IslandMarkerDraw } from '../core/island-markers';
 import { drawable, frameOf, labelAlpha, screenBox } from '../core/label-frame';
 import type { AnyLabelDraw, LabelDraw, ShapedDraw } from '../core/label-frame';
 import { LABEL_PARAMS, fontString } from '../core/label-params';
@@ -25,6 +26,8 @@ export interface TourOverlay {
 export interface LabelLayer {
   /** Sizes the canvas for a drawing area in CSS pixels and a device pixel ratio. */
   resize(vp: Viewport, dpr: number): void;
+  /** Stores Pacific-style island markers to draw under the labels on the next `draw` call (spec 039 FR-729). */
+  setIslands?(markers: readonly IslandMarkerDraw[]): void;
   /**
    * Clears the layer and draws the labels in the order given, skipping those that are not drawable; the tour overlay,
    * when given, is drawn after every text and never with a label opacity (FR-329, FR-333).
@@ -308,6 +311,50 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
     }
   };
 
+  // Pacific-style dashed maritime borders for tiny island territories (spec 039 FR-729, FR-730).
+  const drawIslandMarkers = (markers: readonly IslandMarkerDraw[]): void => {
+    if (markers.length === 0) return;
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    for (const m of markers) {
+      const r = m.radius;
+      const x1 = m.x + m.w;
+      const y1 = m.y + m.h;
+      ctx.beginPath();
+      ctx.moveTo(m.x + r, m.y);
+      ctx.lineTo(x1 - r, m.y);
+      ctx.arcTo(x1, m.y, x1, m.y + r, r);
+      ctx.lineTo(x1, y1 - r);
+      ctx.arcTo(x1, y1, x1 - r, y1, r);
+      ctx.lineTo(m.x + r, y1);
+      ctx.arcTo(m.x, y1, m.x, y1 - r, r);
+      ctx.lineTo(m.x, m.y + r);
+      ctx.arcTo(m.x, m.y, m.x + r, m.y, r);
+      ctx.closePath();
+
+      // Faint translucent tint inside the maritime border.
+      ctx.globalAlpha = 0.1 * m.alpha;
+      ctx.fillStyle = css(m.color);
+      ctx.fill();
+
+      // Dark outer halo for contrast over ocean.
+      ctx.setLineDash([5, 4]);
+      ctx.globalAlpha = 0.65 * m.alpha;
+      ctx.lineWidth = 3.2;
+      ctx.strokeStyle = LEADER_BLACK_RGB;
+      ctx.stroke();
+
+      // Faction-colour dashed border.
+      ctx.globalAlpha = 0.92 * m.alpha;
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = css(m.color);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.restore();
+  };
+
   // Marker ring: white 2 px over black 4 px (a 1 px black halo). Edge triangle: filled white with a 1 px black halo.
   const drawOverlay = (overlay: TourOverlay): void => {
     ctx.globalAlpha = 1;
@@ -346,12 +393,17 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
     }
   };
 
+  let pendingIslands: readonly IslandMarkerDraw[] = [];
+
   return {
     resize(vp: Viewport, dpr: number): void {
       const size = deviceSize(vp, dpr);
       // Setting the size also resets the context state; every draw sets its own.
       canvas.width = size.width;
       canvas.height = size.height;
+    },
+    setIslands(markers: readonly IslandMarkerDraw[]): void {
+      pendingIslands = markers;
     },
     draw(labels: readonly AnyLabelDraw[], view: MapView, overlay?: TourOverlay): void {
       const { camera, viewport, dpr } = view;
@@ -368,6 +420,7 @@ export function attachLabelLayer(canvas: HTMLCanvasElement): LabelLayer {
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, viewport.width, viewport.height);
+      if (pendingIslands.length > 0) drawIslandMarkers(pendingIslands);
       ctx.lineCap = 'butt';
       const shown = labels.filter((label) => drawable(label, camera.scale, params));
       // Pass 1: leader lines, under every text of either role (FR-207).

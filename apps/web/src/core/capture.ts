@@ -2,6 +2,7 @@
 // the annexation frame and the marks are functions of their inputs, so the same (match, round, frame kind) always gives the same framing (NFR-190).
 import { initialCamera } from './camera';
 import type { Camera, ImageSize, Viewport } from './camera';
+import type { PieceIndex } from './regions';
 import type { Box } from './tour-camera';
 import { TOUR_PARAMS } from './tour-params';
 
@@ -62,6 +63,69 @@ export function annexationBox(cells: ArrayLike<number>, width: number, height: n
     }
   }
   return x1 < 0 ? undefined : { x0, y0, x1: x1 + 1, y1: y1 + 1 };
+}
+
+/** Spec 039 FR-732: pieces below this share of total absorber area and farther than `OUTLIER_DISTANCE_FACTOR` times the main span are excluded from round-capture framing. */
+export const OUTLIER_AREA_SHARE = 0.02;
+export const OUTLIER_DISTANCE_FACTOR = 1.5;
+const OUTLIER_MIN_REF_SPAN = 200;
+
+/**
+ * Half-open bounding box of the significant (non-outlier) pieces of `wanted` entries (spec 039 FR-732, FR-733).
+ * Always keeps the largest piece; also keeps every piece whose area is at least 2% of total wanted area or that
+ * lies within 1.5x of the main piece's span. When all pieces are small and comparable in size (island-only faction),
+ * the area-share rule naturally retains them so the box is never empty.
+ */
+export function mainAnnexationBox(pieces: PieceIndex, wanted: ReadonlySet<number>): Box | undefined {
+  if (wanted.size === 0) return undefined;
+  const list: number[] = [];
+  let totalArea = 0;
+  let mainP = -1;
+  for (let p = 0; p < pieces.entryOf.length; p++) {
+    if (!wanted.has(pieces.entryOf[p]!)) continue;
+    list.push(p);
+    const area = pieces.size[p]!;
+    totalArea += area;
+    if (mainP === -1 || area > pieces.size[mainP]! || (area === pieces.size[mainP] && pieces.first[p]! < pieces.first[mainP]!)) {
+      mainP = p;
+    }
+  }
+  if (mainP === -1) return undefined;
+
+  const mb = mainP * 4;
+  const mx0 = pieces.box[mb]!;
+  const my0 = pieces.box[mb + 1]!;
+  const mx1 = pieces.box[mb + 2]! + 1;
+  const my1 = pieces.box[mb + 3]! + 1;
+  const maxDist = OUTLIER_DISTANCE_FACTOR * Math.max(mx1 - mx0, my1 - my0, OUTLIER_MIN_REF_SPAN);
+  const maxDistSq = maxDist * maxDist;
+  const minArea = totalArea * OUTLIER_AREA_SHARE;
+
+  let x0 = mx0;
+  let y0 = my0;
+  let x1 = mx1;
+  let y1 = my1;
+
+  for (const p of list) {
+    if (p === mainP) continue;
+    const b = p * 4;
+    const px0 = pieces.box[b]!;
+    const py0 = pieces.box[b + 1]!;
+    const px1 = pieces.box[b + 2]! + 1;
+    const py1 = pieces.box[b + 3]! + 1;
+    const significant = pieces.size[p]! >= minArea;
+    if (!significant) {
+      const dx = Math.max(0, Math.max(mx0 - px1, px0 - mx1));
+      const dy = Math.max(0, Math.max(my0 - py1, py0 - my1));
+      if (dx * dx + dy * dy > maxDistSq) continue;
+    }
+    if (px0 < x0) x0 = px0;
+    if (py0 < y0) y0 = py0;
+    if (px1 > x1) x1 = px1;
+    if (py1 > y1) y1 = py1;
+  }
+
+  return { x0, y0, x1, y1 };
 }
 
 /**

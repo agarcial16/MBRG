@@ -25,3 +25,8 @@
 - NFR-200: met on `world-countries` (median 4.1 s end to end, 2.3-2.9 s in page); `world-1815` median 5.5 s end to end on a loaded machine (3.4 s in page): borderline, re-run `capture-perf.ts` on a quiet machine to confirm. The full map stays raster-bound as decided (A).
 - Not done / untested: Linux; a persistent layout cache (option left for the full map); real Discord.
 - Branch `feat/040-capture-perf`. State: implemented, PR to open. Next step: user review and word to merge (do not merge without it); after merge nothing else pending for this spec.
+
+## 2026-11-26 — Merged main (spec 039) and re-checked
+- `origin/main` (039, #109) merged into the branch; conflicts only in `MEMORY.md`, `docs/board.md` and one line of `map-view.ts` (039 gave `cameraFor` a second argument `pieces`; `first` uses it). `npm run typecheck` green.
+- Pixel identity re-checked against a build of `origin/main` (same match, `cmp`): dev round 2 / full 3, world-countries round 1 and 3 / full 3, world-1815 round 3 / full 2: byte-identical (7 of 7). In page (lighter load), main -> this branch: world-countries round 5.6-6.1 s -> 1.9-2.5 s, world-1815 round 6.0 -> 2.0 s (039's main-piece framing makes the view smaller too), world-countries full 8.3 -> 5.4 s, world-1815 full 12.6 -> 9.8 s.
+- Branch `feat/040-capture-perf`. State: implemented, PR open. Next step: the user's word to merge.
