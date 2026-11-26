@@ -435,6 +435,51 @@ export interface TerritoryTierReuse {
 const samePieces = (a: readonly number[], b: readonly number[]): boolean =>
   a.length === b.length && a.every((v, i) => v === b[i]);
 
+/**
+ * Spec 040: what a layout must cover when only part of it is drawn (a capture draws one fixed camera). A region outside
+ * `region` gets no tiers (it has no draw, so it can neither be drawn nor take a place from a drawn label), and the faction
+ * tiers of a kind the camera never reads (`far`, `close`) are left out. Absent = everything.
+ */
+export interface LayoutScope {
+  /** True when a region made of these pieces may be drawn. */
+  readonly region: (pieces: readonly number[]) => boolean;
+  /** False when the far (faction-style) tiers of the factions are never read: the camera is at or past `closeFull`. */
+  readonly far: boolean;
+  /** False when the close-zoom tiers of the factions are never read: the camera is below `closeStart`. */
+  readonly close: boolean;
+}
+
+/** Screen pixels added around the view when deciding which regions a camera can draw (label padding is `minGapPx / 2`). */
+const SCOPE_PAD_PX = 32;
+
+/**
+ * Spec 040 FR-731: the scope of a camera that never moves. A region is in scope when the bounding box of one of its pieces
+ * meets the view widened by `SCOPE_PAD_PX` (a label lies on its region's land and `resolveRoleGroup` drops every candidate
+ * whose padded rectangle is outside the view, so an out-of-scope region has no draw that could be seen or could block one).
+ */
+export function layoutScopeOf(
+  p: PieceIndex,
+  camera: Camera,
+  viewport: Viewport,
+  detail: number,
+  params: ReadableParams = READABLE_PARAMS,
+): LayoutScope {
+  const pad = SCOPE_PAD_PX / camera.scale;
+  const halfW = viewport.width / 2 / camera.scale + pad;
+  const halfH = viewport.height / 2 / camera.scale + pad;
+  const left = camera.x - halfW;
+  const right = camera.x + halfW;
+  const top = camera.y - halfH;
+  const bottom = camera.y + halfH;
+  const meets = (piece: number): boolean => {
+    const at = piece * 4;
+    // The box is inclusive: the unit at x1 ends at x1 + 1.
+    return p.box[at]! < right && p.box[at + 2]! + 1 > left && p.box[at + 1]! < bottom && p.box[at + 3]! + 1 > top;
+  };
+  const blend = factionCloseBlend(camera.scale, detail, params);
+  return { region: (pieces) => pieces.some(meets), far: blend < 1, close: blend > 0 };
+}
+
 /** Computes territory tiers once per map load (no off-land, no leader lines). */
 export function placeReadableTerritories(
   p: PieceIndex,
@@ -443,6 +488,7 @@ export function placeReadableTerritories(
   params: LayoutParams,
   sp: ShapeParams,
   cp: CentreParams,
+  scope?: LayoutScope,
 ): ReadableTerritoryTiers {
   const main = mainPieces(p);
   const tiers: (readonly LabelTier[] | undefined)[] = new Array<readonly LabelTier[] | undefined>(p.entries).fill(undefined);
@@ -450,6 +496,7 @@ export function placeReadableTerritories(
     const piece = main[entry]!;
     const name = names[entry];
     if (piece < 0 || name === undefined) continue;
+    if (scope !== undefined && !scope.region([piece])) continue;
     tiers[entry] = computeRegionTiers(p, [piece], name, aspectOf, 'territory', params, sp, cp);
   }
   return { tiers };
@@ -466,6 +513,7 @@ export function placeReadableFactions(
   cp: CentreParams,
   previous?: ReadableFactionTiers,
   territoryReuse?: TerritoryTierReuse,
+  scope?: LayoutScope,
 ): ReadableFactionTiers {
   const main = mainRegions(regionsOf(p, owners));
   const tiers = new Map<number, readonly LabelTier[]>();
@@ -476,6 +524,7 @@ export function placeReadableFactions(
     if (name === undefined) continue;
     const region = main.get(faction)!;
     piecesByFaction.set(faction, region.pieces);
+    if (scope !== undefined && !scope.region(region.pieces)) continue;
     const prevPieces = previous?.piecesByFaction.get(faction);
     const prevTiers = previous?.tiers.get(faction);
     const prevClose = previous?.closeTiers?.get(faction);
@@ -483,7 +532,7 @@ export function placeReadableFactions(
       tiers.set(faction, prevTiers);
       closeTiers.set(faction, prevClose);
     } else {
-      tiers.set(faction, computeRegionTiers(p, region.pieces, name, aspectOf, 'faction', params, sp, cp));
+      const farOf = (): readonly LabelTier[] => computeRegionTiers(p, region.pieces, name, aspectOf, 'faction', params, sp, cp);
       let reusedClose: readonly LabelTier[] | undefined;
       if (territoryReuse !== undefined && region.pieces.length === 1) {
         const piece = region.pieces[0]!;
@@ -492,10 +541,16 @@ export function placeReadableFactions(
           reusedClose = territoryReuse.territories.tiers[entry];
         }
       }
-      closeTiers.set(
-        faction,
-        reusedClose ?? computeRegionTiers(p, region.pieces, name, aspectOf, 'territory', params, sp, cp),
-      );
+      const closeOf = (): readonly LabelTier[] =>
+        reusedClose ?? computeRegionTiers(p, region.pieces, name, aspectOf, 'territory', params, sp, cp);
+      // A scope leaves out the kind the camera never reads, unless the kind it reads came out empty: the draw of a region
+      // takes its first tier from the other kind then (`readableRoundLabels`), so that one is computed too.
+      let far = scope === undefined || scope.far ? farOf() : undefined;
+      let close = scope === undefined || scope.close ? closeOf() : undefined;
+      if (far === undefined && close!.length === 0) far = farOf();
+      if (close === undefined && far!.length === 0) close = closeOf();
+      if (far !== undefined) tiers.set(faction, far);
+      if (close !== undefined) closeTiers.set(faction, close);
     }
   }
   return { tiers, closeTiers, piecesByFaction };

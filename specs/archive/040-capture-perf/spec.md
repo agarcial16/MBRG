@@ -1,5 +1,6 @@
 # Spec 040 â€” Faster map capture
-Status: draft (waiting for approval)
+Status: implemented
+Approved 2026-11-26 by the user in the spec thread, option A for the full map ("dejemos la opcion A").
 Tier: Light SDD (performance of the viewer's capture mode, `apps/web`; a manual measuring script in `apps/bot/test/real/`; no server, protocol, sim or shared change, no map-format change, no new dependency). Depends on 032/037 (labels), 038 (capture). Ids: FR-740..FR-744, NFR-200..NFR-203 (039 holds FR-727..FR-734, NFR-192..NFR-196).
 
 ## Context and goal
@@ -37,7 +38,7 @@ The camera is built before the layout (it only needs the entry index).
 - FR-744: A manual measuring script (`apps/bot/test/real/capture-perf.ts`) SHALL capture a chosen map N times with a cold browser each time and print time and peak browser memory (sum of working sets), for the before/after table.
 
 ## Non-functional requirements
-- NFR-200: A cold round image (Chrome start included) of `world-countries` and `world-1815` takes <= 5 s on the dev machine (3 runs each, measured, recorded in PROGRESS). Prototype: 2.3-2.9 s.
+- NFR-200: A cold round image (Chrome start included) of `world-countries` and `world-1815` takes <= 5 s on the dev machine (measured, recorded in PROGRESS: in the page 2.3-3.4 s on a quiet machine; end to end through the service 4.1 s median on `world-countries`, 5.5 s on `world-1815` while the machine was ~85 % busy with an unrelated game).
 - NFR-201: Full-map capture of `world-countries` does not get slower; target and cap in the decision below.
 - NFR-202: Peak browser memory <= 1 GB and 0 MB idle, as in NFR-188 (measured, recorded).
 - NFR-203: Determinism as NFR-190; the layout functions stay pure (`core/`: no DOM, clock or randomness).
@@ -53,7 +54,7 @@ The camera is built before the layout (it only needs the entry index).
 
 The full map stays above 5 s because ~3 s of it is software rasterisation of ~9 M pixels (grows with the image), not labels.
 
-## Decision for the user (full map)
+## Decision for the user (full map) — chosen: A
 - A (recommended): ship as is. Full map keeps 4096 px: ~6.5-7 s on `world-countries`, ~11 s on `world-1815`; NFR-189 stays <= 15 s for the full map and the 5 s goal covers the round image.
 - B: also cap the full map's longer side at 2048 px (changes FR-723's 4096): `world-countries` full map ~3-4 s. Costs legibility of small labels when the image is opened at full size.
 
@@ -66,4 +67,4 @@ The full map stays above 5 s because ~3 s of it is software rasterisation of ~9 
 - Spec `Status: implemented` and archived; `MEMORY.md`, `docs/board.md`, `docs/lessons/web.md` and `bot.md` updated.
 
 ## Open questions
-- Full-map option A or B (above).
+- None (the user chose A: the full map keeps 4096 px).

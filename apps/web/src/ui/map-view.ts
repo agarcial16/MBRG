@@ -24,6 +24,7 @@ import {
   READABLE_PARAMS,
   allCandidateTexts,
   factionBoxesOf,
+  layoutScopeOf,
   placeReadableFactions,
   placeReadableTerritories,
   readableCounts,
@@ -118,6 +119,8 @@ export interface MapViewInput {
     cameraFor?: (index: EntryIndex) => Camera;
     /** Spec 038: a capture lights these factions and dims the rest of the whole round (as the reveal tours end); none is the plain drawing. */
     marks?: { lit: readonly number[]; dim: number };
+    /** Spec 040: the camera never changes (a capture), so the label layout covers only what it can draw. */
+    layoutForCamera?: boolean;
   };
   /** Called after every frame the loop draws (the debug scene measures frame times here). */
   onFrame?: (nowMs: number) => void;
@@ -187,9 +190,12 @@ export function createMapView(input: MapViewInput): MapView {
   // Labels: the piece index and the territory tiers are computed once per page load (FR-171, NFR-32, spec 032).
   const pieces = buildPieceIndex(index);
   const mainPieceOf = mainPieces(pieces);
+  // Spec 040: a capture draws one fixed camera, so its layout covers only what that camera can draw.
+  const first: Camera = start.camera ?? start.cameraFor?.(index) ?? initialCamera(image, viewport);
+  const scope = start.layoutForCamera === true ? layoutScopeOf(pieces, first, viewport, detailFactor(image, viewport)) : undefined;
   const texts = labelTexts(map, presentation, owners);
   const aspectOf = measureAspects(allCandidateTexts([...texts.factions.values(), ...texts.territories.filter((t): t is string => t !== undefined)]));
-  const territoryTiers = placeReadableTerritories(pieces, texts.territories, aspectOf, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS);
+  const territoryTiers = placeReadableTerritories(pieces, texts.territories, aspectOf, LABEL_PARAMS, SHAPE_PARAMS, CENTRE_PARAMS, scope);
   const territoryReuse = { territories: territoryTiers, names: texts.territories, mainPieceOf };
 
   // Layouts computed while a tour is on screen (the debug panel shows it: 0 for a victim tour, 1 for an absorber tour).
@@ -207,6 +213,7 @@ export function createMapView(input: MapViewInput): MapView {
       CENTRE_PARAMS,
       previous?.layout.readable,
       territoryReuse,
+      scope,
     );
     const boxes = factionBoxesOf(pieces, readable, texts.factions, aspectOf, LABEL_PARAMS);
     const { labels, draws } = readableRoundLabels(texts, table, readable, territoryTiers, aspectOf);
@@ -259,7 +266,7 @@ export function createMapView(input: MapViewInput): MapView {
     loop.request();
   });
 
-  let camera: Camera = start.camera ?? start.cameraFor?.(index) ?? initialCamera(image, viewport);
+  let camera: Camera = first;
   // FR-443: the margins now drawn, and a glide to new ones (`startedMs` is the reading of the first frame of the glide).
   let inset: Inset = { top: viewport.top ?? 0, bottom: viewport.bottom ?? 0 };
   let glide: { from: Inset; to: Inset; follow: boolean; startedMs: number | undefined } | undefined;
