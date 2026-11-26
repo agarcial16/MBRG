@@ -94,15 +94,35 @@ Run from the repo root: `npm run start -w @mbrg/bot`.
 | `MBRG_SERVER_URL` | the game server origin, e.g. `http://127.0.0.1:8787` (same host) or `https://game.example.com`. Trailing slashes are trimmed. **required** |
 | `MBRG_DISCORD_CREDENTIAL` | the bot's client credential. **required** — and the same value must appear in the server's `MBRG_CLIENTS` with namespace `discord`: the pair is configured **twice, identical**, once on each side. Player ids become `discord:<user id>`. |
 | `MBRG_BOT_STATE_FILE` | path of the bot's JSON state (channels followed, last matches). A missing file is an empty state; writes are atomic (temp file + rename). **required** |
-| `MBRG_VIEWER_URL` | the viewer's public base address, e.g. `https://mbrg.example.com`. Announcements link to `<viewer>?match=<id>&round=N&spectate=1`. Without it the bot posts no viewer links. optional |
+| `MBRG_VIEWER_URL` | the viewer's public base address, e.g. `https://mbrg.example.com`. Announcements link to `<viewer>?match=<id>&round=N&spectate=1`. Without it the bot posts no viewer links. With `MBRG_CHROME_PATH` it also turns map images on (below). optional |
+| `MBRG_CHROME_PATH` | absolute path of the `chrome-headless-shell` executable. With `MBRG_VIEWER_URL` it turns on the map images (spec 038): the image of each round and `/ff mapa`. Missing either one: images are off, the bot logs `[bot] images-disabled` once at start and everything else works as before. optional |
 
 A missing variable prints `Falta la variable de entorno <NAME>.` (UI strings are
 Spanish) and exits 1 — no connection is attempted. On success it prints
 `Bot listo.` and registers its slash commands globally on the application.
 
+### Map images (spec 038)
+
+The bot takes screenshots of the viewer's capture mode (`<viewer>?capture=1&match=<id>&round=<k>&frame=round|full`) with `puppeteer-core` and
+`chrome-headless-shell`. The browser starts for a capture and closes after 10 s without one, so an idle bot holds no browser. The viewer must be a
+build that includes the capture mode and must read the same game server the bot uses.
+
+```sh
+# on the bot host, once (any folder the bot user can read; a pinned version is better than `stable`)
+npx @puppeteer/browsers install chrome-headless-shell@stable --path /opt/mbrg/chrome
+# prints the executable path, e.g.
+#   /opt/mbrg/chrome/chrome-headless-shell/linux-<version>/chrome-headless-shell-linux64/chrome-headless-shell
+MBRG_CHROME_PATH=<that path>
+```
+
+On Linux install the shared libraries Chrome needs (Debian/Ubuntu: `libnss3 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libgbm1 libasound2 libxcomposite1 libxdamage1 libxrandr2`)
+and run the bot as a non-root user (Chrome's sandbox needs user namespaces). WebGL runs in software (SwiftShader): expect a few seconds and a few hundred
+MB per capture (see `specs/archive/038-discord-round-images/PROGRESS.md` for the measured figures). The bot also needs **Attach Files** in the channel
+(it adds the image to its own announcement by editing it).
+
 **Invite**: Developer Portal -> OAuth2 -> URL Generator, scopes
 `bot` + `applications.commands`, permissions **Send Messages**, **Embed
-Links**, **Read Message History** (the bot sends announcements, posts embeds —
+Links**, **Attach Files**, **Read Message History** (the bot sends announcements, posts embeds —
 falling back to plain text if a channel lacks the permission — and fetches its
 own board messages to disable their buttons). Intents: **Guilds only**; enable
 no privileged intents (no message content, no member data). The manage commands

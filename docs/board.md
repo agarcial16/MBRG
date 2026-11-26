@@ -13,7 +13,7 @@ Live work, one row per task; the orchestrator updates it, the feature PR closes 
 | Spec 032: readable map labels | Light SDD | — | — | `feat/032-readable-labels` | merged (#96) | done (archived in `specs/archive/032-readable-labels`) |
 | Spec 036: Robinson projection for world-countries | Light SDD | claude-sonnet-5-5 | this thread | `feat/036-robinson-projection` | merged (#103) | done (archived in `specs/archive/036-robinson-projection`) |
 | Landing page and map selection (map preview thumbnails, animation polish) | — | — | — | — | idea | no spec yet; needs a Light SDD spec when picked up |
-| Discord bot round images: snapshot after an elimination/absorption animation ends, current map every N rounds, and/or an ephemeral `/ff` command that shows the map only to the caller | — | — | — | — | idea | no spec yet; needs a Light SDD spec when picked up |
+| Spec 038: map images in Discord (round image by edit + ephemeral `/ff mapa`) | Light SDD | claude-sonnet-5-5 | own thread | `feat/038-round-images-impl` | PR open | review + merge; NFR-188/189 measured above the spec figures (see PROGRESS): user decides to relax or to open a perf follow-up |
 | In-page map importer: import a map from the web UI, on top of the spec 028 importer | — | — | — | — | idea | no spec yet; needs a spec (viewer upload + server validation) when picked up |
 | Re-register Discord slash commands on deploy (`/ff` replaces `/mbrg`) | — | — | — | — | idea | no spec yet; check for a deploy hook before writing one |
 | Spec 037: province-style faction labels at close zoom | Light SDD | antigravity/gemini-4-neon | own thread | `feat/037-faction-labels-zoom` | merged (#107) | done (archived in `specs/archive/037-faction-labels-zoom`) |

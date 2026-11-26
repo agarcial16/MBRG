@@ -6,8 +6,10 @@ import type { MapData, PresentationData } from '@mbrg/shared';
 import { annexationBox, captureCamera, captureMarks } from '../core/capture';
 import type { CaptureRequest } from '../core/capture';
 import { checkCapabilities, checkCounts } from '../core/capabilities';
+import type { Camera } from '../core/camera';
 import { assignFactionColors } from '../core/colors';
 import { factionIndexOf } from '../core/entries';
+import type { EntryIndex } from '../core/entries';
 import { ownersOf } from '../core/live-rounds';
 import { checkPackage, parsePackage } from '../core/package';
 import { THEME } from '../core/theme';
@@ -60,6 +62,19 @@ async function draw(request: CaptureRequest): Promise<boolean> {
   const absorber = data.record === undefined ? undefined : factionIndexOf(map).get(data.record.absorber);
   const marks = captureMarks(request.round, absorber);
   const area = { width: canvas.clientWidth, height: canvas.clientHeight };
+  // The annexation frame holds every territory the absorber owns after round k, the victim's former ones included (FR-716).
+  const cameraFor = (index: EntryIndex): Camera => {
+    let box;
+    if (request.frame === 'round' && data.record !== undefined) {
+      const wanted = new Set<number>();
+      for (const [territory, faction] of owners) {
+        const entry = index.indexOf.get(territory);
+        if (faction === data.record.absorber && entry !== undefined) wanted.add(entry);
+      }
+      box = annexationBox(index.cells, pkg.width, pkg.height, wanted);
+    }
+    return captureCamera(request.frame, box, { w: pkg.width, h: pkg.height }, area);
+  };
   const view = createMapView({
     canvas,
     labelCanvas,
@@ -70,19 +85,8 @@ async function draw(request: CaptureRequest): Promise<boolean> {
     values: pkg.values,
     colors: colors.value,
     viewport: area,
-    start: { round: request.round, owners, ...(marks === undefined ? {} : { marks }) },
+    start: { round: request.round, owners, cameraFor, ...(marks === undefined ? {} : { marks }) },
   });
-  // The annexation frame holds every territory the absorber owns after round k, the victim's former ones included (FR-716).
-  let box;
-  if (request.frame === 'round' && data.record !== undefined) {
-    const wanted = new Set<number>();
-    for (const [territory, faction] of owners) {
-      const entry = view.index.indexOf.get(territory);
-      if (faction === data.record.absorber && entry !== undefined) wanted.add(entry);
-    }
-    box = annexationBox(view.index.cells, pkg.width, pkg.height, wanted);
-  }
-  view.setCamera(captureCamera(request.frame, box, { w: pkg.width, h: pkg.height }, area));
   view.paint(0);
   await painted();
   return true;

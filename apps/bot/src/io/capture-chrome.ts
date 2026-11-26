@@ -23,7 +23,7 @@ export function createChromeDriver(executablePath: string): BrowserDriver {
           try {
             await page.setViewport({ width: shot.width, height: shot.height, deviceScaleFactor: 1 });
             await page.goto(shot.url, { waitUntil: 'domcontentloaded', timeout: shot.timeoutMs });
-            await page.waitForFunction(SIGNAL, { timeout: shot.timeoutMs });
+            await page.waitForFunction(SIGNAL, { timeout: shot.timeoutMs, polling: 50 });
             if ((await page.evaluate(READ)) !== 'ready') throw new Error('capture-error');
             return await page.screenshot({ type: 'png' });
           } finally {

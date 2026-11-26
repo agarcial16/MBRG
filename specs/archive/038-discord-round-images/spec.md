@@ -1,5 +1,5 @@
 # Spec 038 — Map images in Discord
-Status: approved (2026-11-26, user: "aprobado")
+Status: implemented
 Tier: Light SDD (Discord bot + a viewer capture mode; no server, protocol, sim or shared change, no access to unrevealed rounds). Depends on 012 (bot), 017 (embeds), 021 (viewer link). Ids: FR-713..FR-726, NFR-187..NFR-191 (highest in use: FR-712, NFR-186).
 
 ## Context and goal

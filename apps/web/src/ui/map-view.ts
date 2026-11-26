@@ -114,6 +114,8 @@ export interface MapViewInput {
     owners: ReadonlyMap<TerritoryId, FactionId>;
     frozen?: { data: StepData; progress: number };
     camera?: Camera;
+    /** Spec 038: the first camera, from the entry index the view builds (a capture frames the annexation by the pixels of its territories); `camera` wins. */
+    cameraFor?: (index: EntryIndex) => Camera;
     /** Spec 038: a capture lights these factions and dims the rest of the whole round (as the reveal tours end); none is the plain drawing. */
     marks?: { lit: readonly number[]; dim: number };
   };
@@ -257,7 +259,7 @@ export function createMapView(input: MapViewInput): MapView {
     loop.request();
   });
 
-  let camera: Camera = start.camera ?? initialCamera(image, viewport);
+  let camera: Camera = start.camera ?? start.cameraFor?.(index) ?? initialCamera(image, viewport);
   // FR-443: the margins now drawn, and a glide to new ones (`startedMs` is the reading of the first frame of the glide).
   let inset: Inset = { top: viewport.top ?? 0, bottom: viewport.bottom ?? 0 };
   let glide: { from: Inset; to: Inset; follow: boolean; startedMs: number | undefined } | undefined;
