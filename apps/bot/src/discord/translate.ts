@@ -3,7 +3,7 @@
 // are the raw API shapes (numeric component and button types) that the library sends as they are.
 import type { BoardEntryView, HistoryWalkView, Interaction, RankingWalkView } from '../core/actions';
 import { fitEmbed, rowsOf, splitMessage } from '../core/limits';
-import type { ButtonSpec, EmbedSpec, OutMessage, Reply } from '../core/model';
+import type { ButtonSpec, EmbedSpec, ImageFile, OutMessage, Reply } from '../core/model';
 import { ORDER_WORDS, PERIOD_WORDS } from '../core/ranking';
 import { STRINGS } from '../core/strings';
 import { communityKey } from '../io/community';
@@ -41,6 +41,8 @@ export function fromCommand(sub: string, options: { readonly map?: string | null
       return { type: 'stop', canManage };
     case 'board':
       return { type: 'board' };
+    case STRINGS.cmdMap:
+      return { type: 'map' };
     case 'predict':
       return { type: 'predict', faction: options.faction ?? undefined };
     case 'history':
@@ -99,9 +101,18 @@ export function embedPayload(spec: EmbedSpec) {
 export function messagePayload(message: OutMessage, view: View = TEXT_VIEW) {
   const components = componentsOf(message.buttons);
   const extra = components.length === 0 ? {} : { components };
-  if (message.embed !== undefined && view.mode === 'embed') return { content: '', embeds: [embedPayload(message.embed)], allowedMentions: { parse: [] as string[] }, ...extra };
-  return { content: message.text, ...(message.embed === undefined ? {} : { embeds: [] as never[] }), allowedMentions: { parse: [] as string[] }, ...extra };
+  // Spec 038: a round image goes as a file; the embed shows it, a plain message keeps it as the attachment.
+  const files = message.image === undefined ? {} : { files: [fileOf(message.image)] };
+  if (message.embed !== undefined && view.mode === 'embed') {
+    const embed = embedPayload(message.embed);
+    const shown = message.image === undefined ? embed : { ...embed, image: { url: `attachment://${message.image.name}` } };
+    return { content: '', embeds: [shown], allowedMentions: { parse: [] as string[] }, ...extra, ...files };
+  }
+  return { content: message.text, ...(message.embed === undefined ? {} : { embeds: [] as never[] }), allowedMentions: { parse: [] as string[] }, ...extra, ...files };
 }
+
+/** An image as the library takes a file. */
+const fileOf = (image: ImageFile) => ({ attachment: Buffer.from(image.data), name: image.name });
 
 /** The components of a message as the API sent them, every button disabled (FR-481); anything else is left as it is. */
 export function withButtonsDisabled(rows: readonly { readonly type?: number; readonly components?: readonly Record<string, unknown>[] }[]) {
@@ -121,6 +132,8 @@ export function replyPayload(reply: Reply, isPrivate: boolean, view: View = TEXT
           ? [{ ...messagePayload(message, view), ...flags }]
           : splitMessage(message.text).map((part, i) => ({ ...messagePayload({ text: part, buttons: i === 0 ? message.buttons : [] }), ...flags })),
       );
+    case 'image':
+      return [{ content: '', files: [fileOf(reply.image)], allowedMentions: { parse: [] as string[] }, ...flags }];
     case 'select':
       return [
         {
@@ -205,6 +218,7 @@ export function commandDefinitions() {
             },
           ],
         },
+        { type: sub, name: STRINGS.cmdMap, description: STRINGS.cmdMapText },
       ],
     },
   ];

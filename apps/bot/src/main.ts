@@ -6,6 +6,8 @@ import { readConfig } from './core/env';
 import { STRINGS, fill } from './core/strings';
 import { createShell } from './discord/shell';
 import { afterMs, createBoards } from './io/boards';
+import { createCaptureService, realAfter } from './io/capture';
+import { createChromeDriver } from './io/capture-chrome';
 import { createFollower, createNames } from './io/follower';
 import { createHandler } from './io/handler';
 import { createServerClient } from './io/server-client';
@@ -30,6 +32,12 @@ async function main(): Promise<void> {
   const store = createStateStore(config.stateFile, loaded.state);
   const client = createServerClient({ baseUrl: config.serverUrl, credential: config.credential });
   const names = createNames(client);
+  // Spec 038 FR-726: the map images need the viewer's address and the headless browser; without either they are off, said once.
+  const capture =
+    config.viewerUrl === undefined || config.chromePath === undefined
+      ? undefined
+      : createCaptureService({ viewerUrl: config.viewerUrl, driver: createChromeDriver(config.chromePath), mapSize: (mapId) => client.mapSize(mapId), after: realAfter, log });
+  if (capture === undefined) log('images-disabled');
   let handle: ReturnType<typeof createHandler> | undefined;
   let disable: ((channelId: string, messageId: string) => Promise<void>) | undefined;
   const boards = createBoards({ now: Date.now, after: afterMs, disable: (channelId, messageId) => (disable as NonNullable<typeof disable>)(channelId, messageId) });
@@ -45,14 +53,14 @@ async function main(): Promise<void> {
     now: Date.now,
   });
   disable = shell.poster.disable;
-  const follower = createFollower({ baseUrl: config.serverUrl, client, store, poster: shell.poster, boards, names, viewerUrl: config.viewerUrl, log });
-  handle = createHandler({ client, store, follower, names, newRequestId: randomUUID, viewerUrl: config.viewerUrl });
+  const follower = createFollower({ baseUrl: config.serverUrl, client, store, poster: shell.poster, boards, names, viewerUrl: config.viewerUrl, capture, log });
+  handle = createHandler({ client, store, follower, names, newRequestId: randomUUID, viewerUrl: config.viewerUrl, capture });
 
   process.on('unhandledRejection', () => log('unhandled'));
   const shutdown = (): void => {
     follower.stopAll();
     boards.stopAll();
-    void shell.stop().finally(() => process.exit(0));
+    void Promise.all([capture?.close(), shell.stop()]).finally(() => process.exit(0));
   };
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);

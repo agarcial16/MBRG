@@ -11,6 +11,7 @@ import type { NameBook } from '../core/names';
 import { summarizeWinners } from '../core/results';
 import type { SseFrame } from '../core/sse-parser';
 import type { Boards } from './boards';
+import type { CaptureService } from './capture';
 import { registerSent } from './boards';
 import type { ServerClient } from './server-client';
 import type { StateStore } from './state-file';
@@ -63,6 +64,8 @@ export interface FollowerOptions {
   readonly boards: Boards;
   readonly names: NamesProvider;
   readonly viewerUrl: string | undefined;
+  /** Spec 038: the round images; none: announcements are as before (FR-726). */
+  readonly capture?: Pick<CaptureService, 'reveal' | 'request'> | undefined;
   readonly log: (code: string) => void;
   readonly fetch?: typeof fetch;
   readonly sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
@@ -187,6 +190,12 @@ export function createFollower(options: FollowerOptions): Follower {
       return;
     }
     const { event } = read;
+    // Spec 038 FR-717, FR-719: a received round is revealed, and its image is asked for at once (it runs while the announcement is read and posted).
+    let shot: Promise<Uint8Array | undefined> | undefined;
+    if (event.type === 'round-applied' && options.capture !== undefined) {
+      options.capture.reveal(entry.matchId, event.round);
+      shot = options.capture.request({ matchId: entry.matchId, mapId: entry.mapId, round: event.round, frame: 'round' });
+    }
     const extras = await extrasFor(channelId, entry.matchId, needOf(event, entry));
     const book = await names.get(entry.mapId);
     const messages = buildAnnouncement(event, { follow: entry, names: book, ...(options.viewerUrl === undefined ? {} : { viewerUrl: options.viewerUrl }) }, extras);
@@ -197,6 +206,19 @@ export function createFollower(options: FollowerOptions): Follower {
       const id = await poster.post(channelId, i === 0 && seconds !== undefined ? countdownMessage(message, seconds) : message);
       if (i === 0) firstId = id;
       registerSent(boards, channelId, id, message);
+    }
+    // FR-718: the image is added by an edit when it is ready; no image, a refused edit or a closed channel leave the announcement as it is.
+    const announced = messages[0];
+    if (shot !== undefined && firstId !== undefined && announced !== undefined && event.type === 'round-applied') {
+      const name = `round-${event.round}.png`;
+      void shot.then(async (png) => {
+        if (png === undefined) return;
+        try {
+          await poster.edit(channelId, firstId as string, { ...announced, image: { name, data: png } });
+        } catch {
+          log('image-edit-failed');
+        }
+      });
     }
     // The channel may have been stopped or replaced while this event was being read and posted: then nothing is saved.
     const current = store.get(channelId);

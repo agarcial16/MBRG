@@ -30,6 +30,7 @@ const replyLines = (entry: Extract<RunEntry, { kind: 'reply' }>): string[] => {
   if (r.type === 'text') return [`[solo ${entry.to}] ${r.text}`];
   if (r.type === 'select') return [`[solo ${entry.to}] ${r.text} (menú: ${r.options.map((o) => o.label).join(', ')})`];
   if (r.type === 'channel') return r.messages.flatMap((m) => messageLines(`[canal]`, m));
+  if (r.type === 'image') return [`[solo ${entry.to}] (imagen ${r.image.name})`];
   if (r.type === 'modal') return [`[solo ${entry.to}] ${r.title}: ${r.label}`];
   return [`[solo ${entry.to}] (sugerencias: ${r.choices.map((c) => c.name).join(', ')})`];
 };

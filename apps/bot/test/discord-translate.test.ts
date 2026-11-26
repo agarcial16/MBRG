@@ -135,7 +135,7 @@ describe('NFR-91 Discord limits in payloads', () => {
   it('FR-451 FR-554 FR-569 the slash command definition has the seven subcommands (history added by spec 024, ranking by spec 025) and autocomplete on the map and the faction', () => {
     const [root] = commandDefinitions();
     expect(root?.name).toBe('ff');
-    expect(root?.options.map((o) => o.name)).toEqual(['create', 'start', 'stop', 'board', 'predict', 'history', 'ranking']);
+    expect(root?.options.map((o) => o.name)).toEqual(['create', 'start', 'stop', 'board', 'predict', 'history', 'ranking', 'mapa']);
     expect(root?.options[5]).toEqual({ type: 1, name: 'history', description: 'Muestra las partidas terminadas de este servidor' });
     const create = root?.options[0];
     expect(create?.options?.[0]).toMatchObject({ name: 'map', required: true, autocomplete: true });

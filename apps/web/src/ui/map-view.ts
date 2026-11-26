@@ -114,6 +114,8 @@ export interface MapViewInput {
     owners: ReadonlyMap<TerritoryId, FactionId>;
     frozen?: { data: StepData; progress: number };
     camera?: Camera;
+    /** Spec 038: a capture lights these factions and dims the rest of the whole round (as the reveal tours end); none is the plain drawing. */
+    marks?: { lit: readonly number[]; dim: number };
   };
   /** Called after every frame the loop draws (the debug scene measures frame times here). */
   onFrame?: (nowMs: number) => void;
@@ -289,6 +291,8 @@ export function createMapView(input: MapViewInput): MapView {
     const detail = detailFactor(image, viewport);
     const view = { camera, viewport, dpr: ratio, detail, fonts: fontEpoch() };
     mapScene.setView(view);
+    // Spec 038: a capture holds its marks over the whole-round drawing (tour frames and steps never carry them).
+    if (start.marks !== undefined && overlay === undefined) mapScene.setTour(start.marks);
     renderer.draw();
     const shown =
       overlay !== undefined
