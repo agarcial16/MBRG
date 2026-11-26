@@ -86,7 +86,7 @@ async function draw(request: CaptureRequest): Promise<boolean> {
     values: pkg.values,
     colors: colors.value,
     viewport: area,
-    start: { round: request.round, owners, cameraFor, ...(marks === undefined ? {} : { marks }) },
+    start: { round: request.round, owners, cameraFor, layoutForCamera: true, ...(marks === undefined ? {} : { marks }) },
   });
   view.paint(0);
   await painted();
