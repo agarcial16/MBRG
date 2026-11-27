@@ -2,7 +2,7 @@
 # Includes chrome-headless-shell for the map images (spec 038); the bot state lives on the /data volume.
 FROM node:24-slim
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates libnss3 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 \
+ && apt-get install -y --no-install-recommends ca-certificates unzip libnss3 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 \
     libgbm1 libasound2 libxcomposite1 libxdamage1 libxrandr2 libxfixes3 libpango-1.0-0 libcairo2 libatk1.0-0 libdbus-1-3 \
     libexpat1 libglib2.0-0 fonts-liberation \
  && rm -rf /var/lib/apt/lists/*

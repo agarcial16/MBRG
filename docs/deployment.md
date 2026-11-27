@@ -155,6 +155,49 @@ form to submit predictions from the browser): put it in
 `http://127.0.0.1:8787` by default — the server's own host and default port —
 so a local server and a dev viewer need no configuration at all.
 
+## Production: Coolify (factionfall.bycomplex.dev)
+
+The live deployment runs on Coolify (https://coolify.bycomplex.dev), project
+`factionfall`, environment `production`, from `agarcial16/MBRG` branch `main`
+through the GitHub App (a push to `main` redeploys). Three applications:
+
+| App | Coolify uuid | Build | Address |
+|---|---|---|---|
+| `factionfall-web` (viewer) | `5ktyvvtpv5fiis9lzopm302h` | Railpack static, publish `/apps/web/dist`, nginx | `https://factionfall.bycomplex.dev` |
+| `factionfall-server` | `zdzbz91ck79h4cawa658eccc` | Dockerfile `deploy/server.Dockerfile`, port 8787, consistent container name | `https://factionfall.bycomplex.dev/api` (Traefik strips `/api`) |
+| `factionfall-bot` | `8kdvzgswv7m3dnqn44nda42p` | Dockerfile `deploy/bot.Dockerfile` (includes chrome-headless-shell) | no domain |
+
+**One origin.** The server's routes live at the root, and the viewer joins
+`VITE_MBRG_SERVER` and a path by plain concatenation, so the server is mounted
+under `/api` of the viewer's own domain: `VITE_MBRG_SERVER=https://factionfall.bycomplex.dev/api`
+(build-time variable of the web app). Viewer and server share one origin, so no
+CORS setting is needed for the play page; `MBRG_ALLOWED_ORIGINS` is still set to
+the viewer origin.
+
+**Volumes.** `factionfall-server-data` is mounted at `/data` on the server: the
+SQLite database (`MBRG_DATABASE=/data/mbrg.sqlite`, set in the Dockerfile) and
+the imported map packages that are never committed, under `/data/maps/<folder>`.
+The predefined maps ship in the image under `/app/maps`. `factionfall-bot-data`
+is mounted at `/data` on the bot (`MBRG_BOT_STATE_FILE=/data/bot-state.json`).
+To add an imported map: copy its folder into the server volume
+(`/var/lib/docker/volumes/<volume>/_data/maps/` on the host, owned by uid 1000),
+add it to `MBRG_MAPS` (and `MBRG_PUBLIC_MAPS`), and restart the server app.
+
+**Environment** (Coolify env UI; secrets live only there):
+
+- server: `MBRG_OPERATOR_CREDENTIAL` (random, generated at setup), `MBRG_CLIENTS`
+  (the `discord` client), `MBRG_MAPS` (the five maps: `dev`, `spain-provinces`,
+  `world-countries` from `/app/maps`; `spain-municipios`, `world-1815` from
+  `/data/maps`), `MBRG_PUBLIC_MAPS` (all five), `MBRG_ALLOWED_ORIGINS`,
+  `MBRG_TRUSTED_PROXY_HOPS=1`, `MBRG_FORCED_PHASE_SECONDS=10`. Host, port and
+  database path come from the Dockerfile.
+- bot: `DISCORD_TOKEN`, `MBRG_DISCORD_CREDENTIAL` (same value as in
+  `MBRG_CLIENTS`), `MBRG_SERVER_URL=http://zdzbz91ck79h4cawa658eccc:8787` (the
+  server container on the Docker network, not the public address),
+  `MBRG_VIEWER_URL=https://factionfall.bycomplex.dev`. `MBRG_CHROME_PATH` and the
+  state file come from the Dockerfile.
+- web: `VITE_MBRG_SERVER` (build time).
+
 ## Keeping it up: systemd
 
 Two units, one per process. Keep the environment in files **outside the repo**,
@@ -213,8 +256,8 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now mbrg-server mbrg-bot
 ```
 
-Docker would also work, but it is not set up here: the stack is minimal on
-purpose and new tooling needs a decision.
+For a plain VPS without Coolify; the Coolify deployment above uses the
+Dockerfiles in `deploy/` instead.
 
 ## TLS
 
@@ -397,6 +440,6 @@ on stderr, nothing written in the output folder), and `2` on usage error.
    `presentation.json`, `ids.png`) onto the VPS, add its map id and **absolute**
    path to `MBRG_MAPS` (for example
    `{"dev":"/opt/mbrg/maps/dev","spain":"/opt/mbrg/maps/spain"}`), and
-   optionally add the id to `MBRG_PUBLIC_MAPS` so Discord `/mbrg create` offers
+   optionally add the id to `MBRG_PUBLIC_MAPS` so Discord `/ff create` offers
    it. Restart the server (`systemctl restart mbrg-server`) and check
    `GET /config` if the map is public.
