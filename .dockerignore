@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+.git
+.claude
+.agents
+.vitest
+specs
+docs
+tools/build-map/data
+tools/build-map/out
+e2e-preview
+coverage
+*.sqlite
+*.sqlite-*
+.env*
