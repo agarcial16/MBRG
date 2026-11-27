@@ -8,6 +8,8 @@ export interface BotConfig {
   readonly viewerUrl: string | undefined;
   /** Spec 038 FR-726: the headless browser of the map images; with the viewer address, images are on. */
   readonly chromePath: string | undefined;
+  /** `MBRG_CHROME_NO_SANDBOX=1`: start Chrome without its sandbox, for a container whose host blocks user namespaces. */
+  readonly chromeNoSandbox: boolean;
   readonly stateFile: string;
 }
 
@@ -28,6 +30,7 @@ export function readConfig(env: Readonly<Record<string, string | undefined>>): C
       credential: (env.MBRG_DISCORD_CREDENTIAL as string).trim(),
       viewerUrl: viewer,
       chromePath: has('MBRG_CHROME_PATH') ? (env.MBRG_CHROME_PATH as string).trim() : undefined,
+      chromeNoSandbox: has('MBRG_CHROME_NO_SANDBOX') && (env.MBRG_CHROME_NO_SANDBOX as string).trim() === '1',
       stateFile: (env.MBRG_BOT_STATE_FILE as string).trim(),
     },
   };

@@ -96,6 +96,7 @@ Run from the repo root: `npm run start -w @mbrg/bot`.
 | `MBRG_BOT_STATE_FILE` | path of the bot's JSON state (channels followed, last matches). A missing file is an empty state; writes are atomic (temp file + rename). **required** |
 | `MBRG_VIEWER_URL` | the viewer's public base address, e.g. `https://mbrg.example.com`. Announcements link to `<viewer>?match=<id>&round=N&spectate=1`. Without it the bot posts no viewer links. With `MBRG_CHROME_PATH` it also turns map images on (below). optional |
 | `MBRG_CHROME_PATH` | absolute path of the `chrome-headless-shell` executable. With `MBRG_VIEWER_URL` it turns on the map images (spec 038): the image of each round and `/ff mapa`. Missing either one: images are off, the bot logs `[bot] images-disabled` once at start and everything else works as before. optional |
+| `MBRG_CHROME_NO_SANDBOX` | `1` starts Chrome with `--no-sandbox`. Only for a container whose host blocks unprivileged user namespaces (Chrome then dies with `No usable sandbox!`), as on the Coolify host. Any other value keeps the sandbox. optional |
 
 A missing variable prints `Falta la variable de entorno <NAME>.` (UI strings are
 Spanish) and exits 1 — no connection is attempted. On success it prints
@@ -194,8 +195,9 @@ add it to `MBRG_MAPS` (and `MBRG_PUBLIC_MAPS`), and restart the server app.
 - bot: `DISCORD_TOKEN`, `MBRG_DISCORD_CREDENTIAL` (same value as in
   `MBRG_CLIENTS`), `MBRG_SERVER_URL=http://zdzbz91ck79h4cawa658eccc:8787` (the
   server container on the Docker network, not the public address),
-  `MBRG_VIEWER_URL=https://factionfall.bycomplex.dev`. `MBRG_CHROME_PATH` and the
-  state file come from the Dockerfile.
+  `MBRG_VIEWER_URL=https://factionfall.bycomplex.dev`. `MBRG_CHROME_PATH`,
+  `MBRG_CHROME_NO_SANDBOX=1` and the state file come from the Dockerfile (the
+  host blocks the user namespaces Chrome's sandbox needs).
 - web: `VITE_MBRG_SERVER` (build time).
 
 ## Keeping it up: systemd

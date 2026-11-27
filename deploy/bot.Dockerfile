@@ -12,8 +12,11 @@ RUN npm ci --no-audit --no-fund
 # Pinned to the chrome-headless-shell revision of puppeteer-core 25.19.0.
 RUN npx @puppeteer/browsers install chrome-headless-shell@158.0.8127.88 --path /opt/chrome \
  && ln -s "$(find /opt/chrome -type f -name chrome-headless-shell | head -n 1)" /usr/local/bin/chrome-headless-shell
+# No Chrome sandbox: the host (Ubuntu 24.04) blocks the unprivileged user namespaces it needs ("No usable sandbox!"); the
+# container is the isolation boundary and Chrome only opens our own viewer.
 ENV NODE_ENV=production \
     MBRG_CHROME_PATH=/usr/local/bin/chrome-headless-shell \
+    MBRG_CHROME_NO_SANDBOX=1 \
     MBRG_BOT_STATE_FILE=/data/bot-state.json
 RUN mkdir -p /data && chown node:node /data
 USER node
