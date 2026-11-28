@@ -9,13 +9,18 @@ import type { BrowserDriver, BrowserSession } from './capture';
 const SIGNAL = "document.documentElement.dataset.capture === 'ready' || document.documentElement.dataset.capture === 'error'";
 const READ = "document.documentElement.dataset.capture";
 
-export function createChromeDriver(executablePath: string): BrowserDriver {
+const BASE_ARGS = ['--disable-dev-shm-usage', '--hide-scrollbars', '--mute-audio', '--enable-unsafe-swiftshader', '--use-angle=swiftshader'];
+
+/** Chrome's flags; `noSandbox` adds `--no-sandbox` (a container whose host blocks user namespaces; the page is our own viewer). */
+export const chromeArgs = (noSandbox: boolean): string[] => (noSandbox ? [...BASE_ARGS, '--no-sandbox'] : [...BASE_ARGS]);
+
+export function createChromeDriver(executablePath: string, noSandbox = false): BrowserDriver {
   return {
     async launch(): Promise<BrowserSession> {
       const browser = await puppeteer.launch({
         executablePath,
         headless: 'shell',
-        args: ['--disable-dev-shm-usage', '--hide-scrollbars', '--mute-audio', '--enable-unsafe-swiftshader', '--use-angle=swiftshader'],
+        args: chromeArgs(noSandbox),
       });
       return {
         async shoot(shot) {

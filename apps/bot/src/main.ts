@@ -36,7 +36,7 @@ async function main(): Promise<void> {
   const capture =
     config.viewerUrl === undefined || config.chromePath === undefined
       ? undefined
-      : createCaptureService({ viewerUrl: config.viewerUrl, driver: createChromeDriver(config.chromePath), mapSize: (mapId) => client.mapSize(mapId), after: realAfter, log });
+      : createCaptureService({ viewerUrl: config.viewerUrl, driver: createChromeDriver(config.chromePath, config.chromeNoSandbox), mapSize: (mapId) => client.mapSize(mapId), after: realAfter, log });
   if (capture === undefined) log('images-disabled');
   let handle: ReturnType<typeof createHandler> | undefined;
   let disable: ((channelId: string, messageId: string) => Promise<void>) | undefined;

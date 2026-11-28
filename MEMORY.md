@@ -3,6 +3,7 @@ Durable decisions, limits and lessons; no per-task diary (that is `specs/<id>/PR
 
 ## State
 Specs 001-038 implemented and merged into `main`; 039 (conquered-label context, Pacific island markers, main-piece capture framing) in PR. Branch from `main`, PR into `main`.
+Production: Coolify project `factionfall`, https://factionfall.bycomplex.dev (server under `/api`, bot worker, 5 maps; imported maps on the server volume): `docs/deployment.md`.
 Predefined maps: `maps/spain-provinces` (52 provinces), `maps/world-countries` (193 countries, 8 sea zones, Robinson; data in `tools/build-map/data/world-countries/`).
 Next: viewer follow-ups V3 (`docs/board.md`), landing page and map selection, painted-image importer (route A), replay of finished matches.
 

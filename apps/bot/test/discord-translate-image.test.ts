@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { decide, deliveryOf } from '../src/core/actions';
 import { appliedEmbed } from '../src/core/embeds';
 import { readConfig } from '../src/core/env';
+import { chromeArgs } from '../src/io/capture-chrome';
 import type { OutMessage } from '../src/core/model';
 import { STRINGS } from '../src/core/strings';
 import { EPHEMERAL, commandDefinitions, fromCommand, messagePayload, replyPayload } from '../src/discord/translate';
@@ -71,5 +72,19 @@ describe('spec 038 configuration (FR-726)', () => {
     expect(read({})).toBeUndefined();
     expect(read({ MBRG_CHROME_PATH: '   ' })).toBeUndefined();
     expect(read({ MBRG_CHROME_PATH: ' /opt/chrome-headless-shell ' })).toBe('/opt/chrome-headless-shell');
+  });
+
+  it('Chrome keeps its sandbox unless MBRG_CHROME_NO_SANDBOX is exactly 1', () => {
+    const read = (extra: Record<string, string>) => {
+      const result = readConfig({ ...base, ...extra });
+      return result.ok ? result.config.chromeNoSandbox : 'missing';
+    };
+    expect(read({})).toBe(false);
+    expect(read({ MBRG_CHROME_NO_SANDBOX: '0' })).toBe(false);
+    expect(read({ MBRG_CHROME_NO_SANDBOX: 'true' })).toBe(false);
+    expect(read({ MBRG_CHROME_NO_SANDBOX: ' 1 ' })).toBe(true);
+    expect(chromeArgs(false)).not.toContain('--no-sandbox');
+    expect(chromeArgs(true)).toContain('--no-sandbox');
+    expect(chromeArgs(true).slice(0, -1)).toStrictEqual(chromeArgs(false));
   });
 });
